@@ -1,0 +1,7 @@
+To Do:
+[ ] Automate Signal & Background Detection (machine learning)
+    [ ] Integrate Adam's Project on scikit-learn
+[ ] Improve commenting and help text for functions
+[ ] Implement Despiking Routines
+[ ] Think about how the two classes interact - efficiency?
+[ ] Gui ROI selection?
