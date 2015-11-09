@@ -6,31 +6,38 @@ import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gaussian_kde
+from mpld3 import plugins
+from IPython import display
+from mpld3 import enable_notebook, disable_notebook
+
 
 class analyse(object):
-    def __init__(self,csv_folder):
+    def __init__(self, csv_folder):
         self.folder = csv_folder
         self.files = np.array(os.listdir(self.folder))
 
-        self.data = np.array([D(self.folder + f) for f in self.files if 'csv' in f])
+        self.data = np.array([D(self.folder + f) for f
+                              in self.files if 'csv' in f])
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].cols[1:])
 
         self.data_dict = {}
-        for s,d in zip(self.samples, self.data):
-            self.data_dict[s] = d
+        for s, d in zip(self.samples, self.data):
+            if 'STD' not in s:
+                self.data_dict[s] = d
 
         self.stds = []
         _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
 
-        print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))# + '\n   '.join(self.files))
-        print('{:.0f} standards, {:.0f} samples'.format(len(self.stds), len(self.data) - len(self.stds)))
+        print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
+        print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
+              len(self.data) - len(self.stds)))
         print('Analytes: ' + ' '.join(self.analytes))
 
     # function for identifying sample and background regions
-    def trace_id(self,analytes=['Ca44','Al27','Ba137','Ba138']):
+    def trace_id(self, analytes=['Ca44', 'Al27', 'Ba137', 'Ba138']):
         for s in self.data:
-            fig = s.tplot(analytes,scale='log')
+            fig = s.tplot(analytes, scale='log')
             plugins.connect(fig, plugins.MousePosition(fontsize=14))
             display.clear_output(wait=True)
             display.display(fig)
@@ -38,8 +45,10 @@ class analyse(object):
             OK = False
             while OK is False:
                 try:
-                    bkg = [float(f) for f in input('Enter background limits (as: start,end,start,end):\n').split(',')]
-                    bkg = np.array(bkg).reshape(len(bkg)//2,2)
+                    bkg = [float(f) for f in
+                           input('Enter background limits (as: \
+                                 start, end, start, end):\n').split(', ')]
+                    bkg = np.array(bkg).reshape(len(bkg)//2, 2)
                     OK = True
                 except:
                     print("Incorrect Values, try again:\n")
@@ -47,65 +56,74 @@ class analyse(object):
             OK = False
             while OK is False:
                 try:
-                    sig = [float(f) for f in input('Enter sample limits (as: start,end,start,end):\n').split(',')]
-                    sig = np.array(sig).reshape(len(sig)//2,2)
+                    sig = [float(f) for f in
+                           input('Enter sample limits (as: start, \
+                                 end, start, end):\n').split(', ')]
+                    sig = np.array(sig).reshape(len(sig)//2, 2)
                     OK = True
                 except:
                     print("Incorrect Values, try again:\n")
 
             s.bkgrng = bkg
             s.sigrng = sig
-            s.save_ranges()
+        self.save_ranges()
 
         display.clear_output()
         return
 
     def save_ranges(self):
         if os.path.isfile('bkgrngs'):
-            f = input('Range files already exist. Do you watn to overwrite them (old files will be lost)? [Y/n]: ')
+            f = input('Range files already exist. Do you want \
+                      to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
                 print('Ranges not saved. Run self.save_ranges() to try again.')
                 return
         bkgrngs = []
         sigrngs = []
         for d in self.data:
-            bkgrngs.append(d.sample + ' ' + str(d.bkgrng[0]))
-            sigrngs.append(d.sample + ' ' + str(d.sigrng[0]))
+            bkgrngs.append(d.sample + ':' + str(d.bkgrng.tolist()))
+            sigrngs.append(d.sample + ':' + str(d.sigrng.tolist()))
         bkgrngs = '\n'.join(bkgrngs)
         sigrngs = '\n'.join(sigrngs)
 
-        fb = open('bkgrngs','w')
+        fb = open('bkgrngs', 'w')
         fb.write(bkgrngs)
         fb.close()
-        fs = open('sigrngs','w')
+        fs = open('sigrngs', 'w')
         fs.write(sigrngs)
         fs.close()
         return
 
-    def load_ranges(self,bkgrngs=None,sigrngs=None):
+    def load_ranges(self, bkgrngs=None, sigrngs=None):
         if bkgrngs is not None:
             bkgs = open(bkgrngs).readlines()
             samples = []
             bkgrngs = []
             for b in bkgs:
-                samples.append(re.match('(.*) {1}(.*)',b.strip()).groups()[0])
-                bkgrngs.append(eval(re.match('(.*) {1}(.*)',b.strip()).groups()[1]))
+                samples.append(re.match('(.*):{1}(.*)',
+                               b.strip()).groups()[0])
+                bkgrngs.append(eval(re.match('(.*):{1}(.*)',
+                               b.strip()).groups()[1]))
             samples = np.array(samples)
             bkgrngs = np.array(bkgrngs)
             for i in range(len(self.samples)):
-                self.data[i].bkgrng = bkgrngs[samples == self.data[i].sample][0]
+                self.data[i].bkgrng = np.array(bkgrngs[samples ==
+                                               self.data[i].sample][0])
         if sigrngs is not None:
             sigs = open(sigrngs).readlines()
             samples = []
             sigrngs = []
             for s in sigs:
-                samples.append(re.match('(.*) {1}(.*)',s.strip()).groups()[0])
-                sigrngs.append(eval(re.match('(.*) {1}(.*)',s.strip()).groups()[1]))
+                samples.append(re.match('(.*):{1}(.*)',
+                               s.strip()).groups()[0])
+                sigrngs.append(eval(re.match('(.*):{1}(.*)',
+                               s.strip()).groups()[1]))
             samples = np.array(samples)
             bkgrngs = np.array(bkgrngs)
             sigrngs = np.array(sigrngs)
             for i in range(len(self.samples)):
-                self.data[i].sigrng = sigrngs[samples == self.data[i].sample][0]
+                self.data[i].sigrng = np.array(sigrngs[samples ==
+                                               self.data[i].sample][0])
         return
 
     # functions for background correction and ratios
@@ -124,6 +142,7 @@ class analyse(object):
 
     # functions for identifying SRMs
     def srm_id(self):
+        enable_notebook()  # make the plot interactive
         for s in self.stds:
             fig = s.tplot(scale='log')
 
@@ -140,7 +159,10 @@ class analyse(object):
                 while OK is False:
                     try:
                         name = input('Enter Standard Name: ')
-                        ans = [float(f) for f in input(name + ': Enter start and end points of data (as: start,end)\n').split(',')]
+                        ans = [float(f) for f in
+                               input(name + ': Enter start and \
+                                     end points of data (as: start, \
+                                                         end)\n').split(', ')]
                         OK = True
                     except:
                         print("Incorrect Values, try again:\n")
@@ -152,33 +174,36 @@ class analyse(object):
             s.std_labels = {}
             for srm in s.std_rngs.keys():
                 s.std_labels[srm] = np.zeros(s.Time.size)
-                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) & (s.Time <= max(s.std_rngs[srm]))] = 1
-
+                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
+                                  (s.Time <= max(s.std_rngs[srm]))] = 1
+        disable_notebook()  # stop the interactivity
         return
 
     def save_srm_ids(self):
         if os.path.isfile('srmrngs'):
-            f = input('SRM range files already exist. Do you watn to overwrite them (old files will be lost)? [Y/n]: ')
+            f = input('SRM range files already exist. Do you want to \
+                      overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
-                print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
+                print('SRM ranges not saved. Run \
+                      self.save_srm_ids() to try again.')
                 return
         srm_ids = []
         for d in self.stds:
             srm_ids.append(d.sample + ' ' + str(d.std_rngs))
         srm_ids = '\n'.join(srm_ids)
 
-        fb = open('srmrngs','w')
+        fb = open('srmrngs', 'w')
         fb.write(srm_ids)
         fb.close()
         return
 
-    def load_srm_ids(self,srm_ids):
+    def load_srm_ids(self, srm_ids):
         rng = open(srm_ids).readlines()
         samples = []
         ids = []
         for r in rng:
-            samples.append(re.match('(.*) ({.*)',r.strip()).groups()[0])
-            ids.append(eval(re.match('(.*) ({.*)',r.strip()).groups()[1]))
+            samples.append(re.match('(.*) ({.*)', r.strip()).groups()[0])
+            ids.append(eval(re.match('(.*) ({.*)', r.strip()).groups()[1]))
         samples = np.array(samples)
         ids = np.array(ids)
         for s in self.stds:
@@ -188,19 +213,24 @@ class analyse(object):
             s.std_labels = {}
             for srm in s.std_rngs.keys():
                 s.std_labels[srm] = np.zeros(s.Time.size)
-                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) & (s.Time <= max(s.std_rngs[srm]))] = 1
+                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
+                                  (s.Time <= max(s.std_rngs[srm]))] = 1
 
         return
 
     # apply calibration to data
-    def calibrate(self,force_zero=True):
+    def calibrate(self, force_zero=True):
+        # can store calibration function in self and use *coefs?
         # get SRM values
-        f = open('/Users/oscarbranson/UCDrive/Projects/latools2/Resources/GeoRem_150105_ratios.csv').readlines()
+        f = open('/Users/oscarbranson/UCDrive/Projects/latools2/\
+                 Resources/GeoRem_150105_ratios.csv').readlines()
         self.srm_vals = {}
         for srm in self.stds[0].std_rngs.keys():
             self.srm_vals[srm] = {}
             for a in self.analytes:
-                self.srm_vals[srm][a] = [l.split(',')[1] for l in f if re.match(a[:2]+'.*'+srm, l.strip()) is not None][0]
+                self.srm_vals[srm][a] = \
+                    [l.split(', ')[1] for l in f if
+                     re.match(a[:2] + '.*' + srm, l.strip()) is not None][0]
 
         # make calibration
         self.calib_dict = {}
@@ -219,13 +249,20 @@ class analyse(object):
                     self.calib_data[a]['counts'].append(y)
                     self.calib_data[a]['srm'].append(x)
 
-            self.calib_data[a]['counts'] = np.concatenate(self.calib_data[a]['counts']).astype(float)
-            self.calib_data[a]['srm'] = np.concatenate(self.calib_data[a]['srm']).astype(float)
+            self.calib_data[a]['counts'] = \
+                np.concatenate(self.calib_data[a]['counts']).astype(float)
+            self.calib_data[a]['srm'] = \
+                np.concatenate(self.calib_data[a]['srm']).astype(float)
 
             if force_zero:
-                self.calib_dict[a],_,_,_ = np.linalg.lstsq(self.calib_data[a]['counts'][:,np.newaxis],self.calib_data[a]['srm'])
+                self.calib_dict[a], _, _, _ = \
+                    np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
+                                    self.calib_data[a]['srm'])
             else:
-                self.calib_dict[a],_,_,_ = np.linalg.lstsq(np.vstack([self.calib_data[a]['counts'],np.ones(self.calib_data[a]['counts'].size())]).T,self.calib_data[a]['srm'])
+                self.calib_dict[a], _, _, _ = \
+                    np.linalg.lstsq(np.vstack([self.calib_data[a]['counts'],
+                                    np.ones(self.calib_data[a]['counts'].size())]).T,
+                                    self.calib_data[a]['srm'])
 
         # apply calibration
         for d in self.data:
@@ -233,46 +270,92 @@ class analyse(object):
 
     def save_calibration(self):
         if os.path.isfile('calibdat'):
-            f = input('SRM range files already exist. Do you watn to overwrite them (old files will be lost)? [Y/n]: ')
+            f = input('SRM range files already exist. Do you want \
+                      to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
-                print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
+                print('SRM ranges not saved. Run self.save_srm_ids() \
+                      to try again.')
                 return
-        fb = open('calibdat','w')
+        fb = open('calibdat', 'w')
         fb.write(str(self.calib_dict))
         fb.close
 
+    def distribution_check(self, analytes=None, mode='lower'):
+        """
+        Checks the specified analytes for bimodality by looking for minima
+        in a gaussian kde data density curve. If minima are found, data either
+        above or below the threshold are excluded. Behaviour is determined by
+        the 'mode' argument.
+
+        mode:   str ('lower'/'upper')
+            'lower': data below the cutoff are kept.
+            'upper': data above the cutoff are kept.
+        """
+        if analytes is None:
+            analytes = self.analytes
+        analytes = np.array(analytes).flatten()
+        for d in self.data:
+            d.bimodality_fix(analytes, report=False, mode=mode)
+
+    def distribution_reports(self, analytes=['Ba138'], dirpath='./reports'):
+        """
+        Saves data distribution pdfs for all analytes specified,
+        showing where they have been cut by a bimodality check
+        (if it has been run).
+        pdfs are saved in the specified directory (dirpath).
+        """
+        if not os.path.isdir(dirpath):
+            os.mkdir(dirpath)
+        analytes = np.array([analytes]).flatten()
+        for k, v in self.data_dict.items():
+            for a in analytes:
+                fig = v.bimodality_report(a)
+                fig.savefig(dirpath + '/' + a + '_' + k + '.pdf')
+                fig.clf()
+        return
+
     # plot calibrations
-    def calibration_plot(self,analytes=None,plot='errbar'):
+    def calibration_plot(self, analytes=None, plot='errbar'):
         cmaps = self.data[0].cmap
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
 
-        def rangecalc(xs,ys,pad=0.05):
+        def rangecalc(xs, ys, pad=0.05):
             xd = max(xs)
             yd = max(ys)
-            return ([0 - pad * xd, max(xs) + pad * xd], [0 - pad * yd, max(ys) + pad * yd])
+            return ([0 - pad * xd, max(xs) + pad * xd],
+                    [0 - pad * yd, max(ys) + pad * yd])
 
         n = len(analytes)
-        if n%4 is 0:
+        if n % 4 is 0:
             nrow = n/4
         else:
             nrow = n//4 + 1
 
-        fig, axes = plt.subplots(nrow,4,figsize=[12,3 * nrow],tight_layout=True)
+        fig, axes = plt.subplots(nrow, 4, figsize=[12, 3 * nrow],
+                                 tight_layout=True)
 
-        for ax,a in zip(axes.flat,analytes):
+        for ax, a in zip(axes.flat, analytes):
             if plot is 'errbar':
                 srms = []
                 means = []
                 stds = []
                 for s in np.unique(self.calib_data[a]['srm']):
                     srms.append(s)
-                    means.append(np.nanmean(self.calib_data[a]['counts'][self.calib_data[a]['srm']==s]))
-                    stds.append(np.nanstd(self.calib_data[a]['counts'][self.calib_data[a]['srm']==s]))
-                ax.errorbar(means,srms,xerr=stds,lw=0,elinewidth=2,ecolor=cmaps[a])
+                    means.append(np.nanmean(self.calib_data[a]
+                                 ['counts'][self.calib_data[a]
+                                 ['srm'] == s]))
+                    stds.append(np.nanstd(self.calib_data[a]
+                                ['counts'][self.calib_data[a]
+                                ['srm'] == s]))
+                ax.errorbar(means, srms, xerr=stds, lw=0, elinewidth=2,
+                            ecolor=cmaps[a])
             if plot is 'scatter':
-                ax.scatter(self.calib_data[a]['counts'],self.calib_data[a]['srm'],color=cmaps[a],alpha=0.2)
-            xlim, ylim = rangecalc(self.calib_data[a]['counts'],self.calib_data[a]['srm'])
+                ax.scatter(self.calib_data[a]['counts'],
+                           self.calib_data[a]['srm'],
+                           color=cmaps[a], alpha=0.2)
+            xlim, ylim = rangecalc(self.calib_data[a]['counts'],
+                                   self.calib_data[a]['srm'])
             xlim[0] = ylim[0] = 0
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
@@ -285,14 +368,16 @@ class analyse(object):
                 label = 'y = {:0.3e}x'.format(coefs[0])
             else:
                 line = x * coefs[0] + coefs[1]
-                label = 'y = {:0.3e}x + {:0.3e}'.format(coefs[0],coefs[1])
-            ax.plot(x,line,color=(0,0,0,0.5),ls='dashed')
-            ax.text(.05,.95,a,transform=ax.transAxes,weight='bold',va='top',ha='left',size=12)
+                label = 'y = {:0.3e}x + {:0.3e}'.format(coefs[0], coefs[1])
+            ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
+            ax.text(.05, .95, a, transform=ax.transAxes,
+                    weight='bold', va='top', ha='left', size=12)
             ax.set_xlabel('counts/counts Ca')
             ax.set_ylabel('mol/mol Ca')
 
             # write calibration equation on graph
-            ax.text(0.98,0.04,label,transform=ax.transAxes,va='bottom',ha='right')
+            ax.text(0.98, 0.04, label, transform=ax.transAxes,
+                    a='bottom', ha='right')
 
         for ax in axes.flat[n:]:
             fig.delaxes(ax)
@@ -311,17 +396,19 @@ class analyse(object):
                 for a in self.analytes:
                     self.focus[a].append(s.focus[a])
 
-        for k,v in self.focus.items():
+        for k, v in self.focus.items():
             self.focus[k] = np.array(v)
 
     # crossplot of all data
-    def crossplot(self,analytes=None,ptype='scatter',lognorm=True,bins=25,**kwargs):
+    def crossplot(self, analytes=None, ptype='scatter', lognorm=True,
+                  bins=25, **kwargs):
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
         cmaps = self.data[0].cmap
 
         numvars = len(analytes)
-        fig, axes = plt.subplots(nrows=numvars, ncols=numvars, figsize=(12,12))
+        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+                                 figsize=(12, 12))
         fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
         for ax in axes.flat:
@@ -340,7 +427,7 @@ class analyse(object):
         if ptype is 'scatter':
             # Plot the data.
             for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i,j), (j,i)]:
+                for x, y in [(i, j), (j, i)]:
                     # set multipliers and units
                     mx = my = 1000
                     if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
@@ -350,17 +437,18 @@ class analyse(object):
                     # make plot
                     px = self.focus[analytes[x]] * mx
                     py = self.focus[analytes[y]] * my
-                    axes[x,y].scatter(px, py, color=cmaps[analytes[x]], **kwargs)
-                    axes[x,y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x,y].set_ylim([np.nanmin(py), np.nanmax(py)])
+                    axes[x, y].scatter(px, py, color=cmaps[analytes[x]],
+                                       **kwargs)
+                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
         if ptype is 'hist2d':
             cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
                       'Greens', 'Greys', 'Oranges', 'OrRd',
                       'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                      'RdPu','Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
             for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i,j), (j,i)]:
+                for x, y in [(i, j), (j, i)]:
                     # set unit multipliers
                     mx = my = 1000
                     if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
@@ -368,14 +456,19 @@ class analyse(object):
                     if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
                         my = 1000000
                     # make plot
-                    px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
-                    py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
+                    px = self.focus[analytes[x]][~np.isnan(self.focus[
+                                                           analytes[x]])] * mx
+                    py = self.focus[analytes[y]][~np.isnan(self.focus[
+                                                           analytes[y]])] * my
                     if lognorm:
-                        axes[x,y].hist2d(px,py,bins,norm=mpl.colors.LogNorm(),cmap=plt.get_cmap(cmlist[x]))
+                        axes[x, y].hist2d(px, py, bins,
+                                          norm=mpl.colors.LogNorm(),
+                                          cmap=plt.get_cmap(cmlist[x]))
                     else:
-                        axes[x,y].hist2d(px,py,bins,cmap=plt.get_cmap(cmlist[x]))
-                    axes[x,y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x,y].set_ylim([np.nanmin(py), np.nanmax(py)])
+                        axes[x, y].hist2d(px, py, bins,
+                                          cmap=plt.get_cmap(cmlist[x]))
+                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
         for i, label in enumerate(analytes):
             # assign unit label
@@ -383,21 +476,22 @@ class analyse(object):
             if np.nanmin(self.focus[label] * 1000) < 0.1:
                 unit = '\n($\mu$mol/mol)'
             # plot label
-            axes[i,i].annotate(label+unit, (0.5, 0.5), xycoords='axes fraction',
-                    ha='center', va='center')
+            axes[i, i].annotate(label+unit, (0.5, 0.5),
+                                xycoords='axes fraction',
+                                ha='center', va='center')
 
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
-            axes[j,i].xaxis.set_visible(True)
+            axes[j, i].xaxis.set_visible(True)
             labels = ax.get_xticklabels()
-            for label in axes[j,i].get_xticklabels():
+            for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
 
-            axes[i,j].yaxis.set_visible(True)
+            axes[i, j].yaxis.set_visible(True)
 
         return fig, axes
 
-
-    def sample_stats(self,analytes=None,filt=True,stat_fns=[np.nanmean,np.nanstd]):
+    def sample_stats(self, analytes=None, filt=True,
+                     stat_fns=[np.nanmean, np.nanstd]):
         """
         Returns samples, analytes, and arrays of statistics
         of shape (samples, analytes). Statistics are calculated
@@ -411,48 +505,53 @@ class analyse(object):
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         filt: boolean
-            Should the means take any active filters into account (in self.filt)?
+            Should the means take any active filters into account
+            (in self.filt)?
 
         Returns:
-            Adds dict to analyse object containing samples, analytes and functions and data.
+            Adds dict to analyse object containing samples, analytes and
+            functions and data.
 
         """
         if analytes is None:
             analytes = self.analytes
         self.stats = {}
-        self.stats['analytes'] = analytes
-        self.stats['samples'] = self.samples
+        self.stats['analytes'] = np.array(analytes)
+        self.stats['samples'] = np.array([s for s in self.samples if 'STD'
+                                         not in s])
 
         # calculate stats for each sample
         for s in self.data:
-            s.sample_stats(analytes,filt=filt,stat_fns=stat_fns)
+            if 'STD' not in s.sample:
+                s.sample_stats(analytes, filt=filt, stat_fns=stat_fns)
 
         for f in stat_fns:
             self.stats[f.__name__] = []
             for s in self.data:
-                self.stats[f.__name__].append(s.stats[f.__name__])
+                if 'STD' not in s.sample:
+                    self.stats[f.__name__].append(s.stats[f.__name__])
             self.stats[f.__name__] = np.array(self.stats[f.__name__])
 
 
         # for f in stat_fns:
-        #     setattr(self,f.__name__,[])
+        #     setattr(self, f.__name__, [])
         #     for s in self.data:
-        #         setattr(s,f.__name__,[])
+        #         setattr(s, f.__name__, [])
         #         if analytes is None:
         #             analytes = self.analytes
         #         for a in analytes:
-        #             if filt and hasattr(s,filts):
+        #             if filt and hasattr(s, filts):
         #                 if a in s.filts.keys():
         #                     ind = s.filts[a]
         #             else:
         #                 ind = np.array([True] * s.focus[a].size)
 
-        #             getattr(s,f.__name__).append(f(s.focus[a][ind]))
-        #         getattr(self,f.__name__).append(getattr(s,f.__name__))
-        #     setattr(self,f.__name__,np.array(getattr(self,f.__name__)))
-        # return (np.array([f.__name__ for f in stat_fns]), np.array(self.samples), np.array(analytes)), np.array([getattr(self,f.__name__) for f in stat_fns])
+        #             getattr(s, f.__name__).append(f(s.focus[a][ind]))
+        #         getattr(self, f.__name__).append(getattr(s, f.__name__))
+        #     setattr(self, f.__name__, np.array(getattr(self, f.__name__)))
+        # return (np.array([f.__name__ for f in stat_fns]), np.array(self.samples), np.array(analytes)), np.array([getattr(self, f.__name__) for f in stat_fns])
 
-    def getstat(self,analyte=None,sample=None):
+    def getstat(self, analyte=None, sample=None):
         """
         Function to grab stats for a particular analyte and/or sample.
         """
@@ -469,23 +568,57 @@ class analyse(object):
             sind = np.array([True] * self.stats['samples'].size)
 
         # combine them into a 2D array, the same shape as the Statistics
-        ind = aind & sind[:,np.newaxis]
+        ind = aind & sind[:, np.newaxis]
 
         # get the name of the stat functions
-        fns = [k for k in self.stats.keys() if k is not 'analytes' and k is not 'samples']
+        fns = [k for k in self.stats.keys() if k is not 'analytes' and k
+               is not 'samples']
 
         # apply the 2D index to grab the stats
         s = {}
         for f in fns:
             s[f] = self.stats[f][ind]
 
+        if analyte is None:
+            s['analytes'] = self.stats['analytes']
+        if sample is None:
+            s['samples'] = self.stats['samples']
+
         return s
 
+    def stat_csvtable(self, stat='mean', file=None):
+        """
+        Generates a csv table of statistics for all samples and analytes.
+        stat:   str
+            a string that describes one of the statistics calculated for the
+            samples, e.g. 'mean' or 'std'. String doesn't have to match the
+            stat function name exactly, but must be contained within it.
+            (i.e. 'mean' will return results for 'nanmean').
+        file:   str
+            if a file is specified, the csv will be saved directly, otherwise
+            the raw csv string will be returned.
 
+        """
+        head = '# Statistic: ' + stat + '\n' + 'Sample, '+', '\
+            .join(self.stats['analytes'])
+        dat = self.stats[[k for k in self.stats.keys() if stat in k][0]]
+        outrows = []
+        for i in range(self.stats['samples'].size):
+            outrows.append(self.stats['samples'][i] + ', ' + ', '
+                           .join(dat[i, :].astype(str)))
+        out = head + '\n' + '\n'.join(outrows)
+
+        if file is not None:
+            f = open(file, 'w')
+            f.write(out)
+            f.close
+            return
+        else:
+            return out
 
 
 class D(object):
-    def __init__(self,csv_file):
+    def __init__(self, csv_file):
         self.file = csv_file
         self.sample = os.path.basename(self.file).split('.')[0]
 
@@ -493,17 +626,19 @@ class D(object):
         f = open(self.file)
         lines = f.readlines()
         self.Dfile = lines[0]
-        info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) .*AcqMethod (.*)',lines[2]).groups()
+        info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) \
+                         .*AcqMethod (.*)', lines[2]).groups()
         self.date = info[0]
         self.method = info[1]
         self.despiked = lines[3][:8] == 'Despiked'
-        self.cols = np.array([l for l in lines if l[:4] == 'Time'][0].strip().split(','))
+        self.cols = np.array([l for l in lines if l[:4] == 'Time']
+                             [0].strip().split(', '))
         self.cols[0] = 'Time'
         self.analytes = self.cols[1:]
         f.close()
 
         # load data
-        raw = np.loadtxt(csv_file,delimiter=',',skiprows=5).T
+        raw = np.loadtxt(csv_file, delimiter=', ', skiprows=5).T
         self.rawdata = {}
         for i in range(len(self.cols)):
             self.rawdata[self.cols[i]] = raw[i]
@@ -511,46 +646,47 @@ class D(object):
         # most recently worked on data step
         self.setfocus('rawdata')
 
-        self.cmap = dict(zip(self.cols[1:], cb.get_map('Paired', 'qualitative', len(self.cols)).hex_colors))
+        self.cmap = dict(zip(self.cols[1:], cb.get_map('Paired', 'qualitative',
+                         len(self.cols)).hex_colors))
 
         # set up flags
         self.sig = np.zeros(self.Time.size)
         self.bkg = np.zeros(self.Time.size)
         self.trn = np.zeros(self.Time.size)
-        self.bkgrng = np.array([]).reshape(0,2)
-        self.sigrng = np.array([]).reshape(0,2)
+        self.bkgrng = np.array([]).reshape(0, 2)
+        self.sigrng = np.array([]).reshape(0, 2)
 
         # set up corrections dict
         self.corrections = {}
 
-    def setfocus(self,stage):
+    def setfocus(self, stage):
         """
         Sets the 'focus' attribute of the dataset.
         Used to update the 'working stage' of the data.
         Functions generally operate on the 'focus' dataset,
         so if steps are done out of sequence, things will break.
         """
-        self.focus = getattr(self,stage)
+        self.focus = getattr(self, stage)
         for k in self.focus.keys():
-            setattr(self,k,self.focus[k])
+            setattr(self, k, self.focus[k])
 
-    def bkgrange(self,rng=None):
+    def bkgrange(self, rng=None):
         if rng is not None:
             if np.array(rng).ndim is 1:
-                self.bkgrng = np.append(self.bkgrng,np.array([rng]),0)
+                self.bkgrng = np.append(self.bkgrng, np.array([rng]), 0)
             else:
-                self.bkgrng = np.append(self.bkgrng,np.array(rng),0)
+                self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
         for r in self.bkgrng:
             self.bkg[(self.Time >= min(r)) & (self.Time <= max(r))] = 1
         self.trn[(self.bkg == 0) & (self.sig == 0)] = 1
         return
 
-    def sigrange(self,rng=None):
+    def sigrange(self, rng=None):
         if rng is not None:
             if np.array(rng).ndim is 1:
-                self.sigrng = np.append(self.sigrng,np.array([rng]),0)
+                self.sigrng = np.append(self.sigrng, np.array([rng]), 0)
             else:
-                self.sigrng = np.append(self.sigrng,np.array(rng),0)
+                self.sigrng = np.append(self.sigrng, np.array(rng), 0)
         for r in self.sigrng:
             self.sig[(self.Time >= min(r)) & (self.Time <= max(r))] = 1
         self.trn[(self.bkg == 0) & (self.sig == 0)] = 1
@@ -574,26 +710,31 @@ class D(object):
         self.setfocus('bkgsub')
         return
 
-    def ratio(self,denominator='Ca43',stage='signal'):
+    def ratio(self, denominator='Ca43', stage='signal'):
         self.ratios = {}
-        for i in range(1,len(self.cols)):
-            self.ratios[self.cols[i]] = self.focus[self.cols[i]] / self.focus[denominator]
+        for i in range(1, len(self.cols)):
+            self.ratios[self.cols[i]] = \
+                self.focus[self.cols[i]] / self.focus[denominator]
         self.setfocus('ratios')
         return
 
-    def calibrate(self,calib_dict):
+    def calibrate(self, calib_dict):
+        # can have calibration function stored in self and pass *coefs?
         self.calibrated = {}
-        for i in range(1,len(self.cols)):
+        for i in range(1, len(self.cols)):
             coefs = calib_dict[self.cols[i]]
             if len(coefs) == 1:
-                self.calibrated[self.cols[i]] = self.focus[self.cols[i]] * coefs
+                self.calibrated[self.cols[i]] = \
+                    self.focus[self.cols[i]] * coefs
             else:
-                self.calibrated[self.cols[i]] = self.focus[self.cols[i]] * coefs[0] + coefs[1]
+                self.calibrated[self.cols[i]] = \
+                    self.focus[self.cols[i]] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
-    ### Function for finding sample statistics
-    def sample_stats(self,analytes=None,filt=True,stat_fns=[np.nanmean,np.nanstd]):
+    # Function for finding sample statistics
+    def sample_stats(self, analytes=None, filt=True,
+                     stat_fns=[np.nanmean, np.nanstd]):
         """
         Returns samples, analytes, and arrays of statistics
         of shape (samples, analytes). Statistics are calculated
@@ -625,18 +766,18 @@ class D(object):
             self.stats[f.__name__] = np.array(self.stats[f.__name__])
         return
 
-    ### Data Selections Tools
-    def findmins(self,x,y):
+    # Data Selections Tools
+    def findmins(self, x, y):
         """
         Function to find local minima.
         Returns array of points in x where y has a local minimum.
         """
-        return x[np.r_[False,y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
+        return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
     def bimodality_fix(self, analytes, mode='lower', report=False):
         """
-        Function that checks for bimodality in the data, and excludes either the higher or
-        lower data.
+        Function that checks for bimodality in the data, and excludes either
+        the higher or lower data.
 
         Inputs:
             analytes:                         array-like
@@ -646,20 +787,19 @@ class D(object):
                 lower: keeps the lower distribution
 
         Returns:
-            Updates D object with 'filt' dict, containing the exclusions calculated by the
-            bimodal split cutoff.
+            Updates D object with 'filt' dict, containing the exclusions
+            calculated by the bimodal split cutoff.
         """
         self.filt = {}
         self.bimodal_limits = {}
-        if report and ~hasattr(self,'bimodal_reports'):
+        if report and ~hasattr(self, 'bimodal_reports'):
             self.bimodal_reports = {}
-        for a in np.array(analytes,ndmin=1):
-    #         self.corrected[a] = self.focus[a].copy()
-
+        for a in np.array(analytes, ndmin=1):
             kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])])
-            x = np.linspace(np.nanmin(self.focus[a]),np.nanmax(self.focus[a]),kde.dataset.size // 3)
+            x = np.linspace(np.nanmin(self.focus[a]), np.nanmax(self.focus[a]),
+                            kde.dataset.size // 3)
             yd = kde.pdf(x)
-            self.bimodal_limits[a] = self.findmins(x,yd)
+            self.bimodal_limits[a] = self.findmins(x, yd)
             if self.bimodal_limits[a].size > 0:
                 if mode is 'lower':
                     self.filt[a] = self.focus[a] < self.bimodal_limits[a][0]
@@ -671,31 +811,35 @@ class D(object):
             if report:
                 self.bimodal_reports[a] = self.bimodality_report(a, mode=mode)
         return
-    ### Plotting Functions
 
-    def genaxes(self,n,ncol=4,panelsize=[3,3],tight_layout=True,**kwargs):
+    # Plotting Functions
+    def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
+                **kwargs):
         """
         Function to generate a grid of subplots for a given set of plots.
         """
-        if n%ncol is 0:
+        if n % ncol is 0:
             nrow = int(n/ncol)
         else:
             nrow = int(n//ncol + 1)
 
-        fig, axes = plt.subplots(nrow, ncol, figsize=[panelsize[0] * ncol, panelsize[1] * nrow], tight_layout=tight_layout,**kwargs)
+        fig, axes = plt.subplots(nrow, ncol, figsize=[panelsize[0] * ncol,
+                                 panelsize[1] * nrow],
+                                 tight_layout=tight_layout,
+                                 **kwargs)
         for ax in axes.flat[n:]:
             fig.delaxes(ax)
 
-        return fig,axes
+        return fig, axes
 
-    def pretty_element(self,s):
+    def pretty_element(self, s):
         """
         Function to format elements nicely.
         """
-        g = re.match('([A-Z][a-z]?)([0-9]+)',s).groups()
+        g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    def tplot(self,traces=None,figsize=[10,4],scale=None):
+    def tplot(self, traces=None, figsize=[10, 4], scale=None):
         if traces is None:
             traces = self.cols[1:]
         fig = plt.figure(figsize=figsize)
@@ -706,20 +850,23 @@ class D(object):
             y = self.focus[t]
             if scale is 'log':
                 ax.set_yscale('log')
-                y[y==0] = 1
+                y[y == 0] = 1
             ax.plot(x, y, color=self.cmap[t], label=t)
 
         ax.legend()
-        ax.text(0.01,0.99,self.sample,transform=ax.transAxes,ha='left',va='top')
+        ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
+                ha='left', va='top')
 
         return fig
 
-    def crossplot(self,analytes=None,ptype='scatter',bins=25,lognorm=True,**kwargs):
+    def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
+                  **kwargs):
         if analytes is None:
             analytes = [a for a in self.cols[1:] if 'Ca' not in a]
 
         numvars = len(analytes)
-        fig, axes = plt.subplots(nrows=numvars, ncols=numvars, figsize=(12,12))
+        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+                                 figsize=(12, 12))
         fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
         for ax in axes.flat:
@@ -738,7 +885,7 @@ class D(object):
         if ptype is 'scatter':
             # Plot the data.
             for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i,j), (j,i)]:
+                for x, y in [(i, j), (j, i)]:
                     # set multipliers and units
                     mx = my = 1000
                     ux = uy = '(mmol/mol)'
@@ -751,17 +898,18 @@ class D(object):
                     # make plot
                     px = self.focus[analytes[x]] * mx
                     py = self.focus[analytes[y]] * my
-                    axes[x,y].scatter(px, py, color=self.cmap[analytes[x]], **kwargs)
-                    axes[x,y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x,y].set_ylim([np.nanmin(py), np.nanmax(py)])
+                    axes[x, y].scatter(px, py, color=self.cmap[analytes[x]],
+                                       **kwargs)
+                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
         if ptype is 'hist2d':
             cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
                       'Greens', 'Greys', 'Oranges', 'OrRd',
                       'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                      'RdPu','Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
             for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i,j), (j,i)]:
+                for x, y in [(i, j), (j, i)]:
                     # set unit multipliers
                     mx = my = 1000
                     if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
@@ -769,14 +917,19 @@ class D(object):
                     if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
                         my = 1000000
                     # make plot
-                    px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
-                    py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
+                    px = self.focus[analytes[x]][~np.isnan(self.focus
+                                                           [analytes[x]])] * mx
+                    py = self.focus[analytes[y]][~np.isnan(self.focus
+                                                           [analytes[y]])] * my
                     if lognorm:
-                        axes[x,y].hist2d(px,py,bins,norm=mpl.colors.LogNorm(),cmap=plt.get_cmap(cmlist[x]))
+                        axes[x, y].hist2d(px, py, bins,
+                                          norm=mpl.colors.LogNorm(),
+                                          cmap=plt.get_cmap(cmlist[x]))
                     else:
-                        axes[x,y].hist2d(px,py,bins,cmap=plt.get_cmap(cmlist[x]))
-                    axes[x,y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x,y].set_ylim([np.nanmin(py), np.nanmax(py)])
+                        axes[x, y].hist2d(px, py, bins,
+                                          cmap=plt.get_cmap(cmlist[x]))
+                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
         for i, label in enumerate(analytes):
             # assign unit label
@@ -784,24 +937,24 @@ class D(object):
             if np.nanmin(self.focus[label] * 1000) < 0.1:
                 unit = '\n($\mu$mol/mol)'
             # plot label
-            axes[i,i].annotate(label+unit, (0.5, 0.5), xycoords='axes fraction',
-                    ha='center', va='center')
+            axes[i, i].annotate(label+unit, (0.5, 0.5),
+                                xycoords='axes fraction',
+                                ha='center', va='center')
 
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
-            axes[j,i].xaxis.set_visible(True)
-            labels = ax.get_xticklabels()
-            for label in axes[j,i].get_xticklabels():
+            axes[j, i].xaxis.set_visible(True)
+            for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
 
-            axes[i,j].yaxis.set_visible(True)
+            axes[i, j].yaxis.set_visible(True)
 
         return fig, axes
 
-    def bimodality_report(self,a,mode='lower'):
+    def bimodality_report(self, a, mode='lower'):
         """
         Function to plot reports for bimodal exclusion checks.
         """
-        fig,(ax1,ax2,ax3) = self.genaxes(3,3,[4,3])
+        fig, (ax1, ax2, ax3) = self.genaxes(3, 3, [4, 3])
 
         # calculate the multiplier necessary to make units sensible
         mean = np.nanmean(self.focus[a])
@@ -813,25 +966,30 @@ class D(object):
             label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
 
         kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])] * m)
-        bins = x = np.linspace(np.nanmin(self.focus[a]) * m,np.nanmax(self.focus[a]) * m,kde.dataset.size // 3)
+        bins = x = np.linspace(np.nanmin(self.focus[a]) * m,
+                               np.nanmax(self.focus[a]) * m,
+                               kde.dataset.size // 3)
         yd = kde.pdf(bins)
 
         bstep = x[1] - x[0]
 
-        n,_ = np.histogram(self.focus[a][~np.isnan(self.focus[a])] * m,bins)
+        n, _ = np.histogram(self.focus[a][~np.isnan(self.focus[a])] * m, bins)
 
-        ax1.bar(bins[:-1],n/(sum(n) * bstep),bstep,color=(0,0,1,0.5),lw=0)
+        ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
+                color=(0, 0, 1, 0.5), lw=0)
         ax1.set_ylabel('Density')
         ax1.set_xlabel(label)
-        ax1.text(0.02,0.95,self.sample,transform=ax1.transAxes,ha='left',va='top')
+        ax1.text(0.02, 0.95, self.sample, transform=ax1.transAxes,
+                 ha='left', va='top')
 
-        ax1.plot(x,yd,color='r',lw=2)
+        ax1.plot(x, yd, color='r', lw=2)
 
-        ax2.plot(np.sort(self.focus[a][~np.isnan(self.focus[a])] * m),color=(0,0,1,0.7))
+        ax2.plot(np.sort(self.focus[a][~np.isnan(self.focus[a])] * m),
+                 color=(0, 0, 1, 0.7))
         ax2.set_ylabel(label)
         ax2.set_xlabel('Point No')
 
-        ax3.plot(self.Time,self.focus[a] * m,color=(0,0,0,0.2))
+        ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
         ax3.set_ylabel(label)
         ax3.set_xlabel('Time (s)')
         ax3.set_ylim(ax2.get_ylim())
@@ -840,53 +998,67 @@ class D(object):
             n = sum(self.filt[a]) - 1
 
             if mode is 'lower':
-                ax1.axvline(self.bimodal_limits[a][0] * m,color='k',ls='dashed')
-                ax1.axvspan(self.bimodal_limits[a][0] * m,ax1.get_xlim()[1],color=(1,0,0,0.1))
+                ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
+                            ls='dashed')
+                ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+                            color=(1, 0, 0, 0.1))
 
-                ax2.axhline(self.bimodal_limits[a][0] * m,color='k',ls='dashed')
-                ax2.axvspan(n,ax2.get_xlim()[1],color=(1,0,0,0.1))
+                ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
+                            ls='dashed')
+                ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
 
-                ax3.axhline(self.bimodal_limits[a][0] * m,color='k',ls='dashed')
-                ax3.axhspan(self.bimodal_limits[a][0] * m,ax1.get_xlim()[1],color=(1,0,0,0.1))
+                ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
+                            ls='dashed')
+                ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+                            color=(1, 0, 0, 0.1))
 
             if mode is 'upper':
-                ax1.axvline(self.bimodal_limits[a][-1] * m,color='k',ls='dashed')
-                ax1.axvspan(ax1.get_xlim()[0],self.bimodal_limits[a][-1] * m,color=(1,0,0,0.1))
+                ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
+                            ls='dashed')
+                ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+                            color=(1, 0, 0, 0.1))
 
-                ax2.axhline(self.bimodal_limits[a][-1] * m,color='k',ls='dashed')
-                ax2.axvspan(ax2.get_xlim()[0],n,color=(1,0,0,0.1))
+                ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
+                            ls='dashed')
+                ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
 
-                ax3.axhline(self.bimodal_limits[a][-1] * m,color='k',ls='dashed')
-                ax3.axhspan(ax1.get_xlim()[0],self.bimodal_limits[a][-1] * m,color=(1,0,0,0.1))
+                ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
+                            ls='dashed')
+                ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+                            color=(1, 0, 0, 0.1))
 
-            ax2.axvline(n,color='k',ls='dashed')
-            ax2.text(n+5,ax2.get_ylim()[1]-0.2,'n = {:.0f}'.format(n),va='top',ha='left')
+            ax2.axvline(n, color='k', ls='dashed')
+            ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
+                     va='top', ha='left')
 
-            ax3.scatter(self.Time[self.filt[a]],self.focus[a][self.filt[a]]*m,s=3,color='k')
-            ax3.scatter(self.Time[~self.filt[a]],self.focus[a][~self.filt[a]]*m,s=3,color=(0,0,0,0.2))
+            ax3.scatter(self.Time[self.filt[a]],
+                        self.focus[a][self.filt[a]]*m, s=3, color='k')
+            ax3.scatter(self.Time[~self.filt[a]],
+                        self.focus[a][~self.filt[a]]*m, s=3,
+                        color=(0, 0, 0, 0.2))
         else:
-            ax3.scatter(self.Time,self.focus[a]*m,s=3,color='k')
+            ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
         return fig
 
 
     ### more involved functions
-#     def stridecalc(self,win,var=None):
+#     def stridecalc(self, win, var=None):
 #         if var is None:
 #             var = self.cols[1:]
 #         shape = self.Time.shape[:-1] + (self.Time.shape[-1] - win + 1, win)
-#         strides = self.Time.strides + (self.Time.strides[-1],)
+#         strides = self.Time.strides + (self.Time.strides[-1], )
 #         self.strides[win] = {'Time': np.lib.stride_tricks.as_strided(self.Time, shape=shape, strides=strides)}
 #         for i in np.arange(var.size):
-#             self.strides[win][var[i]] = np.lib.stride_tricks.as_strided(getattr(self,var[i]), shape=shape, strides=strides)
+#             self.strides[win][var[i]] = np.lib.stride_tricks.as_strided(getattr(self, var[i]), shape=shape, strides=strides)
 
-#     def gradientcalc(self,win,var=None,mode='mid'):
+#     def gradientcalc(self, win, var=None, mode='mid'):
 #         """
 #         calculated moving gradient of line.
 #            mode: start/end/mid
 #               Determines how the gradient is shifted to match the timescale.
 #         """
 #         if win not in self.strides.keys():
-#             self.stridecalc(win,var)
+#             self.stridecalc(win, var)
 #         if var is None:
 #             var = self.cols[1:]
 
@@ -895,15 +1067,15 @@ class D(object):
 #             while sum(pad) >= win:
 #                 pad[1] -= 1
 #         if mode is 'start':
-#             pad = [win-1,0]
+#             pad = [win-1, 0]
 #         if mode is 'end':
-#             pad = [0,win-1]
+#             pad = [0, win-1]
 
 #         self.gradient = {win: {}}
 #         for i in np.arange(var.size):
-#             self.gradient[win][var[i]] = np.pad(list(map(lambda x,y,o: np.polyfit(x,y,o)[0],
+#             self.gradient[win][var[i]] = np.pad(list(map(lambda x, y, o: np.polyfit(x, y, o)[0],
 #                                                          self.strides[win]['Time'],
 #                                                          self.strides[win][var[i]],
 #                                                          [1] * self.strides[win]['Time'].shape[0])),
-#                                                 pad,'constant')
+#                                                 pad, 'constant')
 
