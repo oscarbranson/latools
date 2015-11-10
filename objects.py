@@ -16,8 +16,7 @@ class analyse(object):
         self.folder = csv_folder
         self.files = np.array(os.listdir(self.folder))
 
-        self.data = np.array([D(self.folder + f) for f
-                              in self.files if 'csv' in f])
+        self.data = np.array([D(self.folder + f) for f in self.files if 'csv' in f])
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].cols[1:])
 
@@ -219,18 +218,16 @@ class analyse(object):
         return
 
     # apply calibration to data
-    def calibrate(self, force_zero=True):
+    def calibrate(self, force_zero=True,
+                  srmfile='/Users/oscarbranson/UCDrive/Projects/latools2/Resources/GeoRem_150105_ratios.csv'):
         # can store calibration function in self and use *coefs?
         # get SRM values
-        f = open('/Users/oscarbranson/UCDrive/Projects/latools2/\
-                 Resources/GeoRem_150105_ratios.csv').readlines()
+        f = open(srmfile).readlines()
         self.srm_vals = {}
         for srm in self.stds[0].std_rngs.keys():
             self.srm_vals[srm] = {}
             for a in self.analytes:
-                self.srm_vals[srm][a] = \
-                    [l.split(', ')[1] for l in f if
-                     re.match(a[:2] + '.*' + srm, l.strip()) is not None][0]
+                self.srm_vals[srm][a] = [l.split(',')[1] for l in f if re.match(a[:2] + '.*' + srm, l.strip()) is not None][0]
 
         # make calibration
         self.calib_dict = {}
@@ -249,20 +246,16 @@ class analyse(object):
                     self.calib_data[a]['counts'].append(y)
                     self.calib_data[a]['srm'].append(x)
 
-            self.calib_data[a]['counts'] = \
-                np.concatenate(self.calib_data[a]['counts']).astype(float)
-            self.calib_data[a]['srm'] = \
-                np.concatenate(self.calib_data[a]['srm']).astype(float)
+            self.calib_data[a]['counts'] = np.concatenate(self.calib_data[a]['counts']).astype(float)
+            self.calib_data[a]['srm'] = np.concatenate(self.calib_data[a]['srm']).astype(float)
 
             if force_zero:
-                self.calib_dict[a], _, _, _ = \
-                    np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
-                                    self.calib_data[a]['srm'])
+                self.calib_dict[a], _, _, _ = np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
+                                                              self.calib_data[a]['srm'])
             else:
-                self.calib_dict[a], _, _, _ = \
-                    np.linalg.lstsq(np.vstack([self.calib_data[a]['counts'],
-                                    np.ones(self.calib_data[a]['counts'].size())]).T,
-                                    self.calib_data[a]['srm'])
+                self.calib_dict[a], _, _, _ = np.linalg.lstsq(np.vstack([self.calib_data[a]['counts'],
+                                                              np.ones(self.calib_data[a]['counts'].size())]).T,
+                                                              self.calib_data[a]['srm'])
 
         # apply calibration
         for d in self.data:
@@ -308,10 +301,9 @@ class analyse(object):
             os.mkdir(dirpath)
         analytes = np.array([analytes]).flatten()
         for k, v in self.data_dict.items():
-            for a in analytes:
-                fig = v.bimodality_report(a)
-                fig.savefig(dirpath + '/' + a + '_' + k + '.pdf')
-                fig.clf()
+            fig = v.bimodality_report()
+            fig.savefig(dirpath + '/' + k + '.pdf')
+            plt.close(fig)
         return
 
     # plot calibrations
@@ -599,12 +591,11 @@ class analyse(object):
             the raw csv string will be returned.
 
         """
-        head = '# Statistic: ' + stat + '\n' + 'Sample, '+', '\
-            .join(self.stats['analytes'])
+        head = '# Statistic: ' + stat + '\n' + 'Sample, '+','.join(self.stats['analytes'])
         dat = self.stats[[k for k in self.stats.keys() if stat in k][0]]
         outrows = []
         for i in range(self.stats['samples'].size):
-            outrows.append(self.stats['samples'][i] + ', ' + ', '
+            outrows.append(self.stats['samples'][i] + ',' + ','
                            .join(dat[i, :].astype(str)))
         out = head + '\n' + '\n'.join(outrows)
 
@@ -626,28 +617,26 @@ class D(object):
         f = open(self.file)
         lines = f.readlines()
         self.Dfile = lines[0]
-        info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) \
-                         .*AcqMethod (.*)', lines[2]).groups()
+        info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) .*AcqMethod (.*)',lines[2]).groups()
         self.date = info[0]
         self.method = info[1]
         self.despiked = lines[3][:8] == 'Despiked'
-        self.cols = np.array([l for l in lines if l[:4] == 'Time']
-                             [0].strip().split(', '))
+        self.cols = np.array([l for l in lines if l[:4] == 'Time'][0].strip().split(','))
         self.cols[0] = 'Time'
         self.analytes = self.cols[1:]
         f.close()
 
         # load data
-        raw = np.loadtxt(csv_file, delimiter=', ', skiprows=5).T
+        raw = np.loadtxt(csv_file, delimiter=',', skiprows=5).T
         self.rawdata = {}
         for i in range(len(self.cols)):
             self.rawdata[self.cols[i]] = raw[i]
 
         # most recently worked on data step
         self.setfocus('rawdata')
-
-        self.cmap = dict(zip(self.cols[1:], cb.get_map('Paired', 'qualitative',
-                         len(self.cols)).hex_colors))
+        self.cmap = dict(zip(self.cols[1:],
+                             cb.get_map('Paired', 'qualitative',
+                                        len(self.cols)).hex_colors))
 
         # set up flags
         self.sig = np.zeros(self.Time.size)
@@ -747,6 +736,17 @@ class D(object):
             list of functions that take a single array-like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
+        filt: bool or str
+            filt specifies the filter to apply to the data when calculating
+            sample statistics. It can either:
+            bool:  True | False
+                If True, applies filter created by bimodality_fix to each
+                analyte individually.
+            str: name of analyte, or 'master'
+                applies the filter for a specific analyte to all the data,
+                or a filter resulting from the union of all analyte-specific
+                filters.
+
         """
         if analytes is None:
                 analytes = self.analytes
@@ -757,10 +757,13 @@ class D(object):
         for f in stat_fns:
             self.stats[f.__name__] = []
             for a in analytes:
-                if filt and a in self.filt.keys():
-                    ind = self.filt[a]
-                else:
-                    ind = np.array([True] * self.focus[a].size)
+                if type(filt) is bool:
+                    if filt and a in self.filt.keys():
+                        ind = self.filt[a]
+                    else:
+                        ind = np.array([True] * self.focus[a].size)
+                if type(filt) is str:
+                    ind = self.filt[filt]
 
                 self.stats[f.__name__].append(f(self.focus[a][ind]))
             self.stats[f.__name__] = np.array(self.stats[f.__name__])
@@ -810,6 +813,13 @@ class D(object):
 
             if report:
                 self.bimodal_reports[a] = self.bimodality_report(a, mode=mode)
+
+        # make 'master' filter
+        combined = np.array([True] * self.focus[a].size)
+        for k, v in self.filt.items():
+            combined = combined & v
+        self.filt['combined'] = combined
+
         return
 
     # Plotting Functions
@@ -839,7 +849,7 @@ class D(object):
         g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    def tplot(self, traces=None, figsize=[10, 4], scale=None):
+    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False):
         if traces is None:
             traces = self.cols[1:]
         fig = plt.figure(figsize=figsize)
@@ -848,10 +858,21 @@ class D(object):
         for t in traces:
             x = self.Time
             y = self.focus[t]
+
+            if type(filt) is bool:
+                if filt and t in self.filt.keys():
+                    ind = self.filt[t]
+                else:
+                    ind = np.array([True] * x.size)
+            if type(filt) is str:
+                ind = self.filt[filt]
+
             if scale is 'log':
                 ax.set_yscale('log')
                 y[y == 0] = 1
             ax.plot(x, y, color=self.cmap[t], label=t)
+            if any(~ind):
+                ax.scatter(x[~ind], y[~ind], s=5, color='k')
 
         ax.legend()
         ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
@@ -950,94 +971,98 @@ class D(object):
 
         return fig, axes
 
-    def bimodality_report(self, a, mode='lower'):
+    def bimodality_report(self, mode='lower'):
         """
         Function to plot reports for bimodal exclusion checks.
         """
-        fig, (ax1, ax2, ax3) = self.genaxes(3, 3, [4, 3])
+        fig, axes = self.genaxes(3 * (len(self.filt.keys())-1), 3, [4, 3])
 
-        # calculate the multiplier necessary to make units sensible
-        mean = np.nanmean(self.focus[a])
-        if mean * 1E3 > 0.1:
-            m = 1E3
-            label = self.pretty_element(a) + '/Ca (mmol/mol)'
-        else:
-            m = 1E6
-            label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
+        fig.suptitle(self.sample, weight='bold', x=0.1, y=1)
 
-        kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])] * m)
-        bins = x = np.linspace(np.nanmin(self.focus[a]) * m,
-                               np.nanmax(self.focus[a]) * m,
-                               kde.dataset.size // 3)
-        yd = kde.pdf(bins)
+        i = 0
+        for a in sorted([k for k in self.filt.keys() if k is not 'combined']):
+            # calculate the multiplier necessary to make units sensible
+            mean = np.nanmean(self.focus[a])
+            if mean * 1E3 > 0.1:
+                m = 1E3
+                label = self.pretty_element(a) + '/Ca (mmol/mol)'
+            else:
+                m = 1E6
+                label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
 
-        bstep = x[1] - x[0]
+            kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])] * m)
+            bins = x = np.linspace(np.nanmin(self.focus[a]) * m,
+                                   np.nanmax(self.focus[a]) * m,
+                                   kde.dataset.size // 3)
+            yd = kde.pdf(bins)
 
-        n, _ = np.histogram(self.focus[a][~np.isnan(self.focus[a])] * m, bins)
+            bstep = x[1] - x[0]
 
-        ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
-                color=(0, 0, 1, 0.5), lw=0)
-        ax1.set_ylabel('Density')
-        ax1.set_xlabel(label)
-        ax1.text(0.02, 0.95, self.sample, transform=ax1.transAxes,
-                 ha='left', va='top')
+            n, _ = np.histogram(self.focus[a][~np.isnan(self.focus[a])] * m, bins)
 
-        ax1.plot(x, yd, color='r', lw=2)
+            ax1, ax2, ax3 = axes[i, 0], axes[i, 1], axes[i, 2]
+            i += 1
+            ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
+                    color=(0, 0, 1, 0.5), lw=0)
+            ax1.set_ylabel('Density')
+            ax1.set_xlabel(label)
 
-        ax2.plot(np.sort(self.focus[a][~np.isnan(self.focus[a])] * m),
-                 color=(0, 0, 1, 0.7))
-        ax2.set_ylabel(label)
-        ax2.set_xlabel('Point No')
+            ax1.plot(x, yd, color='r', lw=2)
 
-        ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
-        ax3.set_ylabel(label)
-        ax3.set_xlabel('Time (s)')
-        ax3.set_ylim(ax2.get_ylim())
+            ax2.plot(np.sort(self.focus[a][~np.isnan(self.focus[a])] * m),
+                     color=(0, 0, 1, 0.7))
+            ax2.set_ylabel(label)
+            ax2.set_xlabel('Point No')
 
-        if self.bimodal_limits[a].size > 0:
-            n = sum(self.filt[a]) - 1
+            ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
+            ax3.set_ylabel(label)
+            ax3.set_xlabel('Time (s)')
+            ax3.set_ylim(ax2.get_ylim())
 
-            if mode is 'lower':
-                ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
-                            ls='dashed')
-                ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-                            color=(1, 0, 0, 0.1))
+            if self.bimodal_limits[a].size > 0:
+                n = sum(self.filt[a]) - 1
 
-                ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
-                            ls='dashed')
-                ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
+                if mode is 'lower':
+                    ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
+                                ls='dashed')
+                    ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+                                color=(1, 0, 0, 0.1))
 
-                ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
-                            ls='dashed')
-                ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-                            color=(1, 0, 0, 0.1))
+                    ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
+                                ls='dashed')
+                    ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
 
-            if mode is 'upper':
-                ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
-                            ls='dashed')
-                ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-                            color=(1, 0, 0, 0.1))
+                    ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
+                                ls='dashed')
+                    ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+                                color=(1, 0, 0, 0.1))
 
-                ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
-                            ls='dashed')
-                ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
+                if mode is 'upper':
+                    ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
+                                ls='dashed')
+                    ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+                                color=(1, 0, 0, 0.1))
 
-                ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
-                            ls='dashed')
-                ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-                            color=(1, 0, 0, 0.1))
+                    ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
+                                ls='dashed')
+                    ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
 
-            ax2.axvline(n, color='k', ls='dashed')
-            ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
-                     va='top', ha='left')
+                    ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
+                                ls='dashed')
+                    ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+                                color=(1, 0, 0, 0.1))
 
-            ax3.scatter(self.Time[self.filt[a]],
-                        self.focus[a][self.filt[a]]*m, s=3, color='k')
-            ax3.scatter(self.Time[~self.filt[a]],
-                        self.focus[a][~self.filt[a]]*m, s=3,
-                        color=(0, 0, 0, 0.2))
-        else:
-            ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
+                ax2.axvline(n, color='k', ls='dashed')
+                ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
+                         va='top', ha='left')
+
+                ax3.scatter(self.Time[self.filt[a]],
+                            self.focus[a][self.filt[a]]*m, s=3, color='k')
+                ax3.scatter(self.Time[~self.filt[a]],
+                            self.focus[a][~self.filt[a]]*m, s=3,
+                            color=(0, 0, 0, 0.2))
+            else:
+                ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
         return fig
 
 
