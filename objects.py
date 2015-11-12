@@ -369,7 +369,7 @@ class analyse(object):
 
             # write calibration equation on graph
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
-                    a='bottom', ha='right')
+                    va='bottom', ha='right')
 
         for ax in axes.flat[n:]:
             fig.delaxes(ax)
@@ -474,7 +474,6 @@ class analyse(object):
 
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
             axes[j, i].xaxis.set_visible(True)
-            labels = ax.get_xticklabels()
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
 
@@ -482,7 +481,16 @@ class analyse(object):
 
         return fig, axes
 
-    def sample_stats(self, analytes=None, filt=True,
+    def stat_boostrap(self, analytes=None, filt=True,
+                      stat_fn=np.nanmean, ci=95):
+        """
+        Function to calculate the sample mean and bootstrap confidence
+        intervals
+        """
+
+        return
+
+    def stat_samples(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd]):
         """
         Returns samples, analytes, and arrays of statistics
@@ -639,9 +647,9 @@ class D(object):
                                         len(self.cols)).hex_colors))
 
         # set up flags
-        self.sig = np.zeros(self.Time.size)
-        self.bkg = np.zeros(self.Time.size)
-        self.trn = np.zeros(self.Time.size)
+        self.sig = np.array([False] * self.Time.size)
+        self.bkg = np.array([False] * self.Time.size)
+        self.trn = np.array([False] * self.Time.size)
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
@@ -666,8 +674,8 @@ class D(object):
             else:
                 self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
         for r in self.bkgrng:
-            self.bkg[(self.Time >= min(r)) & (self.Time <= max(r))] = 1
-        self.trn[(self.bkg == 0) & (self.sig == 0)] = 1
+            self.bkg[(self.Time >= min(r)) & (self.Time <= max(r))] = True
+        self.trn[(~self.bkg) & (~self.sig)] = True
         return
 
     def sigrange(self, rng=None):
@@ -677,8 +685,8 @@ class D(object):
             else:
                 self.sigrng = np.append(self.sigrng, np.array(rng), 0)
         for r in self.sigrng:
-            self.sig[(self.Time >= min(r)) & (self.Time <= max(r))] = 1
-        self.trn[(self.bkg == 0) & (self.sig == 0)] = 1
+            self.sig[(self.Time >= min(r)) & (self.Time <= max(r))] = True
+        self.trn[(self.bkg == 0) & (self.sig == 0)] = True
         return
 
     def separate(self, var=None):
@@ -688,9 +696,9 @@ class D(object):
         self.signal = {}
         for v in var:
             self.background[v] = self.rawdata[v].copy()
-            self.background[v][self.bkg != 1] = np.nan
+            self.background[v][~self.bkg] = np.nan
             self.signal[v] = self.rawdata[v].copy()
-            self.signal[v][self.sig != 1] = np.nan
+            self.signal[v][~self.sig] = np.nan
 
     def bkg_correct(self):
         self.bkgsub = {}
