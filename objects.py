@@ -9,6 +9,7 @@ from scipy.stats import gaussian_kde
 from mpld3 import plugins
 from IPython import display
 from mpld3 import enable_notebook, disable_notebook
+from scipy.optimize import curve_fit
 
 
 class analyse(object):
@@ -22,11 +23,17 @@ class analyse(object):
 
         self.data_dict = {}
         for s, d in zip(self.samples, self.data):
+            self.data_dict[s] = d
+
+        self.sample_dict = {}
+        for s, d in zip(self.samples, self.data):
             if 'STD' not in s:
                 self.data_dict[s] = d
 
         self.stds = []
         _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
+
+        self.cmaps = self.data[0].cmap
 
         print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
         print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
@@ -69,6 +76,10 @@ class analyse(object):
 
         display.clear_output()
         return
+
+    def autorange(self, **kwargs):
+        for d in self.data:
+            d.autorange(**kwargs)
 
     def save_ranges(self):
         if os.path.isfile('bkgrngs'):
@@ -126,10 +137,11 @@ class analyse(object):
         return
 
     # functions for background correction and ratios
-    def bkgcorrect(self):
+    def bkgcorrect(self, make_bools=False):
         for s in self.data:
-            s.bkgrange()
-            s.sigrange()
+            if make_bools:
+                s.bkgrange()
+                s.sigrange()
             s.separate()
             s.bkg_correct()
         return
@@ -308,7 +320,6 @@ class analyse(object):
 
     # plot calibrations
     def calibration_plot(self, analytes=None, plot='errbar'):
-        cmaps = self.data[0].cmap
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
 
@@ -341,11 +352,11 @@ class analyse(object):
                                 ['counts'][self.calib_data[a]
                                 ['srm'] == s]))
                 ax.errorbar(means, srms, xerr=stds, lw=0, elinewidth=2,
-                            ecolor=cmaps[a])
+                            ecolor=self.cmaps[a])
             if plot is 'scatter':
                 ax.scatter(self.calib_data[a]['counts'],
                            self.calib_data[a]['srm'],
-                           color=cmaps[a], alpha=0.2)
+                           color=self.cmaps[a], alpha=0.2)
             xlim, ylim = rangecalc(self.calib_data[a]['counts'],
                                    self.calib_data[a]['srm'])
             xlim[0] = ylim[0] = 0
@@ -642,7 +653,7 @@ class D(object):
 
         # most recently worked on data step
         self.setfocus('rawdata')
-        self.cmap = dict(zip(self.cols[1:],
+        self.cmap = dict(zip(self.analytes,
                              cb.get_map('Paired', 'qualitative',
                                         len(self.cols)).hex_colors))
 
@@ -666,6 +677,202 @@ class D(object):
         self.focus = getattr(self, stage)
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
+
+    # helper functions for data selection
+    def findmins(self, x, y):
+        """
+        Function to find local minima.
+        Returns array of points in x where y has a local minimum.
+        """
+        return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
+
+    def gauss(self, x, *p):
+        A, mu, sigma = p
+        return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
+
+    def gauss_inv(self, y, *p):
+        mu, sigma = p
+        return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
+                         mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
+
+    def findlower(self, x, y, c, win=3):
+        yd = self.fastgrad(y[::-1], win)
+        mins = self.findmins(x[::-1], yd)
+        clos = abs(mins - c)
+        return mins[clos == min(clos)] - min(clos)
+
+    def findupper(self, x, y, c, win=3):
+        yd = self.fastgrad(y, win)
+        mins = self.findmins(x, yd)
+        clos = abs(mins - c)
+        return mins[clos == min(abs(clos))] + min(clos)
+
+    def fastgrad(self, a, win=11):
+        # check to see if 'window' is odd (even does not work)
+        if win % 2 == 0:
+            win -= 1  # subtract 1 from window if it is even.
+        # trick for efficient 'rolling' computation in numpy
+        shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+        strides = a.strides + (a.strides[-1],)
+        wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+        # apply rolling gradient to data
+        a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
+
+        return np.concatenate([np.zeros(int(win/2)), list(a),
+                              np.zeros(int(win / 2))])
+
+    # automagically select signal and background regions
+    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
+                  conf=0.01, trans_mult=[0., 0.]):
+        """
+        Function to automatically detect signal and background regions in the
+        laser data, based on the behaviour of a target analyte. An ideal target
+        analyte should be abundant and homogenous in the sample.
+
+        Step 1: Thresholding
+        The background is initially determined using a gaussian kernel density
+        estimator (kde) of all the data. The minima in the kde define the
+        boundaries between distinct data distributions. All data below than the
+        first (lowest) kde minima are labelled 'background', and all above this
+        limit are labelled 'signal'.
+
+        Step 2: Transition Removal
+        The width of the transition regions between signal and background are
+        then determined, and the transitions are removed from both signal and
+        background. The width of the transitions is determined by fitting a
+        gaussian to the smoothed first derivative of the analyte trace, and
+        determining its width at a point where the gaussian intensity is at a
+        set limit. These gaussians are fit to subsets of the data that contain
+        the transitions, which are centered around the approximate transition
+        locations determined in Step 1, ± win data points. The peak is isolated
+        by finding the minima and maxima of a second derivative, and the
+        gaussian is fit to the isolate peak.
+
+        Parameters:
+            win:    int
+                Determines the width (c ± win) of the transition data subsets.
+            gwin:   odd int
+                The smoothing window used for calculating the first derivative.
+            smwin:  odd int
+                The smoothing window used for calculating the second derivative
+            conf:   float
+                The proportional intensity of the fitted gaussian tails that
+                determines that determined the transition width cutoff (lower =
+                wider transition cutoff).
+            trans_mult: array-like of length 2
+                Multiples of sigma to add to the transition cutoffs, e.g. if
+                the transitions consistently leave some bad data proceeding
+                the transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM
+                to the right hand side of the limit.
+
+        Returns:
+            self gains 'bkg', 'sig', 'bkgrng' and 'sigrng' properties, which
+            contain bagkround & signal boolean arrays and limit arrays,
+            respectively.
+        """
+        bins = 50  # determine automatically? As a function of bkg rms noise?
+        # bkg = np.array([True] * self.Time.size)  # initialise background array
+
+        v = self.rawdata[analyte]  # get trace data
+        vl = np.log10(v[v > 1])  # remove zeros from value
+        x = np.linspace(vl.min(), vl.max(), bins)  # define bin limits
+
+        n, _ = np.histogram(vl, x)  # make histogram of sample
+        kde = gaussian_kde(vl)
+        yd = kde.pdf(x)  # calculate gaussian_kde of sample
+
+        mins = self.findmins(x, yd)  # find minima in kde
+
+        bkg = v < 10**mins[0]  # set background as lowest distribution
+
+        # assign rough background and signal regions based on kde minima
+        self.bkg = bkg
+        self.sig = ~bkg
+
+        # remove transitions by fitting a gaussian to the gradients of
+        # each transition
+        # 1. calculate the absolute gradient of the target trace.
+        g = abs(self.fastgrad(v, gwin))
+        # 2. determine the approximate index of each transition
+        zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)]
+        tran = []  # initialise empty list for transition pairs
+        for z in zeros:  # for each approximate transition
+            try:  # in case some of them don't work...
+                # isolate the data around the transition
+                xs = self.Time[z-win:z+win]
+                ys = g[z-win:z+win]
+                # determine location of maximum gradient
+                c = xs[ys == np.nanmax(ys)]
+                # locate the limits of the main peak (find turning point either side of
+                # peak centre using a second derivative)
+                lower = self.findlower(xs, ys, c, smwin)
+                upper = self.findupper(xs, ys, c, smwin)
+                # isolate transition peak for fit
+                x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
+                y = g[(self.Time >= lower) & (self.Time <= upper)]
+                # fit a gaussian to the transition gradient
+                pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
+                                                        x[y == np.nanmax(y)],
+                                                        (upper - lower) / 2))
+                # get the x positions when the fitted gaussian is at 'conf' of
+                # maximum
+                tran.append(self.gauss_inv(conf, *pg[1:]) +
+                                pg[-1] * np.array(trans_mult))
+            except:
+                try:
+                    x = self.Time[z-win:z+win]
+                    y = g[z-win:z+win]
+                    # determine location of maximum gradient
+                    c = x[y == np.nanmax(y)]
+                    # fit a gaussian to the transition gradient
+                    pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
+                                                            x[y == np.nanmax(y)],
+                                                            (upper - lower) / 2))
+                    # get the x positions when the fitted gaussian is at 'conf' of
+                    # maximum
+                    tran.append(self.gauss_inv(conf, *pg[1:]) +
+                                    pg[-1] * np.array(trans_mult))
+                except:
+                    pass
+        # remove the transition regions from the signal and background ids.
+        for t in tran:
+            self.bkg[(self.Time > t[0]) & (self.Time < t[1])] = False
+            self.sig[(self.Time > t[0]) & (self.Time < t[1])] = False
+
+        self.trn = ~self.bkg & ~self.sig
+
+        self.mkrngs()
+
+        # final check to catch missed transitions
+        # calculate average transition width
+        tr = self.Time[self.trn ^ np.roll(self.trn, 1)]
+        tr = np.reshape(tr, [tr.size//2, 2])
+        trw = np.mean(np.diff(tr, axis=1))
+
+        corr = False
+        for b in self.bkgrng.flat:
+            if (self.sigrng - b < 0.3 * trw).any():
+                self.bkg[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
+                self.sig[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
+                corr = True
+
+        if corr:
+            self.mkrngs()
+        return
+
+    def mkrngs(self):
+        """
+        Gets Time limits of signal/background boolean arrays and stores them as
+        sigrng and bkgrng arrays. These arrays can be saved by 'save_ranges' in
+        the analyse object.
+        """
+        bkgr = np.concatenate([[0],
+                              self.Time[self.bkg ^ np.roll(self.bkg, -1)],
+                              [self.Time[-1]]])
+        self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
+
+        sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
+        self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
 
     def bkgrange(self, rng=None):
         if rng is not None:
@@ -691,7 +898,7 @@ class D(object):
 
     def separate(self, var=None):
         if var is None:
-            var = self.cols[1:]
+            var = self.analytes
         self.background = {}
         self.signal = {}
         for v in var:
@@ -702,7 +909,7 @@ class D(object):
 
     def bkg_correct(self):
         self.bkgsub = {}
-        for c in self.cols[1:]:
+        for c in self.analytes:
             self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
         self.setfocus('bkgsub')
         return
@@ -778,12 +985,6 @@ class D(object):
         return
 
     # Data Selections Tools
-    def findmins(self, x, y):
-        """
-        Function to find local minima.
-        Returns array of points in x where y has a local minimum.
-        """
-        return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
     def bimodality_fix(self, analytes, mode='lower', report=False):
         """
@@ -859,7 +1060,7 @@ class D(object):
 
     def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False):
         if traces is None:
-            traces = self.cols[1:]
+            traces = self.analytes
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
 
@@ -891,7 +1092,7 @@ class D(object):
     def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
                   **kwargs):
         if analytes is None:
-            analytes = [a for a in self.cols[1:] if 'Ca' not in a]
+            analytes = [a for a in self.analytes if 'Ca' not in a]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
