@@ -16,8 +16,8 @@ class analyse(object):
     def __init__(self, *args):
         self.samples = np.array(['Sample A', 'Sample B'])
         self.analytes = np.array(['a', 'b'])
-        self.data_dict = {'Sample A': D(1.),
-                          'Sample B': D(2.)}
+        self.data_dict = {'Sample A': D(m=1.),
+                          'Sample B': D(m=2.)}
         self.cmap = self.data_dict['Sample A'].cmap
 
 
@@ -27,8 +27,8 @@ class D(object):
     """
     def __init__(self, m, *args):
         self.Time = np.linspace(0, 2 * np.pi, 500)
-        self.focus = {'a': np.sin(self.Time * m),
-                      'b': np.cos(self.Time * m)}
+        self.focus = {'a': np.sin(self.Time / m),
+                      'b': np.cos(self.Time / m)}
         self.cmap = {'a': 'blue',
                      'b': 'red'}
 
@@ -67,7 +67,7 @@ class lagui(qt.QMainWindow):
 
         self.showMaximized()
 
-        self.makePlot()
+        self.makeTraces()
         # self.updatePlot()
 
     def initMenuBar(self):
@@ -103,51 +103,56 @@ class lagui(qt.QMainWindow):
         # help menu
         self.helpMenu = self.menubar.addMenu('&Help')
 
-    def makePlot(self):
+    def makeTraces(self):
         self.traces = {}
-        for a, v in self.analyte_switches.items():
-            d = self.dat.data_dict[self.live_sample]
-            self.traces[a] = pg.PlotDataItem(x=d.Time,
-                                             y=d.focus[a])
-            if v.isChecked():
-                self.traces[a].setPen(d.cmap[a])
-            else:
-                self.traces[a].setPen(None)
-            self.plt.addItem(self.traces[a])
+        for s in self.dat.samples:
+            self.traces[s] = {}
+            for a, v in self.analyte_switches.items():
+                d = self.dat.data_dict[s]
+                self.traces[s][a] = pg.PlotDataItem(x=d.Time,
+                                                    y=d.focus[a],
+                                                    pen=qt.QColor(d.cmap[a]))
 
     def updatePlot(self):
+        self.plt.clear()
+        self.plt.setLabels(title=self.live_sample)
         for k, v in self.analyte_switches.items():
             if v.isChecked():
-                c = self.dat.data_dict[self.live_sample].cmap[k]
-                self.traces[k].setPen(qt.QColor(c))
-            else:
-                self.traces[k].setPen(None)
+                self.plt.addItem(self.traces[self.live_sample][k])
 
 
 class ProcessingPane(qt.QFrame):
     def __init__(self, parent):
         super(ProcessingPane, self).__init__(parent)
-        # self.initPane(parent)
+        self.parent = parent
+        self.initPane()
+        self.addPane()
 
-        self.addPane(parent)
+    def initPane(self):
+        cdirButton = qt.QPushButton("Choose Directory")
+        cdirButton.clicked.connect(self.chooseDir)
 
-    # def initPane(self):
-    #     okButton = qt.QPushButton("Options")
-    #     cancelButton = qt.QPushButton("Pane")
+        self.toolbar = qt.QHBoxLayout()
+        self.toolbar.addWidget(cdirButton)
+        self.toolbar.addStretch(1)
 
-    #     hbox = qt.QHBoxLayout()
-    #     hbox.addStretch(1)
-    #     hbox.addWidget(okButton)
-    #     hbox.addWidget(cancelButton)
-    #     hbox.addStretch(1)
+        vbox = qt.QVBoxLayout()
+        vbox.addLayout(self.toolbar)
 
-    #     vbox = qt.QVBoxLayout()
+        self.setLayout(vbox)
 
-    #     self.setLayout(vbox)
+    def chooseDir(self):
+        dialog = qt.QFileDialog(self)
+        dialog.setFileMode(qt.QFileDialog.Directory)
+        dialog.setOption(qt.QFileDialog.ShowDirsOnly)
+        dialog.exec_()
 
-    def addPane(self, parent):
+        self.parent.wdir = dialog.selectedFiles()[0]
+        self.toolbar.insertWidget(1, qt.QLabel(text=self.parent.wdir))
+
+    def addPane(self):
         self.setStyleSheet("border: 1px solid green")
-        parent.grid.addWidget(self, 0, 0, 1, 8)
+        self.parent.grid.addWidget(self, 0, 0, 1, 8)
 
 
 class OptionsPane(qt.QFrame):
@@ -168,7 +173,7 @@ class OptionsPane(qt.QFrame):
         samlist = qt.QComboBox()
         for s in self.parent.dat.samples:
             samlist.addItem(s)
-        samlist.activated[str].connect(self.onActivated)
+        samlist.activated[str].connect(self.onSampleActivated)
 
         layout = qt.QVBoxLayout()
         layout.addLayout(checkboxes)
@@ -178,7 +183,7 @@ class OptionsPane(qt.QFrame):
 
         self.setLayout(layout)
 
-    def onActivated(self, sample):
+    def onSampleActivated(self, sample):
         self.parent.live_sample = sample
         self.parent.updatePlot()
         return
