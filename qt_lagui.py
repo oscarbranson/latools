@@ -14,9 +14,10 @@ class analyse(object):
     Dummy analyse class for gui development
     """
     def __init__(self, *args):
-        self.samples = np.array(['Sample A'])
+        self.samples = np.array(['Sample A', 'Sample B'])
         self.analytes = np.array(['a', 'b'])
-        self.data_dict = {'Sample A': D()}
+        self.data_dict = {'Sample A': D(1.),
+                          'Sample B': D(2.)}
         self.cmap = self.data_dict['Sample A'].cmap
 
 
@@ -24,10 +25,10 @@ class D(object):
     """
     Dummy laser data class for gui development
     """
-    def __init__(self, *args):
+    def __init__(self, m, *args):
         self.Time = np.linspace(0, 2 * np.pi, 500)
-        self.focus = {'a': np.sin(self.Time),
-                      'b': np.cos(self.Time)}
+        self.focus = {'a': np.sin(self.Time * m),
+                      'b': np.cos(self.Time * m)}
         self.cmap = {'a': 'blue',
                      'b': 'red'}
 
@@ -152,22 +153,40 @@ class ProcessingPane(qt.QFrame):
 class OptionsPane(qt.QFrame):
     def __init__(self, parent):
         super(OptionsPane, self).__init__(parent)
-        self.initPane(parent)
-        self.addPane(parent)
+        self.parent = parent
+        self.initPane()
+        self.addPane()
 
-    def initPane(self, parent):
+    def initPane(self):
 
         checkboxes = qt.QVBoxLayout()
         checkboxes.addWidget(qt.QLabel(text='Analytes'))
-        for v in parent.analyte_switches.values():
+        for v in self.parent.analyte_switches.values():
             checkboxes.addWidget(v)
         checkboxes.addStretch(1)
 
-        self.setLayout(checkboxes)
+        samlist = qt.QComboBox()
+        for s in self.parent.dat.samples:
+            samlist.addItem(s)
+        samlist.activated[str].connect(self.onActivated)
 
-    def addPane(self, parent):
+        layout = qt.QVBoxLayout()
+        layout.addLayout(checkboxes)
+        layout.addWidget(qt.QLabel(text='Samples'))
+        layout.addWidget(samlist)
+        layout.addStretch(1)
+
+        self.setLayout(layout)
+
+    def onActivated(self, sample):
+        self.parent.live_sample = sample
+        self.parent.updatePlot()
+        return
+
+    def addPane(self):
         self.setStyleSheet("border: 1px solid blue")
-        parent.grid.addWidget(self, 1, 0, 5, 2)
+        self.parent.grid.addWidget(self, 1, 0, 5, 2)
+        return
 
 
 class PlotPane(pg.PlotWidget):
