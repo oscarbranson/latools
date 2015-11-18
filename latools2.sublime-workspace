@@ -1,0 +1,732 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"cur",
+				"curve_fit"
+			],
+			[
+				"prog",
+				"ProgressBar	class"
+			],
+			[
+				"fw",
+				"fwhm_a_mod	statement"
+			],
+			[
+				"fwh",
+				"fwhm_a_dat	statement"
+			],
+			[
+				"Data",
+				"DataFrame"
+			],
+			[
+				"fwhm_a",
+				"fwhm_a_dat"
+			],
+			[
+				"fwhm",
+				"fwhm_a_mod"
+			],
+			[
+				"er",
+				"errenv	function"
+			],
+			[
+				"r",
+				"rsquared"
+			],
+			[
+				"set_",
+				"set_xlabel"
+			],
+			[
+				"in",
+				"independent_var"
+			],
+			[
+				"pk",
+				"pkID	function"
+			],
+			[
+				"P",
+				"Pool	function"
+			],
+			[
+				"peak",
+				"peakFinder	function"
+			],
+			[
+				"p",
+				"peakFinder	function"
+			],
+			[
+				"ha",
+				"hanning	function"
+			],
+			[
+				"lin",
+				"linspace	function"
+			],
+			[
+				"mat",
+				"matplotlib	module"
+			],
+			[
+				"iso",
+				"isoScrape	function"
+			],
+			[
+				"inter",
+				"interpolate	module"
+			],
+			[
+				"py",
+				"pyplot	module"
+			],
+			[
+				"sub",
+				"subsoup	statement"
+			],
+			[
+				"ur",
+				"urlopen	function"
+			],
+			[
+				"pre",
+				"prettify"
+			],
+			[
+				"url",
+				"urllib2	module"
+			],
+			[
+				"pv",
+				"pvoigt_asym"
+			],
+			[
+				"fill",
+				"fill_between	function"
+			],
+			[
+				"read_c",
+				"read_csv	function"
+			],
+			[
+				"fit",
+				"fit_setup	statement"
+			],
+			[
+				"re",
+				"results"
+			],
+			[
+				"mult",
+				"multiprocessing	module"
+			],
+			[
+				"C",
+				"Count"
+			],
+			[
+				"Co",
+				"Corrected"
+			],
+			[
+				"R",
+				"Ratio"
+			],
+			[
+				"M",
+				"Mass-to-Charge-State"
+			],
+			[
+				"lor",
+				"lormod	statement"
+			],
+			[
+				"init",
+				"init_h"
+			],
+			[
+				"ind",
+				"index_col	param"
+			],
+			[
+				"a",
+				"add_axes"
+			],
+			[
+				"pl",
+				"plot"
+			],
+			[
+				"subpl",
+				"subplots	function"
+			],
+			[
+				"f",
+				"figure"
+			],
+			[
+				"read_",
+				"read_csv	function"
+			]
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Anaconda Python Builder",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				]
+			],
+			[
+				"Packages/Python/Python.sublime-build",
+				""
+			]
+		],
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/C++/C++ Single File.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 328.0,
+		"last_filter": "bash",
+		"selected_items":
+		[
+			[
+				"bash",
+				"Set Syntax: Shell Script (Bash)"
+			],
+			[
+				"yth",
+				"Set Syntax: Python"
+			],
+			[
+				"gs",
+				"Git: Status"
+			],
+			[
+				"git",
+				"Git: Commit"
+			],
+			[
+				"gitini",
+				"Git: Init"
+			],
+			[
+				"git ",
+				"Git: Commit"
+			],
+			[
+				"instal",
+				"Package Control: Install Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"py",
+				"Set Syntax: Python"
+			],
+			[
+				"packa",
+				"Package Control: Discover Packages"
+			],
+			[
+				"disale",
+				"Package Control: Disable Package"
+			],
+			[
+				"remo",
+				"Package Control: Remove Package"
+			],
+			[
+				"disable",
+				"Package Control: Disable Package"
+			],
+			[
+				"pep",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"html",
+				"Set Syntax: HTML"
+			],
+			[
+				"python",
+				"Set Syntax: Python"
+			],
+			[
+				"",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"remove",
+				"Package Control: Remove Package"
+			],
+			[
+				"packages",
+				"Preferences: Browse Packages"
+			],
+			[
+				"install ",
+				"Package Control: Install Package"
+			],
+			[
+				"remov",
+				"Package Control: Remove Package"
+			],
+			[
+				"upda",
+				"Package Control: Upgrade/Overwrite All Packages"
+			],
+			[
+				"auto",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"format",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"anaconda",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"sublime",
+				"SublimeGit: Add License"
+			],
+			[
+				"migrate",
+				"LaTeXTools: Reconfigure and migrate settings"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			],
+			[
+				"insta",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 521.0
+	},
+	"console":
+	{
+		"height": 126.0,
+		"history":
+		[
+			"import urllib.request,os,hashlib; h = '7183a2d3e96f11eeadd761d777e62404' + 'e330c659d4bb41d3bdf022e94cab3cd0'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/oscarbranson/UCDrive/Projects/latools2"
+	],
+	"file_history":
+	[
+		"/Users/oscarbranson/UCDrive/Tools/Laser/spotsize_app.py",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models2.tex",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/3-Posted/swim-with-a-viking",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/To Do",
+		"/Users/oscarbranson/.bash_profile",
+		"/Users/oscarbranson/.path",
+		"/Users/oscarbranson/.aliases",
+		"/Users/oscarbranson/UCDrive/Projects/latools/despike_only.py",
+		"/Users/oscarbranson/.matplotlib/matplotlibrc",
+		"/Users/oscarbranson/.ipython/profile_default/startup/loadup.py",
+		"/Users/oscarbranson/UCDrive/Projects/B_Book/B_Chapter_Info",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/bmodel_fns.py",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/Reviews/2015_GeoBio_CoccoXRF/Round2/review_2",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/gaussian.tex",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_concs.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_discussion.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_results.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_methods.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_intro.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/manuscript.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/PaperFigs/c5_keelcrust.eps",
+		"/Users/oscarbranson/Desktop/tmp/play.cpp",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/darwinbeast",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/IonIdentifier_ver7.pyw",
+		"/Users/oscarbranson/Downloads/MEGAPLOT/PlottingScripts/Megaplot_FFT.py",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/InProgress/moonformation",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/moonformation",
+		"/Users/oscarbranson/Documents/Library.papers3/Bé/Bé_1964_Science.pdf",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/Tomog_abstract.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Probe/Quanti/disk1.qtiDat",
+		"/Users/oscarbranson/Desktop/time.csv",
+		"/Volumes/OB_APT1/NetBeans/R31_04588_DEP_V3-05_M-3/recons/recon-interface_only/RangeFiles/interface_bkg_corr_checked.RRNG",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/manuscript.synctex.gz",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/AGUTeX.cls",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/agutmpl.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/BibTeX/refs.bib",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/manuscript.tex",
+		"/Users/oscarbranson/UCDrive/Projects/APT/SampleLocation/NanoSIMS/NanoSIMS_raw/LiMgCa_F2_6_311A_1_m1.csv",
+		"/Users/oscarbranson/UCDrive/Projects/APT/APT_Data/V3-05-M03_Interface_Data/Exported/Proxygrams/R31_04588-v02-artefactGone_interface40Ca32_full-bkg-proxygram_12nm_0.01bin_ioncounts.csv",
+		"/Users/oscarbranson/Website/oscarbranson.github.io/_posts/blog/2014-09-22-trial-post.md",
+		"/Users/oscarbranson/UCDrive/Projects/APT/Interface_Data/Range_File/FWHM.RRNG",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/sample_composition.csv",
+		"/Users/oscarbranson/Website/oscarbranson.github.io/index.md",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pkID.py",
+		"/Library/Python/2.7/site-packages/matplotlib-1.4.x-py2.7-macosx-10.9-intel.egg/matplotlib/pyplot.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementFns.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/generic.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/frame.py",
+		"/usr/local/Cellar/python/2.7.8/Frameworks/Python.framework/Versions/2.7/lib/python2.7/multiprocessing/pool.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdetect.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakFinder.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Pk_Processing.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdet.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/detect_peaks.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/internals.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdet2.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/index.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/series.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementDaCalc.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementScrape.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementMasses.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/scrape.txt",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elements.pkl",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit_raw.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pks.csv",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Pk_Bgk_Correction",
+		"/Users/oscarbranson/UCDrive/Projects/APT/Data/R31_03953_default.rrng",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Anaconda.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pks",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Default/Preferences.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/SublimeCodeIntel.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Anaconda/Anaconda.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Anaconda/README.md",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Python.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Plain text.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/pvoigt.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/lorentzian.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/exp_gauss.tex",
+		"/Users/oscarbranson/Downloads/IonIdentifier_ver7.pyw",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/build.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/assym_pvoigt.tex",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Spectral_Fit.ipynb",
+		"/Users/oscarbranson/.codeintel/config",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/APT_MS_autorange.py",
+		"/Users/oscarbranson/.codeintel/codeintel.log",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/SublimeCodeIntel.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/APT_MS_autorange"
+	],
+	"find":
+	{
+		"height": 23.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": true,
+		"find_history":
+		[
+			"autorange",
+			"self.cols[1:]",
+			"background",
+			"bkgrange",
+			"d.",
+			"fastgrad",
+			"fast",
+			"auto",
+			"cmap",
+			"bkgrng",
+			"backgroun",
+			"save",
+			"self.sig",
+			"bkg_correct",
+			"gauss",
+			"min",
+			"distri",
+			":,:,0,0,0,0,0,0,0,0,0",
+			"0,0,:,:,0,0,0,0,0,0,0",
+			"self.filt",
+			"ind = self.filt[a]",
+			"self.filt",
+			"distribution",
+			"csv",
+			"save",
+			"=', '",
+			"', '",
+			"open",
+			"bmF",
+			"pDF",
+			"pPF",
+			"pcolor",
+			"\\ce{",
+			"np.m",
+			"np.min",
+			"axs[1][:,:,0,0,0,0,0,0,0,0,0]",
+			"axs[0][:,:,0,0,0,0,0,0,0,0,0]",
+			"axs",
+			"[0,0,:,:,0,0,0,0,0,0,0]",
+			"Bsyst",
+			",0,0]",
+			"PKB",
+			", ",
+			"foram",
+			"fs",
+			"Mg",
+			"mg",
+			"fs",
+			"Mg",
+			"mg",
+			"fs",
+			"[0-9]?,?-?[0-9]+",
+			"Mg",
+			"t",
+			"Mg",
+			"align\n",
+			"align",
+			"head",
+			"TE",
+			"reductions",
+			"Electron Probe",
+			"Electron",
+			"!TEX",
+			"closed",
+			"map",
+			"crust calcite",
+			"subsubs",
+			"TEdepth",
+			"TomogFigs",
+			"fig",
+			"`test'",
+			"the the",
+			"foraminfieral",
+			"life pro",
+			"high-",
+			"high-M",
+			"high-",
+			"Mann",
+			"shell",
+			".",
+			"\n",
+			" (at) ",
+			"sXC",
+			"shell",
+			"bib",
+			"usepack",
+			"Pesic",
+			"denominations",
+			"cents",
+			"nap",
+			"cap",
+			"cap\n",
+			"smgorg",
+			"nax",
+			"cax",
+			"dpi",
+			"mod",
+			"pos",
+			"Pool",
+			"out",
+			"smooth",
+			"Stable",
+			"[",
+			"]",
+			", ",
+			"id=",
+			"id-",
+			"id",
+			"001.1",
+			"H_range",
+			"Hrange",
+			")",
+			"\"",
+			"elementlist.append(",
+			"masslist.append(",
+			"**",
+			"model",
+			"padding",
+			"shift",
+			" ",
+			"'",
+			":",
+			",",
+			"trigger",
+			"pandas",
+			"figure",
+			"length",
+			"path"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 23.0
+	},
+	"input":
+	{
+		"height": 31.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.anaconda_documentation":
+	{
+		"height": 100.0
+	},
+	"output.exec":
+	{
+		"height": 213.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.git-commit":
+	{
+		"height": 25.0
+	},
+	"pinned_build_system": "",
+	"project": "latools2.sublime-project",
+	"replace":
+	{
+		"height": 42.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"f",
+				"PaperFigs/c5_keelcrust.eps"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 159.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
