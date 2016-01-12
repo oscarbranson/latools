@@ -1063,7 +1063,8 @@ class D(object):
 
     # Function for finding sample statistics
     def sample_stats(self, analytes=None, filt=True,
-                     stat_fns=[np.nanmean, np.nanstd]):
+                     stat_fns=[np.nanmean, np.nanstd],
+                     eachtrace=False):
         """
         Returns samples, analytes, and arrays of statistics
         of shape (samples, analytes). Statistics are calculated
@@ -1086,7 +1087,9 @@ class D(object):
                 applies the filter for a specific analyte to all the data,
                 or a filter resulting from the union of all analyte-specific
                 filters.
-
+        eachtrace: bool
+            Return individual statistics for each analysis trace (True),
+            or each sample (False)?
         """
         if analytes is None:
                 analytes = self.analytes
@@ -1104,8 +1107,13 @@ class D(object):
                         ind = np.array([True] * self.focus[a].size)
                 if type(filt) is str:
                     ind = self.filt[filt]
-
-                self.stats[f.__name__].append(f(self.focus[a][ind]))
+                if eachtrace:
+                    sts = []
+                    for t in np.arange(self.n) + 1:
+                        sts.append(f(self.focus[a][ind & (self.ns==t)]))
+                    self.stats[f.__name__].append(sts)
+                else:
+                    self.stats[f.__name__].append(f(self.focus[a][ind]))
             self.stats[f.__name__] = np.array(self.stats[f.__name__])
         return
 
