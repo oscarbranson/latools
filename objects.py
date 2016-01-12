@@ -272,16 +272,29 @@ class analyse(object):
             d.calibrate(self.calib_dict)
 
     def save_calibration(self):
-        if os.path.isfile('calibdat'):
-            f = input('SRM range files already exist. Do you want \
-                      to overwrite them (old files will be lost)? [Y/n]: ')
+        fname = os.path.dirname(self.folder) + '.calibdat'
+        if os.path.isfile(fname):
+            f = input("SRM range files already exist in '" + fname + "'. Do you want \
+                                  to overwrite them (old files will be lost)? [Y/n]: ")
             if 'n' in f or 'N' in f:
                 print('SRM ranges not saved. Run self.save_srm_ids() \
                       to try again.')
                 return
-        fb = open('calibdat', 'w')
+        fb = open(fname, 'w')
         fb.write(str(self.calib_dict))
         fb.close
+        return
+
+    def load_calibration(self, fname=None):
+        if fname is None:
+            fname = os.path.dirname(self.folder) + '.calibdat'
+
+        try:
+            strdict = re.sub('array', 'np.array', open(fname).read())
+            self.calib_dict = eval(strdict)
+        except:
+            print("File '" + fname + "' does not exist.")
+        return
 
     def distribution_check(self, analytes=None, mode='lower', filt=False):
         """
@@ -1218,7 +1231,8 @@ class D(object):
         g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False, ranges=False):
+    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False,
+              ranges=False, stats=True):
         """
         Convenience function for plotting traces.
 
@@ -1232,6 +1246,9 @@ class D(object):
             filt:       boolean, string or list
                         Whether or not to plot the filtered data for all (bool)
                         or specific (str, list) analytes.
+            stats:      boolean
+                        Whether or not to plot the mean and standard deviation
+                        for the traces.
         """
         if traces is None:
             traces = self.analytes
@@ -1256,6 +1273,28 @@ class D(object):
             ax.plot(x, y, color=self.cmap[t], label=t)
             if any(~ind):
                 ax.scatter(x[~ind], y[~ind], s=5, color='k')
+
+            # Plot averages and error envelopes
+            if stats and hasattr(self, 'stats'):
+                sts = self.stats['nanmean'][0].size
+                if sts > 1:
+                    for n in np.arange(self.n):
+                        x = [self.Time[self.ns==n+1][0], self.Time[self.ns==n+1][-1]]
+                        y = [self.stats['nanmean'][self.stats['analytes']==t][0][n]] * 2
+
+                        yp = [self.stats['nanmean'][self.stats['analytes']==t][0][n] + self.stats['nanstd'][self.stats['analytes']==t][0][n]] * 2
+                        yn = [self.stats['nanmean'][self.stats['analytes']==t][0][n] - self.stats['nanstd'][self.stats['analytes']==t][0][n]] * 2
+
+                        ax.plot(x, y, color=self.cmap[t], lw=2)
+                        ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.2, linewidth=0)
+                else:
+                    x = [self.Time[0], self.Time[-1]]
+                    y = [self.stats['nanmean'][self.stats['analytes']==t][0]] * 2
+                    yp = [self.stats['nanmean'][self.stats['analytes']==t][0] + self.stats['nanstd'][self.stats['analytes']==t][0]] * 2
+                    yn = [self.stats['nanmean'][self.stats['analytes']==t][0] - self.stats['nanstd'][self.stats['analytes']==t][0]] * 2
+
+                    ax.plot(x, y, color=self.cmap[t], lw=2)
+                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.3, linewidth=0)
 
         if ranges:
             for l, u in self.bkgrng:
