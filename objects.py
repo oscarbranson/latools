@@ -5,6 +5,7 @@ import numpy as np
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import uncertainties.uarray as un
 from scipy.stats import gaussian_kde
 from mpld3 import plugins
 from IPython import display
@@ -1128,6 +1129,12 @@ class D(object):
                 else:
                     self.stats[f.__name__].append(f(self.focus[a][ind]))
             self.stats[f.__name__] = np.array(self.stats[f.__name__])
+
+        try:
+            self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
+        except:
+            pass
+
         return
 
     # Data Selections Tools
@@ -1232,7 +1239,7 @@ class D(object):
         return '$^{' + g[1] + '}$' + g[0]
 
     def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False,
-              ranges=False, stats=True):
+              ranges=False, stats=True, sig='nanmean', err='nanstd'):
         """
         Convenience function for plotting traces.
 
@@ -1276,25 +1283,25 @@ class D(object):
 
             # Plot averages and error envelopes
             if stats and hasattr(self, 'stats'):
-                sts = self.stats['nanmean'][0].size
+                sts = self.stats[sig][0].size
                 if sts > 1:
                     for n in np.arange(self.n):
                         x = [self.Time[self.ns==n+1][0], self.Time[self.ns==n+1][-1]]
-                        y = [self.stats['nanmean'][self.stats['analytes']==t][0][n]] * 2
+                        y = [self.stats[sig][self.stats['analytes']==t][0][n]] * 2
 
-                        yp = [self.stats['nanmean'][self.stats['analytes']==t][0][n] + self.stats['nanstd'][self.stats['analytes']==t][0][n]] * 2
-                        yn = [self.stats['nanmean'][self.stats['analytes']==t][0][n] - self.stats['nanstd'][self.stats['analytes']==t][0][n]] * 2
+                        yp = [self.stats[sig][self.stats['analytes']==t][0][n] + self.stats[err][self.stats['analytes']==t][0][n]] * 2
+                        yn = [self.stats[sig][self.stats['analytes']==t][0][n] - self.stats[err][self.stats['analytes']==t][0][n]] * 2
 
                         ax.plot(x, y, color=self.cmap[t], lw=2)
-                        ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.2, linewidth=0)
+                        ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
                 else:
                     x = [self.Time[0], self.Time[-1]]
-                    y = [self.stats['nanmean'][self.stats['analytes']==t][0]] * 2
-                    yp = [self.stats['nanmean'][self.stats['analytes']==t][0] + self.stats['nanstd'][self.stats['analytes']==t][0]] * 2
-                    yn = [self.stats['nanmean'][self.stats['analytes']==t][0] - self.stats['nanstd'][self.stats['analytes']==t][0]] * 2
+                    y = [self.stats[sig][self.stats['analytes']==t][0]] * 2
+                    yp = [self.stats[sig][self.stats['analytes']==t][0] + self.stats[err][self.stats['analytes']==t][0]] * 2
+                    yn = [self.stats[sig][self.stats['analytes']==t][0] - self.stats[err][self.stats['analytes']==t][0]] * 2
 
                     ax.plot(x, y, color=self.cmap[t], lw=2)
-                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.3, linewidth=0)
+                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
 
         if ranges:
             for l, u in self.bkgrng:
@@ -1305,6 +1312,46 @@ class D(object):
         ax.legend()
         ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
                 ha='left', va='top')
+
+        return fig
+
+    def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
+        """
+        Plot each trace individually, and the individual mean for comparison.
+        """
+
+        self.unstats = un.uarray(self.stats[vals], self.stats[errs])
+
+        means = []
+        for s in self.unstats:
+            means.append(s.mean())
+        means = np.array(means)
+
+        fig, ax = plt.subplots(1, 1, figsize=[figsize])
+
+        x = 0
+        for a in analytes:
+            # individual traces
+            ys = self.unstats[analytes == a]
+            xs = np.linspace(x-0.1, x+0.1, ys.size)
+            ax.errorbar(xs, un.nominal_values(ys)[0], yerr=un.std_devs(ys)[0],
+                        color=self.cmap[a], lw=0, elinewidth=1, capsize=0,
+                        marker='o', markersize=3)
+
+            # means of all traces
+            avx = [x-0.2, x+0.2]
+            avy = means[analytes == a]
+            ave = [un.nominal_values(avy)[0] + un.std_devs(avy)[0]] * 2 + [un.nominal_values(avy)[0] - un.std_devs(avy)[0]] * 2
+
+            ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=d.cmap[a])
+            ax.fill_between(avx + avx[::-1], ave, lw=0, color=d.cmap[a], alpha=0.4)
+
+            x += 1
+
+        if scale is not None:
+            ax.set_yscale(scale)
+
+        ax.set_xticklabels([''] + [a for a in analytes if 'Ca' not in a])
 
         return fig
 
