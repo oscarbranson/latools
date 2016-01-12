@@ -4,6 +4,62 @@
 		"selected_items":
 		[
 			[
+				"lbl_",
+				"lbl_srmdat	statement"
+			],
+			[
+				"add",
+				"addItem	function"
+			],
+			[
+				"lbl",
+				"lbl_ided	statement"
+			],
+			[
+				"inser",
+				"insertLayout	function"
+			],
+			[
+				"object",
+				"objects	module"
+			],
+			[
+				"itemC",
+				"itemClicked	function"
+			],
+			[
+				"QLis",
+				"QListWidgetItem	class"
+			],
+			[
+				"cl",
+				"clicked	function"
+			],
+			[
+				"list",
+				"listWidget	statement"
+			],
+			[
+				"s",
+				"samples	statement"
+			],
+			[
+				"analyte",
+				"analytes	statement"
+			],
+			[
+				"setMa",
+				"setMaximumWidth	function"
+			],
+			[
+				"Qt",
+				"QtGui"
+			],
+			[
+				"Q",
+				"Qt	module"
+			],
+			[
 				"cur",
 				"curve_fit"
 			],
@@ -179,6 +235,41 @@
 	},
 	"buffers":
 	[
+		{
+			"file": "qt_lagui.py",
+			"settings":
+			{
+				"buffer_size": 22749,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"contents": "Package Control Messages\n========================\n\nLaTeXTools\n----------\n\n  LaTeXTools Plugin version 3.6.0 (2015-12-12) changelog:\n  \n  This is a pretty significant release, so we are going to bump up the \"minor\"\n  version number. Most of the work is due to Ian Bacher and Richard Stein.\n  \n  \n  New features:\n  \n  - Project-overridable settings! This allows you to specify, for instance, a different\n    tex engine or different tex options for a specific project, without changing your \n    general user settings.\n  - Configurable tex extensions! This is a long-requested feature. We introduce a new\n    option that allows you to specify which file extensions will be treated as \"tex\" in\n    LaTeXTools. This is useful, for instance, if you use Sweave/knitr, or if you edit \n    .dtx files\n  - Jump to included images (graphics files)\n  \n  Bugfixes:\n  \n  - Workaround to ensure keep_focus works on Windows\n  - Fix kpsewhich on OS X\n  - Fix Beamer angle brackets snippet\n\n\nAnaconda\n--------\n\n  Changes in 1.4.17\n  =================\n  \n  ## Fixes:\n      - Some fixes for tooltip. Resolves #412, possibly #417?\n      -\n  \n  ## Updates:\n      - pep257 updated to 0.7.0\n  \n  ## Features:\n      - Previewing found token usages on quick panel item highlight\n  \n  For more detailed information about those changes run git log v1.4.16..v1.4.17 on git repository\n",
+			"settings":
+			{
+				"buffer_size": 1355,
+				"line_ending": "Unix",
+				"name": "Package Control Messages",
+				"read_only": true,
+				"scratch": true
+			}
+		},
+		{
+			"file": "objects_gui.py",
+			"settings":
+			{
+				"buffer_size": 52842,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "qt_lagui_old.py",
+			"settings":
+			{
+				"buffer_size": 7248,
+				"line_ending": "Unix"
+			}
+		}
 	],
 	"build_system": "",
 	"build_system_choices":
@@ -223,10 +314,18 @@
 	"build_varint": "",
 	"command_palette":
 	{
-		"height": 328.0,
-		"last_filter": "bash",
+		"height": 392.0,
+		"last_filter": "pane",
 		"selected_items":
 		[
+			[
+				"pane",
+				"Origami: Create Pane on the Right"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
 			[
 				"bash",
 				"Set Syntax: Shell Script (Bash)"
@@ -253,10 +352,6 @@
 			],
 			[
 				"instal",
-				"Package Control: Install Package"
-			],
-			[
-				"install",
 				"Package Control: Install Package"
 			],
 			[
@@ -373,19 +468,27 @@
 	],
 	"file_history":
 	[
+		"/Users/oscarbranson/UCDrive/Projects/latools2/STXM_helper_fns.py",
+		"/Users/oscarbranson/Desktop/tmp/phreeqc/test.out",
+		"/Users/oscarbranson/UCDrive/Notes/PNNL Remote Access.txt",
+		"/private/etc/hosts",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/objects.py",
+		"/Users/oscarbranson/UCDrive/Projects/latools/despiking_gui.pyw",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/Users/oscarbranson/Desktop/settings_bkp",
+		"/Users/oscarbranson/.bash_profile",
+		"/Users/oscarbranson/.aliases",
+		"/Users/oscarbranson/.bash_pro",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/To Do",
 		"/Users/oscarbranson/UCDrive/Tools/Laser/spotsize_app.py",
 		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models2.tex",
 		"/Users/oscarbranson/Dropbox/Communications/Earth Story/3-Posted/swim-with-a-viking",
-		"/Users/oscarbranson/UCDrive/Projects/latools2/To Do",
-		"/Users/oscarbranson/.bash_profile",
 		"/Users/oscarbranson/.path",
-		"/Users/oscarbranson/.aliases",
 		"/Users/oscarbranson/UCDrive/Projects/latools/despike_only.py",
 		"/Users/oscarbranson/.matplotlib/matplotlibrc",
 		"/Users/oscarbranson/.ipython/profile_default/startup/loadup.py",
 		"/Users/oscarbranson/UCDrive/Projects/B_Book/B_Chapter_Info",
 		"/Users/oscarbranson/UCDrive/Projects/B_Models/bmodel_fns.py",
-		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
 		"/Users/oscarbranson/UCDrive/Projects/Reviews/2015_GeoBio_CoccoXRF/Round2/review_2",
 		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/gaussian.tex",
 		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models.tex",
@@ -467,7 +570,7 @@
 	],
 	"find":
 	{
-		"height": 23.0
+		"height": 35.0
 	},
 	"find_in_files":
 	{
@@ -481,6 +584,46 @@
 		"case_sensitive": true,
 		"find_history":
 		[
+			"inan",
+			"distribution",
+			"^",
+			"bimodality_fix",
+			"distribution",
+			"sample_stats",
+			"stat",
+			"split(', ",
+			"srm_id",
+			"load",
+			"tplot",
+			"shutil",
+			"copy",
+			"cp",
+			"lbl_ided",
+			"d",
+			"auto",
+			"autoR",
+			"tab_	",
+			"tab_",
+			"lbl",
+			"optionsPane",
+			"setLayout",
+			"btn",
+			"btn_impor",
+			"setObject",
+			"setObjectName",
+			"analyte_sw",
+			"live_sample",
+			"self.live",
+			"check",
+			"checkbo",
+			"plotPane",
+			"plot",
+			"plotPane",
+			"QtCore",
+			"qt",
+			"QtGui",
+			"laguilatools",
+			"lagui",
 			"autorange",
 			"self.cols[1:]",
 			"background",
@@ -568,47 +711,7 @@
 			"bib",
 			"usepack",
 			"Pesic",
-			"denominations",
-			"cents",
-			"nap",
-			"cap",
-			"cap\n",
-			"smgorg",
-			"nax",
-			"cax",
-			"dpi",
-			"mod",
-			"pos",
-			"Pool",
-			"out",
-			"smooth",
-			"Stable",
-			"[",
-			"]",
-			", ",
-			"id=",
-			"id-",
-			"id",
-			"001.1",
-			"H_range",
-			"Hrange",
-			")",
-			"\"",
-			"elementlist.append(",
-			"masslist.append(",
-			"**",
-			"model",
-			"padding",
-			"shift",
-			" ",
-			"'",
-			":",
-			",",
-			"trigger",
-			"pandas",
-			"figure",
-			"length",
-			"path"
+			"denominations"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -626,8 +729,318 @@
 	"groups":
 	[
 		{
+			"selected": 0,
 			"sheets":
 			[
+				{
+					"buffer": 0,
+					"file": "qt_lagui.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 22749,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								291,
+								291
+							]
+						],
+						"settings":
+						{
+							"BracketHighlighterBusy": false,
+							"WordCountSyntax": "python",
+							"bh_regions":
+							[
+								"bh_c_define",
+								"bh_c_define_center",
+								"bh_c_define_open",
+								"bh_c_define_close",
+								"bh_c_define_content",
+								"bh_single_quote",
+								"bh_single_quote_center",
+								"bh_single_quote_open",
+								"bh_single_quote_close",
+								"bh_single_quote_content",
+								"bh_default",
+								"bh_default_center",
+								"bh_default_open",
+								"bh_default_close",
+								"bh_default_content",
+								"bh_square",
+								"bh_square_center",
+								"bh_square_open",
+								"bh_square_close",
+								"bh_square_content",
+								"bh_round",
+								"bh_round_center",
+								"bh_round_open",
+								"bh_round_close",
+								"bh_round_content",
+								"bh_regex",
+								"bh_regex_center",
+								"bh_regex_open",
+								"bh_regex_close",
+								"bh_regex_content",
+								"bh_curly",
+								"bh_curly_center",
+								"bh_curly_open",
+								"bh_curly_close",
+								"bh_curly_content",
+								"bh_tag",
+								"bh_tag_center",
+								"bh_tag_open",
+								"bh_tag_close",
+								"bh_tag_content",
+								"bh_double_quote",
+								"bh_double_quote_center",
+								"bh_double_quote_open",
+								"bh_double_quote_close",
+								"bh_double_quote_content",
+								"bh_angle",
+								"bh_angle_center",
+								"bh_angle_open",
+								"bh_angle_close",
+								"bh_angle_content",
+								"bh_unmatched",
+								"bh_unmatched_center",
+								"bh_unmatched_open",
+								"bh_unmatched_close",
+								"bh_unmatched_content"
+							],
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1355,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1355,
+								1355
+							]
+						],
+						"settings":
+						{
+							"BracketHighlighterBusy": false,
+							"WordCountSyntax": "plain text",
+							"auto_indent": false,
+							"default_dir": "/Users/oscarbranson/UCDrive/Projects/latools2",
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"tab_width": 2,
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 2,
+					"file": "objects_gui.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 52842,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								688,
+								688
+							]
+						],
+						"settings":
+						{
+							"BracketHighlighterBusy": false,
+							"WordCountSyntax": "python",
+							"bh_regions":
+							[
+								"bh_c_define",
+								"bh_c_define_center",
+								"bh_c_define_open",
+								"bh_c_define_close",
+								"bh_c_define_content",
+								"bh_single_quote",
+								"bh_single_quote_center",
+								"bh_single_quote_open",
+								"bh_single_quote_close",
+								"bh_single_quote_content",
+								"bh_default",
+								"bh_default_center",
+								"bh_default_open",
+								"bh_default_close",
+								"bh_default_content",
+								"bh_square",
+								"bh_square_center",
+								"bh_square_open",
+								"bh_square_close",
+								"bh_square_content",
+								"bh_round",
+								"bh_round_center",
+								"bh_round_open",
+								"bh_round_close",
+								"bh_round_content",
+								"bh_regex",
+								"bh_regex_center",
+								"bh_regex_open",
+								"bh_regex_close",
+								"bh_regex_content",
+								"bh_curly",
+								"bh_curly_center",
+								"bh_curly_open",
+								"bh_curly_close",
+								"bh_curly_content",
+								"bh_tag",
+								"bh_tag_center",
+								"bh_tag_open",
+								"bh_tag_close",
+								"bh_tag_content",
+								"bh_double_quote",
+								"bh_double_quote_center",
+								"bh_double_quote_open",
+								"bh_double_quote_close",
+								"bh_double_quote_content",
+								"bh_angle",
+								"bh_angle_center",
+								"bh_angle_open",
+								"bh_angle_close",
+								"bh_angle_content",
+								"bh_unmatched",
+								"bh_unmatched_center",
+								"bh_unmatched_open",
+								"bh_unmatched_close",
+								"bh_unmatched_content"
+							],
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "qt_lagui_old.py",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 7248,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								5588,
+								5588
+							]
+						],
+						"settings":
+						{
+							"BracketHighlighterBusy": false,
+							"WordCountSyntax": "python",
+							"bh_regions":
+							[
+								"bh_c_define",
+								"bh_c_define_center",
+								"bh_c_define_open",
+								"bh_c_define_close",
+								"bh_c_define_content",
+								"bh_single_quote",
+								"bh_single_quote_center",
+								"bh_single_quote_open",
+								"bh_single_quote_close",
+								"bh_single_quote_content",
+								"bh_default",
+								"bh_default_center",
+								"bh_default_open",
+								"bh_default_close",
+								"bh_default_content",
+								"bh_square",
+								"bh_square_center",
+								"bh_square_open",
+								"bh_square_close",
+								"bh_square_content",
+								"bh_round",
+								"bh_round_center",
+								"bh_round_open",
+								"bh_round_close",
+								"bh_round_content",
+								"bh_regex",
+								"bh_regex_center",
+								"bh_regex_open",
+								"bh_regex_close",
+								"bh_regex_content",
+								"bh_curly",
+								"bh_curly_center",
+								"bh_curly_open",
+								"bh_curly_close",
+								"bh_curly_content",
+								"bh_tag",
+								"bh_tag_center",
+								"bh_tag_open",
+								"bh_tag_close",
+								"bh_tag_content",
+								"bh_double_quote",
+								"bh_double_quote_center",
+								"bh_double_quote_open",
+								"bh_double_quote_close",
+								"bh_double_quote_content",
+								"bh_angle",
+								"bh_angle_center",
+								"bh_angle_open",
+								"bh_angle_close",
+								"bh_angle_content",
+								"bh_unmatched",
+								"bh_unmatched_center",
+								"bh_unmatched_open",
+								"bh_unmatched_close",
+								"bh_unmatched_content"
+							],
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				}
 			]
 		}
 	],
@@ -648,11 +1061,18 @@
 				0,
 				1,
 				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
 			]
 		],
 		"cols":
 		[
 			0.0,
+			0.5,
 			1.0
 		],
 		"rows":

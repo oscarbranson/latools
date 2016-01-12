@@ -53,7 +53,7 @@ class analyse(object):
                 try:
                     bkg = [float(f) for f in
                            input('Enter background limits (as: \
-                                 start, end, start, end):\n').split(', ')]
+                                 start, end, start, end):\n').split(',')]
                     bkg = np.array(bkg).reshape(len(bkg)//2, 2)
                     OK = True
                 except:
@@ -64,7 +64,7 @@ class analyse(object):
                 try:
                     sig = [float(f) for f in
                            input('Enter sample limits (as: start, \
-                                 end, start, end):\n').split(', ')]
+                                 end, start, end):\n').split(',')]
                     sig = np.array(sig).reshape(len(sig)//2, 2)
                     OK = True
                 except:
@@ -105,39 +105,40 @@ class analyse(object):
         return
 
     def load_ranges(self, bkgrngs=None, sigrngs=None):
-        if bkgrngs is not None:
-            bkgs = open(bkgrngs).readlines()
-            samples = []
-            bkgrngs = []
-            for b in bkgs:
-                samples.append(re.match('(.*):{1}(.*)',
-                               b.strip()).groups()[0])
-                bkgrngs.append(eval(re.match('(.*):{1}(.*)',
-                               b.strip()).groups()[1]))
-            samples = np.array(samples)
-            bkgrngs = np.array(bkgrngs)
-            for i in range(len(self.samples)):
-                self.data[i].bkgrng = np.array(bkgrngs[samples ==
-                                               self.data[i].sample][0])
-        if sigrngs is not None:
-            sigs = open(sigrngs).readlines()
-            samples = []
-            sigrngs = []
-            for s in sigs:
-                samples.append(re.match('(.*):{1}(.*)',
-                               s.strip()).groups()[0])
-                sigrngs.append(eval(re.match('(.*):{1}(.*)',
-                               s.strip()).groups()[1]))
-            samples = np.array(samples)
-            bkgrngs = np.array(bkgrngs)
-            sigrngs = np.array(sigrngs)
-            for i in range(len(self.samples)):
-                self.data[i].sigrng = np.array(sigrngs[samples ==
-                                               self.data[i].sample][0])
+        if bkgrngs is None:
+            bkgrngs = 'bkgrngs'
+        bkgs = open(bkgrngs).readlines()
+        samples = []
+        bkgrngs = []
+        for b in bkgs:
+            samples.append(re.match('(.*):{1}(.*)',
+                           b.strip()).groups()[0])
+            bkgrngs.append(eval(re.match('(.*):{1}(.*)',
+                           b.strip()).groups()[1]))
+        samples = np.array(samples)
+        bkgrngs = np.array(bkgrngs)
+        for i in range(len(self.samples)):
+            self.data[i].bkgrng = np.array(bkgrngs[samples == self.data[i].sample][0])
+
+        if sigrngs is None:
+            sigrngs = 'sigrngs'
+        sigs = open(sigrngs).readlines()
+        samples = []
+        sigrngs = []
+        for s in sigs:
+            samples.append(re.match('(.*):{1}(.*)',
+                           s.strip()).groups()[0])
+            sigrngs.append(eval(re.match('(.*):{1}(.*)',
+                           s.strip()).groups()[1]))
+        samples = np.array(samples)
+        bkgrngs = np.array(bkgrngs)
+        sigrngs = np.array(sigrngs)
+        for i in range(len(self.samples)):
+            self.data[i].sigrng = np.array(sigrngs[samples == self.data[i].sample][0])
         return
 
     # functions for background correction and ratios
-    def bkgcorrect(self, make_bools=False):
+    def bkgcorrect(self, make_bools=True):
         for s in self.data:
             if make_bools:
                 s.bkgrange()
@@ -170,10 +171,7 @@ class analyse(object):
                 while OK is False:
                     try:
                         name = input('Enter Standard Name: ')
-                        ans = [float(f) for f in
-                               input(name + ': Enter start and \
-                                     end points of data (as: start, \
-                                                         end)\n').split(', ')]
+                        ans = [float(f) for f in input(name + ': Enter start and end points of data as: start, end)\n').split(',')]
                         OK = True
                     except:
                         print("Incorrect Values, try again:\n")
@@ -285,7 +283,7 @@ class analyse(object):
         fb.write(str(self.calib_dict))
         fb.close
 
-    def distribution_check(self, analytes=None, mode='lower'):
+    def distribution_check(self, analytes=None, mode='lower', filt=False):
         """
         Checks the specified analytes for bimodality by looking for minima
         in a gaussian kde data density curve. If minima are found, data either
@@ -300,7 +298,7 @@ class analyse(object):
             analytes = self.analytes
         analytes = np.array(analytes).flatten()
         for d in self.data:
-            d.bimodality_fix(analytes, report=False, mode=mode)
+            d.bimodality_fix(analytes, report=False, mode=mode, filt=filt)
 
     def distribution_reports(self, analytes=['Ba138'], dirpath='./reports'):
         """
@@ -317,6 +315,14 @@ class analyse(object):
             fig.savefig(dirpath + '/' + k + '.pdf')
             plt.close(fig)
         return
+
+    def threshold_filter(self, analytes, thresholds, modes):
+        for d in self.data:
+            params = zip(np.array(analytes, ndmin=1),
+                         np.array(thresholds, ndmin=1),
+                         np.array(modes, ndmin=1))
+            for p in params:
+                d.threshold_filter(p[0], p[1], p[2])
 
     # plot calibrations
     def calibration_plot(self, analytes=None, plot='errbar'):
@@ -661,6 +667,7 @@ class D(object):
         self.sig = np.array([False] * self.Time.size)
         self.bkg = np.array([False] * self.Time.size)
         self.trn = np.array([False] * self.Time.size)
+        self.ns = np.zeros(self.Time.size)
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
@@ -669,10 +676,24 @@ class D(object):
 
     def setfocus(self, stage):
         """
-        Sets the 'focus' attribute of the dataset.
+        Sets the 'focus' attribute of the onject, which points towards
+        data from a particular stage of analysis.
         Used to update the 'working stage' of the data.
         Functions generally operate on the 'focus' dataset,
         so if steps are done out of sequence, things will break.
+
+        Parameters:
+            stage:  string describing analysis stage
+                rawdata: raw data, loaded from csv file when object
+                    is initialised
+                signal/background: isolated signal and background data,
+                    padded with np.nan. Created by self.separate, after
+                    signal and background regions have been identified by
+                    self.autorange.
+                bkgsub: background subtracted data, created by self.bkg_correct
+                ratios: element ratio data, created by self.ratio.
+                calibrated: ratio data calibrated to standards, created by
+                    self.calibrate.
         """
         self.focus = getattr(self, stage)
         for k in self.focus.keys():
@@ -687,27 +708,78 @@ class D(object):
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
     def gauss(self, x, *p):
+        """
+        Gaussian function for transition fitting.
+
+        Parameters:
+            x:  array-like
+            *p: parameters unpacked to A, mu, sigma
+                A: area
+                mu: centre
+                sigma: width
+        """
         A, mu, sigma = p
         return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
 
     def gauss_inv(self, y, *p):
+        """
+        Inverse gaussian function for determining the x coordinates
+        for a given y intensity (i.e. width at a given height).
+
+        Parameters:
+            y:  float
+                The height at which to calculate peak width.
+            *p: parameters unpacked to mu, sigma
+                mu: peak center
+                sigma: peak width
+        """
         mu, sigma = p
         return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
                          mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
 
     def findlower(self, x, y, c, win=3):
+        """
+        Finds the first local minima below a specified point. Used for
+        defining the lower limit of the data window used for transition
+        fitting.
+
+        Parameters:
+            x:  array-like
+            y:  array-like
+            c:  center point
+        """
         yd = self.fastgrad(y[::-1], win)
         mins = self.findmins(x[::-1], yd)
         clos = abs(mins - c)
         return mins[clos == min(clos)] - min(clos)
 
     def findupper(self, x, y, c, win=3):
+        """
+        Finds the first local minima above a specified point. Used for
+        defining the lower limit of the data window used for transition
+        fitting.
+
+        Parameters:
+            x:  array-like
+            y:  array-like
+            c:  center point
+        """
         yd = self.fastgrad(y, win)
         mins = self.findmins(x, yd)
         clos = abs(mins - c)
         return mins[clos == min(abs(clos))] + min(clos)
 
     def fastgrad(self, a, win=11):
+        """
+        Function to efficiently calculate the rolling gradient of a numpy
+        array using 'stride_tricks' to split up a 1D array into an ndarray of
+        sub-sections of the original array, of dimensions [len(a)-win, win].
+
+        Parameters:
+            a:   array-like
+            win: int
+                The width of the rolling window.
+        """
         # check to see if 'window' is odd (even does not work)
         if win % 2 == 0:
             win -= 1  # subtract 1 from window if it is even.
@@ -858,6 +930,16 @@ class D(object):
 
         if corr:
             self.mkrngs()
+
+        # number the signal regions (used for statistics and standard matching)
+        n = 1
+        for i in range(len(self.sig)-1):
+            if self.sig[i]:
+                self.ns[i] = n
+            if self.sig[i] and ~self.sig[i+1]:
+                n += 1
+        self.n = int(max(self.ns))  # record number of traces
+
         return
 
     def mkrngs(self):
@@ -875,6 +957,15 @@ class D(object):
         self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
 
     def bkgrange(self, rng=None):
+        """
+        Generate a background boolean string based on a list of [min,max] value
+        pairs stored in self.bkgrng.
+
+        Parameters:
+            rng:   2xn d numpy array
+                [min,max] pairs defining the upper and lowe limits of
+                background regions.
+        """
         if rng is not None:
             if np.array(rng).ndim is 1:
                 self.bkgrng = np.append(self.bkgrng, np.array([rng]), 0)
@@ -882,10 +973,19 @@ class D(object):
                 self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
         for r in self.bkgrng:
             self.bkg[(self.Time >= min(r)) & (self.Time <= max(r))] = True
-        self.trn[(~self.bkg) & (~self.sig)] = True
+        self.trn[(~self.bkg) & (~self.sig)] = True  # redefine transition regions
         return
 
     def sigrange(self, rng=None):
+        """
+        Generate a background boolean string based on a list of [min,max] value
+        pairs stored in self.bkgrng.
+
+        Parameters:
+            rng:   2xn d numpy array
+                [min,max] pairs defining the upper and lowe limits of
+                signal regions.
+        """
         if rng is not None:
             if np.array(rng).ndim is 1:
                 self.sigrng = np.append(self.sigrng, np.array([rng]), 0)
@@ -896,18 +996,28 @@ class D(object):
         self.trn[(self.bkg == 0) & (self.sig == 0)] = True
         return
 
-    def separate(self, var=None):
-        if var is None:
-            var = self.analytes
+    def separate(self, analytes=None):
+        """
+        Isolates signal and background signals from raw data for specified
+        elements.
+
+        Parameters:
+            analytes: list of analyte names (default = all analytes)
+        """
+        if analytes is None:
+            analytes = self.analytes
         self.background = {}
         self.signal = {}
-        for v in var:
+        for v in analytes:
             self.background[v] = self.rawdata[v].copy()
             self.background[v][~self.bkg] = np.nan
             self.signal[v] = self.rawdata[v].copy()
             self.signal[v][~self.sig] = np.nan
 
     def bkg_correct(self):
+        """
+        Subtract mean background from all analytes.
+        """
         self.bkgsub = {}
         for c in self.analytes:
             self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
@@ -915,6 +1025,18 @@ class D(object):
         return
 
     def ratio(self, denominator='Ca43', stage='signal'):
+        """
+        Divide all analytes by a specified denominator (default = 'Ca43').
+
+        Parameters:
+            denominator:    string
+                The analyte used as the denominator
+            stage:  string
+                The analysis stage to perform the ratio calculation on.
+                Defaults to 'signal', the isolates, background-corrected
+                regions identified as good data.
+        """
+        self.setfocus(stage)
         self.ratios = {}
         for i in range(1, len(self.cols)):
             self.ratios[self.cols[i]] = \
@@ -923,6 +1045,9 @@ class D(object):
         return
 
     def calibrate(self, calib_dict):
+        """
+
+        """
         # can have calibration function stored in self and pass *coefs?
         self.calibrated = {}
         for i in range(1, len(self.cols)):
@@ -986,7 +1111,23 @@ class D(object):
 
     # Data Selections Tools
 
-    def bimodality_fix(self, analytes, mode='lower', report=False):
+    def threshold_filter(self, analyte, threshold, mode='above'):
+        """
+        Generates threshold filters for analytes, when provided with analyte,
+        threshold, and mode. Mode specifies whether data 'below'
+        or 'above' the threshold are kept.
+        """
+        if not hasattr(self, 'filt'):
+            self.filt = {}
+
+        if mode == 'below':
+            self.filt[analyte + '_thresh'] = self.focus[analyte] <= threshold
+        if mode == 'above':
+            self.filt[analyte + '_thresh'] = self.focus[analyte] >= threshold
+
+        # print(self.sample, self.filt.keys())
+
+    def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
         """
         Function that checks for bimodality in the data, and excludes either
         the higher or lower data.
@@ -1002,13 +1143,24 @@ class D(object):
             Updates D object with 'filt' dict, containing the exclusions
             calculated by the bimodal split cutoff.
         """
-        self.filt = {}
+        if not hasattr(self, 'filt'):
+            self.filt = {}
         self.bimodal_limits = {}
         if report and ~hasattr(self, 'bimodal_reports'):
             self.bimodal_reports = {}
         for a in np.array(analytes, ndmin=1):
-            kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])])
-            x = np.linspace(np.nanmin(self.focus[a]), np.nanmax(self.focus[a]),
+            if type(filt) is bool:
+                if filt and a in self.filt.keys():
+                    ind = ~np.isnan(self.focus[a]) & self.filt[a]
+                else:
+                    ind = ~np.isnan(self.focus[a])
+            if type(filt) is str:
+                ind = ~np.isnan(self.focus[a]) & self.filt[filt]
+            if sum(ind <= 1):
+                ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
+
+            kde = gaussian_kde(self.focus[a][ind])
+            x = np.linspace(np.nanmin(self.focus[a][ind]), np.nanmax(self.focus[a][ind]),
                             kde.dataset.size // 3)
             yd = kde.pdf(x)
             self.bimodal_limits[a] = self.findmins(x, yd)
@@ -1053,12 +1205,26 @@ class D(object):
 
     def pretty_element(self, s):
         """
-        Function to format elements nicely.
+        Function to format element names nicely.
         """
         g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False):
+    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False, ranges=False):
+        """
+        Convenience function for plotting traces.
+
+        Parameters:
+            traces:     list of strings containing names of analytes to plot.
+                        default = all analytes.
+            figsize:    tuple-like
+                        size of final figure.
+            scale:      str ('log') or blank.
+                        whether to plot data on a log scale.
+            filt:       boolean, string or list
+                        Whether or not to plot the filtered data for all (bool)
+                        or specific (str, list) analytes.
+        """
         if traces is None:
             traces = self.analytes
         fig = plt.figure(figsize=figsize)
@@ -1083,6 +1249,12 @@ class D(object):
             if any(~ind):
                 ax.scatter(x[~ind], y[~ind], s=5, color='k')
 
+        if ranges:
+            for l, u in self.bkgrng:
+                ax.axvspan(l, u, color='r', alpha=0.1)
+            for l, u in self.sigrng:
+                ax.axvspan(l, u, color='b', alpha=0.1)
+
         ax.legend()
         ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
                 ha='left', va='top')
@@ -1091,6 +1263,18 @@ class D(object):
 
     def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
                   **kwargs):
+        """
+        Function for creating scatter crossplots of specified analytes.
+        Useful for checking for correlations withing the traces, which can
+        indicate contamination.
+
+        Parameters:
+            analytes:   list of analytes to plot (default = all)
+            ptype:      'scatter' | 'hist2d'
+            bins:       (int) Number of bins to use if hist2d
+            lognorm:    (bool) Log-normalise the data?
+            **kwargs:   passed to 'scatter' - does nothing for hist2d
+        """
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
 
@@ -1180,7 +1364,7 @@ class D(object):
 
         return fig, axes
 
-    def bimodality_report(self, mode='lower'):
+    def bimodality_report(self, mode='lower', filt=None):
         """
         Function to plot reports for bimodal exclusion checks.
         """
@@ -1189,9 +1373,17 @@ class D(object):
         fig.suptitle(self.sample, weight='bold', x=0.1, y=1)
 
         i = 0
-        for a in sorted([k for k in self.filt.keys() if k is not 'combined']):
+        for a in sorted([k for k in self.filt.keys() if k in self.analytes]):
+            if filt is not None:
+                if type(filt) is bool:
+                    if filt and a in self.filt.keys():
+                        ind = ~np.isnan(self.focus[a]) & self.filt[a]
+                if type(filt) is str:
+                    ind = ~np.isnan(self.focus[a]) & self.filt[filt]
+            else:
+                ind = ~np.isnan(self.focus[a])
             # calculate the multiplier necessary to make units sensible
-            mean = np.nanmean(self.focus[a])
+            mean = np.nanmean(self.focus[a][ind])
             if mean * 1E3 > 0.1:
                 m = 1E3
                 label = self.pretty_element(a) + '/Ca (mmol/mol)'
@@ -1199,15 +1391,15 @@ class D(object):
                 m = 1E6
                 label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
 
-            kde = gaussian_kde(self.focus[a][~np.isnan(self.focus[a])] * m)
-            bins = x = np.linspace(np.nanmin(self.focus[a]) * m,
-                                   np.nanmax(self.focus[a]) * m,
+            kde = gaussian_kde(self.focus[a][ind] * m)
+            bins = x = np.linspace(np.nanmin(self.focus[a][ind]) * m,
+                                   np.nanmax(self.focus[a][ind]) * m,
                                    kde.dataset.size // 3)
             yd = kde.pdf(bins)
 
             bstep = x[1] - x[0]
 
-            n, _ = np.histogram(self.focus[a][~np.isnan(self.focus[a])] * m, bins)
+            n, _ = np.histogram(self.focus[a][ind] * m, bins)
 
             ax1, ax2, ax3 = axes[i, 0], axes[i, 1], axes[i, 2]
             i += 1
@@ -1218,7 +1410,7 @@ class D(object):
 
             ax1.plot(x, yd, color='r', lw=2)
 
-            ax2.plot(np.sort(self.focus[a][~np.isnan(self.focus[a])] * m),
+            ax2.plot(np.sort(self.focus[a][ind] * m),
                      color=(0, 0, 1, 0.7))
             ax2.set_ylabel(label)
             ax2.set_xlabel('Point No')
@@ -1229,7 +1421,7 @@ class D(object):
             ax3.set_ylim(ax2.get_ylim())
 
             if self.bimodal_limits[a].size > 0:
-                n = sum(self.filt[a]) - 1
+                n = sum(self.filt[a][ind]) - 1
 
                 if mode is 'lower':
                     ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
