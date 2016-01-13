@@ -33,6 +33,7 @@ class analyse(object):
 
         self.stds = []
         _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
+        self.srms_ided = False
 
         self.cmaps = self.data[0].cmap
 
@@ -155,28 +156,45 @@ class analyse(object):
 
     # functions for identifying SRMs
     def srm_id(self):
-        enable_notebook()  # make the plot interactive
-        for s in self.stds:
-            fig = s.tplot(scale='log')
+        s = self.stds[0]
+        fig = s.tplot(scale='log')
+        display.clear_output(wait=True)
+        display.display(fig)
 
-            plugins.connect(fig, plugins.MousePosition(fontsize=14))
-            display.clear_output(wait=True)
-            display.display(fig)
+        n0 = s.n
 
+        def id(self, s):
+            stdnms = []
             s.std_rngs = {}
+            for n in np.arange(s.n) + 1:
+                fig = s.tplot(scale='log')
+                lims = s.Time[s.ns == n][[0, -1]]
+                fig.axes[0].axvspan(lims[0], lims[1],
+                                    color='r', alpha=0.2, lw=0)
+                display.clear_output(wait=True)
+                display.display(fig)
+                stdnm = input('Name this standard: ')
+                stdnms.append(stdnm)
+                s.std_rngs[stdnm] = lims
+            return stdnms
 
-            n = int(input('How many standards? (int): '))
+        nms0 = id(self, s)
 
-            for i in range(n):
-                OK = False
-                while OK is False:
-                    try:
-                        name = input('Enter Standard Name: ')
-                        ans = [float(f) for f in input(name + ': Enter start and end points of data as: start, end)\n').split(',')]
-                        OK = True
-                    except:
-                        print("Incorrect Values, try again:\n")
-                s.std_rngs[name] = ans
+        if len(self.stds) > 1:
+            ans = input('Were all other SRMs measured in the same sequence? [[Y]/N]')
+            if ans.lower() is 'n':
+                for s in self.stds[1:]:
+                    id(self, s)
+            else:
+                for s in self.stds[1:]:
+                    if s.n == n0:
+                        s.std_rngs = {}
+                        for n in np.arange(s.n) + 1:
+                            s[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
+                    else:
+                        _ = id(self, s)
+
+        display.clear_output()
 
         self.save_srm_ids()
 
@@ -186,8 +204,44 @@ class analyse(object):
                 s.std_labels[srm] = np.zeros(s.Time.size)
                 s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
                                   (s.Time <= max(s.std_rngs[srm]))] = 1
-        disable_notebook()  # stop the interactivity
+
         return
+    # def srm_id(self):
+    #     enable_notebook()  # make the plot interactive
+    #     for s in self.stds:
+    #         fig = s.tplot(scale='log')
+
+    #         plugins.connect(fig, plugins.MousePosition(fontsize=14))
+    #         display.clear_output(wait=True)
+    #         display.display(fig)
+
+    #         s.std_rngs = {}
+
+    #         n = int(input('How many standards? (int): '))
+
+    #         for i in range(n):
+    #             OK = False
+    #             while OK is False:
+    #                 try:
+    #                     name = input('Enter Standard Name: ')
+    #                     ans = [float(f) for f in input(name + ': Enter start and end points of data as: start, end)\n').split(',')]
+    #                     OK = True
+    #                 except:
+    #                     print("Incorrect Values, try again:\n")
+    #             s.std_rngs[name] = ans
+
+    #     self.save_srm_ids()
+
+    #     for s in self.stds:
+    #         s.std_labels = {}
+    #         for srm in s.std_rngs.keys():
+    #             s.std_labels[srm] = np.zeros(s.Time.size)
+    #             s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
+    #                               (s.Time <= max(s.std_rngs[srm]))] = 1
+    #     disable_notebook()  # stop the interactivity
+
+    #     self.srms_ided = True
+    #     return
 
     def save_srm_ids(self):
         if os.path.isfile('srmrngs'):
@@ -232,6 +286,10 @@ class analyse(object):
     def calibrate(self, force_zero=True,
                   srmfile='/Users/oscarbranson/UCDrive/Projects/latools2/Resources/GeoRem_150105_ratios.csv'):
         # can store calibration function in self and use *coefs?
+
+        # check for identified srms
+        if ~self.srms_ided:
+            self.srm_id()
         # get SRM values
         f = open(srmfile).readlines()
         self.srm_vals = {}
@@ -271,6 +329,11 @@ class analyse(object):
         # apply calibration
         for d in self.data:
             d.calibrate(self.calib_dict)
+
+        # save calibration parameters
+        self.save_calibration()
+
+        return
 
     def save_calibration(self):
         fname = os.path.dirname(self.folder) + '.calibdat'
@@ -1544,7 +1607,7 @@ class D(object):
         return fig
 
 
-    ### more involved functions
+### more involved functions
 #     def stridecalc(self, win, var=None):
 #         if var is None:
 #             var = self.cols[1:]
