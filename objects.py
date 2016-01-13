@@ -5,7 +5,7 @@ import numpy as np
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import uncertainties.uarray as un
+import uncertainties.unumpy as un
 from scipy.stats import gaussian_kde
 from mpld3 import plugins
 from IPython import display
@@ -522,7 +522,8 @@ class analyse(object):
         return
 
     def stat_samples(self, analytes=None, filt=True,
-                     stat_fns=[np.nanmean, np.nanstd]):
+                     stat_fns=[np.nanmean, np.nanstd],
+                     eachtrace=True):
         """
         Returns samples, analytes, and arrays of statistics
         of shape (samples, analytes). Statistics are calculated
@@ -547,22 +548,14 @@ class analyse(object):
         if analytes is None:
             analytes = self.analytes
         self.stats = {}
-        self.stats['analytes'] = np.array(analytes)
-        self.stats['samples'] = np.array([s for s in self.samples if 'STD'
-                                         not in s])
 
         # calculate stats for each sample
         for s in self.data:
             if 'STD' not in s.sample:
-                s.sample_stats(analytes, filt=filt, stat_fns=stat_fns)
+                s.sample_stats(analytes, filt=filt, stat_fns=stat_fns,
+                               eachtrace=eachtrace)
 
-        for f in stat_fns:
-            self.stats[f.__name__] = []
-            for s in self.data:
-                if 'STD' not in s.sample:
-                    self.stats[f.__name__].append(s.stats[f.__name__])
-            self.stats[f.__name__] = np.array(self.stats[f.__name__])
-
+                self.stats[s.sample] = s.stats
 
         # for f in stat_fns:
         #     setattr(self, f.__name__, [])
@@ -583,39 +576,29 @@ class analyse(object):
         # return (np.array([f.__name__ for f in stat_fns]), np.array(self.samples), np.array(analytes)), np.array([getattr(self, f.__name__) for f in stat_fns])
 
     def getstat(self, analyte=None, sample=None):
-        """
-        Function to grab stats for a particular analyte and/or sample.
-        """
-
-        # make logical indices for analyte and sample axes
-        if analyte is not None:
-            aind = self.stats['analytes'] == analyte
-        else:
-            aind = np.array([True] * self.stats['analytes'].size)
-
-        if sample is not None:
-            sind = self.stats['samples'] == sample
-        else:
-            sind = np.array([True] * self.stats['samples'].size)
-
-        # combine them into a 2D array, the same shape as the Statistics
-        ind = aind & sind[:, np.newaxis]
-
-        # get the name of the stat functions
-        fns = [k for k in self.stats.keys() if k is not 'analytes' and k
-               is not 'samples']
-
-        # apply the 2D index to grab the stats
-        s = {}
-        for f in fns:
-            s[f] = self.stats[f][ind]
-
         if analyte is None:
-            s['analytes'] = self.stats['analytes']
+            analyte = self.analytes
         if sample is None:
-            s['samples'] = self.stats['samples']
+            sample = self.samples
 
-        return s
+        if type(analyte) is str:
+            analyte = [analyte]
+        if type(sample) is str:
+            sample = [sample]
+
+        ankey = [a in self.analytes for a in analyte]
+
+        ss = [s for s in list(self.stats.values())[0].keys() if s is not 'analytes']
+        out = {}
+        for s in ss:
+            out[s] = []
+
+        for k, v in self.stats.items():
+            if k in sample:
+                for s in ss:
+                    out[s].append(v[s][ankey])
+
+        return out
 
     def stat_csvtable(self, stat='mean', file=None):
         """
@@ -1078,7 +1061,7 @@ class D(object):
     # Function for finding sample statistics
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
-                     eachtrace=False):
+                     eachtrace=True):
         """
         Returns samples, analytes, and arrays of statistics
         of shape (samples, analytes). Statistics are calculated
@@ -1327,31 +1310,31 @@ class D(object):
             means.append(s.mean())
         means = np.array(means)
 
-        fig, ax = plt.subplots(1, 1, figsize=[figsize])
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
 
         x = 0
         for a in analytes:
             # individual traces
-            ys = self.unstats[analytes == a]
+            ys = self.unstats[self.analytes == a]
             xs = np.linspace(x-0.1, x+0.1, ys.size)
             ax.errorbar(xs, un.nominal_values(ys)[0], yerr=un.std_devs(ys)[0],
                         color=self.cmap[a], lw=0, elinewidth=1, capsize=0,
                         marker='o', markersize=3)
 
             # means of all traces
-            avx = [x-0.2, x+0.2]
-            avy = means[analytes == a]
+            avx = [x-0.3, x+0.3]
+            avy = means[self.analytes == a]
             ave = [un.nominal_values(avy)[0] + un.std_devs(avy)[0]] * 2 + [un.nominal_values(avy)[0] - un.std_devs(avy)[0]] * 2
 
-            ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=d.cmap[a])
-            ax.fill_between(avx + avx[::-1], ave, lw=0, color=d.cmap[a], alpha=0.4)
+            ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=self.cmap[a])
+            ax.fill_between(avx + avx[::-1], ave, lw=0, color=self.cmap[a], alpha=0.4)
 
             x += 1
 
         if scale is not None:
             ax.set_yscale(scale)
 
-        ax.set_xticklabels([''] + [a for a in analytes if 'Ca' not in a])
+        ax.set_xticklabels([''] + [self.pretty_element(a) for a in analytes])
 
         return fig
 
