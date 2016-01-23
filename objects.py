@@ -90,6 +90,91 @@ class analyse(object):
         for d in self.data:
             d.autorange(**kwargs)
 
+    def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=0.18):
+        """
+        Determines the exponential decay filter coefficient by
+        looking at the washout time at the end of standards measurements
+
+        Parameters:
+            nsd_below: float
+                The number of standard deviations to subtract
+                from the fitted coefficient.
+            analytes: str or array-lke
+                The analytes to consider when determining the coefficient.
+                Use high-concentration analytes for best estimates
+            plot: bool or str
+                bool: Creates a plot of the fit if True.
+                str: Creates a plot, and saves it to the location
+                     specified in the str.
+            trimlim: float
+                A threshold limit used in determining the start of the
+                exponential decay region of the washout. If the data in
+                the plot don't fall on an exponential decay line, change
+                this number. Normally you'll need to increase it.
+        """
+
+        if not hasattr(self, 'trnrng'):
+            self.autorange()
+
+        from scipy.optimize import curve_fit
+        if type(analytes) is str:
+            analytes = [analytes]
+
+        def findtrim(tr, lim=0.18):
+            trr = np.roll(tr, -1)
+            trr[-1] = 0
+            ind = (tr - trr) >= lim
+            return np.arange(len(ind))[ind ^ np.roll(ind, -1)][0]
+
+        def normalise(a):
+            return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
+
+        trans = []
+        times = []
+        for analyte in analytes:
+            for v in self.stds:
+                for trnrng in v.trnrng[1::2]:
+                    tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
+                    trim = findtrim(tr, trimlim) + 1
+                    trans.append(normalise(tr[trim:]))
+                    times.append(np.arange(tr[trim:].size) * np.diff(v.Time[:2]))
+
+        times = np.concatenate(times)
+        trans = np.concatenate(trans)
+
+        ti = []
+        tr = []
+        for t in np.unique(times):
+            ti.append(t)
+            tr.append(np.nanmin(trans[times == t]))
+
+
+        def expfit(x, e):
+            return np.exp(e * x)
+
+        ep, ecov = curve_fit(expfit, ti, tr, p0=(-1.))
+
+        def R2calc(x, y, yp):
+            SStot = np.sum((y - np.nanmean(y))**2)
+            SSfit = np.sum((y - yp)**2)
+            return 1 - (SSfit / SStot)
+
+        eeR2 = R2calc(times, trans, expfit(times, ep))
+
+        if plot:
+            fig, ax = plt.subplots(1, 1, figsize=[6, 4])
+
+            ax.scatter(times, trans, alpha=0.1, color='k', marker='x')
+            ax.plot(np.linspace(0,5), expfit(np.linspace(0,5), ep), color='r')
+            ax.text(0.9, 0.9, 'y = $e^{%.3f \pm %.3f * x}$\n$R^2$= %.3e' % (ep, np.diag(ecov)**.5, eeR2),
+                    transform=ax.transAxes, ha='right', va='top', size=12)
+            if type(plot) is str:
+                fig.savefig(plot)
+
+        self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
+
+        return
+
     def save_ranges(self):
         if os.path.isfile('bkg.rng'):
             f = input('Range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
@@ -142,16 +227,13 @@ class analyse(object):
         # number the signal regions (used for statistics and standard matching)
         for s in self.data:
             # re-create booleans
-            s.bkgrange()
-            s.sigrange()
-            # s.bkg = np.ndarray(s.Time.size, bool)
-            # for l, u in s.bkgrng:
-            #     s.bkg[(s.Time > l) & (s.Time < u)] = True
+            s.makerangebools()
 
-            # s.sig = np.ndarray(s.Time.size, bool)
-            # for l, u in s.sigrng:
-            #     s.sig[(s.Time > l) & (s.Time < u)] = True
+            # make trnrng
+            s.trn[[0, -1]] = False
+            s.trnrng = s.Time[s.trn ^ np.roll(s.trn, 1)]
 
+            # number traces
             n = 1
             for i in range(len(s.sig)-1):
                 if s.sig[i]:
@@ -880,7 +962,7 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    def despike(self,)
+    # def despike(self,)
 
     # helper functions for data selection
     def findmins(self, x, y):
@@ -1102,7 +1184,7 @@ class D(object):
         # calculate average transition width
         tr = self.Time[self.trn ^ np.roll(self.trn, 1)]
         tr = np.reshape(tr, [tr.size//2, 2])
-        self.trnrngs = tr
+        self.trnrng = tr
         trw = np.mean(np.diff(tr, axis=1))
 
         corr = False
@@ -1142,7 +1224,7 @@ class D(object):
 
         self.trn[[0, -1]] = False
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
-        self.trnrng = trnr
+        self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
 
         # bkgr = np.concatenate([[0],
         #                       self.Time[self.bkg ^ np.roll(self.bkg, -1)],
@@ -1198,6 +1280,16 @@ class D(object):
             self.sig[(self.Time > ls) & (self.Time < us)] = True
 
         self.trn = ~self.bkg & ~self.sig  # redefine transition regions
+        return
+
+    def makerangebools(self):
+        self.sig = np.array([False] * self.Time.size)
+        for ls, us in self.sigrng:
+            self.sig[(self.Time > ls) & (self.Time < us)] = True
+        self.bkg = np.array([False] * self.Time.size)
+        for lb, ub in self.bkgrng:
+            self.bkg[(self.Time > lb) & (self.Time < ub)] = True
+        self.trn = ~self.bkg & ~self.sig
         return
 
     def separate(self, analytes=None):
