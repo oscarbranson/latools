@@ -123,10 +123,8 @@ class analyse(object):
                            b.strip()).groups()[0])
             bkgrngs.append(eval(re.match('(.*):{1}(.*)',
                            b.strip()).groups()[1]))
-        samples = np.array(samples)
-        bkgrngs = np.array(bkgrngs)
-        for i in range(len(self.samples)):
-            self.data[i].bkgrng = np.array(bkgrngs[samples == self.data[i].sample][0])
+        for s, rngs in zip(samples, bkgrngs):
+            self.data_dict[s].bkgrng = np.array(rngs)
 
         if sigrngs is None:
             sigrngs = 'sig.rng'
@@ -138,22 +136,21 @@ class analyse(object):
                            s.strip()).groups()[0])
             sigrngs.append(eval(re.match('(.*):{1}(.*)',
                            s.strip()).groups()[1]))
-        samples = np.array(samples)
-        bkgrngs = np.array(bkgrngs)
-        sigrngs = np.array(sigrngs)
-        for i in range(len(self.samples)):
-            self.data[i].sigrng = np.array(sigrngs[samples == self.data[i].sample][0])
+        for s, rngs in zip(samples, sigrngs):
+            self.data_dict[s].sigrng = np.array(rngs)
 
         # number the signal regions (used for statistics and standard matching)
         for s in self.data:
             # re-create booleans
-            s.bkg = np.ndarray(s.Time.size, bool)
-            for l, u in s.bkgrng:
-                s.bkg[(s.Time > l) & (s.Time < u)] = True
+            s.bkgrange()
+            s.sigrange()
+            # s.bkg = np.ndarray(s.Time.size, bool)
+            # for l, u in s.bkgrng:
+            #     s.bkg[(s.Time > l) & (s.Time < u)] = True
 
-            s.sig = np.ndarray(s.Time.size, bool)
-            for l, u in s.sigrng:
-                s.sig[(s.Time > l) & (s.Time < u)] = True
+            # s.sig = np.ndarray(s.Time.size, bool)
+            # for l, u in s.sigrng:
+            #     s.sig[(s.Time > l) & (s.Time < u)] = True
 
             n = 1
             for i in range(len(s.sig)-1):
@@ -642,12 +639,12 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, dirpath='./reports', ranges=False, plot_filt=None):
+    def trace_plots(self, analytes=None, dirpath='./reports', ranges=False, focus='rawdata', plot_filt=None):
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
         for s in self.data:
             stg = s.focus_stage
-            s.setfocus('rawdata')
+            s.setfocus(focus)
             fig = s.tplot(scale='log', ranges=ranges, plot_filt=plot_filt)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
@@ -882,6 +879,9 @@ class D(object):
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
 
+    # despiking functions
+    def despike(self,)
+
     # helper functions for data selection
     def findmins(self, x, y):
         """
@@ -1028,7 +1028,7 @@ class D(object):
         bins = 50  # determine automatically? As a function of bkg rms noise?
         # bkg = np.array([True] * self.Time.size)  # initialise background array
 
-        v = self.rawdata[analyte]  # get trace data
+        v = self.focus[analyte]  # get trace data
         vl = np.log10(v[v > 1])  # remove zeros from value
         x = np.linspace(vl.min(), vl.max(), bins)  # define bin limits
 
@@ -1102,6 +1102,7 @@ class D(object):
         # calculate average transition width
         tr = self.Time[self.trn ^ np.roll(self.trn, 1)]
         tr = np.reshape(tr, [tr.size//2, 2])
+        self.trnrngs = tr
         trw = np.mean(np.diff(tr, axis=1))
 
         corr = False
@@ -1131,15 +1132,27 @@ class D(object):
         sigrng and bkgrng arrays. These arrays can be saved by 'save_ranges' in
         the analyse object.
         """
-        bkgr = np.concatenate([[0],
-                              self.Time[self.bkg ^ np.roll(self.bkg, -1)],
-                              [self.Time[-1]]])
+        self.bkg[[0,-1]] = False
+        bkgr = self.Time[self.bkg ^ np.roll(self.bkg, -1)]
         self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
 
-        if self.sig[-1]:
-            self.sig[-1] = False
+        self.sig[[0, -1]] = False
         sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
         self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
+
+        self.trn[[0, -1]] = False
+        trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
+        self.trnrng = trnr
+
+        # bkgr = np.concatenate([[0],
+        #                       self.Time[self.bkg ^ np.roll(self.bkg, -1)],
+        #                       [self.Time[-1]]])
+        # self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
+
+        # if self.sig[-1]:
+        #     self.sig[-1] = False
+        # sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
+        # self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
 
     def bkgrange(self, rng=None):
         """
@@ -1156,9 +1169,12 @@ class D(object):
                 self.bkgrng = np.append(self.bkgrng, np.array([rng]), 0)
             else:
                 self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
-        for r in self.bkgrng:
-            self.bkg[(self.Time >= min(r)) & (self.Time <= max(r))] = True
-        self.trn[(~self.bkg) & (~self.sig)] = True  # redefine transition regions
+
+        self.bkg = np.array([False] * self.Time.size)
+        for lb, ub in self.bkgrng:
+            self.bkg[(self.Time > lb) & (self.Time < ub)] = True
+
+        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
         return
 
     def sigrange(self, rng=None):
@@ -1176,9 +1192,12 @@ class D(object):
                 self.sigrng = np.append(self.sigrng, np.array([rng]), 0)
             else:
                 self.sigrng = np.append(self.sigrng, np.array(rng), 0)
-        for r in self.sigrng:
-            self.sig[(self.Time >= min(r)) & (self.Time <= max(r))] = True
-        self.trn[(self.bkg == 0) & (self.sig == 0)] = True
+
+        self.sig = np.array([False] * self.Time.size)
+        for ls, us in self.sigrng:
+            self.sig[(self.Time > ls) & (self.Time < us)] = True
+
+        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
         return
 
     def separate(self, analytes=None):
@@ -1194,9 +1213,9 @@ class D(object):
         self.background = {}
         self.signal = {}
         for v in analytes:
-            self.background[v] = self.rawdata[v].copy()
+            self.background[v] = self.focus[v].copy()
             self.background[v][~self.bkg] = np.nan
-            self.signal[v] = self.rawdata[v].copy()
+            self.signal[v] = self.focus[v].copy()
             self.signal[v][~self.sig] = np.nan
 
     def bkg_correct(self):
