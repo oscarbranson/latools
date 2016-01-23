@@ -46,8 +46,6 @@ class analyse(object):
               len(self.data) - len(self.stds)))
         print('Analytes: ' + ' '.join(self.analytes))
 
-    # # despiking functions
-    # def despike(self, )
 
     # function for identifying sample and background regions
     def trace_id(self, analytes=['Ca44', 'Al27', 'Ba137', 'Ba138']):
@@ -148,7 +146,6 @@ class analyse(object):
             ti.append(t)
             tr.append(np.nanmin(trans[times == t]))
 
-
         def expfit(x, e):
             return np.exp(e * x)
 
@@ -173,6 +170,15 @@ class analyse(object):
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
+        return
+
+    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
+        if exponent is None:
+            if ~hasattr(self, 'expdecay_coef'):
+                self.find_expcoef()
+            exponent = self.expdecay_coef
+        for d in self.data:
+            d.despike(expdecay_filter, exponent, tstep, spike_filter, win, nlim)
         return
 
     def save_ranges(self):
@@ -962,7 +968,76 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    # def despike(self,)
+    def expdecay_filter(self, exponent=None, tstep=None):
+        """
+        Exponential decay filter for removing anomalous low values.
+        """
+        # if exponent is None:
+        #     if ~hasattr(self, 'expdecay_coef'):
+        #         self.find_expcoef()
+        #     exponent = self.expdecay_coef
+        if tstep is None:
+            tstep = np.diff(self.Time[:2])
+        if ~hasattr(self, 'despiked'):
+            self.despiked = {}
+        for a, vo in self.focus.items():
+            v = vo.copy()
+            if 'time' not in a.lower():
+                lowlim = np.roll(v * np.exp(tstep * exponent),1)
+                lowlim[0] = np.nan
+                under = v < lowlim
+
+                if sum(under) > 0:
+                    # get adjacent values to over-limit values
+                    neighbours = np.hstack([v[np.roll(under, -1)][:, np.newaxis],
+                                            v[np.roll(under, 1)][:, np.newaxis]])
+                    # calculate the mean of the neighbours
+                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
+                    # and subsitite them in
+                    v[under] = replacements
+                self.despiked[a] = v
+        self.setfocus('despiked')
+        return
+
+    # spike filter
+    def spike_filter(self, win=3, nlim=12.):
+        """
+        Spike filter for removing anomalous high values.
+        """
+        if type(win) is not int:
+            win = int(win)
+        if ~hasattr(self, 'despiked'):
+            self.despiked = {}
+        for a, vo in self.focus.items():
+            v = vo.copy()
+            if 'time' not in a.lower():
+                # calculate rolling mean
+                with warnings.catch_warnings():  # to catch 'empty slice' warnings
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    rmean = np.apply_along_axis(np.nanmean, 1, rolling_window(v, win))
+                    rmean = np.apply_along_axis(np.nanmean, 1, rolling_window(v, win))
+                # calculate rolling standard deviation (count statistics, so **0.5)
+                rstd = rmean**0.5
+
+                # find which values are over the threshold (v > rmean + nlim * rstd)
+                over = v > rmean + nlim * rstd
+    #             print(a, sum(over))
+                if sum(over) > 0:
+                    # get adjacent values to over-limit values
+                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
+                                            v[np.roll(over, 1)][:, np.newaxis]])
+                    # calculate the mean of the neighbours
+                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
+                    # and subsitite them in
+                    v[over] = replacements
+                self.despiked[a] = v
+        self.setfocus('despiked')
+        return
+
+    def despike(self, expedcay=True, exponent=None, tstep=None, spikefilt=True, win=3, nlim=12.):
+        self.expdecay_filter(exponent, tstep)
+        self.spike_filter(win, nlim)
+        return
 
     # helper functions for data selection
     def findmins(self, x, y):
