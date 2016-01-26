@@ -92,7 +92,7 @@ class analyse(object):
         for d in self.data:
             d.autorange(**kwargs)
 
-    def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=0.18):
+    def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=None):
         """
         Determines the exponential decay filter coefficient by
         looking at the washout time at the end of standards measurements
@@ -119,9 +119,11 @@ class analyse(object):
         if type(analytes) is str:
             analytes = [analytes]
 
-        def findtrim(tr, lim=0.18):
+        def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
             trr[-1] = 0
+            if lim is None:
+                lim = 0.5 * np.nanmax(tr - trr)
             ind = (tr - trr) >= lim
             return np.arange(len(ind))[ind ^ np.roll(ind, -1)][0]
 
@@ -138,7 +140,9 @@ class analyse(object):
             for v in self.stds:
                 for trnrng in v.trnrng[1::2]:
                     tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
-                    trim = findtrim(tr, trimlim) + 1
+                    sm = np.apply_along_axis(np.nanmean, 1, v.rolling_window(tr, 3, pad=0))
+                    sm[0] = sm[1]
+                    trim = findtrim(sm, trimlim) + 2
                     trans.append(normalise(tr[trim:]))
                     times.append(np.arange(tr[trim:].size) * np.diff(v.Time[:2]))
 
@@ -166,27 +170,36 @@ class analyse(object):
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
 
-            ax.scatter(times, trans, alpha=0.1, color='k', marker='x')
-            ax.plot(np.linspace(0,5), expfit(np.linspace(0,5), ep), color='r')
-            ax.text(0.9, 0.9, 'y = $e^{%.3f \pm %.3f * x}$\n$R^2$= %.3e' % (ep, np.diag(ecov)**.5, eeR2),
+            ax.scatter(times, trans, alpha=0.2, color='k', marker='x')
+            ax.scatter(ti, tr, alpha=0.6, color='k', marker='o')
+            fitx = np.linspace(0, max(ti))
+            ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
+            ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5,),
+                    color='b', label='Used')
+            ax.text(0.95, 0.75, 'y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: %.2f' % (ep, np.diag(ecov)**.5, eeR2, ep - nsd_below * np.diag(ecov)**.5),
                     transform=ax.transAxes, ha='right', va='top', size=12)
+            ax.set_xlim(0, ax.get_xlim()[-1])
+            ax.set_xlabel('Time (s)')
+            ax.set_ylim(-0.05, 1.05)
+            ax.set_ylabel('Proportion of Signal')
+            plt.legend()
             if type(plot) is str:
                 fig.savefig(plot)
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
         print('-------------------------------------')
-        print('Exponential Decay Coefficient: {:0.3f}'.format(self.expdecay_coef[0]))
+        print('Exponential Decay Coefficient: {:0.2f}'.format(self.expdecay_coef[0]))
         print('-------------------------------------')
 
         return
 
-    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
+    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12., exponentplot=False):
         if exponent is None:
             if ~hasattr(self, 'expdecay_coef'):
                 print('Exponential Decay Coefficient not provided.')
-                print('Coefficient will be determined from the washout\ntimes of the standards.')
-                self.find_expcoef()
+                print('Coefficient will be determined from the washout\ntimes of the standards (takes a while...).')
+                self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
         for d in self.data:
             d.despike(expdecay_filter, exponent, tstep, spike_filter, win, nlim)
@@ -947,13 +960,13 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    def rolling_window(self, a, window, padded=True):
+    def rolling_window(self, a, window, pad=None):
         shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
         strides = a.strides + (a.strides[-1],)
         out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-        if padded:
+        if pad is not None:
             blankpad = np.empty((window//2, window, ))
-            blankpad[:] = np.nan
+            blankpad[:] = pad
             return np.concatenate([blankpad, out, blankpad])
         else:
             return out
@@ -1004,8 +1017,8 @@ class D(object):
                 # calculate rolling mean
                 with warnings.catch_warnings():  # to catch 'empty slice' warnings
                     warnings.simplefilter("ignore", category=RuntimeWarning)
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win))
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win))
+                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
+                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
                 # calculate rolling standard deviation (count statistics, so **0.5)
                 rstd = rmean**0.5
 
