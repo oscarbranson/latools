@@ -41,6 +41,10 @@ class analyse(object):
 
         self.bimodal_correction = False
 
+        f = open('errors.log', 'a')
+        f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
+        f.close()
+
         print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
         print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
               len(self.data) - len(self.stds)))
@@ -111,9 +115,6 @@ class analyse(object):
                 this number. Normally you'll need to increase it.
         """
 
-        if not hasattr(self, 'trnrng'):
-            self.autorange()
-
         from scipy.optimize import curve_fit
         if type(analytes) is str:
             analytes = [analytes]
@@ -126,6 +127,10 @@ class analyse(object):
 
         def normalise(a):
             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
+
+        if not hasattr(self.stds[0], 'trnrng'):
+            for s in self.stds:
+                s.autorange()
 
         trans = []
         times = []
@@ -170,11 +175,17 @@ class analyse(object):
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
+        print('-------------------------------------')
+        print('Exponential Decay Coefficient: {:0.3f}'.format(self.expdecay_coef[0]))
+        print('-------------------------------------')
+
         return
 
     def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
         if exponent is None:
             if ~hasattr(self, 'expdecay_coef'):
+                print('Exponential Decay Coefficient not provided.')
+                print('Coefficient will be determined from the washout\ntimes of the standards.')
                 self.find_expcoef()
             exponent = self.expdecay_coef
         for d in self.data:
@@ -182,7 +193,7 @@ class analyse(object):
         return
 
     def save_ranges(self):
-        if os.path.isfile('bkg.rng'):
+        if os.path.isfile('params/bkg.rng'):
             f = input('Range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
                 print('Ranges not saved. Run self.save_ranges() to try again.')
@@ -195,17 +206,17 @@ class analyse(object):
         bkgrngs = '\n'.join(bkgrngs)
         sigrngs = '\n'.join(sigrngs)
 
-        fb = open('bkg.rng', 'w')
+        fb = open('params/bkg.rng', 'w')
         fb.write(bkgrngs)
         fb.close()
-        fs = open('sig.rng', 'w')
+        fs = open('params/sig.rng', 'w')
         fs.write(sigrngs)
         fs.close()
         return
 
     def load_ranges(self, bkgrngs=None, sigrngs=None):
         if bkgrngs is None:
-            bkgrngs = 'bkg.rng'
+            bkgrngs = 'params/bkg.rng'
         bkgs = open(bkgrngs).readlines()
         samples = []
         bkgrngs = []
@@ -218,7 +229,7 @@ class analyse(object):
             self.data_dict[s].bkgrng = np.array(rngs)
 
         if sigrngs is None:
-            sigrngs = 'sig.rng'
+            sigrngs = 'params/sig.rng'
         sigs = open(sigrngs).readlines()
         samples = []
         sigrngs = []
@@ -359,7 +370,7 @@ class analyse(object):
     #     return
 
     def save_srm_ids(self):
-        if os.path.isfile('srm.rng'):
+        if os.path.isfile('params/srm.rng'):
             f = input('SRM range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
                 print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
@@ -369,7 +380,7 @@ class analyse(object):
             srm_ids.append(d.sample + ' ' + str(d.std_rngs))
         srm_ids = '\n'.join(srm_ids)
 
-        fb = open('srm.rng', 'w')
+        fb = open('params/srm.rng', 'w')
         fb.write(srm_ids)
         fb.close()
         return
@@ -399,10 +410,9 @@ class analyse(object):
         return
 
     # apply calibration to data
-    def calibrate(self, force_zero=True,
+    def calibrate(self, force_zero=True, focus='ratios',
                   srmfile='/Users/oscarbranson/UCDrive/Projects/latools2/Resources/GeoRem_150105_ratios.csv'):
         # can store calibration function in self and use *coefs?
-
         # check for identified srms
         if not self.srms_ided:
             self.srm_id()
@@ -424,9 +434,11 @@ class analyse(object):
             x = []
             y = []
             for s in self.stds:
+                s.setfocus(focus)
                 for srm in s.std_rngs.keys():
                     y = s.focus[a][s.std_labels[srm] == 1]
-                    x = [self.srm_vals[srm][a]] * len(y)
+                    y = y[~np.isnan(y)]
+                    x = [float(self.srm_vals[srm][a])] * len(y)
 
                     self.calib_data[a]['counts'].append(y)
                     self.calib_data[a]['srm'].append(x)
@@ -448,11 +460,10 @@ class analyse(object):
 
         # save calibration parameters
         self.save_calibration()
-
         return
 
     def save_calibration(self):
-        fname = os.path.dirname(self.folder) + '.calibdat'
+        fname = 'params/' + os.path.dirname(self.folder) + '.calibdat'
         if os.path.isfile(fname):
             f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
             if 'n' in f or 'N' in f:
@@ -465,7 +476,7 @@ class analyse(object):
 
     def load_calibration(self, fname=None):
         if fname is None:
-            fname = os.path.dirname(self.folder) + '.calibdat'
+            fname = 'params/' + os.path.dirname(self.folder) + '.calibdat'
 
         try:
             strdict = re.sub('array', 'np.array', open(fname).read())
@@ -510,10 +521,11 @@ class analyse(object):
             except:
                 fails.append(k)
         if len(fails) > 0:
-            f = file(dirpath + '/' + 'distribution_failures.log', 'w')
+            f = open("errors.log", 'w')
+            f.write('\nDistribution Reports:\n')
             f.write('\n'.join(fails))
             f.close()
-            print('Some reports failed. See log in dirpath.')
+            print('Some reports failed. See log.')
 
         return
 
@@ -627,14 +639,15 @@ class analyse(object):
                     self.focus[a].append(s.focus[a])
 
         for k, v in self.focus.items():
-            self.focus[k] = np.array(v)
+            self.focus[k] = np.concatenate(v)
 
     # crossplot of all data
-    def crossplot(self, analytes=None, ptype='scatter', lognorm=True,
+    def crossplot(self, analytes=None, lognorm=True,
                   bins=25, **kwargs):
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
-        cmaps = self.data[0].cmap
+        if not hasattr(self, 'focus'):
+            self.get_focus()
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -654,80 +667,46 @@ class analyse(object):
             if ax.is_last_row():
                 ax.xaxis.set_ticks_position('bottom')
 
-        if ptype is 'scatter':
-            # Plot the data.
-            for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i, j), (j, i)]:
-                    # set multipliers and units
-                    mx = my = 1000
-                    if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
-                        mx = 1000000
-                    if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
-                        my = 1000000
-                    # make plot
-                    px = self.focus[analytes[x]] * mx
-                    py = self.focus[analytes[y]] * my
-                    axes[x, y].scatter(px, py, color=cmaps[analytes[x]],
-                                       **kwargs)
-                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
+        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                  'Greens', 'Greys', 'Oranges', 'OrRd',
+                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        udict = {}
+        for i, j in zip(*np.triu_indices_from(axes, k=1)):
+            for x, y in [(i, j), (j, i)]:
+                # set unit multipliers
+                mx, ux = unitpicker(np.nanmin(self.focus[analytes[x]]))
+                my, uy = unitpicker(np.nanmin(self.focus[analytes[y]]))
+                udict[analytes[x]] = (x, ux)
 
-        if ptype is 'hist2d':
-            udict = {}
-            cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-                      'Greens', 'Greys', 'Oranges', 'OrRd',
-                      'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
-            for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i, j), (j, i)]:
-                    xs = self.focus[analytes[x]]
-                    if type(xs[0]) is np.ndarray:
-                        xs = np.concatenate(xs)
-                    ys = self.focus[analytes[y]]
-                    if type(ys[0]) is np.ndarray:
-                        ys = np.concatenate(ys)
-
-                    # set unit multipliers
-                    mx = my = 1000
-                    if np.nanmin(xs * mx) < 0.1:
-                        mx = 1000000
-                    if np.nanmin(ys * my) < 0.1:
-                        my = 1000000
-
-                    udict[analytes[x]] = mx
-                    # make plot
-                    px = xs[~np.isnan(xs)] * mx
-                    py = ys[~np.isnan(ys)] * my
-                    if lognorm:
-                        axes[x, y].hist2d(px, py, bins,
-                                          norm=mpl.colors.LogNorm(),
-                                          cmap=plt.get_cmap(cmlist[x]))
-                    else:
-                        axes[x, y].hist2d(px, py, bins,
-                                          cmap=plt.get_cmap(cmlist[x]))
-                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
-
-        for i, label in enumerate(analytes):
-            # assign unit label
-            unit = {1000: '\n(mmol/mol)',
-                    1000000: '\n($\mu$mol/mol)'}
-            # plot label
-            axes[i, i].annotate(label+unit[udict[label]], (0.5, 0.5),
+                # make plot
+                px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
+                py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
+                if lognorm:
+                    axes[x, y].hist2d(px, py, bins,
+                                      norm=mpl.colors.LogNorm(),
+                                      cmap=plt.get_cmap(cmlist[x]))
+                else:
+                    axes[x, y].hist2d(px, py, bins,
+                                      cmap=plt.get_cmap(cmlist[x]))
+                axes[x, y].set_xlim([px.min(), px.max()])
+                axes[x, y].set_ylim([py.min(), py.max()])
+        # diagonal labels
+        for a, (i, u) in udict.items():
+            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
-
+        # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
             axes[j, i].xaxis.set_visible(True)
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
-
             axes[i, j].yaxis.set_visible(True)
 
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, dirpath='./reports', ranges=False, focus='rawdata', plot_filt=None):
+    def trace_plots(self, analytes=None, dirpath='./reports', ranges=False, focus='despiked', plot_filt=None):
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
         for s in self.data:
@@ -968,6 +947,17 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
+    def rolling_window(self, a, window, padded=True):
+        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+        strides = a.strides + (a.strides[-1],)
+        out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+        if padded:
+            blankpad = np.empty((window//2, window, ))
+            blankpad[:] = np.nan
+            return np.concatenate([blankpad, out, blankpad])
+        else:
+            return out
+
     def expdecay_filter(self, exponent=None, tstep=None):
         """
         Exponential decay filter for removing anomalous low values.
@@ -1014,8 +1004,8 @@ class D(object):
                 # calculate rolling mean
                 with warnings.catch_warnings():  # to catch 'empty slice' warnings
                     warnings.simplefilter("ignore", category=RuntimeWarning)
-                    rmean = np.apply_along_axis(np.nanmean, 1, rolling_window(v, win))
-                    rmean = np.apply_along_axis(np.nanmean, 1, rolling_window(v, win))
+                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win))
+                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win))
                 # calculate rolling standard deviation (count statistics, so **0.5)
                 rstd = rmean**0.5
 
@@ -1034,9 +1024,11 @@ class D(object):
         self.setfocus('despiked')
         return
 
-    def despike(self, expedcay=True, exponent=None, tstep=None, spikefilt=True, win=3, nlim=12.):
-        self.expdecay_filter(exponent, tstep)
-        self.spike_filter(win, nlim)
+    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
+        if spike_filter:
+            self.spike_filter(win, nlim)
+        if expdecay_filter:
+            self.expdecay_filter(exponent, tstep)
         return
 
     # helper functions for data selection
@@ -1648,6 +1640,8 @@ class D(object):
             enable_notebook()  # make the plot interactive
         if traces is None:
             traces = self.analytes
+        if type(traces) is str:
+            traces = [traces]
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
 
@@ -1972,6 +1966,19 @@ class D(object):
                 ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
         return fig
 
+# other useful functions
+def unitpicker(a, llim=0.1):
+    udict = {0: 'mol/mol',
+             1: 'mmol/mol',
+             2: '$\mu$mol/mol',
+             3: 'nmol/mol'}
+    a = abs(a)
+    n = 0
+    if a < llim:
+        while a < llim:
+            a *= 1000
+            n += 1
+    return float(1000**n), udict[n]
 
 ### more involved functions
 #     def stridecalc(self, win, var=None):
