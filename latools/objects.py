@@ -18,7 +18,16 @@ from scipy.optimize import curve_fit
 class analyse(object):
     def __init__(self, csv_folder, errorhunt=False):
         self.folder = csv_folder
+        self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
         self.files = np.array(os.listdir(self.folder))
+
+        # make output directories
+        self.param_dir = self.folder + '/params/'
+        if not os.path.isdir(self.param_dir):
+            os.mkdir(self.param_dir)
+        self.report_dir = self.folder + '/reports/'
+        if not os.path.isdir(self.report_dir):
+            os.mkdir(self.report_dir)
 
         self.data = np.array([D(self.folder + f, errorhunt=errorhunt) for f in self.files if 'csv' in f])
         self.samples = np.array([s.sample for s in self.data])
@@ -206,7 +215,7 @@ class analyse(object):
         return
 
     def save_ranges(self):
-        if os.path.isfile('params/bkg.rng'):
+        if os.path.isfile(self.param_dir + 'bkg.rng'):
             f = input('Range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
                 print('Ranges not saved. Run self.save_ranges() to try again.')
@@ -219,17 +228,17 @@ class analyse(object):
         bkgrngs = '\n'.join(bkgrngs)
         sigrngs = '\n'.join(sigrngs)
 
-        fb = open('params/bkg.rng', 'w')
+        fb = open(self.param_dir + 'bkg.rng', 'w')
         fb.write(bkgrngs)
         fb.close()
-        fs = open('params/sig.rng', 'w')
+        fs = open(self.param_dir + 'sig.rng', 'w')
         fs.write(sigrngs)
         fs.close()
         return
 
     def load_ranges(self, bkgrngs=None, sigrngs=None):
         if bkgrngs is None:
-            bkgrngs = 'params/bkg.rng'
+            bkgrngs = self.param_dir + 'bkg.rng'
         bkgs = open(bkgrngs).readlines()
         samples = []
         bkgrngs = []
@@ -242,7 +251,7 @@ class analyse(object):
             self.data_dict[s].bkgrng = np.array(rngs)
 
         if sigrngs is None:
-            sigrngs = 'params/sig.rng'
+            sigrngs = self.param_dir + 'sig.rng'
         sigs = open(sigrngs).readlines()
         samples = []
         sigrngs = []
@@ -383,7 +392,7 @@ class analyse(object):
     #     return
 
     def save_srm_ids(self):
-        if os.path.isfile('params/srm.rng'):
+        if os.path.isfile(self.param_dir + 'srm.rng'):
             f = input('SRM range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
             if 'n' in f or 'N' in f:
                 print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
@@ -393,7 +402,7 @@ class analyse(object):
             srm_ids.append(d.sample + ' ' + str(d.std_rngs))
         srm_ids = '\n'.join(srm_ids)
 
-        fb = open('params/srm.rng', 'w')
+        fb = open(self.param_dir + 'srm.rng', 'w')
         fb.write(srm_ids)
         fb.close()
         return
@@ -424,7 +433,7 @@ class analyse(object):
 
     # apply calibration to data
     def calibrate(self, force_zero=True, focus='ratios',
-                  srmfile='/Users/oscarbranson/UCDrive/Projects/latools2/Resources/GeoRem_150105_ratios.csv'):
+                  srmfile='/Users/oscarbranson/UCDrive/Projects/latools/latools/resources/GeoRem_150105_ratios.csv'):
         # can store calibration function in self and use *coefs?
         # check for identified srms
         if not self.srms_ided:
@@ -476,7 +485,7 @@ class analyse(object):
         return
 
     def save_calibration(self):
-        fname = 'params/' + os.path.dirname(self.folder) + '.calibdat'
+        fname = self.param_dir + self.dirname + '.calibdat'
         if os.path.isfile(fname):
             f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
             if 'n' in f or 'N' in f:
@@ -489,7 +498,7 @@ class analyse(object):
 
     def load_calibration(self, fname=None):
         if fname is None:
-            fname = 'params/' + os.path.dirname(self.folder) + '.calibdat'
+            fname = self.param_dir + self.dirname + '.calibdat'
 
         try:
             strdict = re.sub('array', 'np.array', open(fname).read())
@@ -515,7 +524,7 @@ class analyse(object):
         for d in self.data:
             d.bimodality_fix(analytes, report=False, mode=mode, filt=filt)
 
-    def distribution_reports(self, analytes=['Ba138'], dirpath='./reports', filt=False):
+    def distribution_reports(self, analytes=['Ba138'], dirpath=None, filt=False):
         """
         Saves data distribution pdfs for all analytes specified,
         showing where they have been cut by a bimodality check
@@ -523,6 +532,8 @@ class analyse(object):
         pdfs are saved in the specified directory (dirpath).
         """
         fails = []
+        if dirpath is None:
+            dirpath = self.report_dir
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
         analytes = np.array([analytes]).flatten()
@@ -719,7 +730,9 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, dirpath='./reports', ranges=False, focus='despiked', plot_filt=None):
+    def trace_plots(self, analytes=None, dirpath=None, ranges=False, focus='despiked', plot_filt=None):
+        if dirpath is None:
+            dirpath = self.report_dir
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
         for s in self.data:
