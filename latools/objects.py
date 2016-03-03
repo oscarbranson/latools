@@ -999,18 +999,17 @@ class D(object):
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
-                lowlim = np.roll(v * np.exp(tstep * exponent),1)
-                lowlim[0] = np.nan
-                under = v < lowlim
+                lowlim = np.roll(v * np.exp(tstep * exponent), 1)
+                over = np.roll(lowlim > v, -1)
 
-                if sum(under) > 0:
+                if sum(over) > 0:
                     # get adjacent values to over-limit values
-                    neighbours = np.hstack([v[np.roll(under, -1)][:, np.newaxis],
-                                            v[np.roll(under, 1)][:, np.newaxis]])
+                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
+                                            v[np.roll(over, 1)][:, np.newaxis]])
                     # calculate the mean of the neighbours
                     replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
                     # and subsitite them in
-                    v[under] = replacements
+                    v[over] = replacements
                 self.despiked[a] = v
         self.setfocus('despiked')
         return
