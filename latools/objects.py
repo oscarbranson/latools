@@ -29,7 +29,7 @@ class analyse(object):
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
-        self.data = np.array([D(self.folder + f, errorhunt=errorhunt) for f in self.files if 'csv' in f])
+        self.data = np.array([D(self.folder + '/' + f, errorhunt=errorhunt) for f in self.files if 'csv' in f])
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].cols[1:])
 
@@ -97,9 +97,57 @@ class analyse(object):
         display.clear_output()
         return
 
-    def autorange(self, **kwargs):
+    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
+                  conf=0.01, trans_mult=[0., 0.]):
+        """
+        Function to automatically detect signal and background regions in the
+        laser data, based on the behaviour of a target analyte. An ideal target
+        analyte should be abundant and homogenous in the sample.
+
+        Step 1: Thresholding
+        The background is initially determined using a gaussian kernel density
+        estimator (kde) of all the data. The minima in the kde define the
+        boundaries between distinct data distributions. All data below than the
+        first (lowest) kde minima are labelled 'background', and all above this
+        limit are labelled 'signal'.
+
+        Step 2: Transition Removal
+        The width of the transition regions between signal and background are
+        then determined, and the transitions are removed from both signal and
+        background. The width of the transitions is determined by fitting a
+        gaussian to the smoothed first derivative of the analyte trace, and
+        determining its width at a point where the gaussian intensity is at a
+        set limit. These gaussians are fit to subsets of the data that contain
+        the transitions, which are centered around the approximate transition
+        locations determined in Step 1, ± win data points. The peak is isolated
+        by finding the minima and maxima of a second derivative, and the
+        gaussian is fit to the isolate peak.
+
+        Parameters:
+            win:    int
+                Determines the width (c ± win) of the transition data subsets.
+            gwin:   odd int
+                The smoothing window used for calculating the first derivative.
+            smwin:  odd int
+                The smoothing window used for calculating the second derivative
+            conf:   float
+                The proportional intensity of the fitted gaussian tails that
+                determines the transition width cutoff (lower = wider
+                transition regions excluded).
+            trans_mult: array-like of length 2
+                Multiples of sigma to add to the transition cutoffs, e.g. if
+                the transitions consistently leave some bad data proceeding
+                the transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM
+                to the right hand side of the limit.
+
+        Returns:
+            self gains 'bkg', 'sig', 'bkgrng' and 'sigrng' properties, which
+            contain bagkround & signal boolean arrays and limit arrays,
+            respectively.
+        """
         for d in self.data:
-            d.autorange(**kwargs)
+            d.autorange(analyte, gwin, win, smwin,
+                        conf, trans_mult)
 
     def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=None):
         """
@@ -284,13 +332,13 @@ class analyse(object):
         return
 
     # functions for background correction and ratios
-    def bkgcorrect(self, make_bools=True):
+    def bkgcorrect(self, mode='constant', make_bools=True):
         for s in self.data:
             if make_bools:
                 s.bkgrange()
                 s.sigrange()
             s.separate()
-            s.bkg_correct()
+            s.bkg_correct(mode=mode)
         return
 
     def ratio(self,  denominator='Ca43', stage='signal'):
@@ -432,8 +480,11 @@ class analyse(object):
         return
 
     # apply calibration to data
-    def calibrate(self, force_zero=True, focus='ratios',
+    def calibrate(self, poly_n=0, focus='ratios',
                   srmfile='/Users/oscarbranson/UCDrive/Projects/latools/latools/resources/GeoRem_150105_ratios.csv'):
+        # MAKE CALIBRATION CLEVERER!
+        #   USE ALL DATA, NOT AVERAGES?
+        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
         # check for identified srms
         if not self.srms_ided:
@@ -468,13 +519,13 @@ class analyse(object):
             self.calib_data[a]['counts'] = np.concatenate(self.calib_data[a]['counts']).astype(float)
             self.calib_data[a]['srm'] = np.concatenate(self.calib_data[a]['srm']).astype(float)
 
-            if force_zero:
+            if poly_n == 0:
                 self.calib_dict[a], _, _, _ = np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
                                                               self.calib_data[a]['srm'])
             else:
-                self.calib_dict[a], _, _, _ = np.linalg.lstsq(np.vstack([self.calib_data[a]['counts'],
-                                                              np.ones(self.calib_data[a]['counts'].size())]).T,
-                                                              self.calib_data[a]['srm'])
+                self.calib_dict[a] = np.polyfit(self.calib_data[a]['counts'],
+                                                self.calib_data[a]['srm'],
+                                                poly_n)
 
         # apply calibration
         for d in self.data:
@@ -505,6 +556,9 @@ class analyse(object):
             self.calib_dict = eval(strdict)
         except:
             print("File '" + fname + "' does not exist.")
+
+        self.srms_ided = True
+
         return
 
     def distribution_check(self, analytes=None, mode='lower', filt=False):
@@ -567,11 +621,13 @@ class analyse(object):
                 d.threshold_filter(p[0], p[1], p[2])
 
     # plot helper functions
-    def unitpicker(a, llim=0.1):
+    def unitpicker(self, a, llim=0.1):
         udict = {0: 'mol/mol',
                  1: 'mmol/mol',
                  2: '$\mu$mol/mol',
-                 3: 'nmol/mol'}
+                 3: 'nmol/mol',
+                 4: 'pmol/mol',
+                 5: 'fmol/mol'}
         a = abs(a)
         n = 0
         if a < llim:
@@ -649,7 +705,7 @@ class analyse(object):
         return fig, axes
 
     # fetch all the data from the data objects
-    def get_focus(self):
+    def get_focus(self, filt=False):
         t = 0
         self.focus = {'Time': []}
         for a in self.analytes:
@@ -659,15 +715,21 @@ class analyse(object):
             if 'STD' not in s.sample:
                 self.focus['Time'].append(s.Time + t)
                 t += max(s.Time)
+                if type(filt) is str:
+                    ind = ~s.filt[filt]
+                else:
+                    ind = np.array([False] * len(s.Time))
                 for a in self.analytes:
-                    self.focus[a].append(s.focus[a])
+                    tmp = s.focus[a].copy()
+                    tmp[ind] = np.nan
+                    self.focus[a].append(tmp)
 
         for k, v in self.focus.items():
             self.focus[k] = np.concatenate(v)
 
     # crossplot of all data
     def crossplot(self, analytes=None, lognorm=True,
-                  bins=25, **kwargs):
+                  bins=25, filt=False, **kwargs):
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
         if not hasattr(self, 'focus'):
@@ -699,22 +761,22 @@ class analyse(object):
         for i, j in zip(*np.triu_indices_from(axes, k=1)):
             for x, y in [(i, j), (j, i)]:
                 # set unit multipliers
-                mx, ux = unitpicker(np.nanmin(self.focus[analytes[x]]))
-                my, uy = unitpicker(np.nanmin(self.focus[analytes[y]]))
+                mx, ux = self.unitpicker(np.nanmean(self.focus[analytes[x]]))
+                my, uy = self.unitpicker(np.nanmean(self.focus[analytes[y]]))
                 udict[analytes[x]] = (x, ux)
 
                 # make plot
                 px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
                 py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
                 if lognorm:
-                    axes[x, y].hist2d(px, py, bins,
+                    axes[x, y].hist2d(py, px, bins,
                                       norm=mpl.colors.LogNorm(),
                                       cmap=plt.get_cmap(cmlist[x]))
                 else:
-                    axes[x, y].hist2d(px, py, bins,
+                    axes[x, y].hist2d(py, px, bins,
                                       cmap=plt.get_cmap(cmlist[x]))
-                axes[x, y].set_xlim([px.min(), px.max()])
-                axes[x, y].set_ylim([py.min(), py.max()])
+                axes[x, y].set_ylim([px.min(), px.max()])
+                axes[x, y].set_xlim([py.min(), py.max()])
         # diagonal labels
         for a, (i, u) in udict.items():
             axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
@@ -859,7 +921,7 @@ class analyse(object):
 
         return out
 
-    def stat_csvtable(self, stat='mean', file=None):
+    def stat_csvtable(self, stat='nanmean', file=None):
         """
         Generates a csv table of statistics for all samples and analytes.
         stat:   str
@@ -872,12 +934,16 @@ class analyse(object):
             the raw csv string will be returned.
 
         """
-        head = '# Statistic: ' + stat + '\n' + 'Sample, '+','.join(self.stats['analytes'])
-        dat = self.stats[[k for k in self.stats.keys() if stat in k][0]]
+        analytes = list(self.stats.values())[0]['analytes']
+        head = '# Statistic: ' + stat + '\n' + 'Sample,'+','.join(analytes)
         outrows = []
-        for i in range(self.stats['samples'].size):
-            outrows.append(self.stats['samples'][i] + ',' + ','
-                           .join(dat[i, :].astype(str)))
+        for k,v in self.stats.items():
+            if stat not in v.keys():
+                raise ValueError("Requested 'stat' has not been calculated yet. Re-run stat_samples and include 'stat' in calculations.")
+            i = 1
+            for l in v[stat].T:
+                outrows.append(k + '-s{:.0f},'.format(i) + ','.join(l.astype(str)))
+                i += 1
         out = head + '\n' + '\n'.join(outrows)
 
         if file is not None:
@@ -888,11 +954,10 @@ class analyse(object):
         else:
             return out
 
-
 class D(object):
     def __init__(self, csv_file, errorhunt=False):
         if errorhunt:
-            print(csv_file)
+            print(csv_file)  # errorhunt prints each csv file name before it tries to load it, so you can tell which file is failing to load.
         self.file = csv_file
         self.sample = os.path.basename(self.file).split('.')[0]
 
@@ -944,7 +1009,7 @@ class D(object):
         self.sigrng = np.array([]).reshape(0, 2)
 
         # set up corrections dict
-        self.corrections = {}
+        # self.corrections = {}
 
     def setfocus(self, stage):
         """
@@ -1141,9 +1206,10 @@ class D(object):
         if win % 2 == 0:
             win -= 1  # subtract 1 from window if it is even.
         # trick for efficient 'rolling' computation in numpy
-        shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-        strides = a.strides + (a.strides[-1],)
-        wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+        # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+        # strides = a.strides + (a.strides[-1],)
+        # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+        wins = self.rolling_window(a, win)
         # apply rolling gradient to data
         a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
 
@@ -1223,7 +1289,7 @@ class D(object):
         # 1. calculate the absolute gradient of the target trace.
         g = abs(self.fastgrad(v, gwin))
         # 2. determine the approximate index of each transition
-        zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)]
+        zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)] - 1
         tran = []  # initialise empty list for transition pairs
         for z in zeros:  # for each approximate transition
             # isolate the data around the transition
@@ -1402,13 +1468,19 @@ class D(object):
             self.signal[v] = self.focus[v].copy()
             self.signal[v][~self.sig] = np.nan
 
-    def bkg_correct(self):
+    def bkg_correct(self, mode='constant'):
         """
-        Subtract mean background from all analytes.
+        Subtract constant or linear background from all analytes.
+        mode may be 'constant' or an int describing the degree of polynomial background.
         """
         self.bkgsub = {}
-        for c in self.analytes:
-            self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
+        if mode == 'constant':
+            for c in self.analytes:
+                self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
+        if (mode != 'constant'):
+            for c in self.analytes:
+                p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg], mode)
+                self.bkgsub[c] = self.signal[c] - np.polyval(p, self.Time)
         self.setfocus('bkgsub')
         return
 
@@ -1426,9 +1498,9 @@ class D(object):
         """
         self.setfocus(stage)
         self.ratios = {}
-        for i in range(1, len(self.cols)):
-            self.ratios[self.cols[i]] = \
-                self.focus[self.cols[i]] / self.focus[denominator]
+        for a in self.analytes:
+            self.ratios[a] = \
+                self.focus[a] / self.focus[denominator]
         self.setfocus('ratios')
         return
 
@@ -1438,14 +1510,15 @@ class D(object):
         """
         # can have calibration function stored in self and pass *coefs?
         self.calibrated = {}
-        for i in range(1, len(self.cols)):
-            coefs = calib_dict[self.cols[i]]
+        for a in self.analytes:
+            coefs = calib_dict[a]
             if len(coefs) == 1:
-                self.calibrated[self.cols[i]] = \
-                    self.focus[self.cols[i]] * coefs
+                self.calibrated[a] = \
+                    self.ratios[a] * coefs
             else:
-                self.calibrated[self.cols[i]] = \
-                    self.focus[self.cols[i]] * coefs[0] + coefs[1]
+                self.calibrated[a] = \
+                    np.polyval(coefs, self.ratios[a])
+                    # self.ratios[a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
@@ -1471,8 +1544,8 @@ class D(object):
             bool:  True | False
                 If True, applies filter created by bimodality_fix to each
                 analyte individually.
-            str: name of analyte, or 'master'
-                applies the filter for a specific analyte to all the data,
+            str: name of analyte specific filter
+                applies a specific filter to all the data,
                 or a filter resulting from the union of all analyte-specific
                 filters.
         eachtrace: bool
@@ -1548,6 +1621,10 @@ class D(object):
                 self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
                                             self.Time[(a & np.roll(~a, -1))]))
 
+        a = self.filt['combined']
+        self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
+                                             self.Time[(a & np.roll(~a, -1))]))
+
         # print(self.sample, self.filt.keys())
 
     def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
@@ -1613,6 +1690,10 @@ class D(object):
             if f not in self.filtrngs.keys():
                 self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
                                             self.Time[(a & np.roll(~a, -1))]))
+
+        a = self.filt['combined']
+        self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
+                                             self.Time[(a & np.roll(~a, -1))]))
         return
 
     # Plotting Functions
@@ -1740,45 +1821,45 @@ class D(object):
 
         return fig
 
-    def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
-        """
-        Plot each trace individually, and the individual mean for comparison.
-        """
+    # def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
+    #     """
+    #     Plot each trace individually, and the individual mean for comparison.
+    #     """
 
-        self.unstats = un.uarray(self.stats[vals], self.stats[errs])
+    #     self.unstats = un.uarray(self.stats[vals], self.stats[errs])
 
-        means = []
-        for s in self.unstats:
-            means.append(s.mean())
-        means = np.array(means)
+    #     means = []
+    #     for s in self.unstats:
+    #         means.append(s.mean())
+    #     means = np.array(means)
 
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
+    #     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
-        x = 0
-        for a in analytes:
-            # individual traces
-            ys = self.unstats[self.analytes == a]
-            xs = np.linspace(x-0.1, x+0.1, ys.size)
-            ax.errorbar(xs, un.nominal_values(ys)[0], yerr=un.std_devs(ys)[0],
-                        color=self.cmap[a], lw=0, elinewidth=1, capsize=0,
-                        marker='o', markersize=3)
+    #     x = 0
+    #     for a in analytes:
+    #         # individual traces
+    #         ys = self.unstats[self.analytes == a]
+    #         xs = np.linspace(x-0.1, x+0.1, ys.size)
+    #         ax.errorbar(xs, un.nominal_values(ys)[0], yerr=un.std_devs(ys)[0],
+    #                     color=self.cmap[a], lw=0, elinewidth=1, capsize=0,
+    #                     marker='o', markersize=3)
 
-            # means of all traces
-            avx = [x-0.3, x+0.3]
-            avy = means[self.analytes == a]
-            ave = [un.nominal_values(avy)[0] + un.std_devs(avy)[0]] * 2 + [un.nominal_values(avy)[0] - un.std_devs(avy)[0]] * 2
+    #         # means of all traces
+    #         avx = [x-0.3, x+0.3]
+    #         avy = means[self.analytes == a]
+    #         ave = [un.nominal_values(avy)[0] + un.std_devs(avy)[0]] * 2 + [un.nominal_values(avy)[0] - un.std_devs(avy)[0]] * 2
 
-            ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=self.cmap[a])
-            ax.fill_between(avx + avx[::-1], ave, lw=0, color=self.cmap[a], alpha=0.4)
+    #         ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=self.cmap[a])
+    #         ax.fill_between(avx + avx[::-1], ave, lw=0, color=self.cmap[a], alpha=0.4)
 
-            x += 1
+    #         x += 1
 
-        if scale is not None:
-            ax.set_yscale(scale)
+    #     if scale is not None:
+    #         ax.set_yscale(scale)
 
-        ax.set_xticklabels([''] + [self.pretty_element(a) for a in analytes])
+    #     ax.set_xticklabels([''] + [self.pretty_element(a) for a in analytes])
 
-        return fig
+    #     return fig
 
     def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
                   **kwargs):
@@ -1996,7 +2077,9 @@ def unitpicker(a, llim=0.1):
     udict = {0: 'mol/mol',
              1: 'mmol/mol',
              2: '$\mu$mol/mol',
-             3: 'nmol/mol'}
+             3: 'nmol/mol',
+             4: 'pmol/mol',
+             5: 'fmol/mol'}
     a = abs(a)
     n = 0
     if a < llim:
@@ -2004,6 +2087,24 @@ def unitpicker(a, llim=0.1):
             a *= 1000
             n += 1
     return float(1000**n), udict[n]
+
+
+def collate_csvs(in_dir,out_dir='./csvs'):
+    """
+    Function to grab all csvs from a directory, and place them in a new
+    directory.
+    """
+    import os
+    import shutil
+
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)
+
+    for p, d, fs in os.walk(in_dir):
+        for f in fs:
+            if '.csv' in f:
+                shutil.copy(p + '/' + f, out_dir + '/' + f)
+    return
 
 ### more involved functions
 #     def stridecalc(self, win, var=None):
