@@ -2072,6 +2072,36 @@ class D(object):
                 ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
         return fig
 
+class filt(object):
+    """
+    Contains data filtering information.
+    """
+    def __init__(self, size):
+        self.size = size
+        self.components = {}
+        self.info = {}
+
+    def get_filtnames(self):
+        return dict(zip(self.components.keys(), [True] * len(self.components.keys())))
+
+    def make_filt(self, active):
+        filt = np.array([True] * self.size)
+        for k, v in active.items():
+            if v:
+                filt = filt & self.components[k]
+        return filt
+
+    def add_filt(self, name, filt, info=''):
+        self.components[name] = filt
+        self.info[name] = info
+
+    def filt_info(self):
+        out = ''
+        for k in self.components.keys():
+            out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
+        return(out)
+
+
 # other useful functions
 def unitpicker(a, llim=0.1):
     udict = {0: 'mol/mol',
