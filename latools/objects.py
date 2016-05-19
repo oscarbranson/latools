@@ -1526,179 +1526,179 @@ class D(object):
         self.setfocus('calibrated')
         return
 
-    # Function for finding sample statistics
-    def sample_stats(self, analytes=None, filt=True,
-                     stat_fns=[np.nanmean, np.nanstd],
-                     eachtrace=True):
-        """
-        Returns samples, analytes, and arrays of statistics
-        of shape (samples, analytes). Statistics are calculated
-        from the 'focus' data variable, so output depends on how
-        the data have been processed.
+    # # Function for finding sample statistics
+    # def sample_stats(self, analytes=None, filt=True,
+    #                  stat_fns=[np.nanmean, np.nanstd],
+    #                  eachtrace=True):
+    #     """
+    #     Returns samples, analytes, and arrays of statistics
+    #     of shape (samples, analytes). Statistics are calculated
+    #     from the 'focus' data variable, so output depends on how
+    #     the data have been processed.
 
-        analytes: array-like
-            list of analytes to calculate the statistic on
-        stat_fns: array-like
-            list of functions that take a single array-like input,
-            and return a single statistic. Function should be able
-            to cope with numpy NaN values.
-        filt: bool or str
-            filt specifies the filter to apply to the data when calculating
-            sample statistics. It can either:
-            bool:  True | False
-                If True, applies filter created by bimodality_fix to each
-                analyte individually.
-            str: name of analyte specific filter
-                applies a specific filter to all the data,
-                or a filter resulting from the union of all analyte-specific
-                filters.
-        eachtrace: bool
-            Return individual statistics for each analysis trace (True),
-            or each sample (False)?
-        """
-        if analytes is None:
-                analytes = self.analytes
+    #     analytes: array-like
+    #         list of analytes to calculate the statistic on
+    #     stat_fns: array-like
+    #         list of functions that take a single array-like input,
+    #         and return a single statistic. Function should be able
+    #         to cope with numpy NaN values.
+    #     filt: bool or str
+    #         filt specifies the filter to apply to the data when calculating
+    #         sample statistics. It can either:
+    #         bool:  True | False
+    #             If True, applies filter created by bimodality_fix to each
+    #             analyte individually.
+    #         str: name of analyte specific filter
+    #             applies a specific filter to all the data,
+    #             or a filter resulting from the union of all analyte-specific
+    #             filters.
+    #     eachtrace: bool
+    #         Return individual statistics for each analysis trace (True),
+    #         or each sample (False)?
+    #     """
+    #     if analytes is None:
+    #             analytes = self.analytes
 
-        self.stats = {}
-        self.stats['analytes'] = analytes
+    #     self.stats = {}
+    #     self.stats['analytes'] = analytes
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            for f in stat_fns:
-                self.stats[f.__name__] = []
-                for a in analytes:
-                    if type(filt) is bool:
-                        if filt and a in self.filt.keys():
-                            ind = self.filt[a]
-                        else:
-                            ind = np.array([True] * self.focus[a].size)
-                    if type(filt) is str:
-                        ind = self.filt[filt]
-                    if eachtrace:
-                        sts = []
-                        for t in np.arange(self.n) + 1:
-                            sts.append(f(self.focus[a][ind & (self.ns==t)]))
-                        self.stats[f.__name__].append(sts)
-                    else:
-                        self.stats[f.__name__].append(f(self.focus[a][ind]))
-                self.stats[f.__name__] = np.array(self.stats[f.__name__])
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore", category=RuntimeWarning)
+    #         for f in stat_fns:
+    #             self.stats[f.__name__] = []
+    #             for a in analytes:
+    #                 if type(filt) is bool:
+    #                     if filt and a in self.filt.keys():
+    #                         ind = self.filt[a]
+    #                     else:
+    #                         ind = np.array([True] * self.focus[a].size)
+    #                 if type(filt) is str:
+    #                     ind = self.filt[filt]
+    #                 if eachtrace:
+    #                     sts = []
+    #                     for t in np.arange(self.n) + 1:
+    #                         sts.append(f(self.focus[a][ind & (self.ns==t)]))
+    #                     self.stats[f.__name__].append(sts)
+    #                 else:
+    #                     self.stats[f.__name__].append(f(self.focus[a][ind]))
+    #             self.stats[f.__name__] = np.array(self.stats[f.__name__])
 
-        try:
-            self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
-        except:
-            pass
+    #     try:
+    #         self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
+    #     except:
+    #         pass
 
-        return
+    #     return
 
     # Data Selections Tools
 
-    def clear_filters(self):
-        self.filt = {}
-        self.filtrngs = {}
+    # def clear_filters(self):
+    #     self.filt = {}
+    #     self.filtrngs = {}
 
-    def threshold_filter(self, analyte, threshold, mode='above'):
-        """
-        Generates threshold filters for analytes, when provided with analyte,
-        threshold, and mode. Mode specifies whether data 'below'
-        or 'above' the threshold are kept.
-        """
-        if not hasattr(self, 'filt'):
-            self.filt = {}
+    # def threshold_filter(self, analyte, threshold, mode='above'):
+    #     """
+    #     Generates threshold filters for analytes, when provided with analyte,
+    #     threshold, and mode. Mode specifies whether data 'below'
+    #     or 'above' the threshold are kept.
+    #     """
+    #     if not hasattr(self, 'filt'):
+    #         self.filt = {}
 
-        if mode == 'below':
-            self.filt[analyte + '_thresh'] = self.focus[analyte] <= threshold
-        if mode == 'above':
-            self.filt[analyte + '_thresh'] = self.focus[analyte] >= threshold
+    #     if mode == 'below':
+    #         self.filt[analyte + '_thresh'] = self.focus[analyte] <= threshold
+    #     if mode == 'above':
+    #         self.filt[analyte + '_thresh'] = self.focus[analyte] >= threshold
 
-        # make 'master' filter
-        combined = np.array([True] * self.Time.size)
-        for k, v in self.filt.items():
-            if k is not 'combined':
-                combined = combined & v
-        self.filt['combined'] = combined
+    #     # make 'master' filter
+    #     combined = np.array([True] * self.Time.size)
+    #     for k, v in self.filt.items():
+    #         if k is not 'combined':
+    #             combined = combined & v
+    #     self.filt['combined'] = combined
 
-        # update self.filtrngs
-        for f, a in self.filt.items():
-            if ~hasattr(self, 'filtrngs'):
-                self.filtrngs = {}
-            if f not in self.filtrngs.keys():
-                self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
-                                            self.Time[(a & np.roll(~a, -1))]))
+    #     # update self.filtrngs
+    #     for f, a in self.filt.items():
+    #         if ~hasattr(self, 'filtrngs'):
+    #             self.filtrngs = {}
+    #         if f not in self.filtrngs.keys():
+    #             self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
+    #                                         self.Time[(a & np.roll(~a, -1))]))
 
-        a = self.filt['combined']
-        self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
-                                             self.Time[(a & np.roll(~a, -1))]))
+    #     a = self.filt['combined']
+    #     self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
+    #                                          self.Time[(a & np.roll(~a, -1))]))
 
         # print(self.sample, self.filt.keys())
 
-    def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
-        """
-        Function that checks for bimodality in the data, and excludes either
-        the higher or lower data.
+    # def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
+    #     """
+    #     Function that checks for bimodality in the data, and excludes either
+    #     the higher or lower data.
 
-        Inputs:
-            analytes:                         array-like
-                list of analytes to check
-            mode:                         higher|[lower]
-                higher: keeps the higher distribution
-                lower: keeps the lower distribution
+    #     Inputs:
+    #         analytes:                         array-like
+    #             list of analytes to check
+    #         mode:                         higher|[lower]
+    #             higher: keeps the higher distribution
+    #             lower: keeps the lower distribution
 
-        Returns:
-            Updates D object with 'filt' dict, containing the exclusions
-            calculated by the bimodal split cutoff.
-        """
-        if not hasattr(self, 'filt'):
-            self.filt = {}
-        self.bimodal_limits = {}
-        if report and ~hasattr(self, 'bimodal_reports'):
-            self.bimodal_reports = {}
-        for a in np.array(analytes, ndmin=1):
-            if type(filt) is bool:
-                if filt and a in self.filt.keys():
-                    ind = ~np.isnan(self.focus[a]) & self.filt[a]
-                else:
-                    ind = ~np.isnan(self.focus[a])
-            if type(filt) is str:
-                ind = ~np.isnan(self.focus[a]) & self.filt[filt]
-            if sum(ind) <= 1:
-                ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
+    #     Returns:
+    #         Updates D object with 'filt' dict, containing the exclusions
+    #         calculated by the bimodal split cutoff.
+    #     """
+    #     if not hasattr(self, 'filt'):
+    #         self.filt = {}
+    #     self.bimodal_limits = {}
+    #     if report and ~hasattr(self, 'bimodal_reports'):
+    #         self.bimodal_reports = {}
+    #     for a in np.array(analytes, ndmin=1):
+    #         if type(filt) is bool:
+    #             if filt and a in self.filt.keys():
+    #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
+    #             else:
+    #                 ind = ~np.isnan(self.focus[a])
+    #         if type(filt) is str:
+    #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
+    #         if sum(ind) <= 1:
+    #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
 
-            kde = gaussian_kde(self.focus[a][ind])
-            x = np.linspace(np.nanmin(self.focus[a][ind]), np.nanmax(self.focus[a][ind]),
-                            kde.dataset.size // 3)
-            yd = kde.pdf(x)
-            self.bimodal_limits[a] = self.findmins(x, yd)
-            if self.bimodal_limits[a].size > 0:
-                self.bimodal_correction = True
-                if mode is 'lower':
-                    self.filt[a] = self.focus[a] < self.bimodal_limits[a][0]
-                if mode is 'upper':
-                    self.filt[a] = self.focus[a] > self.bimodal_limits[a][-1]
-            else:
-                self.filt[a] = np.array([True] * self.focus[a].size)
+    #         kde = gaussian_kde(self.focus[a][ind])
+    #         x = np.linspace(np.nanmin(self.focus[a][ind]), np.nanmax(self.focus[a][ind]),
+    #                         kde.dataset.size // 3)
+    #         yd = kde.pdf(x)
+    #         self.bimodal_limits[a] = self.findmins(x, yd)
+    #         if self.bimodal_limits[a].size > 0:
+    #             self.bimodal_correction = True
+    #             if mode is 'lower':
+    #                 self.filt[a] = self.focus[a] < self.bimodal_limits[a][0]
+    #             if mode is 'upper':
+    #                 self.filt[a] = self.focus[a] > self.bimodal_limits[a][-1]
+    #         else:
+    #             self.filt[a] = np.array([True] * self.focus[a].size)
 
-            if report:
-                self.bimodal_reports[a] = self.bimodality_report(a, mode=mode)
+    #         if report:
+    #             self.bimodal_reports[a] = self.bimodality_report(a, mode=mode)
 
-        # make 'master' filter
-        combined = np.array([True] * self.Time.size)
-        for k, v in self.filt.items():
-            if k is not 'combined':
-                combined = combined & v
-        self.filt['combined'] = combined
+    #     # make 'master' filter
+    #     combined = np.array([True] * self.Time.size)
+    #     for k, v in self.filt.items():
+    #         if k is not 'combined':
+    #             combined = combined & v
+    #     self.filt['combined'] = combined
 
-        # update self.filtrngs
-        if ~hasattr(self, 'filtrngs'):
-                self.filtrngs = {}
-        for f, a in self.filt.items():
-            if f not in self.filtrngs.keys():
-                self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
-                                            self.Time[(a & np.roll(~a, -1))]))
+    #     # update self.filtrngs
+    #     if ~hasattr(self, 'filtrngs'):
+    #             self.filtrngs = {}
+    #     for f, a in self.filt.items():
+    #         if f not in self.filtrngs.keys():
+    #             self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
+    #                                         self.Time[(a & np.roll(~a, -1))]))
 
-        a = self.filt['combined']
-        self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
-                                             self.Time[(a & np.roll(~a, -1))]))
-        return
+    #     a = self.filt['combined']
+    #     self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
+    #                                          self.Time[(a & np.roll(~a, -1))]))
+    #     return
 
     # Plotting Functions
     def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
@@ -1727,103 +1727,103 @@ class D(object):
         g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False,
-              ranges=False, plot_filt=None, stats=True, sig='nanmean', err='nanstd', interactive=False):
-        """
-        Convenience function for plotting traces.
+    # def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False,
+    #           ranges=False, plot_filt=None, stats=True, sig='nanmean', err='nanstd', interactive=False):
+    #     """
+    #     Convenience function for plotting traces.
 
-        Parameters:
-            traces:     list of strings containing names of analytes to plot.
-                        default = all analytes.
-            figsize:    tuple-like
-                        size of final figure.
-            scale:      str ('log') or blank.
-                        whether to plot data on a log scale.
-            filt:       boolean, string or list
-                        Whether or not to plot the filtered data for all (bool)
-                        or specific (str, list) analytes.
-            stats:      boolean
-                        Whether or not to plot the mean and standard deviation
-                        for the traces.
-        """
-        if interactive:
-            enable_notebook()  # make the plot interactive
-        if traces is None:
-            traces = self.analytes
-        if type(traces) is str:
-            traces = [traces]
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111)
+    #     Parameters:
+    #         traces:     list of strings containing names of analytes to plot.
+    #                     default = all analytes.
+    #         figsize:    tuple-like
+    #                     size of final figure.
+    #         scale:      str ('log') or blank.
+    #                     whether to plot data on a log scale.
+    #         filt:       boolean, string or list
+    #                     Whether or not to plot the filtered data for all (bool)
+    #                     or specific (str, list) analytes.
+    #         stats:      boolean
+    #                     Whether or not to plot the mean and standard deviation
+    #                     for the traces.
+    #     """
+    #     if interactive:
+    #         enable_notebook()  # make the plot interactive
+    #     if traces is None:
+    #         traces = self.analytes
+    #     if type(traces) is str:
+    #         traces = [traces]
+    #     fig = plt.figure(figsize=figsize)
+    #     ax = fig.add_subplot(111)
 
-        for t in traces:
-            x = self.Time
-            y = self.focus[t]
+    #     for t in traces:
+    #         x = self.Time
+    #         y = self.focus[t]
 
-            if type(filt) is bool:
-                if filt and t in self.filt.keys():
-                    ind = self.filt[t]
-                else:
-                    ind = np.array([True] * x.size)
-            if type(filt) is str:
-                ind = self.filt[filt]
+    #         if type(filt) is bool:
+    #             if filt and t in self.filt.keys():
+    #                 ind = self.filt[t]
+    #             else:
+    #                 ind = np.array([True] * x.size)
+    #         if type(filt) is str:
+    #             ind = self.filt[filt]
 
-            if scale is 'log':
-                ax.set_yscale('log')
-                y[y == 0] = 1
-            ax.plot(x, y, color=self.cmap[t], label=t)
-            if any(~ind):
-                ax.scatter(x[~ind], y[~ind], s=5, color='k')
+    #         if scale is 'log':
+    #             ax.set_yscale('log')
+    #             y[y == 0] = 1
+    #         ax.plot(x, y, color=self.cmap[t], label=t)
+    #         if any(~ind):
+    #             ax.scatter(x[~ind], y[~ind], s=5, color='k')
 
-            # Plot averages and error envelopes
-            if stats and hasattr(self, 'stats'):
-                sts = self.stats[sig][0].size
-                if sts > 1:
-                    for n in np.arange(self.n):
-                        x = [self.Time[self.ns==n+1][0], self.Time[self.ns==n+1][-1]]
-                        y = [self.stats[sig][self.stats['analytes']==t][0][n]] * 2
+    #         # Plot averages and error envelopes
+    #         if stats and hasattr(self, 'stats'):
+    #             sts = self.stats[sig][0].size
+    #             if sts > 1:
+    #                 for n in np.arange(self.n):
+    #                     x = [self.Time[self.ns==n+1][0], self.Time[self.ns==n+1][-1]]
+    #                     y = [self.stats[sig][self.stats['analytes']==t][0][n]] * 2
 
-                        yp = [self.stats[sig][self.stats['analytes']==t][0][n] + self.stats[err][self.stats['analytes']==t][0][n]] * 2
-                        yn = [self.stats[sig][self.stats['analytes']==t][0][n] - self.stats[err][self.stats['analytes']==t][0][n]] * 2
+    #                     yp = [self.stats[sig][self.stats['analytes']==t][0][n] + self.stats[err][self.stats['analytes']==t][0][n]] * 2
+    #                     yn = [self.stats[sig][self.stats['analytes']==t][0][n] - self.stats[err][self.stats['analytes']==t][0][n]] * 2
 
-                        ax.plot(x, y, color=self.cmap[t], lw=2)
-                        ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
-                else:
-                    x = [self.Time[0], self.Time[-1]]
-                    y = [self.stats[sig][self.stats['analytes']==t][0]] * 2
-                    yp = [self.stats[sig][self.stats['analytes']==t][0] + self.stats[err][self.stats['analytes']==t][0]] * 2
-                    yn = [self.stats[sig][self.stats['analytes']==t][0] - self.stats[err][self.stats['analytes']==t][0]] * 2
+    #                     ax.plot(x, y, color=self.cmap[t], lw=2)
+    #                     ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
+    #             else:
+    #                 x = [self.Time[0], self.Time[-1]]
+    #                 y = [self.stats[sig][self.stats['analytes']==t][0]] * 2
+    #                 yp = [self.stats[sig][self.stats['analytes']==t][0] + self.stats[err][self.stats['analytes']==t][0]] * 2
+    #                 yn = [self.stats[sig][self.stats['analytes']==t][0] - self.stats[err][self.stats['analytes']==t][0]] * 2
 
-                    ax.plot(x, y, color=self.cmap[t], lw=2)
-                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
+    #                 ax.plot(x, y, color=self.cmap[t], lw=2)
+    #                 ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
 
-        if ranges:
-            for lims in self.bkgrng:
-                ax.axvspan(*lims, color='k', alpha=0.1)
-            for lims in self.sigrng:
-                ax.axvspan(*lims, color='r', alpha=0.1)
+    #     if ranges:
+    #         for lims in self.bkgrng:
+    #             ax.axvspan(*lims, color='k', alpha=0.1)
+    #         for lims in self.sigrng:
+    #             ax.axvspan(*lims, color='r', alpha=0.1)
 
-            if plot_filt is None:
-                plot_filt = 'combined'
-            if hasattr(self, 'filtrngs'):
-                for lims in self.filtrngs[plot_filt]:
-                    ax.axvspan(*lims, color='b', alpha=0.1)
+    #         if plot_filt is None:
+    #             plot_filt = 'combined'
+    #         if hasattr(self, 'filtrngs'):
+    #             for lims in self.filtrngs[plot_filt]:
+    #                 ax.axvspan(*lims, color='b', alpha=0.1)
 
-        ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
-                ha='left', va='top')
+    #     ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
+    #             ha='left', va='top')
 
-        ax.set_xlabel('Time (s)')
+    #     ax.set_xlabel('Time (s)')
 
-        if interactive:
-            ax.legend()
-            plugins.connect(fig, plugins.MousePosition(fontsize=14))
-            display.clear_output(wait=True)
-            display.display(fig)
-            input('Press [Return] when finished.')
-            disable_notebook()  # stop the interactivity
-        else:
-            ax.legend(bbox_to_anchor=(1.12, 1))
+    #     if interactive:
+    #         ax.legend()
+    #         plugins.connect(fig, plugins.MousePosition(fontsize=14))
+    #         display.clear_output(wait=True)
+    #         display.display(fig)
+    #         input('Press [Return] when finished.')
+    #         disable_notebook()  # stop the interactivity
+    #     else:
+    #         ax.legend(bbox_to_anchor=(1.12, 1))
 
-        return fig
+    #     return fig
 
     # def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
     #     """
@@ -1865,225 +1865,223 @@ class D(object):
 
     #     return fig
 
-    def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
-                  **kwargs):
-        """
-        Function for creating scatter crossplots of specified analytes.
-        Useful for checking for correlations withing the traces, which can
-        indicate contamination.
+    # def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
+    #               **kwargs):
+    #     """
+    #     Function for creating scatter crossplots of specified analytes.
+    #     Useful for checking for correlations withing the traces, which can
+    #     indicate contamination.
 
-        Parameters:
-            analytes:   list of analytes to plot (default = all)
-            ptype:      'scatter' | 'hist2d'
-            bins:       (int) Number of bins to use if hist2d
-            lognorm:    (bool) Log-normalise the data?
-            **kwargs:   passed to 'scatter' - does nothing for hist2d
-        """
-        if analytes is None:
-            analytes = [a for a in self.analytes if 'Ca' not in a]
+    #     Parameters:
+    #         analytes:   list of analytes to plot (default = all)
+    #         ptype:      'scatter' | 'hist2d'
+    #         bins:       (int) Number of bins to use if hist2d
+    #         lognorm:    (bool) Log-normalise the data?
+    #         **kwargs:   passed to 'scatter' - does nothing for hist2d
+    #     """
+    #     if analytes is None:
+    #         analytes = [a for a in self.analytes if 'Ca' not in a]
 
-        numvars = len(analytes)
-        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
-                                 figsize=(12, 12))
-        fig.subplots_adjust(hspace=0.05, wspace=0.05)
+    #     numvars = len(analytes)
+    #     fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+    #                              figsize=(12, 12))
+    #     fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
-        for ax in axes.flat:
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
+    #     for ax in axes.flat:
+    #         ax.xaxis.set_visible(False)
+    #         ax.yaxis.set_visible(False)
 
-            if ax.is_first_col():
-                ax.yaxis.set_ticks_position('left')
-            if ax.is_last_col():
-                ax.yaxis.set_ticks_position('right')
-            if ax.is_first_row():
-                ax.xaxis.set_ticks_position('top')
-            if ax.is_last_row():
-                ax.xaxis.set_ticks_position('bottom')
+    #         if ax.is_first_col():
+    #             ax.yaxis.set_ticks_position('left')
+    #         if ax.is_last_col():
+    #             ax.yaxis.set_ticks_position('right')
+    #         if ax.is_first_row():
+    #             ax.xaxis.set_ticks_position('top')
+    #         if ax.is_last_row():
+    #             ax.xaxis.set_ticks_position('bottom')
 
-        if ptype is 'scatter':
-            # Plot the data.
-            for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i, j), (j, i)]:
-                    # set multipliers and units
-                    mx = my = 1000
-                    ux = uy = '(mmol/mol)'
-                    if np.nanmin(self.focus[analytes[x]] * my) < 0.1:
-                        mx = 1000000
-                        ux = '($\mu$mol/mol)'
-                    if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
-                        my = 1000000
-                        uy = '($\mu$mol/mol)'
-                    # make plot
-                    px = self.focus[analytes[x]] * mx
-                    py = self.focus[analytes[y]] * my
-                    axes[x, y].scatter(px, py, color=self.cmap[analytes[x]],
-                                       **kwargs)
-                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
+    #     if ptype is 'scatter':
+    #         # Plot the data.
+    #         for i, j in zip(*np.triu_indices_from(axes, k=1)):
+    #             for x, y in [(i, j), (j, i)]:
+    #                 # set multipliers and units
+    #                 mx = my = 1000
+    #                 ux = uy = '(mmol/mol)'
+    #                 if np.nanmin(self.focus[analytes[x]] * my) < 0.1:
+    #                     mx = 1000000
+    #                     ux = '($\mu$mol/mol)'
+    #                 if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
+    #                     my = 1000000
+    #                     uy = '($\mu$mol/mol)'
+    #                 # make plot
+    #                 px = self.focus[analytes[x]] * mx
+    #                 py = self.focus[analytes[y]] * my
+    #                 axes[x, y].scatter(px, py, color=self.cmap[analytes[x]],
+    #                                    **kwargs)
+    #                 axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+    #                 axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
-        if ptype is 'hist2d':
-            cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-                      'Greens', 'Greys', 'Oranges', 'OrRd',
-                      'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
-            for i, j in zip(*np.triu_indices_from(axes, k=1)):
-                for x, y in [(i, j), (j, i)]:
-                    # set unit multipliers
-                    mx = my = 1000
-                    if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
-                        mx = 1000000
-                    if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
-                        my = 1000000
-                    # make plot
-                    px = self.focus[analytes[x]][~np.isnan(self.focus
-                                                           [analytes[x]])] * mx
-                    py = self.focus[analytes[y]][~np.isnan(self.focus
-                                                           [analytes[y]])] * my
-                    if lognorm:
-                        axes[x, y].hist2d(px, py, bins,
-                                          norm=mpl.colors.LogNorm(),
-                                          cmap=plt.get_cmap(cmlist[x]))
-                    else:
-                        axes[x, y].hist2d(px, py, bins,
-                                          cmap=plt.get_cmap(cmlist[x]))
-                    axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-                    axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
+    #     if ptype is 'hist2d':
+    #         cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+    #                   'Greens', 'Greys', 'Oranges', 'OrRd',
+    #                   'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+    #                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+    #         for i, j in zip(*np.triu_indices_from(axes, k=1)):
+    #             for x, y in [(i, j), (j, i)]:
+    #                 # set unit multipliers
+    #                 mx = my = 1000
+    #                 if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
+    #                     mx = 1000000
+    #                 if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
+    #                     my = 1000000
+    #                 # make plot
+    #                 px = self.focus[analytes[x]][~np.isnan(self.focus
+    #                                                        [analytes[x]])] * mx
+    #                 py = self.focus[analytes[y]][~np.isnan(self.focus
+    #                                                        [analytes[y]])] * my
+    #                 if lognorm:
+    #                     axes[x, y].hist2d(px, py, bins,
+    #                                       norm=mpl.colors.LogNorm(),
+    #                                       cmap=plt.get_cmap(cmlist[x]))
+    #                 else:
+    #                     axes[x, y].hist2d(px, py, bins,
+    #                                       cmap=plt.get_cmap(cmlist[x]))
+    #                 axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
+    #                 axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
 
-        for i, label in enumerate(analytes):
-            # assign unit label
-            unit = '\n(mmol/mol)'
-            if np.nanmin(self.focus[label] * 1000) < 0.1:
-                unit = '\n($\mu$mol/mol)'
-            # plot label
-            axes[i, i].annotate(label+unit, (0.5, 0.5),
-                                xycoords='axes fraction',
-                                ha='center', va='center')
+    #     for i, label in enumerate(analytes):
+    #         # assign unit label
+    #         unit = '\n(mmol/mol)'
+    #         if np.nanmin(self.focus[label] * 1000) < 0.1:
+    #             unit = '\n($\mu$mol/mol)'
+    #         # plot label
+    #         axes[i, i].annotate(label+unit, (0.5, 0.5),
+    #                             xycoords='axes fraction',
+    #                             ha='center', va='center')
 
-        for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
-            axes[j, i].xaxis.set_visible(True)
-            for label in axes[j, i].get_xticklabels():
-                label.set_rotation(90)
+    #     for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
+    #         axes[j, i].xaxis.set_visible(True)
+    #         for label in axes[j, i].get_xticklabels():
+    #             label.set_rotation(90)
 
-            axes[i, j].yaxis.set_visible(True)
+    #         axes[i, j].yaxis.set_visible(True)
 
-        return fig, axes
+    #     return fig, axes
 
-    def bimodality_report(self, mode='lower', filt=False):
-        """
-        Function to plot reports for bimodal exclusion checks.
-        """
-        fig, axes = self.genaxes(3 * len([i for i in list(self.filt.keys()) if i is not 'combined' and 'thresh' not in i]), 3, [4, 3])
+    # def bimodality_report(self, mode='lower', filt=False):
+    #     """
+    #     Function to plot reports for bimodal exclusion checks.
+    #     """
+    #     fig, axes = self.genaxes(3 * len([i for i in list(self.filt.keys()) if i is not 'combined' and 'thresh' not in i]), 3, [4, 3])
 
-        fig.suptitle(self.sample, weight='bold', x=0.1, y=1)
+    #     fig.suptitle(self.sample, weight='bold', x=0.1, y=1)
 
-        i = 0
-        for a in sorted([k for k in self.filt.keys() if k in self.analytes]):
-            if type(filt) is bool:
-                if filt and a in self.filt.keys():
-                    ind = ~np.isnan(self.focus[a]) & self.filt[a]
-                else:
-                    ind = ~np.isnan(self.focus[a])
-            if type(filt) is str:
-                ind = ~np.isnan(self.focus[a]) & self.filt[filt]
-            if sum(ind) <= 1:
-                ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
+    #     i = 0
+    #     for a in sorted([k for k in self.filt.keys() if k in self.analytes]):
+    #         if type(filt) is bool:
+    #             if filt and a in self.filt.keys():
+    #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
+    #             else:
+    #                 ind = ~np.isnan(self.focus[a])
+    #         if type(filt) is str:
+    #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
+    #         if sum(ind) <= 1:
+    #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
 
-            # calculate the multiplier necessary to make units sensible
-            mean = np.nanmean(self.focus[a][ind])
-            if mean * 1E3 > 0.1:
-                m = 1E3
-                label = self.pretty_element(a) + '/Ca (mmol/mol)'
-            else:
-                m = 1E6
-                label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
+    #         # calculate the multiplier necessary to make units sensible
+    #         mean = np.nanmean(self.focus[a][ind])
+    #         if mean * 1E3 > 0.1:
+    #             m = 1E3
+    #             label = self.pretty_element(a) + '/Ca (mmol/mol)'
+    #         else:
+    #             m = 1E6
+    #             label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
 
-            kde = gaussian_kde(self.focus[a][ind] * m)
-            bins = x = np.linspace(np.nanmin(self.focus[a][ind]) * m,
-                                   np.nanmax(self.focus[a][ind]) * m,
-                                   kde.dataset.size // 3)
-            yd = kde.pdf(bins)
+    #         kde = gaussian_kde(self.focus[a][ind] * m)
+    #         bins = x = np.linspace(np.nanmin(self.focus[a][ind]) * m,
+    #                                np.nanmax(self.focus[a][ind]) * m,
+    #                                kde.dataset.size // 3)
+    #         yd = kde.pdf(bins)
 
-            bstep = x[1] - x[0]
+    #         bstep = x[1] - x[0]
 
-            n, _ = np.histogram(self.focus[a][ind] * m, bins)
+    #         n, _ = np.histogram(self.focus[a][ind] * m, bins)
 
-            if axes.ndim > 1:
-                ax1, ax2, ax3 = axes[i, 0], axes[i, 1], axes[i, 2]
-                i += 1
-            else:
-                ax1, ax2, ax3 = axes
+    #         if axes.ndim > 1:
+    #             ax1, ax2, ax3 = axes[i, 0], axes[i, 1], axes[i, 2]
+    #             i += 1
+    #         else:
+    #             ax1, ax2, ax3 = axes
 
-            ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
-                    color=(0, 0, 1, 0.5), lw=0)
-            ax1.set_ylabel('Density')
-            ax1.set_xlabel(label)
+    #         ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
+    #                 color=(0, 0, 1, 0.5), lw=0)
+    #         ax1.set_ylabel('Density')
+    #         ax1.set_xlabel(label)
 
-            ax1.plot(x, yd, color='r', lw=2)
+    #         ax1.plot(x, yd, color='r', lw=2)
 
-            ax2.plot(np.sort(self.focus[a][ind] * m),
-                     color=(0, 0, 1, 0.7))
-            ax2.set_ylabel(label)
-            ax2.set_xlabel('Point No')
+    #         ax2.plot(np.sort(self.focus[a][ind] * m),
+    #                  color=(0, 0, 1, 0.7))
+    #         ax2.set_ylabel(label)
+    #         ax2.set_xlabel('Point No')
 
-            ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
-            ax3.set_ylabel(label)
-            ax3.set_xlabel('Time (s)')
-            ax3.set_ylim(ax2.get_ylim())
+    #         ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
+    #         ax3.set_ylabel(label)
+    #         ax3.set_xlabel('Time (s)')
+    #         ax3.set_ylim(ax2.get_ylim())
 
-            if self.bimodal_limits[a].size > 0:
-                n = sum(self.filt[a][ind]) - 1
+    #         if self.bimodal_limits[a].size > 0:
+    #             n = sum(self.filt[a][ind]) - 1
 
-                if mode is 'lower':
-                    ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
-                                ls='dashed')
-                    ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-                                color=(1, 0, 0, 0.1))
+    #             if mode is 'lower':
+    #                 ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
+    #                             ls='dashed')
+    #                 ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+    #                             color=(1, 0, 0, 0.1))
 
-                    ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
-                                ls='dashed')
-                    ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
+    #                 ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
+    #                             ls='dashed')
+    #                 ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
 
-                    ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
-                                ls='dashed')
-                    ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-                                color=(1, 0, 0, 0.1))
+    #                 ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
+    #                             ls='dashed')
+    #                 ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
+    #                             color=(1, 0, 0, 0.1))
 
-                if mode is 'upper':
-                    ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
-                                ls='dashed')
-                    ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-                                color=(1, 0, 0, 0.1))
+    #             if mode is 'upper':
+    #                 ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
+    #                             ls='dashed')
+    #                 ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+    #                             color=(1, 0, 0, 0.1))
 
-                    ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
-                                ls='dashed')
-                    ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
+    #                 ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
+    #                             ls='dashed')
+    #                 ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
 
-                    ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
-                                ls='dashed')
-                    ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-                                color=(1, 0, 0, 0.1))
+    #                 ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
+    #                             ls='dashed')
+    #                 ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
+    #                             color=(1, 0, 0, 0.1))
 
-                ax2.axvline(n, color='k', ls='dashed')
-                ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
-                         va='top', ha='left')
+    #             ax2.axvline(n, color='k', ls='dashed')
+    #             ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
+    #                      va='top', ha='left')
 
-                ax3.scatter(self.Time[self.filt[a]],
-                            self.focus[a][self.filt[a]]*m, s=3, color='k')
-                ax3.scatter(self.Time[~self.filt[a]],
-                            self.focus[a][~self.filt[a]]*m, s=3,
-                            color=(0, 0, 0, 0.2))
-            else:
-                ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
-        return fig
+    #             ax3.scatter(self.Time[self.filt[a]],
+    #                         self.focus[a][self.filt[a]]*m, s=3, color='k')
+    #             ax3.scatter(self.Time[~self.filt[a]],
+    #                         self.focus[a][~self.filt[a]]*m, s=3,
+    #                         color=(0, 0, 0, 0.2))
+    #         else:
+    #             ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
+    #     return fig
 
 class filt(object):
-    """
-    Contains data filtering information.
-    """
     def __init__(self, size):
         self.size = size
         self.components = {}
         self.info = {}
+        self.params = {}
 
     def get_filtnames(self):
         return dict(zip(self.components.keys(), [True] * len(self.components.keys())))
@@ -2095,9 +2093,10 @@ class filt(object):
                 filt = filt & self.components[k]
         return filt
 
-    def add_filt(self, name, filt, info=''):
+    def add_filt(self, name, filt, info='', params=()):
         self.components[name] = filt
         self.info[name] = info
+        self.params[name] = params
 
     def filt_info(self):
         out = ''
