@@ -1008,6 +1008,10 @@ class D(object):
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
+        # set up filtering environment
+        self.filt_switches = {}
+        self.filt = filt(self.Time.size)
+
         # set up corrections dict
         # self.corrections = {}
 
