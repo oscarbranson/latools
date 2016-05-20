@@ -1010,6 +1010,8 @@ class D(object):
 
         # set up filtering environment
         self.filt_switches = {}
+        for a in self.analytes:
+            self.filt_switches[a] = {}
         self.filt = filt(self.Time.size)
 
         # set up corrections dict
@@ -1526,7 +1528,7 @@ class D(object):
         self.setfocus('calibrated')
         return
 
-    # # Function for finding sample statistics
+    # # Function for calculating sample statistics
     # def sample_stats(self, analytes=None, filt=True,
     #                  stat_fns=[np.nanmean, np.nanstd],
     #                  eachtrace=True):
@@ -1590,11 +1592,83 @@ class D(object):
 
     #     return
 
+
     # Data Selections Tools
 
     # def clear_filters(self):
     #     self.filt = {}
     #     self.filtrngs = {}
+
+    # Filter Operations
+
+    def filter_on(self, analyte=None, filt=None):
+        if type(analyte) is str:
+            analyte = [analyte]
+        if type(filt) is str:
+            filt = [filt]
+
+        if analyte is None:
+            analyte = self.analytes
+        if filt is None:
+            filt = self.filt_switches[analyte[0]].keys()
+
+        for a in analyte:
+            for f in filt:
+                self.filt_switches[a][f] = True
+
+    def filter_off(self, analyte=None, filt=None):
+        if type(analyte) is str:
+            analyte = [analyte]
+        if type(filt) is str:
+            filt = [filt]
+
+        if analyte is None:
+            analyte = self.analytes
+        if filt is None:
+            filt = self.filt_switches[analyte[0]].keys()
+
+        for a in analyte:
+            for f in filt:
+                self.filt_switches[a][f] = False
+
+    def print_filt_switches(self):
+        # also has to happen at analysis level.
+        leftpad = max([len(s) for s in self.filt_switches[self.analytes[0]].keys()]) + 2
+        out = '{string:{number}s}'.format(string='', number=leftpad)
+        for a in self.analytes:
+            out += '{:7s}'.format(a)
+        out += '\n'
+
+        for t in self.filt_switches[self.analytes[0]].keys():
+            out += '{string:{number}s}'.format(string=str(t), number=leftpad)
+            for a in self.analytes:
+                out += '{:7s}'.format(str(self.filt_switches[a][t]))
+            out += '\n'
+
+        print (out)
+
+
+    def filter_threshold(self, analyte, threshold, mode='above'):
+        """
+        Generates threshold filters for analytes, when provided with analyte,
+        threshold, and mode. Mode specifies whether data 'below'
+        or 'above' the threshold are kept.
+        """
+        params = locals()
+        del(params['self'])
+
+        if mode == 'below':
+            self.filt.add_filt(analyte + '_thresh', self.focus[analyte] <= threshold, analyte + '_thresh',
+                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte, params)
+        if mode == 'above':
+            self.filt.add_filt(analyte + '_thresh', self.focus[analyte] >= threshold,
+                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte, params)
+
+        for a in self.analytes:
+            self.filt_switches[a][analyte + '_thresh'] = True
+
+        # self.filt_switches = {}
+        # self.filt = filt(self.Time.size)
 
     # def threshold_filter(self, analyte, threshold, mode='above'):
     #     """
@@ -1631,6 +1705,11 @@ class D(object):
 
         # print(self.sample, self.filt.keys())
 
+    def filter_distribution(self, analyte, filt=False):
+        """
+        identify distributions in the data, and produce a filter for each distribution.
+        """
+        pass
     # def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
     #     """
     #     Function that checks for bimodality in the data, and excludes either
@@ -1699,6 +1778,19 @@ class D(object):
     #     self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
     #                                          self.Time[(a & np.roll(~a, -1))]))
     #     return
+
+    def filter_clustering(self, analytes, mode):
+        """
+        use clustering algorithms to separate data
+        """
+        pass
+
+    def filter_correlation(self, x_analyte, y_analyte, r_threshold, p_threshold):
+        """
+        correlate two analytes, remove regions where they correlate.
+        """
+        pass
+
 
     # Plotting Functions
     def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
@@ -2086,11 +2178,14 @@ class filt(object):
     def get_filtnames(self):
         return dict(zip(self.components.keys(), [True] * len(self.components.keys())))
 
-    def make_filt(self, active):
+    def make_filt(self, analyte, switches, mode='and'):
         filt = np.array([True] * self.size)
-        for k, v in active.items():
+        for k, v in switches[analyte].items():
             if v:
-                filt = filt & self.components[k]
+                if mode == 'and':
+                    filt = filt & self.components[k]
+                if mode == 'or':
+                    filt = filt | self.components[k]
         return filt
 
     def add_filt(self, name, filt, info='', params=()):
@@ -2103,6 +2198,12 @@ class filt(object):
         for k in self.components.keys():
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
+
+    def clear_filters(self):
+        self.components = {}
+        self.info = {}
+        self.params = {}
+        return
 
 
 # other useful functions
