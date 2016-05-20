@@ -1633,8 +1633,8 @@ class D(object):
 
     def print_filt_switches(self):
         # also has to happen at analysis level.
-        leftpad = max([len(s) for s in self.filt_switches[self.analytes[0]].keys()]) + 2
-        out = '{string:{number}s}'.format(string='', number=leftpad)
+        leftpad = max([len(s) for s in self.filt_switches[self.analytes[0]].keys()] + [11]) + 2
+        out = '{string:{number}s}'.format(string='Filter Name', number=leftpad)
         for a in self.analytes:
             out += '{:7s}'.format(a)
         out += '\n'
@@ -1705,11 +1705,57 @@ class D(object):
 
         # print(self.sample, self.filt.keys())
 
-    def filter_distribution(self, analyte, filt=False):
-        """
-        identify distributions in the data, and produce a filter for each distribution.
-        """
-        pass
+    def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None):
+        params = locals()
+        del(params['self'])
+
+        # generate filter
+        if filt:
+            ind = self.filt.make_filt(analyte)
+        else:
+            ind = ~np.isnan(self.focus[analyte])
+
+        # isolate data
+        d = self.focus[analyte][ind]
+
+        if transform == 'log':
+            d = np.log10(d)
+
+        # gaussian kde of data
+        kde = gaussian_kde(d, bw_method=binwidth)
+        x = np.linspace(np.nanmin(d), np.nanmax(d),
+                        kde.dataset.size // 3)
+        yd = kde.pdf(x)
+        limits = np.concatenate([self.findmins(x, yd), [x.max()]])
+
+        if transform == 'log':
+            limits = 10**limits
+
+        if limits.size > 1:
+            first = True
+            for i in np.arange(limits.size):
+                if first:
+                    filt = self.focus[analyte] < limits[i]
+                    info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
+                    first = False
+                else:
+                    filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
+                    info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
+
+                self.filt.add_filt(name=analyte + '_distribution_{:.0f}'.format(i),
+                                   filt=filt,
+                                   info=info,
+                                   params=params)
+                # add to filt_switches
+                for a in self.analytes:
+                    self.filt_switches[a][analyte + '_distribution_{:.0f}'.format(i)] = True
+        else:
+            self.filt.add_filt(name=analyte + '_distribution_failed',
+                               filt=~np.isnan(self.focus[analyte]),
+                               info=analyte + ' is within a single distribution. No data removed.',
+                               params=params)
+        return
+
     # def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
     #     """
     #     Function that checks for bimodality in the data, and excludes either
