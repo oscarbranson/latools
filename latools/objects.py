@@ -1453,6 +1453,11 @@ class D(object):
         self.trn = ~self.bkg & ~self.sig
         return
 
+    def bool_2_indices(self, bool_array):
+        if type(bool_array) is not np.ndarray:
+            bool_array = np.array(bool_array)
+        return np.arange(len(bools))[bool_array ^ np.roll(bool_array, 1)]
+
     def separate(self, analytes=None):
         """
         Isolates signal and background signals from raw data for specified
@@ -1602,11 +1607,15 @@ class D(object):
         del(params['self'])
 
         if mode == 'below':
-            self.filt.add_filt(analyte + '_thresh', self.focus[analyte] <= threshold, analyte + '_thresh',
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte, params)
+            self.filt.add_filt(analyte + '_thresh',
+                               self.focus[analyte] <= threshold,
+                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
+                               params)
         if mode == 'above':
-            self.filt.add_filt(analyte + '_thresh', self.focus[analyte] >= threshold,
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte, params)
+            self.filt.add_filt(analyte + '_thresh',
+                               self.focus[analyte] >= threshold,
+                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
+                               params)
 
 
     # def threshold_filter(self, analyte, threshold, mode='above'):
@@ -1644,7 +1653,7 @@ class D(object):
 
         # print(self.sample, self.filt.keys())
 
-    def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None):
+    def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None, output=False):
         params = locals()
         del(params['self'])
 
@@ -1690,7 +1699,10 @@ class D(object):
                                filt=~np.isnan(self.focus[analyte]),
                                info=analyte + ' is within a single distribution. No data removed.',
                                params=params)
-        return
+        if output:
+            return x, yd, limits
+        else:
+            return
 
     # def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
     #     """
@@ -2168,7 +2180,7 @@ class filt(object):
             out += '{:7s}'.format(a)
         out += '\n'
 
-        for t in self.switches[self.analytes[0]].keys():
+        for t in sorted(self.switches[self.analytes[0]].keys()):
             out += '{string:{number}s}'.format(string=str(t), number=leftpad)
             for a in self.analytes:
                 out += '{:7s}'.format(str(self.switches[a][t]))
@@ -2197,7 +2209,7 @@ class filt(object):
 
     def filt_info(self):
         out = ''
-        for k in self.components.keys():
+        for k in sorted(self.components.keys()):
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
 
@@ -2205,6 +2217,9 @@ class filt(object):
         self.components = {}
         self.info = {}
         self.params = {}
+        self.switches = {}
+        for a in self.analytes:
+            self.switches[a] = {}
         return
 
     def on(self, analyte=None, filt=None):
@@ -2238,6 +2253,11 @@ class filt(object):
             for f in filt:
                 self.switches[a][f] = False
         return
+
+    def bool_2_indices(self, bool_array):
+        if type(bool_array) is not np.ndarray:
+            bool_array = np.array(bool_array)
+        return np.arange(len(bools))[bool_array ^ np.roll(bool_array, 1)]
 
 
 # other useful functions
