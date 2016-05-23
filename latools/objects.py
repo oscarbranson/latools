@@ -1456,7 +1456,7 @@ class D(object):
     def bool_2_indices(self, bool_array):
         if type(bool_array) is not np.ndarray:
             bool_array = np.array(bool_array)
-        return np.arange(len(bools))[bool_array ^ np.roll(bool_array, 1)]
+        return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
     def separate(self, analytes=None):
         """
@@ -2235,7 +2235,8 @@ class filt(object):
 
         for a in analyte:
             for f in filt:
-                self.switches[a][f] = True
+                if (a in self.switches.keys()) & (f in self.components.keys()):
+                    self.switches[a][f] = True
         return
 
     def off(self, analyte=None, filt=None):
@@ -2251,13 +2252,57 @@ class filt(object):
 
         for a in analyte:
             for f in filt:
-                self.switches[a][f] = False
+                if (a in self.switches.keys()) & (f in self.components.keys()):
+                    self.switches[a][f] = False
         return
 
     def bool_2_indices(self, bool_array):
         if type(bool_array) is not np.ndarray:
             bool_array = np.array(bool_array)
-        return np.arange(len(bools))[bool_array ^ np.roll(bool_array, 1)]
+        return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
+
+    def plot(self, ax=None, analyte=None):
+        if ax is None:
+            fig, ax = plt.subplots(1,1)
+        else:
+            ax = ax.twinx()
+            ax.set_yscale('linear')
+            ax.set_yticks([])
+
+        if analyte is not None:
+            filts = []
+            for k, v in self.switches[analyte].items():
+                if v:
+                    filts.append(k)
+            filts = sorted(filts)
+        else:
+            filts = sorted(self.switches[self.analytes[0]].keys())
+
+        n = len(filts)
+
+        ylim = ax.get_ylim()
+        yrange = max(ylim) - min(ylim)
+        yd = yrange / (n * 1.2)
+
+        yl = min(ylim) + 0.1 * yd
+        for i in np.arange(n):
+            f = filts[i]
+            xlims = self.bool_2_indices(self.components[f])
+
+            yu = yl + yd
+
+            for xl, xu in zip(xlims[0::2], xlims[1::2]):
+                xl /= self.size
+                xu /= self.size
+                ax.axhspan(yl, yu, xl, xu, color='k', alpha=0.3)
+
+            ym = np.mean([yu,yl])
+
+            ax.text(ax.get_xlim()[1] * 1.01, ym, f, ha='left')
+
+            yl += yd * 1.2
+
+        return(ax)
 
 
 # other useful functions
