@@ -72,8 +72,7 @@ class analyse(object):
             while OK is False:
                 try:
                     bkg = [float(f) for f in
-                           input('Enter background limits (as: \
-                                 start, end, start, end):\n').split(',')]
+                           input('Enter background limits (as: start, end, start, end):\n').split(',')]
                     bkg = np.array(bkg).reshape(len(bkg)//2, 2)
                     OK = True
                 except:
@@ -83,8 +82,7 @@ class analyse(object):
             while OK is False:
                 try:
                     sig = [float(f) for f in
-                           input('Enter sample limits (as: start, \
-                                 end, start, end):\n').split(',')]
+                           input('Enter sample limits (as: start, end, start, end):\n').split(',')]
                     sig = np.array(sig).reshape(len(sig)//2, 2)
                     OK = True
                 except:
@@ -2191,14 +2189,19 @@ class filt(object):
         return dict(zip(self.components.keys(), [True] * len(self.components.keys())))
 
     def make_filt(self, analyte, mode='and'):
+        if type(analyte) is str:
+            analyte = [analyte]
+
         filt = np.array([True] * self.size)
-        for k, v in self.switches[analyte].items():
-            if v:
-                if mode == 'and':
-                    filt = filt & self.components[k]
-                if mode == 'or':
-                    filt = filt | self.components[k]
+        for a in analyte:
+            for k, v in self.switches[a].items():
+                if v:
+                    if mode == 'and':
+                        filt = filt & self.components[k]
+                    if mode == 'or':
+                        filt = filt | self.components[k]
         return filt
+
 
     def add_filt(self, name, filt, info='', params=()):
         self.components[name] = filt
