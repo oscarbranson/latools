@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='latools',
-      version='0.1',
+      version='0.2',
       description='Tools for LA-ICPMS data analysis.',
       url='https://github.com/oscarbranson/latools',
       author='Oscar Branson',
