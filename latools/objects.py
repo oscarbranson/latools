@@ -2350,8 +2350,70 @@ class filt(object):
             out += '\n'
         return(out)
 
-    def get_filtnames(self):
-        return dict(zip(self.components.keys(), [True] * len(self.components.keys())))
+    def add_filt(self, name, filt, info='', params=()):
+        self.components[name] = filt
+        self.info[name] = info
+        self.params[name] = params
+        for a in self.analytes:
+            self.switches[a][name] = True
+
+    def remove_filt(self, name):
+        del self.components[name]
+        del self.info[name]
+        del self.params[name]
+        for a in self.analytes:
+            del self.switches[a][name]
+
+    def clear_filters(self):
+        self.components = {}
+        self.info = {}
+        self.params = {}
+        self.switches = {}
+        for a in self.analytes:
+            self.switches[a] = {}
+        return
+
+    def clean_filters(self):
+        for f in sorted(self.components.keys()):
+            unused = not any(self.switches[a][f] for a in self.analytes)
+            if unused:
+                self.remove_filt(f)
+
+    def on(self, analyte=None, filt=None):
+        if type(analyte) is str:
+            analyte = [analyte]
+        if type(filt) is str:
+            filt = [filt]
+
+        if analyte is None:
+            analyte = self.analytes
+        if filt is None:
+            filt = self.switches[analyte[0]].keys()
+
+        for a in analyte:
+            for f in filt:
+                for k in self.switches[a].keys():
+                    if f in k:
+                        self.switches[a][k] = True
+        return
+
+    def off(self, analyte=None, filt=None):
+        if type(analyte) is str:
+            analyte = [analyte]
+        if type(filt) is str:
+            filt = [filt]
+
+        if analyte is None:
+            analyte = self.analytes
+        if filt is None:
+            filt = self.switches[analyte[0]].keys()
+
+        for a in analyte:
+            for f in filt:
+                for k in self.switches[a].keys():
+                    if f in k:
+                        self.switches[a][k] = False
+        return
 
     def make_filt(self, analyte, mode='and'):
         if type(analyte) is str:
@@ -2374,133 +2436,59 @@ class filt(object):
                 out[k] = v
         return out
 
-    def add_filt(self, name, filt, info='', params=()):
-        self.components[name] = filt
-        self.info[name] = info
-        self.params[name] = params
-        for a in self.analytes:
-            self.switches[a][name] = True
-
-    def remove_filt(self, name):
-        del self.components[name]
-        del self.info[name]
-        del self.params[name]
-        for a in self.analytes:
-            del self.switches[a][name]
-
     def filt_info(self):
         out = ''
         for k in sorted(self.components.keys()):
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
 
-    def clear_filters(self):
-        self.components = {}
-        self.info = {}
-        self.params = {}
-        self.switches = {}
-        for a in self.analytes:
-            self.switches[a] = {}
-        return
-
-    def clean_filters(self):
-        for f in sorted(self.components.keys()):
-            unused = not any(self.switches[a][f] for a in self.analytes)
-            if unused:
-                self.remove_filt(f)
-
-
-    def on(self, analyte=None, filt=None):
-        if type(analyte) is str:
-            analyte = [analyte]
-        if type(filt) is str:
-            filt = [filt]
-
-        if analyte is None:
-            analyte = self.analytes
-        if filt is None:
-            filt = self.switches[analyte[0]].keys()
-
-        # for a in analyte:
-        #     for f in filt:
-        #         if (a in self.switches.keys()) & (f in self.components.keys()):
-        #             self.switches[a][f] = True
-        for a in analyte:
-            for f in filt:
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = True
-        return
-
-    def off(self, analyte=None, filt=None):
-        if type(analyte) is str:
-            analyte = [analyte]
-        if type(filt) is str:
-            filt = [filt]
-
-        if analyte is None:
-            analyte = self.analytes
-        if filt is None:
-            filt = self.switches[analyte[0]].keys()
-
-        # for a in analyte:
-        #     for f in filt:
-        #         if (a in self.switches.keys()) & (f in self.components.keys()):
-        #             self.switches[a][f] = False
-        for a in analyte:
-            for f in filt:
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = False
-        return
-
     def bool_2_indices(self, bool_array):
         if type(bool_array) is not np.ndarray:
             bool_array = np.array(bool_array)
         return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
-    def plot(self, ax=None, analyte=None):
-        if ax is None:
-            fig, ax = plt.subplots(1,1)
-        else:
-            ax = ax.twinx()
-            ax.set_yscale('linear')
-            ax.set_yticks([])
+    # def plot(self, ax=None, analyte=None):
+    #     if ax is None:
+    #         fig, ax = plt.subplots(1,1)
+    #     else:
+    #         ax = ax.twinx()
+    #         ax.set_yscale('linear')
+    #         ax.set_yticks([])
 
-        if analyte is not None:
-            filts = []
-            for k, v in self.switches[analyte].items():
-                if v:
-                    filts.append(k)
-            filts = sorted(filts)
-        else:
-            filts = sorted(self.switches[self.analytes[0]].keys())
+    #     if analyte is not None:
+    #         filts = []
+    #         for k, v in self.switches[analyte].items():
+    #             if v:
+    #                 filts.append(k)
+    #         filts = sorted(filts)
+    #     else:
+    #         filts = sorted(self.switches[self.analytes[0]].keys())
 
-        n = len(filts)
+    #     n = len(filts)
 
-        ylim = ax.get_ylim()
-        yrange = max(ylim) - min(ylim)
-        yd = yrange / (n * 1.2)
+    #     ylim = ax.get_ylim()
+    #     yrange = max(ylim) - min(ylim)
+    #     yd = yrange / (n * 1.2)
 
-        yl = min(ylim) + 0.1 * yd
-        for i in np.arange(n):
-            f = filts[i]
-            xlims = self.bool_2_indices(self.components[f])
+    #     yl = min(ylim) + 0.1 * yd
+    #     for i in np.arange(n):
+    #         f = filts[i]
+    #         xlims = self.bool_2_indices(self.components[f])
 
-            yu = yl + yd
+    #         yu = yl + yd
 
-            for xl, xu in zip(xlims[0::2], xlims[1::2]):
-                xl /= self.size
-                xu /= self.size
-                ax.axhspan(yl, yu, xl, xu, color='k', alpha=0.3)
+    #         for xl, xu in zip(xlims[0::2], xlims[1::2]):
+    #             xl /= self.size
+    #             xu /= self.size
+    #             ax.axhspan(yl, yu, xl, xu, color='k', alpha=0.3)
 
-            ym = np.mean([yu,yl])
+    #         ym = np.mean([yu,yl])
 
-            ax.text(ax.get_xlim()[1] * 1.01, ym, f, ha='left')
+    #         ax.text(ax.get_xlim()[1] * 1.01, ym, f, ha='left')
 
-            yl += yd * 1.2
+    #         yl += yd * 1.2
 
-        return(ax)
+    #     return(ax)
 
 
 # other useful functions
