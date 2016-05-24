@@ -1528,72 +1528,71 @@ class D(object):
         self.setfocus('calibrated')
         return
 
-    # # Function for calculating sample statistics
-    # def sample_stats(self, analytes=None, filt=True,
-    #                  stat_fns=[np.nanmean, np.nanstd],
-    #                  eachtrace=True):
-    #     """
-    #     Returns samples, analytes, and arrays of statistics
-    #     of shape (samples, analytes). Statistics are calculated
-    #     from the 'focus' data variable, so output depends on how
-    #     the data have been processed.
+    # Function for calculating sample statistics
+    def sample_stats(self, analytes=None, filt=True,
+                     stat_fns=[np.nanmean, np.nanstd],
+                     eachtrace=True):
+        """
+        Returns samples, analytes, and arrays of statistics
+        of shape (samples, analytes). Statistics are calculated
+        from the 'focus' data variable, so output depends on how
+        the data have been processed.
 
-    #     analytes: array-like
-    #         list of analytes to calculate the statistic on
-    #     stat_fns: array-like
-    #         list of functions that take a single array-like input,
-    #         and return a single statistic. Function should be able
-    #         to cope with numpy NaN values.
-    #     filt: bool or str
-    #         filt specifies the filter to apply to the data when calculating
-    #         sample statistics. It can either:
-    #         bool:  True | False
-    #             If True, applies filter created by bimodality_fix to each
-    #             analyte individually.
-    #         str: name of analyte specific filter
-    #             applies a specific filter to all the data,
-    #             or a filter resulting from the union of all analyte-specific
-    #             filters.
-    #     eachtrace: bool
-    #         Return individual statistics for each analysis trace (True),
-    #         or each sample (False)?
-    #     """
-    #     if analytes is None:
-    #             analytes = self.analytes
+        analytes: array-like
+            list of analytes to calculate the statistic on
+        stat_fns: array-like
+            list of functions that take a single array-like input,
+            and return a single statistic. Function should be able
+            to cope with numpy NaN values.
+        filt: bool or str
+            filt specifies the filter to apply to the data when calculating
+            sample statistics. It can either:
+            bool:  True | False
+                If True, applies filter created by bimodality_fix to each
+                analyte individually.
+            str: name of analyte specific filter
+                applies a specific filter to all the data,
+                or a filter resulting from the union of all analyte-specific
+                filters.
+        eachtrace: bool
+            Return individual statistics for each analysis trace (True),
+            or each sample (False)?
+        """
+        if analytes is None:
+                analytes = self.analytes
 
-    #     self.stats = {}
-    #     self.stats['analytes'] = analytes
+        self.stats = {}
+        self.stats['analytes'] = analytes
 
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore", category=RuntimeWarning)
-    #         for f in stat_fns:
-    #             self.stats[f.__name__] = []
-    #             for a in analytes:
-    #                 print(a)
-    #                 if isinstance(filt, str):
-    #                     ind = self.filt.make_fromkey(filt)
-    #                 elif isinstance(filt, dict):
-    #                     ind = self.filt.make_fromkey(filt[a])
-    #                 elif filt:
-    #                     filt = self.filt.make(a)
-    #                 else:
-    #                     ind = ~np.zeros_like(self.Time, dtype=bool)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            for f in stat_fns:
+                self.stats[f.__name__] = []
+                for a in analytes:
+                    if isinstance(filt, str):
+                        ind = self.filt.make_fromkey(filt)
+                    elif isinstance(filt, dict):
+                        ind = self.filt.make_fromkey(filt[a])
+                    elif filt:
+                        ind = self.filt.make(a)
+                    else:
+                        ind = ~np.zeros_like(self.Time, dtype=bool)
 
-    #                 if eachtrace:
-    #                     sts = []
-    #                     for t in np.arange(self.n) + 1:
-    #                         sts.append(f(self.focus[a][ind & (self.ns==t)]))
-    #                     self.stats[f.__name__].append(sts)
-    #                 else:
-    #                     self.stats[f.__name__].append(f(self.focus[a][ind]))
-    #             self.stats[f.__name__] = np.array(self.stats[f.__name__])
+                    if eachtrace:
+                        sts = []
+                        for t in np.arange(self.n) + 1:
+                            sts.append(f(self.focus[a][ind & (self.ns==t)]))
+                        self.stats[f.__name__].append(sts)
+                    else:
+                        self.stats[f.__name__].append(f(self.focus[a][ind]))
+                self.stats[f.__name__] = np.array(self.stats[f.__name__])
 
-    #     try:
-    #         self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
-    #     except:
-    #         pass
+        try:
+            self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
+        except:
+            pass
 
-    #     return
+        return
 
 
     # Data Selections Tools
