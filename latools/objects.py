@@ -8,11 +8,14 @@ import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import uncertainties.unumpy as un
+import sklearn.cluster as cl
+from sklearn import preprocessing
 from scipy.stats import gaussian_kde
+from scipy.stats import pearsonr
+from scipy.optimize import curve_fit
 from mpld3 import plugins
 from IPython import display
 from mpld3 import enable_notebook, disable_notebook
-from scipy.optimize import curve_fit
 
 
 class analyse(object):
@@ -1771,11 +1774,137 @@ class D(object):
     #                                          self.Time[(a & np.roll(~a, -1))]))
     #     return
 
-    def filter_clustering(self, analytes, mode):
-        """
-        use clustering algorithms to separate data
-        """
-        pass
+    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', **kwargs):
+        params = locals()
+        del(params['self'])
+
+        # convert string to list, if single analyte
+        if type(analytes) is str:
+            analytes = [analytes]
+
+        # generate filter
+        if filt:
+            ind = self.filt.make_filt(analytes)
+        else:
+            ind = ~np.isnan(self.focus[analyte[0]])
+
+        # get indices for data passed to clustering
+        sampled = np.arange(self.Time.size)[ind]
+
+        # generate data for clustering
+        if len(analytes) == 1:
+            # if single analyte
+            d = self.focus[analytes[0]][ind]
+            ds = np.array(list(zip(d,np.zeros(len(d)))))
+        else:
+            # package multiple analytes
+            d = [self.focus[a][ind] for a in analytes]
+            ds = np.vstack(d).T
+
+        if normalise | (len(analytes) > 1):
+            ds = preprocessing.scale(ds)
+
+        method_key = {'kmeans': self.cluster_kmeans,
+                      'DBSCAN': self.cluster_DBSCAN,
+                      'meanshift': self.cluster_meanshift}
+
+        cfun = method_key[method]
+
+        filts = cfun(ds, **kwargs)  # return dict of cluster_no: (filt, params)
+
+        resized = {}
+        for k, v in filts.items():
+            resized[k] = np.zeros(self.Time.size, dtype=bool)
+            resized[k][sampled] = v
+
+        namebase = 'cluster_' + method + '_' + '-'.join(analytes)
+        info = '-'.join(analytes) + ' cluster filter.'
+
+        if method == 'DBSCAN':
+            for k,v in resized.items():
+                if type(k) is str:
+                    name = namebase + '_core'
+                elif k < 0:
+                    name = namebase + '_noise'
+                else:
+                    name = namebase + '_{:.0f}'.format(k)
+                self.filt.add_filt(name, v, info=info, params=params)
+        else:
+            for k,v in resized.items():
+                name = namebase + '_{:.0f}'.format(k)
+                self.filt.add_filt(name, v, info=info, params=params)
+
+
+    def cluster_meanshift(self, data, bandwidth=None, bin_seeding=True):
+        if bandwidth is None:
+            bandwidth = cl.estimate_bandwidth(data)
+
+        ms = cl.MeanShift(bandwidth=bandwidth)
+        ms.fit(data)
+
+        labels = ms.labels_
+        labels_unique = np.unique(labels)
+
+        out = {}
+        for lab in labels_unique:
+            out[lab] = labels == lab
+
+        return out
+
+    def cluster_kmeans(self, data, n_clusters):
+        km = cl.KMeans(2)
+        kmf = km.fit(data)
+
+        labels = kmf.labels_
+        labels_unique = np.unique(labels)
+
+        out = {}
+        for lab in labels_unique:
+            out[lab] = labels == lab
+
+        return out
+
+    def cluster_DBSCAN(self, data, eps=None, min_samples=None, n_clusters=None, maxiter=200):
+        if min_samples is None:
+            min_samples = self.Time.size // 20
+
+        if n_clusters is None:
+            if eps is None:
+                eps = 0.3
+            db = cl.DBSCAN(eps=eps, min_samples=min_samples).fit(data)
+        else:
+            clusters = 0
+            eps_temp = 1 / .95
+            niter = 0
+            while clusters < n_clusters:
+                clusters_last = clusters
+                eps_temp *= 0.95
+                db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(nds)
+                clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                if clusters < clusters_last:
+                    eps_temp *= 1/0.95
+                    db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(nds)
+                    clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                    warnings.warn('\n\n***Unable to find {:.0f} clusters in data. Found {:.0f} with an eps of {:.2e}'.format(n_clusters, clusters, eps_temp))
+                    break
+                niter += 1
+                if niter == maxiter:
+                    warnings.warn('\n\n***Maximum iterations ({:.0f}) reached, {:.0f} clusters not found.\nDeacrease min_samples or n_clusters (or increase maxiter).'.format(maxiter, n_clusters))
+                    break
+
+        labels = db.labels_
+        labels_unique = np.unique(labels)
+
+        core_samples_mask = np.zeros_like(labels)
+        core_samples_mask[db.core_sample_indices_] = True
+
+        out = {}
+        for lab in labels_unique:
+            out[lab] = labels == lab
+
+        out['core'] = core_samples_mask
+
+        return out
 
     def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True):
         # automatically determine appripriate window
