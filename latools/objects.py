@@ -1879,11 +1879,11 @@ class D(object):
             while clusters < n_clusters:
                 clusters_last = clusters
                 eps_temp *= 0.95
-                db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(nds)
+                db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
                 clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
                 if clusters < clusters_last:
                     eps_temp *= 1/0.95
-                    db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(nds)
+                    db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
                     clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
                     warnings.warn('\n\n***Unable to find {:.0f} clusters in data. Found {:.0f} with an eps of {:.2e}'.format(n_clusters, clusters, eps_temp))
                     break
@@ -2402,6 +2402,13 @@ class filt(object):
         for a in self.analytes:
             self.switches[a] = {}
         return
+
+    def clean_filters(self):
+        for f in sorted(self.components.keys()):
+            unused = not any(self.switches[a][f] for a in self.analytes)
+            if unused:
+                self.remove_filt(f)
+
 
     def on(self, analyte=None, filt=None):
         if type(analyte) is str:
