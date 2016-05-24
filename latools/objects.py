@@ -1777,11 +1777,47 @@ class D(object):
         """
         pass
 
-    def filter_correlation(self, x_analyte, y_analyte, r_threshold, p_threshold):
-        """
-        correlate two analytes, remove regions where they correlate.
-        """
-        pass
+    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True):
+        # automatically determine appripriate window
+
+        # make window odd
+        if window % 2 != 1:
+            window += 1
+
+        params = locals()
+        del(params['self'])
+
+        if filt:
+            ind = self.filt.make_filt([x_analyte, y_analyte])
+        else:
+            ind = ~np.zeros(self.Time.size, dtype=bool)
+
+        x = self.focus[x_analyte]
+        x[~ind] = np.nan
+        xr = self.rolling_window(x, window, pad=np.nan)
+
+        y = self.focus[y_analyte]
+        y[~ind] = np.nan
+        yr = self.rolling_window(y, window, pad=np.nan)
+
+        r, p = zip(*map(pearsonr, xr,yr))
+
+        r = np.array(r)
+        p = np.array(p)
+
+        cfilt = (abs(r) > r_threshold) & (p < p_threshold)
+        cfilt = ~cfilt
+
+        name = x_analyte + '_' + y_analyte + '_corr'
+
+        self.filt.add_filt(name=name,
+                           filt=cfilt,
+                           info=x_analyte + ' vs. ' + y_analyte + ' correlation filter.',
+                           params=params)
+        self.filt.off(filt=name)
+        self.filt.on(analyte=y_analyte, filt=name)
+
+        return #r, p
 
 
     # Plotting Functions
