@@ -2202,6 +2202,12 @@ class filt(object):
                         filt = filt | self.components[k]
         return filt
 
+    def get_components(self, key):
+        out = {}
+        for k, v in self.components.items():
+            if key in k:
+                out[k] = v
+        return out
 
     def add_filt(self, name, filt, info='', params=()):
         self.components[name] = filt
@@ -2209,6 +2215,13 @@ class filt(object):
         self.params[name] = params
         for a in self.analytes:
             self.switches[a][name] = True
+
+    def remove_filt(self, name):
+        del self.components[name]
+        del self.info[name]
+        del self.params[name]
+        for a in self.analytes:
+            del self.switches[a][name]
 
     def filt_info(self):
         out = ''
@@ -2236,10 +2249,15 @@ class filt(object):
         if filt is None:
             filt = self.switches[analyte[0]].keys()
 
+        # for a in analyte:
+        #     for f in filt:
+        #         if (a in self.switches.keys()) & (f in self.components.keys()):
+        #             self.switches[a][f] = True
         for a in analyte:
             for f in filt:
-                if (a in self.switches.keys()) & (f in self.components.keys()):
-                    self.switches[a][f] = True
+                for k in self.switches[a].keys():
+                    if f in k:
+                        self.switches[a][k] = True
         return
 
     def off(self, analyte=None, filt=None):
@@ -2253,10 +2271,15 @@ class filt(object):
         if filt is None:
             filt = self.switches[analyte[0]].keys()
 
+        # for a in analyte:
+        #     for f in filt:
+        #         if (a in self.switches.keys()) & (f in self.components.keys()):
+        #             self.switches[a][f] = False
         for a in analyte:
             for f in filt:
-                if (a in self.switches.keys()) & (f in self.components.keys()):
-                    self.switches[a][f] = False
+                for k in self.switches[a].keys():
+                    if f in k:
+                        self.switches[a][k] = False
         return
 
     def bool_2_indices(self, bool_array):
