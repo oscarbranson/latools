@@ -174,7 +174,7 @@ class analyse(object):
         """
 
         from scipy.optimize import curve_fit
-        if type(analytes) is str:
+        if isinstance(analytes, str):
             analytes = [analytes]
 
         def findtrim(tr, lim=None):
@@ -241,7 +241,7 @@ class analyse(object):
             ax.set_ylim(-0.05, 1.05)
             ax.set_ylabel('Proportion of Signal')
             plt.legend()
-            if type(plot) is str:
+            if isinstance(plot, str):
                 fig.savefig(plot)
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
@@ -538,11 +538,11 @@ class analyse(object):
 
     def save_calibration(self):
         fname = self.param_dir + self.dirname + '.calibdat'
-        if os.path.isfile(fname):
-            f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
-            if 'n' in f or 'N' in f:
-                print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
-                return
+        # if os.path.isfile(fname):
+        #     f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
+        #     if 'n' in f or 'N' in f:
+        #         print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
+        #         return
         fb = open(fname, 'w')
         fb.write(str(self.calib_dict))
         fb.close
@@ -608,10 +608,10 @@ class analyse(object):
 
         return
 
-    def clear_filters(self):
-        for d in self.data:
-            d.filt = {}
-            d.filtrngs = {}
+    # def clear_filters(self):
+    #     for d in self.data:
+    #         d.filt = {}
+    #         d.filtrngs = {}
 
     def threshold_filter(self, analytes, thresholds, modes):
         for d in self.data:
@@ -716,7 +716,7 @@ class analyse(object):
             if 'STD' not in s.sample:
                 self.focus['Time'].append(s.Time + t)
                 t += max(s.Time)
-                if type(filt) is str:
+                if isinstance(filt, str):
                     ind = ~s.filt[filt]
                 else:
                     ind = np.array([False] * len(s.Time))
@@ -903,9 +903,9 @@ class analyse(object):
         if sample is None:
             sample = self.samples
 
-        if type(analyte) is str:
+        if isinstance(analyte, str):
             analyte = [analyte]
-        if type(sample) is str:
+        if isinstance(sample, str):
             sample = [sample]
 
         ankey = [a in self.analytes for a in analyte]
@@ -1088,7 +1088,7 @@ class D(object):
         """
         Spike filter for removing anomalous high values.
         """
-        if type(win) is not int:
+        if ~isinstance(win, int):
             win = int(win)
         if ~hasattr(self, 'despiked'):
             self.despiked = {}
@@ -1105,7 +1105,6 @@ class D(object):
 
                 # find which values are over the threshold (v > rmean + nlim * rstd)
                 over = v > rmean + nlim * rstd
-    #             print(a, sum(over))
                 if sum(over) > 0:
                     # get adjacent values to over-limit values
                     neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
@@ -1220,9 +1219,7 @@ class D(object):
         return np.concatenate([np.zeros(int(win/2)), list(a),
                               np.zeros(int(win / 2))])
 
-    # automagically select signal and background regions
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
-                  conf=0.01, trans_mult=[0., 0.]):
+    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,conf=0.01, trans_mult=[0., 0.]):
         """
         Function to automatically detect signal and background regions in the
         laser data, based on the behaviour of a target analyte. An ideal target
@@ -1455,7 +1452,7 @@ class D(object):
         return
 
     def bool_2_indices(self, bool_array):
-        if type(bool_array) is not np.ndarray:
+        if ~isinstance(ool_array, np.ndarray):
             bool_array = np.array(bool_array)
         return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
@@ -1572,13 +1569,16 @@ class D(object):
     #         for f in stat_fns:
     #             self.stats[f.__name__] = []
     #             for a in analytes:
-    #                 if type(filt) is bool:
-    #                     if filt and a in self.filt.keys():
-    #                         ind = self.filt[a]
-    #                     else:
-    #                         ind = np.array([True] * self.focus[a].size)
-    #                 if type(filt) is str:
-    #                     ind = self.filt[filt]
+    #                 print(a)
+    #                 if isinstance(filt, str):
+    #                     ind = self.filt.make_fromkey(filt)
+    #                 elif isinstance(filt, dict):
+    #                     ind = self.filt.make_fromkey(filt[a])
+    #                 elif filt:
+    #                     filt = self.filt.make(a)
+    #                 else:
+    #                     ind = ~np.zeros_like(self.Time, dtype=bool)
+
     #                 if eachtrace:
     #                     sts = []
     #                     for t in np.arange(self.n) + 1:
@@ -1608,12 +1608,12 @@ class D(object):
         del(params['self'])
 
         if mode == 'below':
-            self.filt.add_filt(analyte + '_thresh',
+            self.filt.add(analyte + '_thresh',
                                self.focus[analyte] <= threshold,
                                'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
                                params)
         if mode == 'above':
-            self.filt.add_filt(analyte + '_thresh',
+            self.filt.add(analyte + '_thresh',
                                self.focus[analyte] >= threshold,
                                'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
                                params)
@@ -1660,7 +1660,7 @@ class D(object):
 
         # generate filter
         if filt:
-            ind = self.filt.make_filt(analyte)
+            ind = self.filt.make(analyte)
         else:
             ind = ~np.isnan(self.focus[analyte])
 
@@ -1691,12 +1691,12 @@ class D(object):
                     filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
                     info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
 
-                self.filt.add_filt(name=analyte + '_distribution_{:.0f}'.format(i),
+                self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
                                    filt=filt,
                                    info=info,
                                    params=params)
         else:
-            self.filt.add_filt(name=analyte + '_distribution_failed',
+            self.filt.add(name=analyte + '_distribution_failed',
                                filt=~np.isnan(self.focus[analyte]),
                                info=analyte + ' is within a single distribution. No data removed.',
                                params=params)
@@ -1727,12 +1727,12 @@ class D(object):
     #     if report and ~hasattr(self, 'bimodal_reports'):
     #         self.bimodal_reports = {}
     #     for a in np.array(analytes, ndmin=1):
-    #         if type(filt) is bool:
+    #         if isinstance(filt, bool):
     #             if filt and a in self.filt.keys():
     #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
     #             else:
     #                 ind = ~np.isnan(self.focus[a])
-    #         if type(filt) is str:
+    #         if isinstance(filt, str):
     #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
     #         if sum(ind) <= 1:
     #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
@@ -1779,12 +1779,12 @@ class D(object):
         del(params['self'])
 
         # convert string to list, if single analyte
-        if type(analytes) is str:
+        if isinstance(analytes, str):
             analytes = [analytes]
 
         # generate filter
         if filt:
-            ind = self.filt.make_filt(analytes)
+            ind = self.filt.make(analytes)
         else:
             ind = ~np.isnan(self.focus[analyte[0]])
 
@@ -1822,17 +1822,17 @@ class D(object):
 
         if method == 'DBSCAN':
             for k,v in resized.items():
-                if type(k) is str:
+                if isinstance(k, str):
                     name = namebase + '_core'
                 elif k < 0:
                     name = namebase + '_noise'
                 else:
                     name = namebase + '_{:.0f}'.format(k)
-                self.filt.add_filt(name, v, info=info, params=params)
+                self.filt.add(name, v, info=info, params=params)
         else:
             for k,v in resized.items():
                 name = namebase + '_{:.0f}'.format(k)
-                self.filt.add_filt(name, v, info=info, params=params)
+                self.filt.add(name, v, info=info, params=params)
 
 
     def cluster_meanshift(self, data, bandwidth=None, bin_seeding=True):
@@ -1917,7 +1917,7 @@ class D(object):
         del(params['self'])
 
         if filt:
-            ind = self.filt.make_filt([x_analyte, y_analyte])
+            ind = self.filt.make([x_analyte, y_analyte])
         else:
             ind = ~np.zeros(self.Time.size, dtype=bool)
 
@@ -1939,7 +1939,7 @@ class D(object):
 
         name = x_analyte + '_' + y_analyte + '_corr'
 
-        self.filt.add_filt(name=name,
+        self.filt.add(name=name,
                            filt=cfilt,
                            info=x_analyte + ' vs. ' + y_analyte + ' correlation filter.',
                            params=params)
@@ -1999,7 +1999,7 @@ class D(object):
     #         enable_notebook()  # make the plot interactive
     #     if traces is None:
     #         traces = self.analytes
-    #     if type(traces) is str:
+    #     if isinstance(traces, str):
     #         traces = [traces]
     #     fig = plt.figure(figsize=figsize)
     #     ax = fig.add_subplot(111)
@@ -2008,12 +2008,12 @@ class D(object):
     #         x = self.Time
     #         y = self.focus[t]
 
-    #         if type(filt) is bool:
+    #         if isinstance(filt, bool):
     #             if filt and t in self.filt.keys():
     #                 ind = self.filt[t]
     #             else:
     #                 ind = np.array([True] * x.size)
-    #         if type(filt) is str:
+    #         if isinstance(filt, str):
     #             ind = self.filt[filt]
 
     #         if scale is 'log':
@@ -2227,12 +2227,12 @@ class D(object):
 
     #     i = 0
     #     for a in sorted([k for k in self.filt.keys() if k in self.analytes]):
-    #         if type(filt) is bool:
+    #         if isinstance(filt, bool):
     #             if filt and a in self.filt.keys():
     #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
     #             else:
     #                 ind = ~np.isnan(self.focus[a])
-    #         if type(filt) is str:
+    #         if isinstance(filt, str):
     #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
     #         if sum(ind) <= 1:
     #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
@@ -2333,6 +2333,7 @@ class filt(object):
         self.info = {}
         self.params = {}
         self.switches = {}
+        self.keys = {}
         for a in self.analytes:
             self.switches[a] = {}
 
@@ -2350,21 +2351,21 @@ class filt(object):
             out += '\n'
         return(out)
 
-    def add_filt(self, name, filt, info='', params=()):
+    def add(self, name, filt, info='', params=()):
         self.components[name] = filt
         self.info[name] = info
         self.params[name] = params
         for a in self.analytes:
             self.switches[a][name] = True
 
-    def remove_filt(self, name):
+    def remove(self, name):
         del self.components[name]
         del self.info[name]
         del self.params[name]
         for a in self.analytes:
             del self.switches[a][name]
 
-    def clear_filters(self):
+    def clear(self):
         self.components = {}
         self.info = {}
         self.params = {}
@@ -2373,16 +2374,16 @@ class filt(object):
             self.switches[a] = {}
         return
 
-    def clean_filters(self):
+    def clean(self):
         for f in sorted(self.components.keys()):
             unused = not any(self.switches[a][f] for a in self.analytes)
             if unused:
-                self.remove_filt(f)
+                self.remove(f)
 
     def on(self, analyte=None, filt=None):
-        if type(analyte) is str:
+        if isinstance(analyte, str):
             analyte = [analyte]
-        if type(filt) is str:
+        if isinstance(filt, str):
             filt = [filt]
 
         if analyte is None:
@@ -2398,9 +2399,9 @@ class filt(object):
         return
 
     def off(self, analyte=None, filt=None):
-        if type(analyte) is str:
+        if isinstance(analyte, str):
             analyte = [analyte]
-        if type(filt) is str:
+        if isinstance(filt, str):
             filt = [filt]
 
         if analyte is None:
@@ -2415,35 +2416,57 @@ class filt(object):
                         self.switches[a][k] = False
         return
 
-    def make_filt(self, analyte, mode='and'):
-        if type(analyte) is str:
+    def make(self, analyte):
+        if isinstance(analyte, str):
             analyte = [analyte]
 
-        filt = np.array([True] * self.size)
+        out = []
+        for f in self.components.keys():
+            for a in analyte:
+                if self.switches[a][f]:
+                    out.append(f)
+        key = ' & '.join(sorted(out))
         for a in analyte:
-            for k, v in self.switches[a].items():
-                if v:
-                    if mode == 'and':
-                        filt = filt & self.components[k]
-                    if mode == 'or':
-                        filt = filt | self.components[k]
-        return filt
+            self.keys[a] = key
+        return self.make_fromkey(key)
 
-    def get_components(self, key):
+    def make_fromkey(self, key):
+        """
+        Takes a logical expression as an input, and returns a filter. Used for advanced
+        filtering, where combinations of nested and/or filters are desired. Filter names must
+        exactly match the names listed by print(filt).
+
+        Example:
+            key = '(Filter_1 | Filter_2) & Filter_3'
+        is equivalent to:
+            (Filter_1 OR Filter_2) AND Filter_3
+        statements in parentheses are evaluated first.
+
+        """
+        def make_runable(match):
+            return "self.components['" + match.group(0) + "']"
+
+        runable = re.sub('[^\(\)|& ]+', make_runable, key)
+        return eval(runable)
+
+    def get_components(self, key, analyte=None):
         out = {}
         for k, v in self.components.items():
             if key in k:
-                out[k] = v
+                if analyte is None:
+                    out[k] = v
+                elif self.switches[analyte][k]:
+                    out[k] = v
         return out
 
-    def filt_info(self):
+    def info(self):
         out = ''
         for k in sorted(self.components.keys()):
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
 
     def bool_2_indices(self, bool_array):
-        if type(bool_array) is not np.ndarray:
+        if ~isinstance(bool_array, np.ndarray):
             bool_array = np.array(bool_array)
         return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
