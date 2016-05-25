@@ -1571,15 +1571,6 @@ class D(object):
                 self.stats[f.__name__] = []
                 for a in analytes:
                     ind = self.filt.grab_filt(filt, a)
-                    # if isinstance(filt, str):
-                    #     ind = self.filt.make_fromkey(filt)
-                    # elif isinstance(filt, dict):
-                    #     ind = self.filt.make_fromkey(filt[a])
-                    # elif filt:
-                    #     ind = self.filt.make(a)
-                    # else:
-                    #     ind = ~np.zeros_like(self.Time, dtype=bool)
-
                     if eachtrace:
                         sts = []
                         for t in np.arange(self.n) + 1:
@@ -1609,26 +1600,23 @@ class D(object):
         del(params['self'])
 
         if mode == 'below':
-            self.filt.add(analyte + '_thresh',
+            self.filt.add(analyte + '_thresh_below',
                                self.focus[analyte] <= threshold,
                                'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
                                params)
         if mode == 'above':
-            self.filt.add(analyte + '_thresh',
+            self.filt.add(analyte + '_thresh_above',
                                self.focus[analyte] >= threshold,
                                'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
                                params)
 
 
-        def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None, output=False):
+    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False):
         params = locals()
         del(params['self'])
 
         # generate filter
-        if filt:
-            ind = self.filt.make(analyte)
-        else:
-            ind = ~np.isnan(self.focus[analyte])
+        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
 
         # isolate data
         d = self.focus[analyte][ind]
@@ -1671,7 +1659,7 @@ class D(object):
         else:
             return
 
-    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', **kwargs):
+    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, **kwargs):
         params = locals()
         del(params['self'])
 
@@ -1680,10 +1668,7 @@ class D(object):
             analytes = [analytes]
 
         # generate filter
-        if filt:
-            ind = self.filt.make(analytes)
-        else:
-            ind = ~np.isnan(self.focus[analyte[0]])
+        ind = self.filt.grab_filt(filt, analytes) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
 
         # get indices for data passed to clustering
         sampled = np.arange(self.Time.size)[ind]
@@ -1692,10 +1677,16 @@ class D(object):
         if len(analytes) == 1:
             # if single analyte
             d = self.focus[analytes[0]][ind]
-            ds = np.array(list(zip(d,np.zeros(len(d)))))
+            if include_time:
+                t = self.Time[ind]
+                ds = np.vstack([d,t]).T
+            else:
+                ds = np.array(list(zip(d,np.zeros(len(d)))))
         else:
             # package multiple analytes
             d = [self.focus[a][ind] for a in analytes]
+            if include_time:
+                d.append(self.Time[ind])
             ds = np.vstack(d).T
 
         if normalise | (len(analytes) > 1):
@@ -1714,7 +1705,7 @@ class D(object):
             resized[k] = np.zeros(self.Time.size, dtype=bool)
             resized[k][sampled] = v
 
-        namebase = 'cluster_' + method + '_' + '-'.join(analytes)
+        namebase = '-'.join(analytes) + '_cluster-' + method
         info = '-'.join(analytes) + ' cluster filter.'
 
         if method == 'DBSCAN':
@@ -1749,7 +1740,7 @@ class D(object):
         return out
 
     def cluster_kmeans(self, data, n_clusters):
-        km = cl.KMeans(2)
+        km = cl.KMeans(n_clusters)
         kmf = km.fit(data)
 
         labels = kmf.labels_
@@ -1813,10 +1804,8 @@ class D(object):
         params = locals()
         del(params['self'])
 
-        if filt:
-            ind = self.filt.make([x_analyte, y_analyte])
-        else:
-            ind = ~np.zeros(self.Time.size, dtype=bool)
+        # get filter
+        ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
 
         x = self.focus[x_analyte]
         x[~ind] = np.nan
@@ -1834,7 +1823,7 @@ class D(object):
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
 
-        name = x_analyte + '_' + y_analyte + '_corr'
+        name = x_analyte + '-' + y_analyte + '_corr'
 
         self.filt.add(name=name,
                            filt=cfilt,
@@ -1847,31 +1836,24 @@ class D(object):
 
 
     # Plotting Functions
-    def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
-                **kwargs):
-        """
-        Function to generate a grid of subplots for a given set of plots.
-        """
-        if n % ncol is 0:
-            nrow = int(n/ncol)
-        else:
-            nrow = int(n//ncol + 1)
+    # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
+    #             **kwargs):
+    #     """
+    #     Function to generate a grid of subplots for a given set of plots.
+    #     """
+    #     if n % ncol is 0:
+    #         nrow = int(n/ncol)
+    #     else:
+    #         nrow = int(n//ncol + 1)
 
-        fig, axes = plt.subplots(nrow, ncol, figsize=[panelsize[0] * ncol,
-                                 panelsize[1] * nrow],
-                                 tight_layout=tight_layout,
-                                 **kwargs)
-        for ax in axes.flat[n:]:
-            fig.delaxes(ax)
+    #     fig, axes = plt.subplots(nrow, ncol, figsize=[panelsize[0] * ncol,
+    #                              panelsize[1] * nrow],
+    #                              tight_layout=tight_layout,
+    #                              **kwargs)
+    #     for ax in axes.flat[n:]:
+    #         fig.delaxes(ax)
 
-        return fig, axes
-
-    def pretty_element(self, s):
-        """
-        Function to format element names nicely.
-        """
-        g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
-        return '$^{' + g[1] + '}$' + g[0]
+    #     return fig, axes
 
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
           ranges=False, stats=True, sig='nanmean', err='nanstd', interactive=False):
@@ -2042,113 +2024,91 @@ class D(object):
 
         return fig, axes
 
-    # def bimodality_report(self, mode='lower', filt=False):
-    #     """
-    #     Function to plot reports for bimodal exclusion checks.
-    #     """
-    #     fig, axes = self.genaxes(3 * len([i for i in list(self.filt.keys()) if i is not 'combined' and 'thresh' not in i]), 3, [4, 3])
+    def filt_report(self, filt=None, analyte=None, save=None):
+    filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
+    nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
+    fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
+    fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
 
-    #     fig.suptitle(self.sample, weight='bold', x=0.1, y=1)
+    ngrps = fgrps.size
 
-    #     i = 0
-    #     for a in sorted([k for k in self.filt.keys() if k in self.analytes]):
-    #         if isinstance(filt, bool):
-    #             if filt and a in self.filt.keys():
-    #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
-    #             else:
-    #                 ind = ~np.isnan(self.focus[a])
-    #         if isinstance(filt, str):
-    #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
-    #         if sum(ind) <= 1:
-    #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
+    plots = {}
 
-    #         # calculate the multiplier necessary to make units sensible
-    #         mean = np.nanmean(self.focus[a][ind])
-    #         if mean * 1E3 > 0.1:
-    #             m = 1E3
-    #             label = self.pretty_element(a) + '/Ca (mmol/mol)'
-    #         else:
-    #             m = 1E6
-    #             label = self.pretty_element(a) + '/Ca ($\mu$mol/mol)'
 
-    #         kde = gaussian_kde(self.focus[a][ind] * m)
-    #         bins = x = np.linspace(np.nanmin(self.focus[a][ind]) * m,
-    #                                np.nanmax(self.focus[a][ind]) * m,
-    #                                kde.dataset.size // 3)
-    #         yd = kde.pdf(bins)
+    m, u = unitpicker(np.nanmax(self.focus[analyte]))
 
-    #         bstep = x[1] - x[0]
+    fig = plt.figure(figsize=(10, 3.5 * ngrps))
+    axes = []
 
-    #         n, _ = np.histogram(self.focus[a][ind] * m, bins)
+    h = .8 / ngrps
 
-    #         if axes.ndim > 1:
-    #             ax1, ax2, ax3 = axes[i, 0], axes[i, 1], axes[i, 2]
-    #             i += 1
-    #         else:
-    #             ax1, ax2, ax3 = axes
+    cm = plt.cm.get_cmap('Spectral')
 
-    #         ax1.bar(bins[:-1], n/(sum(n) * bstep), bstep,
-    #                 color=(0, 0, 1, 0.5), lw=0)
-    #         ax1.set_ylabel('Density')
-    #         ax1.set_xlabel(label)
+    for i in np.arange(ngrps):
+        axs = tax, hax = fig.add_axes([.1,.9-(i+1)*h,.6,h*.98]), fig.add_axes([.7,.9-(i+1)*h,.2,h*.98])
 
-    #         ax1.plot(x, yd, color='r', lw=2)
+        # get variables
+        fg = filts[fgnames == fgrps[i]]
+        cs = cm(np.linspace(0,1,len(fg)))
+        fn = nfilts[:,2][fgnames == fgrps[i]]
+        an = nfilts[:,0][fgnames == fgrps[i]]
+        bins = np.linspace(np.nanmin(self.focus[analyte]), np.nanmax(self.focus[analyte]), 50) * m
 
-    #         ax2.plot(np.sort(self.focus[a][ind] * m),
-    #                  color=(0, 0, 1, 0.7))
-    #         ax2.set_ylabel(label)
-    #         ax2.set_xlabel('Point No')
+        if 'DBSCAN' in fgrps[i]:
+            # determine data filters
+            core_ind = self.filt.components[[f for f in fg if 'core' in f][0]]
+            noise_ind = self.filt.components[[f for f in fg if 'noise' in f][0]]
+            other = np.array([('noise' not in f) & ('core' not in f) for f in fg])
+            tfg = fg[other]
+            tfn = fn[other]
+            tcs = cm(np.linspace(0,1,len(tfg)))
 
-    #         ax3.plot(self.Time, self.focus[a] * m, color=(0, 0, 0, 0.2))
-    #         ax3.set_ylabel(label)
-    #         ax3.set_xlabel('Time (s)')
-    #         ax3.set_ylim(ax2.get_ylim())
+            # plot all data
+            hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+            # legend markers for core/member
+            tax.scatter([],[],s=25,label='core',c='w')
+            tax.scatter([],[],s=10,label='member',c='w')
+            # plot noise
+            tax.scatter(self.Time[noise_ind], m * self.focus[analyte][noise_ind], lw=1, c='k', s=15, marker='x', label='noise')
 
-    #         if self.bimodal_limits[a].size > 0:
-    #             n = sum(self.filt[a][ind]) - 1
+            # plot filtered data
+            for f, c, lab in zip(tfg, tcs, tfn):
+                ind = self.filt.components[f]
+                tax.scatter(self.Time[~core_ind & ind], m * self.focus[analyte][~core_ind & ind], lw=.1, c=c, s=10)
+                tax.scatter(self.Time[core_ind & ind], m * self.focus[analyte][core_ind & ind], lw=.1, c=c, s=25, label=lab)
+                hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
 
-    #             if mode is 'lower':
-    #                 ax1.axvline(self.bimodal_limits[a][0] * m, color='k',
-    #                             ls='dashed')
-    #                 ax1.axvspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-    #                             color=(1, 0, 0, 0.1))
+        else:
+            # plot all data
+            tax.scatter(self.Time, m * self.focus[analyte], c='k', alpha=0.5, lw=0.1, s=25, label='excl')
+            hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
 
-    #                 ax2.axhline(self.bimodal_limits[a][0] * m, color='k',
-    #                             ls='dashed')
-    #                 ax2.axvspan(n, ax2.get_xlim()[1], color=(1, 0, 0, 0.1))
+            # plot filtered data
+            for f, c, lab in zip(fg, cs, fn):
+                ind = self.filt.components[f]
+                tax.scatter(self.Time[ind], m * self.focus[analyte][ind], lw=.1, c=c, s=25, label=lab)
+                hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
 
-    #                 ax3.axhline(self.bimodal_limits[a][0] * m, color='k',
-    #                             ls='dashed')
-    #                 ax3.axhspan(self.bimodal_limits[a][0] * m, ax1.get_xlim()[1],
-    #                             color=(1, 0, 0, 0.1))
+        # formatting
+        for ax in axs:
+            ax.set_ylim(np.nanmin(self.focus[analyte]) * m, np.nanmax(self.focus[analyte]) * m)
 
-    #             if mode is 'upper':
-    #                 ax1.axvline(self.bimodal_limits[a][-1] * m, color='k',
-    #                             ls='dashed')
-    #                 ax1.axvspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-    #                             color=(1, 0, 0, 0.1))
+        tax.legend(scatterpoints=1, framealpha=0.5)
+        tax.text(.02, .98, fgrps[i], size=12, weight='bold', ha='left', va='top', transform=tax.transAxes)
+        tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
+        tax.set_xticks(tax.get_xticks()[:-1])
+        hax.set_yticklabels([])
 
-    #                 ax2.axhline(self.bimodal_limits[a][-1] * m, color='k',
-    #                             ls='dashed')
-    #                 ax2.axvspan(ax2.get_xlim()[0], n, color=(1, 0, 0, 0.1))
+        if i < ngrps - 1:
+            tax.set_xticklabels([])
+            hax.set_xticklabels([])
+        else:
+            tax.set_xlabel('Time (s)')
+            hax.set_xlabel('n')
 
-    #                 ax3.axhline(self.bimodal_limits[a][-1] * m, color='k',
-    #                             ls='dashed')
-    #                 ax3.axhspan(ax1.get_xlim()[0], self.bimodal_limits[a][-1] * m,
-    #                             color=(1, 0, 0, 0.1))
+        axes.append(axs)
 
-    #             ax2.axvline(n, color='k', ls='dashed')
-    #             ax2.text(n+5, ax2.get_ylim()[1]-0.2, 'n = {:.0f}'.format(n),
-    #                      va='top', ha='left')
-
-    #             ax3.scatter(self.Time[self.filt[a]],
-    #                         self.focus[a][self.filt[a]]*m, s=3, color='k')
-    #             ax3.scatter(self.Time[~self.filt[a]],
-    #                         self.focus[a][~self.filt[a]]*m, s=3,
-    #                         color=(0, 0, 0, 0.2))
-    #         else:
-    #             ax3.scatter(self.Time, self.focus[a]*m, s=3, color='k')
-    #     return fig
+    return fig, axes
 
 class filt(object):
     def __init__(self, size, analytes):
@@ -2382,6 +2342,13 @@ def unitpicker(a, llim=0.1):
             a *= 1000
             n += 1
     return float(1000**n), udict[n]
+
+def pretty_element(s):
+    """
+    Function to format element names nicely.
+    """
+    g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
+    return '$^{' + g[1] + '}$' + g[0]
 
 
 def collate_csvs(in_dir,out_dir='./csvs'):
