@@ -1508,6 +1508,7 @@ class D(object):
             self.ratios[a] = \
                 self.focus[a] / self.focus[denominator]
         self.setfocus('ratios')
+        self.ratio_denominator = denominator
         return
 
     def calibrate(self, calib_dict):
@@ -2076,148 +2077,74 @@ class D(object):
 
         return fig
 
-    # def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
-    #     """
-    #     Plot each trace individually, and the individual mean for comparison.
-    #     """
+    def crossplot(self, analytes=None, ptype='hist2D', bins=25, lognorm=True, filt=True, **kwargs):
+        if analytes is None:
+            analytes = [a for a in self.analytes if a != self.ratio_denominator]
 
-    #     self.unstats = un.uarray(self.stats[vals], self.stats[errs])
+        numvars = len(analytes)
+        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+                                 figsize=(12, 12))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
-    #     means = []
-    #     for s in self.unstats:
-    #         means.append(s.mean())
-    #     means = np.array(means)
+        for ax in axes.flat:
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
 
-    #     fig, ax = plt.subplots(1, 1, figsize=figsize)
+            if ax.is_first_col():
+                ax.yaxis.set_ticks_position('left')
+            if ax.is_last_col():
+                ax.yaxis.set_ticks_position('right')
+            if ax.is_first_row():
+                ax.xaxis.set_ticks_position('top')
+            if ax.is_last_row():
+                ax.xaxis.set_ticks_position('bottom')
 
-    #     x = 0
-    #     for a in analytes:
-    #         # individual traces
-    #         ys = self.unstats[self.analytes == a]
-    #         xs = np.linspace(x-0.1, x+0.1, ys.size)
-    #         ax.errorbar(xs, un.nominal_values(ys)[0], yerr=un.std_devs(ys)[0],
-    #                     color=self.cmap[a], lw=0, elinewidth=1, capsize=0,
-    #                     marker='o', markersize=3)
+        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                  'Greens', 'Greys', 'Oranges', 'OrRd',
+                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        udict = {}
+        for i, j in zip(*np.triu_indices_from(axes, k=1)):
+            for x, y in [(i, j), (j, i)]:
+                # set unit multipliers
+                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]))
+                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]))
+                udict[analytes[x]] = (x, ux)
 
-    #         # means of all traces
-    #         avx = [x-0.3, x+0.3]
-    #         avy = means[self.analytes == a]
-    #         ave = [un.nominal_values(avy)[0] + un.std_devs(avy)[0]] * 2 + [un.nominal_values(avy)[0] - un.std_devs(avy)[0]] * 2
+                # get filter
+                ind = (self.filt.grab_filt(filt, analytes[x]) &
+                       self.filt.grab_filt(filt, analytes[y]) &
+                       ~np.isnan(self.focus[analytes[x]]) &
+                       ~np.isnan(self.focus[analytes[y]]))
 
-    #         ax.plot(avx, [un.nominal_values(avy)] * 2, lw=2, color=self.cmap[a])
-    #         ax.fill_between(avx + avx[::-1], ave, lw=0, color=self.cmap[a], alpha=0.4)
+                # make plot
+                px = self.focus[analytes[x]][ind] * mx
+                py = self.focus[analytes[y]][ind] * my
 
-    #         x += 1
+                if lognorm:
+                    axes[x, y].hist2d(py, px, bins,
+                                      norm=mpl.colors.LogNorm(),
+                                      cmap=plt.get_cmap(cmlist[x]))
+                else:
+                    axes[x, y].hist2d(py, px, bins,
+                                      cmap=plt.get_cmap(cmlist[x]))
+                axes[x, y].set_ylim([px.min(), px.max()])
+                axes[x, y].set_xlim([py.min(), py.max()])
+        # diagonal labels
+        for a, (i, u) in udict.items():
+            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
+                                xycoords='axes fraction',
+                                ha='center', va='center')
+        # switch on alternating axes
+        for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
+            axes[j, i].xaxis.set_visible(True)
+            for label in axes[j, i].get_xticklabels():
+                label.set_rotation(90)
+            axes[i, j].yaxis.set_visible(True)
 
-    #     if scale is not None:
-    #         ax.set_yscale(scale)
+        axes[0,0].set_title(self.sample, weight='bold', x=0.05, ha='left')
 
-    #     ax.set_xticklabels([''] + [self.pretty_element(a) for a in analytes])
-
-    #     return fig
-
-    # def crossplot(self, analytes=None, ptype='scatter', bins=25, lognorm=True,
-    #               **kwargs):
-    #     """
-    #     Function for creating scatter crossplots of specified analytes.
-    #     Useful for checking for correlations withing the traces, which can
-    #     indicate contamination.
-
-    #     Parameters:
-    #         analytes:   list of analytes to plot (default = all)
-    #         ptype:      'scatter' | 'hist2d'
-    #         bins:       (int) Number of bins to use if hist2d
-    #         lognorm:    (bool) Log-normalise the data?
-    #         **kwargs:   passed to 'scatter' - does nothing for hist2d
-    #     """
-    #     if analytes is None:
-    #         analytes = [a for a in self.analytes if 'Ca' not in a]
-
-    #     numvars = len(analytes)
-    #     fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
-    #                              figsize=(12, 12))
-    #     fig.subplots_adjust(hspace=0.05, wspace=0.05)
-
-    #     for ax in axes.flat:
-    #         ax.xaxis.set_visible(False)
-    #         ax.yaxis.set_visible(False)
-
-    #         if ax.is_first_col():
-    #             ax.yaxis.set_ticks_position('left')
-    #         if ax.is_last_col():
-    #             ax.yaxis.set_ticks_position('right')
-    #         if ax.is_first_row():
-    #             ax.xaxis.set_ticks_position('top')
-    #         if ax.is_last_row():
-    #             ax.xaxis.set_ticks_position('bottom')
-
-    #     if ptype is 'scatter':
-    #         # Plot the data.
-    #         for i, j in zip(*np.triu_indices_from(axes, k=1)):
-    #             for x, y in [(i, j), (j, i)]:
-    #                 # set multipliers and units
-    #                 mx = my = 1000
-    #                 ux = uy = '(mmol/mol)'
-    #                 if np.nanmin(self.focus[analytes[x]] * my) < 0.1:
-    #                     mx = 1000000
-    #                     ux = '($\mu$mol/mol)'
-    #                 if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
-    #                     my = 1000000
-    #                     uy = '($\mu$mol/mol)'
-    #                 # make plot
-    #                 px = self.focus[analytes[x]] * mx
-    #                 py = self.focus[analytes[y]] * my
-    #                 axes[x, y].scatter(px, py, color=self.cmap[analytes[x]],
-    #                                    **kwargs)
-    #                 axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-    #                 axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
-
-    #     if ptype is 'hist2d':
-    #         cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-    #                   'Greens', 'Greys', 'Oranges', 'OrRd',
-    #                   'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-    #                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
-    #         for i, j in zip(*np.triu_indices_from(axes, k=1)):
-    #             for x, y in [(i, j), (j, i)]:
-    #                 # set unit multipliers
-    #                 mx = my = 1000
-    #                 if np.nanmin(self.focus[analytes[x]] * mx) < 0.1:
-    #                     mx = 1000000
-    #                 if np.nanmin(self.focus[analytes[y]] * my) < 0.1:
-    #                     my = 1000000
-    #                 # make plot
-    #                 px = self.focus[analytes[x]][~np.isnan(self.focus
-    #                                                        [analytes[x]])] * mx
-    #                 py = self.focus[analytes[y]][~np.isnan(self.focus
-    #                                                        [analytes[y]])] * my
-    #                 if lognorm:
-    #                     axes[x, y].hist2d(px, py, bins,
-    #                                       norm=mpl.colors.LogNorm(),
-    #                                       cmap=plt.get_cmap(cmlist[x]))
-    #                 else:
-    #                     axes[x, y].hist2d(px, py, bins,
-    #                                       cmap=plt.get_cmap(cmlist[x]))
-    #                 axes[x, y].set_xlim([np.nanmin(px), np.nanmax(px)])
-    #                 axes[x, y].set_ylim([np.nanmin(py), np.nanmax(py)])
-
-    #     for i, label in enumerate(analytes):
-    #         # assign unit label
-    #         unit = '\n(mmol/mol)'
-    #         if np.nanmin(self.focus[label] * 1000) < 0.1:
-    #             unit = '\n($\mu$mol/mol)'
-    #         # plot label
-    #         axes[i, i].annotate(label+unit, (0.5, 0.5),
-    #                             xycoords='axes fraction',
-    #                             ha='center', va='center')
-
-    #     for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
-    #         axes[j, i].xaxis.set_visible(True)
-    #         for label in axes[j, i].get_xticklabels():
-    #             label.set_rotation(90)
-
-    #         axes[i, j].yaxis.set_visible(True)
-
-    #     return fig, axes
+        return fig, axes
 
     # def bimodality_report(self, mode='lower', filt=False):
     #     """
