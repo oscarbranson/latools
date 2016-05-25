@@ -1569,14 +1569,15 @@ class D(object):
             for f in stat_fns:
                 self.stats[f.__name__] = []
                 for a in analytes:
-                    if isinstance(filt, str):
-                        ind = self.filt.make_fromkey(filt)
-                    elif isinstance(filt, dict):
-                        ind = self.filt.make_fromkey(filt[a])
-                    elif filt:
-                        ind = self.filt.make(a)
-                    else:
-                        ind = ~np.zeros_like(self.Time, dtype=bool)
+                    ind = self.filt.grab_filt(filt, a)
+                    # if isinstance(filt, str):
+                    #     ind = self.filt.make_fromkey(filt)
+                    # elif isinstance(filt, dict):
+                    #     ind = self.filt.make_fromkey(filt[a])
+                    # elif filt:
+                    #     ind = self.filt.make(a)
+                    # else:
+                    #     ind = ~np.zeros_like(self.Time, dtype=bool)
 
                     if eachtrace:
                         sts = []
@@ -1975,103 +1976,105 @@ class D(object):
         g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
         return '$^{' + g[1] + '}$' + g[0]
 
-    # def tplot(self, traces=None, figsize=[10, 4], scale=None, filt=False,
-    #           ranges=False, plot_filt=None, stats=True, sig='nanmean', err='nanstd', interactive=False):
-    #     """
-    #     Convenience function for plotting traces.
+    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
+          ranges=False, stats=True, sig='nanmean', err='nanstd', interactive=False):
+        """
+        Convenience function for plotting traces.
 
-    #     Parameters:
-    #         traces:     list of strings containing names of analytes to plot.
-    #                     default = all analytes.
-    #         figsize:    tuple-like
-    #                     size of final figure.
-    #         scale:      str ('log') or blank.
-    #                     whether to plot data on a log scale.
-    #         filt:       boolean, string or list
-    #                     Whether or not to plot the filtered data for all (bool)
-    #                     or specific (str, list) analytes.
-    #         stats:      boolean
-    #                     Whether or not to plot the mean and standard deviation
-    #                     for the traces.
-    #     """
-    #     if interactive:
-    #         enable_notebook()  # make the plot interactive
-    #     if traces is None:
-    #         traces = self.analytes
-    #     if isinstance(traces, str):
-    #         traces = [traces]
-    #     fig = plt.figure(figsize=figsize)
-    #     ax = fig.add_subplot(111)
+        Parameters:
+            analytes:   list of strings containing names of analytes to plot.
+                        None = all analytes.
+            figsize:    tuple-like
+                        size of final figure.
+            scale:      str ('log') or blank.
+                        whether to plot data on a log scale.
+            filt:       boolean, string or dict
+                        False: plot unfiltered data.
+                        True: plot filtered data over unfiltered data.
+                        str: apply filter key to all analytes
+                        dict: apply key to each analyte in dict. Must contain all
+                        analytes plotted. Can use self.filt.keydict.
+            stats:      boolean
+                        Whether or not to plot the mean and standard deviation
+                        for the traces.
+        """
 
-    #     for t in traces:
-    #         x = self.Time
-    #         y = self.focus[t]
+        if interactive:
+            enable_notebook()  # make the plot interactive
 
-    #         if isinstance(filt, bool):
-    #             if filt and t in self.filt.keys():
-    #                 ind = self.filt[t]
-    #             else:
-    #                 ind = np.array([True] * x.size)
-    #         if isinstance(filt, str):
-    #             ind = self.filt[filt]
+        if type(analytes) is str:
+            analytes = [analytes]
+        if analytes is None:
+            analytes = self.analytes
 
-    #         if scale is 'log':
-    #             ax.set_yscale('log')
-    #             y[y == 0] = 1
-    #         ax.plot(x, y, color=self.cmap[t], label=t)
-    #         if any(~ind):
-    #             ax.scatter(x[~ind], y[~ind], s=5, color='k')
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111)
 
-    #         # Plot averages and error envelopes
-    #         if stats and hasattr(self, 'stats'):
-    #             sts = self.stats[sig][0].size
-    #             if sts > 1:
-    #                 for n in np.arange(self.n):
-    #                     x = [self.Time[self.ns==n+1][0], self.Time[self.ns==n+1][-1]]
-    #                     y = [self.stats[sig][self.stats['analytes']==t][0][n]] * 2
+        for a in analytes:
+            x = self.Time
+            y = self.focus[a]
 
-    #                     yp = [self.stats[sig][self.stats['analytes']==t][0][n] + self.stats[err][self.stats['analytes']==t][0][n]] * 2
-    #                     yn = [self.stats[sig][self.stats['analytes']==t][0][n] - self.stats[err][self.stats['analytes']==t][0][n]] * 2
+            if scale is 'log':
+                ax.set_yscale('log')
+                y[y == 0] = 1
 
-    #                     ax.plot(x, y, color=self.cmap[t], lw=2)
-    #                     ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
-    #             else:
-    #                 x = [self.Time[0], self.Time[-1]]
-    #                 y = [self.stats[sig][self.stats['analytes']==t][0]] * 2
-    #                 yp = [self.stats[sig][self.stats['analytes']==t][0] + self.stats[err][self.stats['analytes']==t][0]] * 2
-    #                 yn = [self.stats[sig][self.stats['analytes']==t][0] - self.stats[err][self.stats['analytes']==t][0]] * 2
+            ind = self.filt.grab_filt(filt, a)
+            xf = x.copy()
+            yf = y.copy()
+            if any(~ind):
+                xf[~ind] = np.nan
+                yf[~ind] = np.nan
 
-    #                 ax.plot(x, y, color=self.cmap[t], lw=2)
-    #                 ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[t], alpha=0.4, linewidth=0)
+            if any(~ind):
+                ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
+            ax.plot(xf, yf, color=self.cmap[a], label=a)
 
-    #     if ranges:
-    #         for lims in self.bkgrng:
-    #             ax.axvspan(*lims, color='k', alpha=0.1)
-    #         for lims in self.sigrng:
-    #             ax.axvspan(*lims, color='r', alpha=0.1)
+            # Plot averages and error envelopes
+            if stats and hasattr(self, 'stats'):
+                sts = self.stats[sig][0].size
+                if sts > 1:
+                    for n in np.arange(self.n):
+                        n_ind = ind & (self.ns==n+1)
+                        if sum(n_ind) > 2:
+                            x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
+                            y = [self.stats[sig][self.stats['analytes']==a][0][n]] * 2
 
-    #         if plot_filt is None:
-    #             plot_filt = 'combined'
-    #         if hasattr(self, 'filtrngs'):
-    #             for lims in self.filtrngs[plot_filt]:
-    #                 ax.axvspan(*lims, color='b', alpha=0.1)
+                            yp = [self.stats[sig][self.stats['analytes']==a][0][n] + self.stats[err][self.stats['analytes']==a][0][n]] * 2
+                            yn = [self.stats[sig][self.stats['analytes']==a][0][n] - self.stats[err][self.stats['analytes']==a][0][n]] * 2
 
-    #     ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
-    #             ha='left', va='top')
+                            ax.plot(x, y, color=self.cmap[a], lw=2)
+                            ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
+                else:
+                    x = [self.Time[0], self.Time[-1]]
+                    y = [self.stats[sig][self.stats['analytes']==a][0]] * 2
+                    yp = [self.stats[sig][self.stats['analytes']==a][0] + self.stats[err][self.stats['analytes']==a][0]] * 2
+                    yn = [self.stats[sig][self.stats['analytes']==a][0] - self.stats[err][self.stats['analytes']==a][0]] * 2
 
-    #     ax.set_xlabel('Time (s)')
+                    ax.plot(x, y, color=self.cmap[a], lw=2)
+                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
 
-    #     if interactive:
-    #         ax.legend()
-    #         plugins.connect(fig, plugins.MousePosition(fontsize=14))
-    #         display.clear_output(wait=True)
-    #         display.display(fig)
-    #         input('Press [Return] when finished.')
-    #         disable_notebook()  # stop the interactivity
-    #     else:
-    #         ax.legend(bbox_to_anchor=(1.12, 1))
+        if ranges:
+            for lims in self.bkgrng:
+                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+            for lims in self.sigrng:
+                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-    #     return fig
+        ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
+                ha='left', va='top')
+
+        ax.set_xlabel('Time (s)')
+
+        if interactive:
+            ax.legend()
+            plugins.connect(fig, plugins.MousePosition(fontsize=14))
+            display.clear_output(wait=True)
+            display.display(fig)
+            input('Press [Return] when finished.')
+            disable_notebook()  # stop the interactivity
+        else:
+            ax.legend(bbox_to_anchor=(1.12, 1))
+
+        return fig
 
     # def statplot(self, analytes=None, figsize=[8, 8], scale=None, vals='nanmean', errs='nanstd'):
     #     """
@@ -2447,6 +2450,34 @@ class filt(object):
 
         runable = re.sub('[^\(\)|& ]+', make_runable, key)
         return eval(runable)
+
+    def make_keydict(self):
+        out = {}
+        for a in analyte:
+            key = []
+            for f in self.components.keys():
+                if self.switches[a][f]:
+                    key.append(f)
+            out[a] = ' & '.join(sorted(out))
+        self.keydict = out
+        return out
+
+    def grab_filt(self,f,a=None):
+        if isinstance(f, str):
+            try:
+                ind = self.make_fromkey(f)
+            except ValueError:
+                print("\n\n***Filter key invalid. Please consult manual and try again.")
+        elif isinstance(f, dict):
+            try:
+                ind = self.make_fromkey(f[a])
+            except ValueError:
+                print("\n\n***Filter key invalid. Please consult manual and try again.\nOR\nAnalyte missing from filter key dict.")
+        elif f:
+            ind = self.make(a)
+        else:
+            ind = ~np.zeros(self.size, dtype=bool)
+        return ind
 
     def get_components(self, key, analyte=None):
         out = {}
