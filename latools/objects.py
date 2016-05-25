@@ -1620,42 +1620,7 @@ class D(object):
                                params)
 
 
-    # def threshold_filter(self, analyte, threshold, mode='above'):
-    #     """
-    #     Generates threshold filters for analytes, when provided with analyte,
-    #     threshold, and mode. Mode specifies whether data 'below'
-    #     or 'above' the threshold are kept.
-    #     """
-    #     if not hasattr(self, 'filt'):
-    #         self.filt = {}
-
-    #     if mode == 'below':
-    #         self.filt[analyte + '_thresh'] = self.focus[analyte] <= threshold
-    #     if mode == 'above':
-    #         self.filt[analyte + '_thresh'] = self.focus[analyte] >= threshold
-
-    #     # make 'master' filter
-    #     combined = np.array([True] * self.Time.size)
-    #     for k, v in self.filt.items():
-    #         if k is not 'combined':
-    #             combined = combined & v
-    #     self.filt['combined'] = combined
-
-    #     # update self.filtrngs
-    #     for f, a in self.filt.items():
-    #         if ~hasattr(self, 'filtrngs'):
-    #             self.filtrngs = {}
-    #         if f not in self.filtrngs.keys():
-    #             self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
-    #                                         self.Time[(a & np.roll(~a, -1))]))
-
-    #     a = self.filt['combined']
-    #     self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
-    #                                          self.Time[(a & np.roll(~a, -1))]))
-
-        # print(self.sample, self.filt.keys())
-
-    def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None, output=False):
+        def filter_distribution(self, analyte, binwidth=0.1, filt=False, transform=None, output=False):
         params = locals()
         del(params['self'])
 
@@ -1705,75 +1670,6 @@ class D(object):
             return x, yd, limits
         else:
             return
-
-    # def bimodality_fix(self, analytes, mode='lower', report=False, filt=False):
-    #     """
-    #     Function that checks for bimodality in the data, and excludes either
-    #     the higher or lower data.
-
-    #     Inputs:
-    #         analytes:                         array-like
-    #             list of analytes to check
-    #         mode:                         higher|[lower]
-    #             higher: keeps the higher distribution
-    #             lower: keeps the lower distribution
-
-    #     Returns:
-    #         Updates D object with 'filt' dict, containing the exclusions
-    #         calculated by the bimodal split cutoff.
-    #     """
-    #     if not hasattr(self, 'filt'):
-    #         self.filt = {}
-    #     self.bimodal_limits = {}
-    #     if report and ~hasattr(self, 'bimodal_reports'):
-    #         self.bimodal_reports = {}
-    #     for a in np.array(analytes, ndmin=1):
-    #         if isinstance(filt, bool):
-    #             if filt and a in self.filt.keys():
-    #                 ind = ~np.isnan(self.focus[a]) & self.filt[a]
-    #             else:
-    #                 ind = ~np.isnan(self.focus[a])
-    #         if isinstance(filt, str):
-    #             ind = ~np.isnan(self.focus[a]) & self.filt[filt]
-    #         if sum(ind) <= 1:
-    #             ind = ~np.isnan(self.focus[a])  # remove the filter if it takes out all data
-
-    #         kde = gaussian_kde(self.focus[a][ind])
-    #         x = np.linspace(np.nanmin(self.focus[a][ind]), np.nanmax(self.focus[a][ind]),
-    #                         kde.dataset.size // 3)
-    #         yd = kde.pdf(x)
-    #         self.bimodal_limits[a] = self.findmins(x, yd)
-    #         if self.bimodal_limits[a].size > 0:
-    #             self.bimodal_correction = True
-    #             if mode is 'lower':
-    #                 self.filt[a] = self.focus[a] < self.bimodal_limits[a][0]
-    #             if mode is 'upper':
-    #                 self.filt[a] = self.focus[a] > self.bimodal_limits[a][-1]
-    #         else:
-    #             self.filt[a] = np.array([True] * self.focus[a].size)
-
-    #         if report:
-    #             self.bimodal_reports[a] = self.bimodality_report(a, mode=mode)
-
-    #     # make 'master' filter
-    #     combined = np.array([True] * self.Time.size)
-    #     for k, v in self.filt.items():
-    #         if k is not 'combined':
-    #             combined = combined & v
-    #     self.filt['combined'] = combined
-
-    #     # update self.filtrngs
-    #     if ~hasattr(self, 'filtrngs'):
-    #             self.filtrngs = {}
-    #     for f, a in self.filt.items():
-    #         if f not in self.filtrngs.keys():
-    #             self.filtrngs[f] = list(zip(self.Time[(a & np.roll(~a, 1))],
-    #                                         self.Time[(a & np.roll(~a, -1))]))
-
-    #     a = self.filt['combined']
-    #     self.filtrngs['combined'] = list(zip(self.Time[(a & np.roll(~a, 1))],
-    #                                          self.Time[(a & np.roll(~a, -1))]))
-    #     return
 
     def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', **kwargs):
         params = locals()
