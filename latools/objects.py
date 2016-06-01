@@ -17,7 +17,6 @@ from mpld3 import plugins
 from IPython import display
 from mpld3 import enable_notebook, disable_notebook
 
-
 class analyse(object):
     def __init__(self, csv_folder, errorhunt=False):
         self.folder = csv_folder
@@ -146,6 +145,7 @@ class analyse(object):
             contain bagkround & signal boolean arrays and limit arrays,
             respectively.
         """
+
         for d in self.data:
             d.autorange(analyte, gwin, win, smwin,
                         conf, trans_mult)
@@ -1122,6 +1122,10 @@ class D(object):
             self.spike_filter(win, nlim)
         if expdecay_filter:
             self.expdecay_filter(exponent, tstep)
+
+        params = locals()
+        del(params['self'])
+        self.despike_params = params
         return
 
     # helper functions for data selection
@@ -1266,6 +1270,10 @@ class D(object):
             contain bagkround & signal boolean arrays and limit arrays,
             respectively.
         """
+        params = locals()
+        del(params['self'])
+        self.autorange_params = params
+
         bins = 50  # determine automatically? As a function of bkg rms noise?
         # bkg = np.array([True] * self.Time.size)  # initialise background array
 
@@ -1590,7 +1598,7 @@ class D(object):
 
     # Data Selections Tools
 
-    def filter_threshold(self, analyte, threshold, mode='above'):
+    def filter_threshold(self, analyte, threshold, filt=False, mode='above'):
         """
         Generates threshold filters for analytes, when provided with analyte,
         threshold, and mode. Mode specifies whether data 'below'
@@ -1598,6 +1606,9 @@ class D(object):
         """
         params = locals()
         del(params['self'])
+
+        # generate filter
+        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
 
         if mode == 'below':
             self.filt.add(analyte + '_thresh_below',
@@ -2025,90 +2036,105 @@ class D(object):
         return fig, axes
 
     def filt_report(self, filt=None, analyte=None, save=None):
-    filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
-    nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
-    fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
-    fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
+        filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
+        nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
+        fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
+        fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
 
-    ngrps = fgrps.size
+        ngrps = fgrps.size
 
-    plots = {}
+        plots = {}
 
 
-    m, u = unitpicker(np.nanmax(self.focus[analyte]))
+        m, u = unitpicker(np.nanmax(self.focus[analyte]))
 
-    fig = plt.figure(figsize=(10, 3.5 * ngrps))
-    axes = []
+        fig = plt.figure(figsize=(10, 3.5 * ngrps))
+        axes = []
 
-    h = .8 / ngrps
+        h = .8 / ngrps
 
-    cm = plt.cm.get_cmap('Spectral')
+        cm = plt.cm.get_cmap('Spectral')
 
-    for i in np.arange(ngrps):
-        axs = tax, hax = fig.add_axes([.1,.9-(i+1)*h,.6,h*.98]), fig.add_axes([.7,.9-(i+1)*h,.2,h*.98])
+        for i in np.arange(ngrps):
+            axs = tax, hax = fig.add_axes([.1,.9-(i+1)*h,.6,h*.98]), fig.add_axes([.7,.9-(i+1)*h,.2,h*.98])
 
-        # get variables
-        fg = filts[fgnames == fgrps[i]]
-        cs = cm(np.linspace(0,1,len(fg)))
-        fn = nfilts[:,2][fgnames == fgrps[i]]
-        an = nfilts[:,0][fgnames == fgrps[i]]
-        bins = np.linspace(np.nanmin(self.focus[analyte]), np.nanmax(self.focus[analyte]), 50) * m
+            # get variables
+            fg = filts[fgnames == fgrps[i]]
+            cs = cm(np.linspace(0,1,len(fg)))
+            fn = nfilts[:,2][fgnames == fgrps[i]]
+            an = nfilts[:,0][fgnames == fgrps[i]]
+            bins = np.linspace(np.nanmin(self.focus[analyte]), np.nanmax(self.focus[analyte]), 50) * m
 
-        if 'DBSCAN' in fgrps[i]:
-            # determine data filters
-            core_ind = self.filt.components[[f for f in fg if 'core' in f][0]]
-            noise_ind = self.filt.components[[f for f in fg if 'noise' in f][0]]
-            other = np.array([('noise' not in f) & ('core' not in f) for f in fg])
-            tfg = fg[other]
-            tfn = fn[other]
-            tcs = cm(np.linspace(0,1,len(tfg)))
+            if 'DBSCAN' in fgrps[i]:
+                # determine data filters
+                core_ind = self.filt.components[[f for f in fg if 'core' in f][0]]
+                noise_ind = self.filt.components[[f for f in fg if 'noise' in f][0]]
+                other = np.array([('noise' not in f) & ('core' not in f) for f in fg])
+                tfg = fg[other]
+                tfn = fn[other]
+                tcs = cm(np.linspace(0,1,len(tfg)))
 
-            # plot all data
-            hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
-            # legend markers for core/member
-            tax.scatter([],[],s=25,label='core',c='w')
-            tax.scatter([],[],s=10,label='member',c='w')
-            # plot noise
-            tax.scatter(self.Time[noise_ind], m * self.focus[analyte][noise_ind], lw=1, c='k', s=15, marker='x', label='noise')
+                # plot all data
+                hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+                # legend markers for core/member
+                tax.scatter([],[],s=25,label='core',c='w')
+                tax.scatter([],[],s=10,label='member',c='w')
+                # plot noise
+                tax.scatter(self.Time[noise_ind], m * self.focus[analyte][noise_ind], lw=1, c='k', s=15, marker='x', label='noise')
 
-            # plot filtered data
-            for f, c, lab in zip(tfg, tcs, tfn):
-                ind = self.filt.components[f]
-                tax.scatter(self.Time[~core_ind & ind], m * self.focus[analyte][~core_ind & ind], lw=.1, c=c, s=10)
-                tax.scatter(self.Time[core_ind & ind], m * self.focus[analyte][core_ind & ind], lw=.1, c=c, s=25, label=lab)
-                hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                # plot filtered data
+                for f, c, lab in zip(tfg, tcs, tfn):
+                    ind = self.filt.components[f]
+                    tax.scatter(self.Time[~core_ind & ind], m * self.focus[analyte][~core_ind & ind], lw=.1, c=c, s=10)
+                    tax.scatter(self.Time[core_ind & ind], m * self.focus[analyte][core_ind & ind], lw=.1, c=c, s=25, label=lab)
+                    hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
 
-        else:
-            # plot all data
-            tax.scatter(self.Time, m * self.focus[analyte], c='k', alpha=0.5, lw=0.1, s=25, label='excl')
-            hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+            else:
+                # plot all data
+                tax.scatter(self.Time, m * self.focus[analyte], c='k', alpha=0.5, lw=0.1, s=25, label='excl')
+                hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
 
-            # plot filtered data
-            for f, c, lab in zip(fg, cs, fn):
-                ind = self.filt.components[f]
-                tax.scatter(self.Time[ind], m * self.focus[analyte][ind], lw=.1, c=c, s=25, label=lab)
-                hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                # plot filtered data
+                for f, c, lab in zip(fg, cs, fn):
+                    ind = self.filt.components[f]
+                    tax.scatter(self.Time[ind], m * self.focus[analyte][ind], lw=.1, c=c, s=25, label=lab)
+                    hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
 
-        # formatting
-        for ax in axs:
-            ax.set_ylim(np.nanmin(self.focus[analyte]) * m, np.nanmax(self.focus[analyte]) * m)
+            # formatting
+            for ax in axs:
+                ax.set_ylim(np.nanmin(self.focus[analyte]) * m, np.nanmax(self.focus[analyte]) * m)
 
-        tax.legend(scatterpoints=1, framealpha=0.5)
-        tax.text(.02, .98, fgrps[i], size=12, weight='bold', ha='left', va='top', transform=tax.transAxes)
-        tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
-        tax.set_xticks(tax.get_xticks()[:-1])
-        hax.set_yticklabels([])
+            tax.legend(scatterpoints=1, framealpha=0.5)
+            tax.text(.02, .98, fgrps[i], size=12, weight='bold', ha='left', va='top', transform=tax.transAxes)
+            tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
+            tax.set_xticks(tax.get_xticks()[:-1])
+            hax.set_yticklabels([])
 
-        if i < ngrps - 1:
-            tax.set_xticklabels([])
-            hax.set_xticklabels([])
-        else:
-            tax.set_xlabel('Time (s)')
-            hax.set_xlabel('n')
+            if i < ngrps - 1:
+                tax.set_xticklabels([])
+                hax.set_xticklabels([])
+            else:
+                tax.set_xlabel('Time (s)')
+                hax.set_xlabel('n')
 
-        axes.append(axs)
+            axes.append(axs)
 
-    return fig, axes
+        return fig, axes
+
+    # reporting
+    def get_params(self):
+        outputs = ['sample', 'method', 'analytes', 'ratio_denominator',
+                   'despike_params', 'autorange_params']
+
+        out = {}
+        for o in outputs:
+            out[o] = getattr(self, o)
+
+        out['filter_params'] = self.filt.params
+        out['filter_sequence'] = self.filt.sequence
+        out['filter_used'] = self.filt.make_keydict()
+
+        return out
 
 class filt(object):
     def __init__(self, size, analytes):
@@ -2119,6 +2145,8 @@ class filt(object):
         self.params = {}
         self.switches = {}
         self.keys = {}
+        self.sequence = {}
+        self.n = 0
         for a in self.analytes:
             self.switches[a] = {}
 
@@ -2140,6 +2168,8 @@ class filt(object):
         self.components[name] = filt
         self.info[name] = info
         self.params[name] = params
+        self.sequence[self.n] = name
+        self.n += 1
         for a in self.analytes:
             self.switches[a][name] = True
 
@@ -2228,20 +2258,28 @@ class filt(object):
         statements in parentheses are evaluated first.
 
         """
-        def make_runable(match):
-            return "self.components['" + match.group(0) + "']"
+        if key != '':
+            def make_runable(match):
+                return "self.components['" + match.group(0) + "']"
 
-        runable = re.sub('[^\(\)|& ]+', make_runable, key)
-        return eval(runable)
+            runable = re.sub('[^\(\)|& ]+', make_runable, key)
+            return eval(runable)
+        else:
+            return ~np.zeros(self.size, dtype=bool)
 
-    def make_keydict(self):
+    def make_keydict(self, analyte=None):
+        if analyte is None:
+            analyte = self.analytes
+        elif isinstance(analyte, str):
+            analyte = [analyte]
+
         out = {}
         for a in analyte:
             key = []
             for f in self.components.keys():
                 if self.switches[a][f]:
                     key.append(f)
-            out[a] = ' & '.join(sorted(out))
+            out[a] = ' & '.join(sorted(key))
         self.keydict = out
         return out
 
