@@ -145,7 +145,6 @@ class analyse(object):
             contain bagkround & signal boolean arrays and limit arrays,
             respectively.
         """
-
         for d in self.data:
             d.autorange(analyte, gwin, win, smwin,
                         conf, trans_mult)
@@ -621,22 +620,6 @@ class analyse(object):
             for p in params:
                 d.threshold_filter(p[0], p[1], p[2])
 
-    # plot helper functions
-    def unitpicker(self, a, llim=0.1):
-        udict = {0: 'mol/mol',
-                 1: 'mmol/mol',
-                 2: '$\mu$mol/mol',
-                 3: 'nmol/mol',
-                 4: 'pmol/mol',
-                 5: 'fmol/mol'}
-        a = abs(a)
-        n = 0
-        if a < llim:
-            while a < llim:
-                a *= 1000
-                n += 1
-        return float(1000**n), udict[n]
-
     # plot calibrations
     def calibration_plot(self, analytes=None, plot='errbar'):
         if analytes is None:
@@ -762,8 +745,8 @@ class analyse(object):
         for i, j in zip(*np.triu_indices_from(axes, k=1)):
             for x, y in [(i, j), (j, i)]:
                 # set unit multipliers
-                mx, ux = self.unitpicker(np.nanmean(self.focus[analytes[x]]))
-                my, uy = self.unitpicker(np.nanmean(self.focus[analytes[y]]))
+                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]))
+                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]))
                 udict[analytes[x]] = (x, ux)
 
                 # make plot
