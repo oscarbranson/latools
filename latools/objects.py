@@ -938,6 +938,8 @@ class analyse(object):
         else:
             return out
 
+analyze = analyse  # for the yanks
+
 class D(object):
     def __init__(self, csv_file, errorhunt=False):
         if errorhunt:
