@@ -561,64 +561,64 @@ class analyse(object):
 
         return
 
-    def distribution_check(self, analytes=None, mode='lower', filt=False):
-        """
-        Checks the specified analytes for bimodality by looking for minima
-        in a gaussian kde data density curve. If minima are found, data either
-        above or below the threshold are excluded. Behaviour is determined by
-        the 'mode' argument.
+    # def distribution_check(self, analytes=None, mode='lower', filt=False):
+    #     """
+    #     Checks the specified analytes for bimodality by looking for minima
+    #     in a gaussian kde data density curve. If minima are found, data either
+    #     above or below the threshold are excluded. Behaviour is determined by
+    #     the 'mode' argument.
 
-        mode:   str ('lower'/'upper')
-            'lower': data below the cutoff are kept.
-            'upper': data above the cutoff are kept.
-        """
-        if analytes is None:
-            analytes = self.analytes
-        analytes = np.array(analytes).flatten()
-        for d in self.data:
-            d.bimodality_fix(analytes, report=False, mode=mode, filt=filt)
+    #     mode:   str ('lower'/'upper')
+    #         'lower': data below the cutoff are kept.
+    #         'upper': data above the cutoff are kept.
+    #     """
+    #     if analytes is None:
+    #         analytes = self.analytes
+    #     analytes = np.array(analytes).flatten()
+    #     for d in self.data:
+    #         d.bimodality_fix(analytes, report=False, mode=mode, filt=filt)
 
-    def distribution_reports(self, analytes=['Ba138'], dirpath=None, filt=False):
-        """
-        Saves data distribution pdfs for all analytes specified,
-        showing where they have been cut by a bimodality check
-        (if it has been run).
-        pdfs are saved in the specified directory (dirpath).
-        """
-        fails = []
-        if dirpath is None:
-            dirpath = self.report_dir
-        if not os.path.isdir(dirpath):
-            os.mkdir(dirpath)
-        analytes = np.array([analytes]).flatten()
-        for k, v in self.data_dict.items():
-            try:
-                fig = v.bimodality_report(filt=filt)
-                fig.savefig(dirpath + '/' + k + '_distributions.pdf')
-                plt.close(fig)
-            except:
-                fails.append(k)
-        if len(fails) > 0:
-            f = open("errors.log", 'w')
-            f.write('\nDistribution Reports:\n')
-            f.write('\n'.join(fails))
-            f.close()
-            print('Some reports failed. See log.')
+    # def distribution_reports(self, analytes=['Ba138'], dirpath=None, filt=False):
+    #     """
+    #     Saves data distribution pdfs for all analytes specified,
+    #     showing where they have been cut by a bimodality check
+    #     (if it has been run).
+    #     pdfs are saved in the specified directory (dirpath).
+    #     """
+    #     fails = []
+    #     if dirpath is None:
+    #         dirpath = self.report_dir
+    #     if not os.path.isdir(dirpath):
+    #         os.mkdir(dirpath)
+    #     analytes = np.array([analytes]).flatten()
+    #     for k, v in self.data_dict.items():
+    #         try:
+    #             fig = v.bimodality_report(filt=filt)
+    #             fig.savefig(dirpath + '/' + k + '_distributions.pdf')
+    #             plt.close(fig)
+    #         except:
+    #             fails.append(k)
+    #     if len(fails) > 0:
+    #         f = open("errors.log", 'w')
+    #         f.write('\nDistribution Reports:\n')
+    #         f.write('\n'.join(fails))
+    #         f.close()
+    #         print('Some reports failed. See log.')
 
-        return
+    #     return
 
     # def clear_filters(self):
     #     for d in self.data:
     #         d.filt = {}
     #         d.filtrngs = {}
 
-    def threshold_filter(self, analytes, thresholds, modes):
-        for d in self.data:
-            params = zip(np.array(analytes, ndmin=1),
-                         np.array(thresholds, ndmin=1),
-                         np.array(modes, ndmin=1))
-            for p in params:
-                d.threshold_filter(p[0], p[1], p[2])
+    # def threshold_filter(self, analytes, thresholds, modes):
+    #     for d in self.data:
+    #         params = zip(np.array(analytes, ndmin=1),
+    #                      np.array(thresholds, ndmin=1),
+    #                      np.array(modes, ndmin=1))
+    #         for p in params:
+    #             d.threshold_filter(p[0], p[1], p[2])
 
     # plot calibrations
     def calibration_plot(self, analytes=None, plot='errbar'):
