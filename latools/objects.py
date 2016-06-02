@@ -389,100 +389,80 @@ class analyse(object):
 
         display.clear_output()
 
-        # record srm_rngs in self
-        self.srm_rngs = {}
+        # record srm_rng in self
+        self.srm_rng = {}
         for s in self.stds:
-            self.srm_rngs[s.sample] = s.std_rngs
+            self.srm_rng[s.sample] = s.std_rngs
 
-        self.save_srm_ids()
-
-        for s in self.stds:
+        # make boolean identifiers in standard D
+        for sn, rs in self.srm_rng.items():
+            s = self.data_dict[sn]
             s.std_labels = {}
-            for srm in s.std_rngs.keys():
-                s.std_labels[srm] = np.zeros(s.Time.size)
-                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
-                                  (s.Time <= max(s.std_rngs[srm]))] = 1
+            for srm, rng in rs.items():
+                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
 
         self.srms_ided = True
 
         return
 
-    # def srm_id(self):
-    #     enable_notebook()  # make the plot interactive
+    def load_calibration(self, params):
+        self.load_params(params)
+
+        self.srm_rng = self.params['calib']['srm_rng']
+
+        # make boolean identifiers in standard D
+        for sn, rs in self.srm_rng.items():
+            s = self.data_dict[sn]
+            s.std_rngs = rs
+            s.std_labels = {}
+            for srm, rng in rs.items():
+                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+
+        self.srms_ided = True
+
+        self.calib_dict = self.params['calib']['calib_dict']
+
+    # def save_srm_ids(self):
+    #     if os.path.isfile(self.param_dir + 'srm.rng'):
+    #         f = input('SRM range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
+    #         if 'n' in f or 'N' in f:
+    #             print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
+    #             return
+    #     srm_ids = []
+    #     for d in self.stds:
+    #         srm_ids.append(d.sample + ' ' + str(d.std_rngs))
+    #     srm_ids = '\n'.join(srm_ids)
+
+    #     fb = open(self.param_dir + 'srm.rng', 'w')
+    #     fb.write(srm_ids)
+    #     fb.close()
+    #     return
+
+    # def load_srm_ids(self, srm_ids):
+    #     rng = open(srm_ids).readlines()
+    #     samples = []
+    #     ids = []
+    #     for r in rng:
+    #         samples.append(re.match('(.*) ({.*)', r.strip()).groups()[0])
+    #         ids.append(eval(re.sub('array', 'np.array',
+    #                    re.match('(.*) ({.*)', r.strip()).groups()[1])))
+    #     samples = np.array(samples)
+    #     ids = np.array(ids)
     #     for s in self.stds:
-    #         fig = s.tplot(scale='log')
-
-    #         plugins.connect(fig, plugins.MousePosition(fontsize=14))
-    #         display.clear_output(wait=True)
-    #         display.display(fig)
-
-    #         s.std_rngs = {}
-
-    #         n = int(input('How many standards? (int): '))
-
-    #         for i in range(n):
-    #             OK = False
-    #             while OK is False:
-    #                 try:
-    #                     name = input('Enter Standard Name: ')
-    #                     ans = [float(f) for f in input(name + ': Enter start and end points of data as: start, end)\n').split(',')]
-    #                     OK = True
-    #                 except:
-    #                     print("Incorrect Values, try again:\n")
-    #             s.std_rngs[name] = ans
-
-    #     self.save_srm_ids()
+    #         s.std_rngs = ids[samples == s.sample][0]
 
     #     for s in self.stds:
     #         s.std_labels = {}
     #         for srm in s.std_rngs.keys():
-    #             s.std_labels[srm] = np.zeros(s.Time.size)
+    #             s.std_labels[srm] = np.zeros(s.Time.size, dtype=bool)
     #             s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
-    #                               (s.Time <= max(s.std_rngs[srm]))] = 1
-    #     disable_notebook()  # stop the interactivity
+    #                               (s.Time <= max(s.std_rngs[srm]))] = True
 
     #     self.srms_ided = True
+
     #     return
 
-    def save_srm_ids(self):
-        if os.path.isfile(self.param_dir + 'srm.rng'):
-            f = input('SRM range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
-            if 'n' in f or 'N' in f:
-                print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
-                return
-        srm_ids = []
-        for d in self.stds:
-            srm_ids.append(d.sample + ' ' + str(d.std_rngs))
-        srm_ids = '\n'.join(srm_ids)
-
-        fb = open(self.param_dir + 'srm.rng', 'w')
-        fb.write(srm_ids)
-        fb.close()
-        return
-
-    def load_srm_ids(self, srm_ids):
-        rng = open(srm_ids).readlines()
-        samples = []
-        ids = []
-        for r in rng:
-            samples.append(re.match('(.*) ({.*)', r.strip()).groups()[0])
-            ids.append(eval(re.sub('array', 'np.array',
-                       re.match('(.*) ({.*)', r.strip()).groups()[1])))
-        samples = np.array(samples)
-        ids = np.array(ids)
-        for s in self.stds:
-            s.std_rngs = ids[samples == s.sample][0]
-
-        for s in self.stds:
-            s.std_labels = {}
-            for srm in s.std_rngs.keys():
-                s.std_labels[srm] = np.zeros(s.Time.size)
-                s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
-                                  (s.Time <= max(s.std_rngs[srm]))] = 1
-
-        self.srms_ided = True
-
-        return
+    # def load_srm(self, params)
 
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
@@ -497,7 +477,7 @@ class analyse(object):
         # get SRM values
         f = open(srmfile).readlines()
         self.srm_vals = {}
-        for srm in self.stds[0].std_rngs.keys():
+        for srm in self.stds[0].std_labels.keys():
             self.srm_vals[srm] = {}
             for a in self.analytes:
                 self.srm_vals[srm][a] = [l.split(',')[1] for l in f if re.match(re.sub("[^A-Za-z]", "", a) + '.*' + srm, l.strip()) is not None][0]
@@ -513,8 +493,8 @@ class analyse(object):
             y = []
             for s in self.stds:
                 s.setfocus(focus)
-                for srm in s.std_rngs.keys():
-                    y = s.focus[a][s.std_labels[srm] == 1]
+                for srm in s.std_labels.keys():
+                    y = s.focus[a][s.std_labels[srm]]
                     y = y[~np.isnan(y)]
                     x = [float(self.srm_vals[srm][a])] * len(y)
 
@@ -1011,6 +991,7 @@ class analyse(object):
         else:
             return out
 
+    # parameter input/output
     def report_params(self):
         # get all parameters from all samples as a dict
         dparams = {}
@@ -1071,6 +1052,15 @@ class analyse(object):
                         out[s][ep] = dparams[s][ep]
 
         return out
+
+    def load_params(self, params):
+        if isinstance(params, str):
+            s = open(params, 'r').read()
+            # make it numpy-friendly for eval
+            s = re.sub('array', 'np.array', s)
+            params = eval(s)
+        self.params = params
+        return
 
 
 analyze = analyse  # for the yanks
@@ -2091,7 +2081,7 @@ class D(object):
 
     def crossplot(self, analytes=None, ptype='hist2D', bins=25, lognorm=True, filt=True, **kwargs):
         if analytes is None:
-            analytes = [a for a in self.analytes if a != self.ratio_denominator]
+            analytes = [a for a in self.analytes if a != self.ratio_params['denominator']]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -2246,8 +2236,10 @@ class D(object):
 
     # reporting
     def get_params(self):
-        outputs = ['sample', 'method', 'ratio_denominator',
-                   'despike_params', 'autorange_params']
+        outputs = ['sample', 'method',
+                   'ratio_params',
+                   'despike_params',
+                   'autorange_params']
 
         out = {}
         for o in outputs:
@@ -2539,10 +2531,13 @@ def bool_2_indices(bool_array):
         bool_array = np.array(bool_array)
     return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
-def tuples_2_bool(tuples, size):
-    out = np.zeros(size, dtype=bool)
+def tuples_2_bool(tuples, x):
+    if np.ndim(tuples) == 1:
+        tuples = [tuples]
+
+    out = np.zeros(x.size, dtype=bool)
     for t in tuples:
-        out[t[0]:t[1]] = True
+        out[(x > min(t)) & (x < max(t))] = True
     return out
 
 ### more involved functions
