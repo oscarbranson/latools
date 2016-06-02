@@ -994,16 +994,16 @@ class analyse(object):
             return out
 
     # parameter input/output
-    def save_params(self):
+    def save_params(self, output_file=None):
         # get all parameters from all samples as a dict
         dparams = {}
         plist = []
         for d in self.data:
             dparams[d.sample] = d.get_params()
             plist.append(list(dparams[d.sample].keys()))
-        # get all unique parameter keys
+        # get all parameter keys
         plist = np.unique(plist)
-        plist = plist[plist != 'sample']  # exclude samples
+        plist = plist[plist != 'sample']
 
         # convert dict into array
         params = []
@@ -1014,7 +1014,7 @@ class analyse(object):
             params.append(row)
         params = np.array(params)
 
-        # identify unique parameter 'sets'
+        # calculate parameter 'sets'
         sets = np.zeros(params.shape)
         for c in np.arange(plist.size):
             col = params[:,c]
@@ -1026,34 +1026,44 @@ class analyse(object):
                 else:
                     if any(col[r] != col[r-1]):
                         i += 1
+
                 sets[r,c] = i
 
-        # map these sets to sample names
         ssets = np.apply_along_axis(sum,1,sets)
-        # work out which set is most abundant (the 'general' case)
         nsets = np.unique(ssets, return_counts=True)
         setorder = np.argsort(nsets[1])[::-1]
 
-        # make a parameter dict with 'general' case, and exceptions for individual
-        # samples.
         out = {}
         first = True
         for so in setorder:
             setn = nsets[0][so]
-            setn_samples = samples[ssets == setn]
+            setn_samples = self.samples[ssets == setn]
             if first:
                 out['general'] = dparams[setn_samples[0]]
-                general_key = sets[samples == setn_samples[0],:][0,:]
+                del out['general']['sample']
+                general_key = sets[self.samples == setn_samples[0],:][0,:]
                 first = False
             else:
-                setn_key = sets[samples == setn_samples[0],:][0,:]
+                setn_key = sets[self.samples == setn_samples[0],:][0,:]
                 exception_param = plist[general_key != setn_key]
                 for s in setn_samples:
                     out[s] = {}
                     for ep in exception_param:
                         out[s][ep] = dparams[s][ep]
 
-        return out
+        out['calib'] = {}
+        out['calib']['calib_dict'] = self.calib_dict
+        out['calib']['srm_rng'] = self.srm_rngs
+
+
+
+        if isinstance(output_file, str):
+            f = open(output_file, 'a')
+            f.write(str(out))
+            f.close()
+        else:
+            self.params = out
+        return
 
     def load_params(self, params):
         if isinstance(params, str):
