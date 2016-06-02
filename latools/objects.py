@@ -561,6 +561,42 @@ class analyse(object):
 
         return
 
+    # data filtering
+
+    def filter_threshold(self, analyte, threshold, filt=False, mode='above', samples=None):
+        """
+        Generates threshold filters for analytes, when provided with analyte,
+        threshold, and mode. Mode specifies whether data 'below'
+        or 'above' the threshold are kept.
+        """
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filter_threshold(analyte, threshold, filt=False, mode='above')
+
+
+
+    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False, samples=None):
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filter_distribution(analyte, binwidth='scott', filt=False, transform=None, output=False)
+
+    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs):
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
+
     # def distribution_check(self, analytes=None, mode='lower', filt=False):
     #     """
     #     Checks the specified analytes for bimodality by looking for minima
