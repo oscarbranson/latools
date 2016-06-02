@@ -408,19 +408,21 @@ class analyse(object):
     def load_calibration(self, params):
         self.load_params(params)
 
+        # load srm_rng and expand to standards
         self.srm_rng = self.params['calib']['srm_rng']
 
         # make boolean identifiers in standard D
-        for sn, rs in self.srm_rng.items():
-            s = self.data_dict[sn]
-            s.std_rngs = rs
+        for s in self.stds:
+            s.std_rngs = self.srm_rng[s.sample]
             s.std_labels = {}
-            for srm, rng in rs.items():
+            for srm, rng in s.std_rngs.items():
                 s.std_labels[srm] = tuples_2_bool(rng, s.Time)
-
         self.srms_ided = True
 
+        # load calib dict
         self.calib_dict = self.params['calib']['calib_dict']
+
+        return
 
     # def save_srm_ids(self):
     #     if os.path.isfile(self.param_dir + 'srm.rng'):
@@ -517,37 +519,37 @@ class analyse(object):
             d.calibrate(self.calib_dict)
 
         # save calibration parameters
-        self.save_calibration()
+        # self.save_calibration()
         return
 
-    def save_calibration(self):
-        fname = self.param_dir + self.dirname + '.calibdat'
-        # if os.path.isfile(fname):
-        #     f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
-        #     if 'n' in f or 'N' in f:
-        #         print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
-        #         return
-        fb = open(fname, 'w')
-        fb.write(str(self.calib_dict))
-        fb.close
-        return
+    # def save_calibration(self):
+    #     fname = self.param_dir + self.dirname + '.calibdat'
+    #     # if os.path.isfile(fname):
+    #     #     f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
+    #     #     if 'n' in f or 'N' in f:
+    #     #         print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
+    #     #         return
+    #     fb = open(fname, 'w')
+    #     fb.write(str(self.calib_dict))
+    #     fb.close
+    #     return
 
-    def load_calibration(self, calib_dict=None):
-        if calib_dict is None:
-            calib_dict = self.param_dir + self.dirname + '.calibdat'
+    # def load_calibration(self, calib_dict=None):
+    #     if calib_dict is None:
+    #         calib_dict = self.param_dir + self.dirname + '.calibdat'
 
-        if isinstance(calib_dict, dict):
-            self.calib_dict = calib_dict
-        else:
-            try:
-                strdict = re.sub('array', 'np.array', open(calib_dict).read())
-                self.calib_dict = eval(strdict)
-            except:
-                print("File '" + calib_dict + "' does not exist.")
+    #     if isinstance(calib_dict, dict):
+    #         self.calib_dict = calib_dict
+    #     else:
+    #         try:
+    #             strdict = re.sub('array', 'np.array', open(calib_dict).read())
+    #             self.calib_dict = eval(strdict)
+    #         except:
+    #             print("File '" + calib_dict + "' does not exist.")
 
-        self.srms_ided = True
+    #     self.srms_ided = True
 
-        return
+    #     return
 
     # data filtering
 
@@ -992,7 +994,7 @@ class analyse(object):
             return out
 
     # parameter input/output
-    def report_params(self):
+    def save_params(self):
         # get all parameters from all samples as a dict
         dparams = {}
         plist = []
