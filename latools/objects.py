@@ -577,8 +577,6 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False, mode='above')
 
-
-
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False, samples=None):
         if samples is None:
             samples = self.samples
@@ -596,6 +594,30 @@ class analyse(object):
 
         for s in samples:
             self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
+
+    def filter_on(self, filters=None, analytes=None, samples=None):
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filt.on(analytes, filters)
+
+    def filter_off(self, filters=None, analytes=None, samples=None):
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filt.off(analytes, filters)
+
+    def filter_clear(self):
+        for d in self.data:
+            d.filt.clear()
+
+    # def filter_off(self):
 
     # def distribution_check(self, analytes=None, mode='lower', filt=False):
     #     """
@@ -2198,6 +2220,8 @@ class filt(object):
         del self.components[name]
         del self.info[name]
         del self.params[name]
+        del self.keys[name]
+        del self.sequence[name]
         for a in self.analytes:
             del self.switches[a][name]
 
@@ -2206,6 +2230,9 @@ class filt(object):
         self.info = {}
         self.params = {}
         self.switches = {}
+        self.keys = {}
+        self.sequence = {}
+        self.n = 0
         for a in self.analytes:
             self.switches[a] = {}
         return
