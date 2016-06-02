@@ -595,27 +595,34 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
 
-    def filter_on(self, filters=None, analytes=None, samples=None):
+    def filter_on(self, analyte=None, filt=None, samples=None):
         if samples is None:
             samples = self.samples
         if isinstance(samples, str):
-            samples = []
+            samples = [samples]
 
         for s in samples:
-            self.data_dict[s].filt.on(analytes, filters)
+            self.data_dict[s].filt.on(analyte, filt)
 
-    def filter_off(self, filters=None, analytes=None, samples=None):
+    def filter_off(self, analyte=None, filt=None, samples=None):
         if samples is None:
             samples = self.samples
         if isinstance(samples, str):
-            samples = []
+            samples = [samples]
 
         for s in samples:
-            self.data_dict[s].filt.off(analytes, filters)
+            self.data_dict[s].filt.off(analyte, filt)
 
     def filter_clear(self):
         for d in self.data:
             d.filt.clear()
+
+    # def filter_status(self, sample=None):
+    #     if sample is not None:
+    #         print(self.data_dict[sample].filt)
+    #     else:
+
+
 
     # def filter_off(self):
 
@@ -995,6 +1002,68 @@ class analyse(object):
             return
         else:
             return out
+
+    def report_params(self):
+        # get all parameters from all samples as a dict
+        dparams = {}
+        plist = []
+        for d in self.data:
+            dparams[d.sample] = d.get_params()
+            plist.append(list(dparams[d.sample].keys()))
+        # get all unique parameter keys
+        plist = np.unique(plist)
+        plist = plist[plist != 'sample']  # exclude samples
+
+        # convert dict into array
+        params = []
+        for s in self.samples:
+            row = []
+            for p in plist:
+                row.append(dparams[s][p])
+            params.append(row)
+        params = np.array(params)
+
+        # identify unique parameter 'sets'
+        sets = np.zeros(params.shape)
+        for c in np.arange(plist.size):
+            col = params[:,c]
+            i = 0
+            for r in np.arange(1, col.size):
+                if isinstance(col[r], (str, float, dict, int)):
+                    if col[r] != col[r-1]:
+                        i += 1
+                else:
+                    if any(col[r] != col[r-1]):
+                        i += 1
+                sets[r,c] = i
+
+        # map these sets to sample names
+        ssets = np.apply_along_axis(sum,1,sets)
+        # work out which set is most abundant (the 'general' case)
+        nsets = np.unique(ssets, return_counts=True)
+        setorder = np.argsort(nsets[1])[::-1]
+
+        # make a parameter dict with 'general' case, and exceptions for individual
+        # samples.
+        out = {}
+        first = True
+        for so in setorder:
+            setn = nsets[0][so]
+            setn_samples = samples[ssets == setn]
+            if first:
+                out['general'] = dparams[setn_samples[0]]
+                general_key = sets[samples == setn_samples[0],:][0,:]
+                first = False
+            else:
+                setn_key = sets[samples == setn_samples[0],:][0,:]
+                exception_param = plist[general_key != setn_key]
+                for s in setn_samples:
+                    out[s] = {}
+                    for ep in exception_param:
+                        out[s][ep] = dparams[s][ep]
+
+        return out
+
 
 analyze = analyse  # for the yanks
 
