@@ -389,6 +389,11 @@ class analyse(object):
 
         display.clear_output()
 
+        # record srm_rngs in self
+        self.srm_rngs = {}
+        for s in self.stds:
+            self.srm_rngs[s.sample] = s.std_rngs
+
         self.save_srm_ids()
 
         for s in self.stds:
@@ -547,15 +552,18 @@ class analyse(object):
         fb.close
         return
 
-    def load_calibration(self, fname=None):
-        if fname is None:
-            fname = self.param_dir + self.dirname + '.calibdat'
+    def load_calibration(self, calib_dict=None):
+        if calib_dict is None:
+            calib_dict = self.param_dir + self.dirname + '.calibdat'
 
-        try:
-            strdict = re.sub('array', 'np.array', open(fname).read())
-            self.calib_dict = eval(strdict)
-        except:
-            print("File '" + fname + "' does not exist.")
+        if isinstance(calib_dict, dict):
+            self.calib_dict = calib_dict
+        else:
+            try:
+                strdict = re.sub('array', 'np.array', open(calib_dict).read())
+                self.calib_dict = eval(strdict)
+            except:
+                print("File '" + calib_dict + "' does not exist.")
 
         self.srms_ided = True
 
@@ -1572,7 +1580,7 @@ class D(object):
         return
 
     def bool_2_indices(self, bool_array):
-        if ~isinstance(ool_array, np.ndarray):
+        if ~isinstance(bool_array, np.ndarray):
             bool_array = np.array(bool_array)
         return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
@@ -1622,13 +1630,16 @@ class D(object):
                 Defaults to 'signal', the isolates, background-corrected
                 regions identified as good data.
         """
+        params = locals()
+        del(params['self'])
+        self.ratio_params = params
+
         self.setfocus(stage)
         self.ratios = {}
         for a in self.analytes:
             self.ratios[a] = \
                 self.focus[a] / self.focus[denominator]
         self.setfocus('ratios')
-        self.ratio_denominator = denominator
         return
 
     def calibrate(self, calib_dict):
@@ -2235,7 +2246,7 @@ class D(object):
 
     # reporting
     def get_params(self):
-        outputs = ['sample', 'method', 'analytes', 'ratio_denominator',
+        outputs = ['sample', 'method', 'ratio_denominator',
                    'despike_params', 'autorange_params']
 
         out = {}
@@ -2522,6 +2533,17 @@ def collate_csvs(in_dir,out_dir='./csvs'):
             if '.csv' in f:
                 shutil.copy(p + '/' + f, out_dir + '/' + f)
     return
+
+def bool_2_indices(bool_array):
+    if ~isinstance(bool_array, np.ndarray):
+        bool_array = np.array(bool_array)
+    return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
+
+def tuples_2_bool(tuples, size):
+    out = np.zeros(size, dtype=bool)
+    for t in tuples:
+        out[t[0]:t[1]] = True
+    return out
 
 ### more involved functions
 #     def stridecalc(self, win, var=None):
