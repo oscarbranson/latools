@@ -332,12 +332,8 @@ class analyse(object):
         return
 
     # functions for background correction and ratios
-    def bkgcorrect(self, mode='constant', make_bools=True):
+    def bkgcorrect(self, mode='constant'):
         for s in self.data:
-            if make_bools:
-                s.bkgrange()
-                s.sigrange()
-            s.separate()
             s.bkg_correct(mode=mode)
         return
 
@@ -357,7 +353,7 @@ class analyse(object):
 
         def id(self, s):
             stdnms = []
-            s.std_rngs = {}
+            s.srm_rngs = {}
             for n in np.arange(s.n) + 1:
                 fig = s.tplot(scale='log')
                 lims = s.Time[s.ns == n][[0, -1]]
@@ -367,7 +363,7 @@ class analyse(object):
                 display.display(fig)
                 stdnm = input('Name this standard: ')
                 stdnms.append(stdnm)
-                s.std_rngs[stdnm] = lims
+                s.srm_rngs[stdnm] = lims
                 plt.close(fig)
             return stdnms
 
@@ -381,9 +377,9 @@ class analyse(object):
             else:
                 for s in self.stds[1:]:
                     if s.n == n0:
-                        s.std_rngs = {}
+                        s.srm_rngs = {}
                         for n in np.arange(s.n) + 1:
-                            s.std_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
+                            s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
                     else:
                         _ = id(self, s)
 
@@ -392,7 +388,7 @@ class analyse(object):
         # record srm_rng in self
         self.srm_rng = {}
         for s in self.stds:
-            self.srm_rng[s.sample] = s.std_rngs
+            self.srm_rng[s.sample] = s.srm_rngs
 
         # make boolean identifiers in standard D
         for sn, rs in self.srm_rng.items():
@@ -405,17 +401,18 @@ class analyse(object):
 
         return
 
-    def load_calibration(self, params):
-        self.load_params(params)
+    def load_calibration(self, params=None):
+        if isinstance(params, str):
+            self.load_params(params)
 
         # load srm_rng and expand to standards
         self.srm_rng = self.params['calib']['srm_rng']
 
         # make boolean identifiers in standard D
         for s in self.stds:
-            s.std_rngs = self.srm_rng[s.sample]
+            s.srm_rngs = self.srm_rng[s.sample]
             s.std_labels = {}
-            for srm, rng in s.std_rngs.items():
+            for srm, rng in s.srm_rngs.items():
                 s.std_labels[srm] = tuples_2_bool(rng, s.Time)
         self.srms_ided = True
 
@@ -423,48 +420,6 @@ class analyse(object):
         self.calib_dict = self.params['calib']['calib_dict']
 
         return
-
-    # def save_srm_ids(self):
-    #     if os.path.isfile(self.param_dir + 'srm.rng'):
-    #         f = input('SRM range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
-    #         if 'n' in f or 'N' in f:
-    #             print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
-    #             return
-    #     srm_ids = []
-    #     for d in self.stds:
-    #         srm_ids.append(d.sample + ' ' + str(d.std_rngs))
-    #     srm_ids = '\n'.join(srm_ids)
-
-    #     fb = open(self.param_dir + 'srm.rng', 'w')
-    #     fb.write(srm_ids)
-    #     fb.close()
-    #     return
-
-    # def load_srm_ids(self, srm_ids):
-    #     rng = open(srm_ids).readlines()
-    #     samples = []
-    #     ids = []
-    #     for r in rng:
-    #         samples.append(re.match('(.*) ({.*)', r.strip()).groups()[0])
-    #         ids.append(eval(re.sub('array', 'np.array',
-    #                    re.match('(.*) ({.*)', r.strip()).groups()[1])))
-    #     samples = np.array(samples)
-    #     ids = np.array(ids)
-    #     for s in self.stds:
-    #         s.std_rngs = ids[samples == s.sample][0]
-
-    #     for s in self.stds:
-    #         s.std_labels = {}
-    #         for srm in s.std_rngs.keys():
-    #             s.std_labels[srm] = np.zeros(s.Time.size, dtype=bool)
-    #             s.std_labels[srm][(s.Time >= min(s.std_rngs[srm])) &
-    #                               (s.Time <= max(s.std_rngs[srm]))] = True
-
-    #     self.srms_ided = True
-
-    #     return
-
-    # def load_srm(self, params)
 
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
@@ -474,6 +429,10 @@ class analyse(object):
         #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
         # check for identified srms
+        params = locals()
+        del(params['self'])
+        self.calibration_params = params
+
         if not self.srms_ided:
             self.srm_id()
         # get SRM values
@@ -522,35 +481,6 @@ class analyse(object):
         # self.save_calibration()
         return
 
-    # def save_calibration(self):
-    #     fname = self.param_dir + self.dirname + '.calibdat'
-    #     # if os.path.isfile(fname):
-    #     #     f = input("SRM range files already exist in '" + fname + "'. Do you want to overwrite them (old files will be lost)? [Y/n]: ")
-    #     #     if 'n' in f or 'N' in f:
-    #     #         print('SRM ranges not saved. Run self.save_srm_ids() to try again.')
-    #     #         return
-    #     fb = open(fname, 'w')
-    #     fb.write(str(self.calib_dict))
-    #     fb.close
-    #     return
-
-    # def load_calibration(self, calib_dict=None):
-    #     if calib_dict is None:
-    #         calib_dict = self.param_dir + self.dirname + '.calibdat'
-
-    #     if isinstance(calib_dict, dict):
-    #         self.calib_dict = calib_dict
-    #     else:
-    #         try:
-    #             strdict = re.sub('array', 'np.array', open(calib_dict).read())
-    #             self.calib_dict = eval(strdict)
-    #         except:
-    #             print("File '" + calib_dict + "' does not exist.")
-
-    #     self.srms_ided = True
-
-    #     return
-
     # data filtering
 
     def filter_threshold(self, analyte, threshold, filt=False, mode='above', samples=None):
@@ -585,6 +515,15 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
 
+    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True):
+        if samples is None:
+            samples = self.samples
+        if isinstance(samples, str):
+            samples = []
+
+        for s in samples:
+            self.data_dict[s].filter_correlation(x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True)
+
     def filter_on(self, analyte=None, filt=None, samples=None):
         if samples is None:
             samples = self.samples
@@ -611,69 +550,6 @@ class analyse(object):
     #     if sample is not None:
     #         print(self.data_dict[sample].filt)
     #     else:
-
-
-
-    # def filter_off(self):
-
-    # def distribution_check(self, analytes=None, mode='lower', filt=False):
-    #     """
-    #     Checks the specified analytes for bimodality by looking for minima
-    #     in a gaussian kde data density curve. If minima are found, data either
-    #     above or below the threshold are excluded. Behaviour is determined by
-    #     the 'mode' argument.
-
-    #     mode:   str ('lower'/'upper')
-    #         'lower': data below the cutoff are kept.
-    #         'upper': data above the cutoff are kept.
-    #     """
-    #     if analytes is None:
-    #         analytes = self.analytes
-    #     analytes = np.array(analytes).flatten()
-    #     for d in self.data:
-    #         d.bimodality_fix(analytes, report=False, mode=mode, filt=filt)
-
-    # def distribution_reports(self, analytes=['Ba138'], dirpath=None, filt=False):
-    #     """
-    #     Saves data distribution pdfs for all analytes specified,
-    #     showing where they have been cut by a bimodality check
-    #     (if it has been run).
-    #     pdfs are saved in the specified directory (dirpath).
-    #     """
-    #     fails = []
-    #     if dirpath is None:
-    #         dirpath = self.report_dir
-    #     if not os.path.isdir(dirpath):
-    #         os.mkdir(dirpath)
-    #     analytes = np.array([analytes]).flatten()
-    #     for k, v in self.data_dict.items():
-    #         try:
-    #             fig = v.bimodality_report(filt=filt)
-    #             fig.savefig(dirpath + '/' + k + '_distributions.pdf')
-    #             plt.close(fig)
-    #         except:
-    #             fails.append(k)
-    #     if len(fails) > 0:
-    #         f = open("errors.log", 'w')
-    #         f.write('\nDistribution Reports:\n')
-    #         f.write('\n'.join(fails))
-    #         f.close()
-    #         print('Some reports failed. See log.')
-
-    #     return
-
-    # def clear_filters(self):
-    #     for d in self.data:
-    #         d.filt = {}
-    #         d.filtrngs = {}
-
-    # def threshold_filter(self, analytes, thresholds, modes):
-    #     for d in self.data:
-    #         params = zip(np.array(analytes, ndmin=1),
-    #                      np.array(thresholds, ndmin=1),
-    #                      np.array(modes, ndmin=1))
-    #         for p in params:
-    #             d.threshold_filter(p[0], p[1], p[2])
 
     # plot calibrations
     def calibration_plot(self, analytes=None, plot='errbar'):
@@ -1034,6 +910,7 @@ class analyse(object):
         setorder = np.argsort(nsets[1])[::-1]
 
         out = {}
+        out['exceptions'] = {}
         first = True
         for so in setorder:
             setn = nsets[0][so]
@@ -1047,22 +924,22 @@ class analyse(object):
                 setn_key = sets[self.samples == setn_samples[0],:][0,:]
                 exception_param = plist[general_key != setn_key]
                 for s in setn_samples:
-                    out[s] = {}
+                    out['exceptions'][s] = {}
                     for ep in exception_param:
-                        out[s][ep] = dparams[s][ep]
+                        out['exceptions'][s][ep] = dparams[s][ep]
 
         out['calib'] = {}
         out['calib']['calib_dict'] = self.calib_dict
-        out['calib']['srm_rng'] = self.srm_rngs
+        out['calib']['srm_rng'] = self.srm_rng
+        out['calib']['calibration_params'] = self.calibration_params
 
-
+        self.params = out
 
         if isinstance(output_file, str):
-            f = open(output_file, 'a')
-            f.write(str(out))
+            f = open(output_file, 'w')
+            f.write(str(self.params))
             f.close()
-        else:
-            self.params = out
+
         return
 
     def load_params(self, params):
@@ -1254,6 +1131,7 @@ class D(object):
     def findmins(self, x, y):
         """
         Function to find local minima.
+
         Returns array of points in x where y has a local minimum.
         """
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
@@ -1541,9 +1419,10 @@ class D(object):
             else:
                 self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
 
-        self.bkg = np.array([False] * self.Time.size)
-        for lb, ub in self.bkgrng:
-            self.bkg[(self.Time > lb) & (self.Time < ub)] = True
+        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
+        # self.bkg = np.array([False] * self.Time.size)
+        # for lb, ub in self.bkgrng:
+        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
 
         self.trn = ~self.bkg & ~self.sig  # redefine transition regions
         return
@@ -1564,27 +1443,25 @@ class D(object):
             else:
                 self.sigrng = np.append(self.sigrng, np.array(rng), 0)
 
-        self.sig = np.array([False] * self.Time.size)
-        for ls, us in self.sigrng:
-            self.sig[(self.Time > ls) & (self.Time < us)] = True
+        self.sig = tuples_2_bool(self.sigrng, self.Time)
+        # self.sig = np.array([False] * self.Time.size)
+        # for ls, us in self.sigrng:
+        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
 
         self.trn = ~self.bkg & ~self.sig  # redefine transition regions
         return
 
     def makerangebools(self):
-        self.sig = np.array([False] * self.Time.size)
-        for ls, us in self.sigrng:
-            self.sig[(self.Time > ls) & (self.Time < us)] = True
-        self.bkg = np.array([False] * self.Time.size)
-        for lb, ub in self.bkgrng:
-            self.bkg[(self.Time > lb) & (self.Time < ub)] = True
+        self.sig = tuples_2_bool(self.sigrng, self.Time)
+        # self.sig = np.array([False] * self.Time.size)
+        # for ls, us in self.sigrng:
+        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
+        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
+        # self.bkg = np.array([False] * self.Time.size)
+        # for lb, ub in self.bkgrng:
+        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
         self.trn = ~self.bkg & ~self.sig
         return
-
-    def bool_2_indices(self, bool_array):
-        if ~isinstance(bool_array, np.ndarray):
-            bool_array = np.array(bool_array)
-        return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
 
     def separate(self, analytes=None):
         """
@@ -1609,6 +1486,14 @@ class D(object):
         Subtract constant or linear background from all analytes.
         mode may be 'constant' or an int describing the degree of polynomial background.
         """
+        params = locals()
+        del(params['self'])
+        self.bkgcorrect_params = params
+
+        self.bkgrange()
+        self.sigrange()
+        self.separate()
+
         self.bkgsub = {}
         if mode == 'constant':
             for c in self.analytes:
@@ -2251,7 +2136,8 @@ class D(object):
         outputs = ['sample', 'method',
                    'ratio_params',
                    'despike_params',
-                   'autorange_params']
+                   'autorange_params',
+                   'bkgcorrect_params']
 
         out = {}
         for o in outputs:
@@ -2448,11 +2334,6 @@ class filt(object):
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
 
-    def bool_2_indices(self, bool_array):
-        if ~isinstance(bool_array, np.ndarray):
-            bool_array = np.array(bool_array)
-        return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
-
     # def plot(self, ax=None, analyte=None):
     #     if ax is None:
     #         fig, ax = plt.subplots(1,1)
@@ -2479,7 +2360,7 @@ class filt(object):
     #     yl = min(ylim) + 0.1 * yd
     #     for i in np.arange(n):
     #         f = filts[i]
-    #         xlims = self.bool_2_indices(self.components[f])
+    #         xlims = bool_2_indices(self.components[f])
 
     #         yu = yl + yd
 
@@ -2548,45 +2429,6 @@ def tuples_2_bool(tuples, x):
         tuples = [tuples]
 
     out = np.zeros(x.size, dtype=bool)
-    for t in tuples:
-        out[(x > min(t)) & (x < max(t))] = True
+    for l, u in tuples:
+        out[(x > l) & (x < u)] = True
     return out
-
-### more involved functions
-#     def stridecalc(self, win, var=None):
-#         if var is None:
-#             var = self.cols[1:]
-#         shape = self.Time.shape[:-1] + (self.Time.shape[-1] - win + 1, win)
-#         strides = self.Time.strides + (self.Time.strides[-1], )
-#         self.strides[win] = {'Time': np.lib.stride_tricks.as_strided(self.Time, shape=shape, strides=strides)}
-#         for i in np.arange(var.size):
-#             self.strides[win][var[i]] = np.lib.stride_tricks.as_strided(getattr(self, var[i]), shape=shape, strides=strides)
-
-#     def gradientcalc(self, win, var=None, mode='mid'):
-#         """
-#         calculated moving gradient of line.
-#            mode: start/end/mid
-#               Determines how the gradient is shifted to match the timescale.
-#         """
-#         if win not in self.strides.keys():
-#             self.stridecalc(win, var)
-#         if var is None:
-#             var = self.cols[1:]
-
-#         if mode is 'mid':
-#             pad = [win//2] * 2
-#             while sum(pad) >= win:
-#                 pad[1] -= 1
-#         if mode is 'start':
-#             pad = [win-1, 0]
-#         if mode is 'end':
-#             pad = [0, win-1]
-
-#         self.gradient = {win: {}}
-#         for i in np.arange(var.size):
-#             self.gradient[win][var[i]] = np.pad(list(map(lambda x, y, o: np.polyfit(x, y, o)[0],
-#                                                          self.strides[win]['Time'],
-#                                                          self.strides[win][var[i]],
-#                                                          [1] * self.strides[win]['Time'].shape[0])),
-#                                                 pad, 'constant')
-
