@@ -139,7 +139,7 @@ class analyse(object):
         determining its width at a point where the gaussian intensity is at a
         set limit. These gaussians are fit to subsets of the data that contain
         the transitions, which are centered around the approximate transition
-        locations determined in Step 1, ± win data points. The peak is isolated
+        locations determined in Step 1, +/- win data points. The peak is isolated
         by finding the minima and maxima of a second derivative, and the
         gaussian is fit to the isolate peak.
 
@@ -151,7 +151,7 @@ class analyse(object):
             The smoothing window used for calculating the first derivative.
             Must be odd.
         win : int
-            Determines the width (c ± win) of the transition data subsets.
+            Determines the width (c +/- win) of the transition data subsets.
         smwin : int
             The smoothing window used for calculating the second derivative.
             Must be odd.
@@ -1173,64 +1173,6 @@ class analyse(object):
 
         return pd.concat(slst)
 
-    # def getstat(self, analyte=None, sample=None):
-    #     if analyte is None:
-    #         analyte = self.analytes
-    #     if sample is None:
-    #         sample = self.samples
-
-    #     if isinstance(analyte, str):
-    #         analyte = [analyte]
-    #     if isinstance(sample, str):
-    #         sample = [sample]
-
-    #     ankey = [a in self.analytes for a in analyte]
-
-    #     ss = [s for s in list(self.stats.values())[0].keys() if s is not 'analytes']
-    #     out = {}
-    #     for s in ss:
-    #         out[s] = []
-
-    #     for k, v in self.stats.items():
-    #         if k in sample:
-    #             for s in ss:
-    #                 out[s].append(v[s][ankey])
-
-    #     return out
-
-    # def stat_csvtable(self, stat='nanmean', file=None):
-    #     """
-    #     Generates a csv table of statistics for all samples and analytes.
-    #     stat:   str
-    #         a string that describes one of the statistics calculated for the
-    #         samples, e.g. 'mean' or 'std'. String doesn't have to match the
-    #         stat function name exactly, but must be contained within it.
-    #         (i.e. 'mean' will return results for 'nanmean').
-    #     file:   str
-    #         if a file is specified, the csv will be saved directly, otherwise
-    #         the raw csv string will be returned.
-
-    #     """
-    #     analytes = list(self.stats.values())[0]['analytes']
-    #     head = '# Statistic: ' + stat + '\n' + 'Sample,'+','.join(analytes)
-    #     outrows = []
-    #     for k,v in self.stats.items():
-    #         if stat not in v.keys():
-    #             raise ValueError("Requested 'stat' has not been calculated yet. Re-run stat_samples and include 'stat' in calculations.")
-    #         i = 1
-    #         for l in v[stat].T:
-    #             outrows.append(k + '-s{:.0f},'.format(i) + ','.join(l.astype(str)))
-    #             i += 1
-    #     out = head + '\n' + '\n'.join(outrows)
-
-    #     if file is not None:
-    #         f = open(file, 'w')
-    #         f.write(out)
-    #         f.close
-    #         return
-    #     else:
-    #         return out
-
     # parameter input/output
     def save_params(self, output_file=None):
         """
@@ -1802,7 +1744,7 @@ class D(object):
         determining its width at a point where the gaussian intensity is at a
         set limit. These gaussians are fit to subsets of the data that contain
         the transitions, which are centered around the approximate transition
-        locations determined in Step 1, ± win data points. The peak is isolated
+        locations determined in Step 1, +/- win data points. The peak is isolated
         by finding the minima and maxima of a second derivative, and the
         gaussian is fit to the isolate peak.
 
@@ -1814,7 +1756,7 @@ class D(object):
             The smoothing window used for calculating the first derivative.
             Must be odd.
         win : int
-            Determines the width (c ± win) of the transition data subsets.
+            Determines the width (c +/- win) of the transition data subsets.
         smwin : int
             The smoothing window used for calculating the second derivative.
             Must be odd.
