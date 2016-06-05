@@ -20,65 +20,54 @@ from mpld3 import enable_notebook, disable_notebook
 class analyse(object):
     """
     For processing and analysing whole LA-ICPMS datasets.
-
-    Attributes
-    ----------
-    folder : str
-    dirname : str
-    files : array_like
-    param_dir : str
-    report_dir : str
-    data : array_like
-    samples : array_like
-    analytes : array_like
-    data_dict : dict
-    stds : array_like
-    srms_ided : bool
-    cmaps : dict
-
-    Methods
-    -------
-    autorange
-    bkgcorrect
-    calibrate
-    calibration_plot
-    crossplot
-    despike
-    filter_clear
-    filter_clustering
-    filter_correlation
-    filter_distribution
-    filter_off
-    filter_on
-    filter_threshold
-    find_expcoef
-    get_focus
-    getstats
-    load_calibration
-    load_params
-    load_ranges
-    ratio
-    save_params
-    save_ranges
-    srm_id
-    stat_boostrap
-    stat_samples
-    trace_plots
     """
     def __init__(self, csv_folder, errorhunt=False):
         """
         For processing and analysing whole LA-ICPMS datasets.
 
-        Parameters
+        Attributes
         ----------
-        csv_folder : str
-            Description of `csv_folder`.
-        errorhunt : bool
-            Description of `errorhunt`.
+        folder : str
+        dirname : str
+        files : array_like
+        param_dir : str
+        report_dir : str
+        data : array_like
+        samples : array_like
+        analytes : array_like
+        data_dict : dict
+        stds : array_like
+        srms_ided : bool
+        cmaps : dict
 
-        Returns
+        Methods
         -------
-        None
+        autorange
+        bkgcorrect
+        calibrate
+        calibration_plot
+        crossplot
+        despike
+        filter_clear
+        filter_clustering
+        filter_correlation
+        filter_distribution
+        filter_off
+        filter_on
+        filter_threshold
+        find_expcoef
+        get_focus
+        getstats
+        load_calibration
+        load_params
+        load_ranges
+        ratio
+        save_params
+        save_ranges
+        srm_id
+        stat_boostrap
+        stat_samples
+        trace_plots
         """
         self.folder = csv_folder
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]

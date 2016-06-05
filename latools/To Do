@@ -1,7 +1,30 @@
-To Do:
-[X] Automate Signal & Background Detection (machine learning)
-    [ ] Integrate Adam's Project on scikit-learn
-[X] Improve commenting and help text for functions
-[X] Implement Despiking Routines
-[ ] Think about how the two classes interact - efficiency?
-[ ] Gui ROI selection?
+TODO
+
+Revisit project structure.
+
+analysis object
+	parameter export/import
+		execute import function ('reproduce'?)
+	getstat vs getstats vs stat_samples?
+	Improve calibration structure
+	save & load ranges?
+
+D object
+	Allow flexible data import
+
+both
+	make stat functions produce stats for multiple filter combinations
+	'distribution reports' type plots? filter reporting?
+		'active filters' plotting?
+	implement 'analysis stage' plotting
+		directory structure, plot parameters etc.
+	Documentation of all functions
+
+
+
+
+
+
+
+
+
