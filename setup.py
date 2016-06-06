@@ -1,11 +1,30 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='latools',
-      version='0.2',
+      version='0.2.0a',
       description='Tools for LA-ICPMS data analysis.',
       url='https://github.com/oscarbranson/latools',
       author='Oscar Branson',
       author_email='oscarbranson@gmail.com',
       license='MIT',
-      packages=['latools'],
+      packages=find_packages(),
+      classifiers=['Development Status :: 3 - Alpha',
+                   'Intended Audience :: Scientists',
+                   'Topic :: Data Processing :: Laser Ablation Mass Spectrometry',
+                   'Programming Language :: Python :: 2',
+                   'Programming Language :: Python :: 3',
+                   ],
+      install_requires=['numpy',
+                        'pandas',
+                        'brewer2mpl',
+                        'matplotlib',
+                        'uncertainties',
+                        'sklearn',
+                        'scipy',
+                        'mpld3',
+                        'Ipython',
+                        ],
+      package_data={
+        'latools': ['latools.cfg'],
+      },
       zip_safe=False)
