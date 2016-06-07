@@ -23,7 +23,7 @@ class analyse(object):
     """
     For processing and analysing whole LA-ICPMS datasets.
     """
-    def __init__(self, csv_folder, errorhunt=False, config=None):
+    def __init__(self, csv_folder, errorhunt=False, config=None, dataformat=None):
         """
         For processing and analysing whole LA-ICPMS datasets.
 
@@ -100,7 +100,9 @@ class analyse(object):
 
         # assign all parameters as class attributes
         self.srmfile = pconf['srmfile']
-        self.dataformat = eval(pconf['dataformat'])
+        if dataformat is not None:
+            self.dataformat = eval(pconf['dataformat'])
+        else self.dataformat = dataformat
 
         # load data (initialise D objects)
         self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files if 'csv' in f])
@@ -1374,7 +1376,6 @@ class D(object):
 
         with open(csv_file) as f:
             lines = f.readlines()
-
             # read the metadata, using key, regex pairs in the line-numbered
             # dataformat['regex'] dict.
             if 'regex' in dataformat.keys():
@@ -1391,11 +1392,11 @@ class D(object):
                 columns[timecol] = 'Time'
                 self.analytes = columns[~timecol]
 
-            read_data = np.genfromtxt(csv_file, **dataformat['genfromtext_args']).T
+        read_data = np.genfromtxt(csv_file, **dataformat['genfromtext_args']).T
 
-            # create data dict
-            self.data = {}
-            self.data['rawdata'] = dict(zip(columns,read_data))
+        # create data dict
+        self.data = {}
+        self.data['rawdata'] = dict(zip(columns,read_data))
 
         # set focus to rawdata
         self.setfocus('rawdata')
@@ -3452,7 +3453,7 @@ def config_locator():
     print(pkg_resources.resource_filename('latools', 'latools.cfg'))
     return
 
-def set_config(config_name, params, config_file=None, make_default=True):
+def add_config(config_name, params, config_file=None, make_default=True):
     """
     Adds a new configuration to latools.cfg.
 
@@ -3513,7 +3514,7 @@ def setup_latools():
 
     make_default = input('Do you want this to be your default? [Y/n] : ').lower() != 'n'
 
-    set_config(lab_name, params, make_default=make_default)
+    add_config(lab_name, params, make_default=make_default)
 
     print("\nConfiguration set. You're good to go!")
 
