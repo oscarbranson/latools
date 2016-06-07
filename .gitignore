@@ -17,3 +17,4 @@ latools.pro.user
 Outliner.graffle
 docs/build
 latools.egg-info
+*.ipynb
