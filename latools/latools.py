@@ -83,24 +83,6 @@ class analyse(object):
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
-        self.data = np.array([D(self.folder + '/' + f, errorhunt=errorhunt) for f in self.files if 'csv' in f])
-        self.samples = np.array([s.sample for s in self.data])
-        self.analytes = np.array(self.data[0].cols[1:])
-
-        self.data_dict = {}
-        for s, d in zip(self.samples, self.data):
-            self.data_dict[s] = d
-
-        self.stds = []
-        _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
-        self.srms_ided = False
-
-        self.cmaps = self.data[0].cmap
-
-        f = open('errors.log', 'a')
-        f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
-        f.close()
-
         # load configuration parameters
         # read in config file
         conf = configparser.ConfigParser()
@@ -117,8 +99,27 @@ class analyse(object):
                 pconf[o] = conf.get(config, o)
 
         # assign all parameters as class attributes
-        for k,v in pconf.items():
-            setattr(self, k, v)
+        self.srmfile = pconf['srmfile']
+        self.dataformat = eval(pconf['dataformat'])
+
+        # load data (initialise D objects)
+        self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files if 'csv' in f])
+        self.samples = np.array([s.sample for s in self.data])
+        self.analytes = np.array(self.data[0].analytes)
+
+        self.data_dict = {}
+        for s, d in zip(self.samples, self.data):
+            self.data_dict[s] = d
+
+        self.stds = []
+        _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
+        self.srms_ided = False
+
+        self.cmaps = self.data[0].cmap
+
+        f = open('errors.log', 'a')
+        f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
+        f.close()
 
         # report
         print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
@@ -1365,54 +1366,44 @@ class D(object):
     spike_filter
     tplot
     """
-    def __init__(self, csv_file, errorhunt=False):
+    def __init__(self, csv_file, dataformat=None, errorhunt=False):
         if errorhunt:
             print(csv_file)  # errorhunt prints each csv file name before it tries to load it, so you can tell which file is failing to load.
         self.file = csv_file
         self.sample = os.path.basename(self.file).split('.')[0]
 
-        # open file
-        f = open(self.file)
-        lines = f.readlines()
+        with open(csv_file) as f:
+            lines = f.readlines()
 
-        # determine header size
-        def nskip(lines):
-            for i, s in enumerate(lines):
-                if 'time [sec]' in s.lower():
-                    return i
-            return -1
-        dstart = nskip(lines) + 1
+            # read the metadata, using key, regex pairs in the line-numbered
+            # dataformat['regex'] dict.
+            if 'regex' in dataformat.keys():
+                self.meta = {}
+                for k, v in dataformat['regex'].items():
+                    if v is not None:
+                        out = re.search(v[-1], lines[k]).groups()
+                        for i in np.arange(len(v[0])):
+                            self.meta[v[0][i]] = out[i]
+            # identify column names
+            if dataformat['column_id']['name_row'] is not None:
+                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(','))
+                timecol = np.array([dataformat['column_id']['timekey'] in c.lower() for c in columns])
+                columns[timecol] = 'Time'
+                self.analytes = columns[~timecol]
 
-        # this section is agilent-specific... make it more adaptable?
-        # get run info
-        try:
-            self.Dfile = lines[0]
-            info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) .*AcqMethod (.*)',lines[2]).groups()
-            self.date = info[0]
-            self.method = info[1]
-            self.data['despiked'] = lines[3][:8] == 'Despiked'
-        except:
-            pass
+            read_data = np.genfromtxt(csv_file, **dataformat['genfromtext_args']).T
 
-        self.cols = np.array([l for l in lines[:dstart] if l.startswith('Time')][0].strip().split(','))
-        self.cols[0] = 'Time'
-        self.analytes = self.cols[1:]
-        f.close()
+            # create data dict
+            self.data = {}
+            self.data['rawdata'] = dict(zip(columns,read_data))
 
-        # create data dict
-        self.data = {}
-
-        # load data
-        raw = np.loadtxt(csv_file, delimiter=',', skiprows=dstart, comments='     ').T
-        self.data['rawdata'] = {}
-        for i in range(len(self.cols)):
-            self.data['rawdata'][self.cols[i]] = raw[i]
-
-        # most recently worked on data step
+        # set focus to rawdata
         self.setfocus('rawdata')
+
+        # make a colourmap for plotting
         self.cmap = dict(zip(self.analytes,
                              cb.get_map('Paired', 'qualitative',
-                                        len(self.cols)).hex_colors))
+                                        len(columns)).hex_colors))
 
         # set up flags
         self.sig = np.array([False] * self.Time.size)
@@ -1424,6 +1415,9 @@ class D(object):
 
         # set up filtering environment
         self.filt = filt(self.Time.size, self.analytes)
+
+        if errorhunt:
+            print('   -> OK')
 
         # set up corrections dict
         # self.corrections = {}
@@ -3474,6 +3468,8 @@ def set_config(config_name, params, config_file=None, make_default=True):
         srmfile : str
             Path to srm file used in calibration. Defaults to GeoRem
             values for NIST610, NIST612 and NIST614 provided with latools.
+        dataformat : dict (as str)
+            See dataformat documentation.
     config_file : str
         Path to the configuration file that will be modified. Defaults to
         latools.cfg in package install location.
