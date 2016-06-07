@@ -4,6 +4,7 @@ import itertools
 import warnings
 import configparser
 import pkg_resources
+import time
 import numpy as np
 import pandas as pd
 import brewer2mpl as cb  # for colours
@@ -132,35 +133,37 @@ class analyse(object):
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
                   conf=0.01, trans_mult=[0., 0.]):
         """
-        Separates signal and background data regions.
+        Automatically separates signal and background data regions.
 
-        Function to automatically detect signal and background regions in the
-        laser data, based on the behaviour of a target analyte. An ideal target
-        analyte should be abundant and homogenous in the sample.
+        Automatically detect signal and background regions in the laser
+        data, based on the behaviour of a single analyte. The analyte used
+        should be abundant and homogenous in the sample.
 
         Step 1: Thresholding
-        The background is initially determined using a gaussian kernel density
-        estimator (kde) of all the data. The minima in the kde define the
-        boundaries between distinct data distributions. All data below than the
-        first (lowest) kde minima are labelled 'background', and all above this
-        limit are labelled 'signal'.
+        The background signal is determined using a gaussian kernel density
+        estimator (kde) of all the data. Under normal circumstances, this
+        kde should find two distinct data distributions, corresponding to
+        'signal' and 'background'. The minima between these two distributions
+        is taken as a rough threshold to identify signal and background regions.
+        Any point where the trace crosses this thrshold is identified as a
+        'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
-        then determined, and the transitions are removed from both signal and
-        background. The width of the transitions is determined by fitting a
-        gaussian to the smoothed first derivative of the analyte trace, and
-        determining its width at a point where the gaussian intensity is at a
-        set limit. These gaussians are fit to subsets of the data that contain
-        the transitions, which are centered around the approximate transition
-        locations determined in Step 1, +/- win data points. The peak is isolated
-        by finding the minima and maxima of a second derivative, and the
-        gaussian is fit to the isolate peak.
+        then determined, and the transitions are excluded from analysis. The
+        width of the transitions is determined by fitting a gaussian to the
+        smoothed first derivative of the analyte trace, and determining its
+        width at a point where the gaussian intensity is at at `conf` time the
+        gaussian maximum. These gaussians are fit to subsets of the data centered
+        around the transitions regions determined in Step 1, +/- `win` data points.
+        The peak is further isolated by finding the minima and maxima of a second
+        derivative within this window, and the gaussian is fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
-            Description of `analyte`.
+            The analyte that autorange should consider. For best results,
+            choose an analyte that is present homogeneously in high concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -174,8 +177,8 @@ class analyse(object):
             determines the transition width cutoff (lower = wider transition
             regions excluded).
         trans_mult : array-like, len=2
-            Multiples of sigma to add to the transition cutoffs, e.g. if the
-            transitions consistently leave some bad data proceeding the
+            Multiples of the peak FWHM to add to the transition cutoffs, e.g.
+            if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
 
@@ -196,32 +199,41 @@ class analyse(object):
             d.autorange(analyte, gwin, win, smwin,
                         conf, trans_mult)
 
-    def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=None):
+    def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False, trimlim=None):
         """
         Determines exponential decay coefficient for despike filter.
 
-        Determines the exponential decay filter coefficient by
-        looking at the washout time at the end of standards measurements
+        Fits an exponential decay function to the washout phase of standards
+        to determine the washout time of your laser cell. The exponential coefficient
+        reported is `nsd_below` standard deviations below the fitted exponent, to ensure that
+        no real data is removed.
 
-        Parameters:
-            nsd_below (float): The number of standard deviations to subtract
-                from the fitted coefficient.
-            analytes (str)
-                The analytes to consider when determining the coefficient.
-                Use high-concentration analytes for best estimates
-            plot: bool or str
-                bool: Creates a plot of the fit if True.
-                str: Creates a plot, and saves it to the location
-                     specified in the str.
-            trimlim: float
-                A threshold limit used in determining the start of the
-                exponential decay region of the washout. If the data in
-                the plot don't fall on an exponential decay line, change
-                this number. Normally you'll need to increase it.
+        Parameters
+        ----------
+        nsd_below : float
+            The number of standard deviations to subtract from the fitted
+            coefficient when calculating the filter exponent.
+        analyte : str
+            The analyte to consider when determining the coefficient.
+            Use high-concentration analyte for best estimates.
+        plot : bool or str
+            bool: Creates a plot of the fit if True.
+            str: Creates a plot, and saves it to the location
+                 specified in the str.
+        trimlim : float
+            A threshold limit used in determining the start of the
+            exponential decay region of the washout. Defaults to half
+            the increase in signal over background. If the data in
+            the plot don't fall on an exponential decay line, change
+            this number. Normally you'll need to increase it.
+
+        Returns
+        -------
+        None
         """
 
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        if isinstance(analyte, str):
+            analyte = [analyte]
 
         def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
@@ -232,6 +244,9 @@ class analyse(object):
             return np.arange(len(ind))[ind ^ np.roll(ind, -1)][0]
 
         def normalise(a):
+            """
+            Returns array scaled between 0 and 1.
+            """
             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
 
         if not hasattr(self.stds[0], 'trnrng'):
@@ -240,7 +255,7 @@ class analyse(object):
 
         trans = []
         times = []
-        for analyte in analytes:
+        for analyte in analyte:
             for v in self.stds:
                 for trnrng in v.trnrng[1::2]:
                     tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
@@ -260,11 +275,17 @@ class analyse(object):
             tr.append(np.nanmin(trans[times == t]))
 
         def expfit(x, e):
+            """
+            Exponential decay function.
+            """
             return np.exp(e * x)
 
         ep, ecov = curve_fit(expfit, ti, tr, p0=(-1.))
 
         def R2calc(x, y, yp):
+            """
+            Calculate fit R2.
+            """
             SStot = np.sum((y - np.nanmean(y))**2)
             SSfit = np.sum((y - yp)**2)
             return 1 - (SSfit / SStot)
@@ -305,19 +326,24 @@ class analyse(object):
         Parameters
         ----------
         expdecay_filter : bool
-            Description of `expdecay_filter`.
+            Whether or not to apply the exponential decay filter.
         exponent : None or float
-            Description of `exponent`.
+            The exponent for the exponential decay filter. If None,
+            it is determined automatically using `find_expocoef`.
         tstep : None or float
-            Description of `tstep`.
+            The timeinterval between measurements. If None, it is
+            determined automatically from the Time variable.
         spike_filter : bool
-            Description of `spike_filter`.
+            Whether or not to apply the standard deviation spike filter.
         win : int
-            Description of `win`.
+            The rolling window over which the spike filter calculates
+            the trace statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling mean
+            that data are excluded.
         exponentplot : bool
-            Description of `exponentplot`.
+            Whether or not to show a plot of the automatically determined
+            exponential decay exponent.
 
         Returns
         -------
@@ -365,9 +391,11 @@ class analyse(object):
         Parameters
         ----------
         bkgrngs : str or None
-            Description of `bkgrngs`.
+            A array of size (2, n) specifying time intervals that are
+            background regions.
         sigrngs : str or None
-            Description of `sigrngs`.
+            A array of size (2, n) specifying time intervals that are
+            signal regions.
 
         Returns
         -------
@@ -426,8 +454,14 @@ class analyse(object):
 
         Parameters
         ----------
-        mode : str
-            Description of `mode`.
+        mode : str or int
+            str: 'constant' subtracts the mean of all background
+            regions from signal.
+            int: fits an nth order polynomial to the background
+            data, and subtracts the predicted background values
+            from the signal regions. The integer values of `mode`
+            specifies the order of the polynomial. Useful if you
+            have significant drift in your background.
 
         Returns
         -------
@@ -437,23 +471,25 @@ class analyse(object):
             s.bkg_correct(mode=mode)
         return
 
-    def ratio(self,  denominator='Ca43', stage='signal'):
+    def ratio(self,  denominator='Ca43', focus='signal'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
         Parameters
         ----------
         denominator : str
-            Description of `denominator`.
-        stage : str
-            Description of `stage`.
+            The name of the analyte to divide all other analytes
+            by.
+        focus : str
+            The `focus` stage of the data used to calculating the
+            ratios.
 
         Returns
         -------
         None
         """
         for s in self.data:
-            s.ratio( denominator=denominator, stage=stage)
+            s.ratio(denominator=denominator, focus=focus)
         return
 
     # functions for identifying SRMs
@@ -524,8 +560,10 @@ class analyse(object):
 
         Parameters
         ----------
-        params : TYPE
-            Description of `params`.
+        params : str
+            Specify the parameter filt to load the calibration from.
+            If None, it assumes that the parameters are already loaded
+            (using `load_params`).
 
         Returns
         -------
@@ -559,19 +597,27 @@ class analyse(object):
         Parameters
         ----------
         poly_n : int
-            Description of `poly_n`.
+            Specifies the type of function used to map
+            known SRM values to SRM measurements.
+            0: A linear function, forced through 0.
+            1 or more: An nth order polynomial.
         focus : str
-            Description of `focus`.
-        srmfile : str
-            Description of `srmfile`.
+            The `focus` stage of the data used to calculating the
+            ratios.
+        srmfile : str or None
+            Path the the file containing the known SRM values.
+            If None, the default file specified in the `latools.cfg`
+            is used. Refer to the documentation for more information
+            on the srmfile format.
 
         Returns
         -------
         None
         """
-        # MAKE CALIBRATION CLEVERER!
+        # MAKE CALIBRATION CLEVERER!?
         #   USE ALL DATA, NOT AVERAGES?
-        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
+        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
+        #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
         # check for identified srms
         params = locals()
@@ -639,14 +685,16 @@ class analyse(object):
 
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        threshold : TYPE
-            Description of `threshold`.
-        filt : TYPE
-            Description of `filt`.
-        samples : TYPE
-            Description of `samples`.
+        analyte : str
+            The analyte that the filter applies to.
+        threshold : float
+            The threshold value.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
@@ -661,23 +709,28 @@ class analyse(object):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None,
-                            output=False, samples=None):
+                            samples=None):
         """
         Applies a distribution filter to the data.
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        binwidth : TYPE
-            Description of `binwidth`.
-        filt : TYPE
-            Description of `filt`.
-        transform : TYPE
-            Description of `transform`.
-        output : TYPE
-            Description of `output`.
-        samples : TYPE
-            Description of `samples`.
+        analyte : str
+            The analyte that the filter applies to.
+        binwidth : str of float
+            Specify the bin width of the kernel density estimator.
+            Passed to `scipy.stats.gaussian_kde`.
+            str: The method used to automatically estimate bin width.
+                 Can be 'scott' or 'silverman'.
+            float: Manually specify the binwidth of the data.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        transform : str
+            If 'log', applies a log transform to the data before calculating
+            the distribution.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
@@ -698,43 +751,78 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : TYPE
-            Description of `filt`.
-        normalise : TYPE
-            Description of `normalise`.
-        method : TYPE
-            Description of `method`.
-        include_time : TYPE
-            Description of `include_time`.
-        samples : TYPE
-            Description of `samples`.
+        analytes : str
+            The analyte(s) that the filter applies to.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        normalise : bool
+            Whether or not to normalise the data to zero mean and unit variance.
+            Reccomended if clustering based on more than 1 analyte.
+            Uses `sklearn.preprocessing.scale`.
+        method : str
+            Which clustering algorithm to use. Can be:
+                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+                             Automatically determines number of clusters
+                             in data based on the `bandwidth` of expected
+                             variation.
+                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+                          the characteristics of a known number of clusters
+                          within the data. Must provide `n_clusters` to specify
+                          the expected number of clusters.
+                'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
+                          determines the number and characteristics of clusters
+                          within the data based on the 'connectivity' of the data
+                          (i.e. how far apart each data point is in a
+                          multi-dimensional parameter space). Requires you to set
+                          `eps`, the minimum distance point must be from another
+                          point to be considered in the same cluster, and
+                          `min_samples`, the minimum number of points that must be
+                          within the minimum distance for it to be considered a
+                          cluster. It may also be run in automatic mode by specifying
+                          `n_clusters` alongside `min_samples`, where eps is
+                          decreased until the desired number of clusters is obtained.
+                For more information on these algorithms, refer to the documentation.
+        include_time : bool
+            Whether or not to include the Time variable in the clustering analysis.
+            Useful if you're looking for spatially continuous clusters in your data,
+            i.e. this will identify each spot in your analysis as an individual
+            cluster.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
         **kwargs
             Parameters passed to the clustering algorithm specified by `method`.
 
         Meanshift Parameters
         --------------------
         bandwidth : str or float
-            Description of `bandwidth`.
+            The bandwith (float) or bandwidth method ('scott' or 'silverman')
+            used to estimate the data bandwidth.
         bin_seeding : bool
-            Description of `bin_seeding`.
+            Modifies the behaviour of the meanshift algorithm. Refer to
+            sklearn.cluster.meanshift documentation.
 
         K-Means Parameters
         ------------------
         n_clusters : int
-            Description of `n_clusters`.
+            The number of clusters expected in the data.
 
         DBSCAN Parameters
         -----------------
-        eps : TYPE
-            Description of `eps`.
-        min_samples : TYPE
-            Description of `min_samples`.
-        n_clusters : TYPE
-            Description of `n_clusters`.
-        maxiter : TYPE
-            Description of `maxiter`.
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample variance.
+            Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -754,18 +842,31 @@ class analyse(object):
         """
         Applies a correlation filter to the data.
 
+        Calculates a rolling correlation between every `window` points of
+        two analytes, and excludes data where their Pearson's R value is
+        above `r_threshold` and statistically significant.
+
+        Data will be excluded where their absolute R value is greater than
+        `r_threshold` AND the p-value associated with the correlation is
+        less than `p_threshold`. i.e. only correlations that are statistically
+        significant are considered.
+
         Parameters
         ----------
         x_analyte, y_analyte : str
-            Description of `x_analyte`.
+            The names of the x and y analytes to correlate.
         window : int, None
-            Description of `window`.
+            The rolling window used when calculating the correlation.
         r_threshold : float
-            Description of `r_threshold`.
+            The correlation index above which to exclude data.
+            Note: the absolute pearson R value is considered, so
+            negative correlations below -`r_threshold` will also
+            be excluded.
         p_threshold : float
-            Description of `p_threshold`.
+            The significant level below which data are excluded.
         filt : bool
-            Description of `filt`.
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
 
         Returns
         -------
@@ -785,12 +886,16 @@ class analyse(object):
 
         Parameters
         ----------
-        filt : TYPE
-            Description of `filt`.
-        analyte : TYPE
-            Description of `analyte`.
-        samples : TYPE
-            Description of `samples`.
+        filt : optional, str or array_like
+            Name, partial name or list of names of filters. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name are activated.
+            Defaults to all filters.
+        analyte : optional, str or array_like
+            Name or list of names of analytes. Defaults to all analytes.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
@@ -810,12 +915,16 @@ class analyse(object):
 
         Parameters
         ----------
-        filt : TYPE
-            Description of `filt`.
-        analyte : TYPE
-            Description of `analyte`.
-        samples : TYPE
-            Description of `samples`.
+        filt : optional, str or array_like
+            Name, partial name or list of names of filters. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name are activated.
+            Defaults to all filters.
+        analyte : optional, str or array_like
+            Name or list of names of analytes. Defaults to all analytes.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
@@ -848,14 +957,18 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         plot : str
-            Description of `plot`.
+            Type of plot to produce.
+                'errbar': plots the mean and standard deviation
+                          of SRM measurements.
+                'scatter': plots all SRM data as individual points.
 
         Returns
         -------
-        None
+        (fig, axes)
+            matplotlib objects
         """
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
@@ -930,8 +1043,10 @@ class analyse(object):
 
         Parameters
         ----------
-        filt : bool
-            Description of `filt`.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
 
         Returns
         -------
@@ -946,10 +1061,7 @@ class analyse(object):
             if 'STD' not in s.sample:
                 self.focus['Time'].append(s.Time + t)
                 t += max(s.Time)
-                if isinstance(filt, str):
-                    ind = ~s.filt[filt]
-                else:
-                    ind = np.array([False] * len(s.Time))
+                ind = s.filt.grab_filt(filt)
                 for a in self.analytes:
                     tmp = s.focus[a].copy()
                     tmp[ind] = np.nan
@@ -962,18 +1074,21 @@ class analyse(object):
     def crossplot(self, analytes=None, lognorm=True,
                   bins=25, filt=False, **kwargs):
         """
-        Plot analytes against each other.
+        Plot analytes against each other as 2D histograms.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         lognorm : bool
-            Description of `lognorm`.
+            Whether or not to log normalise the colour scale
+            of the 2D histogram.
         bins : int
-            Description of `bins`.
-        filt : bool
-            Description of `filt`.
+            The number of bins in the 2D histogram.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
 
         Returns
         -------
@@ -982,7 +1097,7 @@ class analyse(object):
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
         if not hasattr(self, 'focus'):
-            self.get_focus()
+            self.get_focus(filt)
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -1048,24 +1163,31 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         outdir : TYPE
             Description of `outdir`.
         ranges : bool
             Description of `ranges`.
         focus : str
-            Description of `focus`.
-        filt : TYPE
-            Description of `plot_filt`.
+            The focus 'stage' of the analysis to plot. Can be
+            'rawdata', 'despiked':, 'signal', 'background',
+            'bkgsub', 'ratios' or 'calibrated'.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
         scale : str
-            Descriptiong of `scale`
+            If 'log', plots the data on a log scale.
         figsize : array_like
-            Descriptiong of `figsize`
+            Array of length 2 specifying figure [width, height] in
+            inches.
         stats : bool
-            Descriptiong of `stats`
-        stat , err: str
-            Descriptiong of `stat , err`
+            Whether or not to overlay the mean and standard deviations
+            for each trace.
+        stat, err: str
+            The names of the statistic and error components to plot.
+            Deafaults to 'nanmean' and 'nanstd'.
 
 
         Returns
@@ -1101,14 +1223,19 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : bool
-            Description of `filt`.
-        stat_fn : function
-            Description of `stat_fn`.
-        ci : int
-            Description of `ci`.
+        analytes : optional, array_like or str
+            The analyte(s) to calculate statistics for. Defaults to
+            all analytes.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        stat_fns : array_like
+            list of functions that take a single array-like input,
+            and return a single statistic. Function should be able
+            to cope with numpy NaN values.
+        ci : float
+            Confidence interval to calculate.
 
         Returns
         -------
@@ -1130,22 +1257,25 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : array_like
-            list of analytes to calculate the statistic on
-        filt : bool, str
-            Should the means take any active filters into account
-            (in self.filt)?
+        analytes : optional, array_like or str
+            The analyte(s) to calculate statistics for. Defaults to
+            all analytes.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
             list of functions that take a single array-like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
-            Description of `eachtrace`.
+            Whether to calculate the statistics for each analysis
+            spot individually, or to produce per-sample means.
+            Default is True.
 
         Returns
         -------
         None
-
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
@@ -1182,7 +1312,7 @@ class analyse(object):
 
     def getstats(self):
         """
-        Return pandas dataframe of sample statistics.
+        Return pandas dataframe of all sample statistics.
         """
         slst = []
 
@@ -1208,8 +1338,9 @@ class analyse(object):
 
         Parameters
         ----------
-        output_file : TYPE
-            Description of `output_file`.
+        output_file : str
+            Where to save the output file. Defaults to
+            './params/YYMMDD-HHMM.param'.
 
         Returns
         -------
@@ -1279,10 +1410,11 @@ class analyse(object):
 
         self.params = out
 
-        if isinstance(output_file, str):
-            f = open(output_file, 'w')
-            f.write(str(self.params))
-            f.close()
+        if output_file is None:
+            outputfile = './params/' + time.strftime('%y%m%d-%H%M') + '.param'
+        f = open(output_file, 'w')
+        f.write(str(self.params))
+        f.close()
 
         return
 
@@ -1293,7 +1425,9 @@ class analyse(object):
         Parameters
         ----------
         params : str or dict
-            Description of `output_file`.
+            str: path to latools .param file.
+            dict: param dict in .param format
+                  (refer to manual)
 
         Returns
         -------
@@ -1789,8 +1923,8 @@ class D(object):
             determines the transition width cutoff (lower = wider transition
             regions excluded).
         trans_mult : array-like, len=2
-            Multiples of sigma to add to the transition cutoffs, e.g. if the
-            transitions consistently leave some bad data proceeding the
+            Multiples of the peak FWHM to add to the transition cutoffs, e.g.
+            if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
 
@@ -2238,7 +2372,7 @@ class D(object):
                            params)
 
 
-    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False):
+    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None):
         """
         Apply distribution filter.
 
@@ -2301,10 +2435,7 @@ class D(object):
                                filt=~np.isnan(self.focus[analyte]),
                                info=analyte + ' is within a single distribution. No data removed.',
                                params=params)
-        if output:
-            return x, yd, limits
-        else:
-            return
+        return
 
     def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, **kwargs):
         """
@@ -3502,7 +3633,7 @@ def add_config(config_name, params, config_file=None, make_default=True):
 
     return
 
-def setup_latools():
+def intial_configuration():
     """
     Convenience function for configuring latools.
     """
