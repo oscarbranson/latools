@@ -2,6 +2,8 @@ import os
 import re
 import itertools
 import warnings
+import configparser
+import pkg_resources
 import numpy as np
 import pandas as pd
 import brewer2mpl as cb  # for colours
@@ -14,14 +16,14 @@ from scipy.stats import gaussian_kde
 from scipy.stats import pearsonr
 from scipy.optimize import curve_fit
 from mpld3 import plugins
-from IPython import display
 from mpld3 import enable_notebook, disable_notebook
+from IPython import display
 
 class analyse(object):
     """
     For processing and analysing whole LA-ICPMS datasets.
     """
-    def __init__(self, csv_folder, errorhunt=False):
+    def __init__(self, csv_folder, errorhunt=False, config=None):
         """
         For processing and analysing whole LA-ICPMS datasets.
 
@@ -99,6 +101,26 @@ class analyse(object):
         f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
         f.close()
 
+        # load configuration parameters
+        # read in config file
+        conf = configparser.ConfigParser()
+        conf.read(pkg_resources.resource_filename('latools','latools.cfg'))
+        # load defaults into dict
+        pconf = dict(conf.defaults())
+        pconf['srmfile'] = pkg_resources.resource_filename('latools',pconf['srmfile'])
+        # if no config is given, check to see what the default setting is
+        if pconf['config'] != 'DEFAULT':
+            config = pconf['config']
+        if config is not None:
+            # replace default parameters with user-specfic ones
+            for o in conf.options(config):
+                pconf[o] = conf.get(config, o)
+
+        # assign all parameters as class attributes
+        for k,v in pconf.items():
+            setattr(self, k, v)
+
+        # report
         print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
         print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
               len(self.data) - len(self.stds)))
@@ -527,7 +549,7 @@ class analyse(object):
 
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
-                  srmfile='/Users/oscarbranson/UCDrive/Projects/latools/latools/resources/GeoRem_150105_ratios.csv'):
+                  srmfile=None):
         """
         Calibrates the data to measured SRM values.
 
@@ -553,10 +575,13 @@ class analyse(object):
         del(params['self'])
         self.calibration_params = params
 
+        if srmfile is not None:
+            self.srmfile = srmfile
+
         if not self.srms_ided:
             self.srm_id()
         # get SRM values
-        f = open(srmfile).readlines()
+        f = open(self.srmfile).readlines()
         self.srm_vals = {}
         for srm in self.stds[0].std_labels.keys():
             self.srm_vals[srm] = {}
@@ -603,13 +628,11 @@ class analyse(object):
 
     # data filtering
 
-    def filter_threshold(self, analyte, threshold, filt=False, mode='above', samples=None):
+    def filter_threshold(self, analyte, threshold, filt=False, samples=None):
         """
         Applies a threshold filter to the data.
 
-        Generates threshold filters for analytes, when provided with analyte,
-        threshold, and mode. Mode specifies whether data 'below'
-        or 'above' the threshold are kept.
+        Generates two filters above and below the threshold value for a given analyte.
 
         Parameters
         ----------
@@ -619,8 +642,6 @@ class analyse(object):
             Description of `threshold`.
         filt : TYPE
             Description of `filt`.
-        mode : TYPE
-            Description of `mode`.
         samples : TYPE
             Description of `samples`.
 
@@ -634,7 +655,7 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_threshold(analyte, threshold, filt=False, mode='above')
+            self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None,
                             output=False, samples=None):
@@ -722,7 +743,8 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
+            self.data_dict[s].filter_clustering(analytes, filt=filt, normalise=normalise, method=method,
+                                                include_time=include_time, **kwargs)
 
     def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9,
                            p_threshold=0.05, filt=True):
@@ -1016,7 +1038,8 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, dirpath=None, ranges=False, focus='despiked', plot_filt=None):
+    def trace_plots(self, analytes=None, outdir=None, ranges=False, focus='despiked', filt=False,
+                    scale='log', figsize=[10, 4], stats=True, stat='nanmean', err='nanstd',):
         """
         Plot analytes as a function of time.
 
@@ -1024,33 +1047,43 @@ class analyse(object):
         ----------
         analytes : TYPE
             Description of `analytes`.
-        dirpath : TYPE
-            Description of `dirpath`.
+        outdir : TYPE
+            Description of `outdir`.
         ranges : bool
             Description of `ranges`.
         focus : str
             Description of `focus`.
-        plot_filt : TYPE
+        filt : TYPE
             Description of `plot_filt`.
+        scale : str
+            Descriptiong of `scale`
+        figsize : array_like
+            Descriptiong of `figsize`
+        stats : bool
+            Descriptiong of `stats`
+        stat , err: str
+            Descriptiong of `stat , err`
+
 
         Returns
         -------
         None
         """
-        if dirpath is None:
-            dirpath = self.report_dir
-        if not os.path.isdir(dirpath):
-            os.mkdir(dirpath)
+        if outdir is None:
+            outdir = self.report_dir
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
         for s in self.data:
             stg = s.focus_stage
             s.setfocus(focus)
-            fig = s.tplot(scale='log', ranges=ranges, plot_filt=plot_filt)
+            fig = s.tplot(analytes=analytes, figsize=figsize, scale=scale, filt=filt,
+                          ranges=ranges, stats=stats, stat=stat, err=err)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
             # for l, u in s.bkgrng:
             #     ax.axvspan(l, u, color='k', alpha=0.1)
-            fig.savefig(dirpath + '/' + s.sample + '_traces.pdf')
+            fig.savefig(outdir + '/' + s.sample + '_traces.pdf')
             plt.close(fig)
             s.setfocus(stg)
 
@@ -2133,6 +2166,9 @@ class D(object):
         if analytes is None:
                 analytes = self.analytes
 
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
         self.stats = {}
         self.stats['analytes'] = analytes
 
@@ -2161,7 +2197,7 @@ class D(object):
 
     # Data Selections Tools
 
-    def filter_threshold(self, analyte, threshold, filt=False, mode='above'):
+    def filter_threshold(self, analyte, threshold, filt=False):
         """
         Apply threshold filter.
 
@@ -2190,16 +2226,14 @@ class D(object):
         # generate filter
         ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
 
-        if mode == 'below':
-            self.filt.add(analyte + '_thresh_below',
-                               self.focus[analyte] <= threshold,
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
-                               params)
-        if mode == 'above':
-            self.filt.add(analyte + '_thresh_above',
-                               self.focus[analyte] >= threshold,
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
-                               params)
+        self.filt.add(analyte + '_thresh_below',
+                           self.focus[analyte] <= threshold,
+                           'Keep below {:.3e} '.format(threshold) + analyte,
+                           params)
+        self.filt.add(analyte + '_thresh_above',
+                           self.focus[analyte] >= threshold,
+                           'Keep above {:.3e} '.format(threshold) + analyte,
+                           params)
 
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False):
@@ -2560,7 +2594,7 @@ class D(object):
     #     return fig, axes
 
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
-          ranges=False, stats=True, stat='nanmean', err='nanstd', interactive=False):
+              ranges=False, stats=True, stat='nanmean', err='nanstd', interactive=False):
         """
         Plot analytes as a function of Time.
 
@@ -2759,7 +2793,7 @@ class D(object):
 
         return fig, axes
 
-    def filt_report(self, analyte=None, save=None):
+    def filt_report(self, filt, analyte=None, save=None):
         """
         Visualise effect of data filters.
 
@@ -3203,7 +3237,7 @@ class filt(object):
             except ValueError:
                 print("\n\n***Filter key invalid. Please consult manual and try again.\nOR\nAnalyte missing from filter key dict.")
         elif filt:
-            ind = self.make(a)
+            ind = self.make(analyte)
         else:
             ind = ~np.zeros(self.size, dtype=bool)
         return ind
@@ -3409,3 +3443,7 @@ def tuples_2_bool(tuples, x):
     for l, u in tuples:
         out[(x > l) & (x < u)] = True
     return out
+
+def config_locator():
+    print(pkg_resources.resource_filename('latools', 'latools.cfg'))
+    return
