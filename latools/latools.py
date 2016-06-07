@@ -3452,5 +3452,73 @@ def tuples_2_bool(tuples, x):
     return out
 
 def config_locator():
+    """
+    Prints the location of the latools.cfg file.
+    """
     print(pkg_resources.resource_filename('latools', 'latools.cfg'))
+    return
+
+def set_config(config_name, params, config_file=None, make_default=True):
+    """
+    Adds a new configuration to latools.cfg.
+
+    Parameters
+    ----------
+    config_name : str
+        The name of the new configuration. This should be descriptive
+        (e.g. UC Davis Foram Group)
+    params : dict
+        A (parameter, value) dict defining non-default parameters
+        associated with the new configuration.
+        Possible parameters include:
+        srmfile : str
+            Path to srm file used in calibration. Defaults to GeoRem
+            values for NIST610, NIST612 and NIST614 provided with latools.
+    config_file : str
+        Path to the configuration file that will be modified. Defaults to
+        latools.cfg in package install location.
+    make_default : bool
+        Whether or not to make the new configuration the default
+        for future analyses. Default = True.
+
+    Returns
+    -------
+    None
+    """
+
+    if config_file is None:
+        config_file = pkg_resources.resource_filename('latools', 'latools.cfg')
+    cf = configparser.ConfigParser()
+    cf.read(config_file)
+
+    # if config doesn't already exist, create it.
+    if config_name not in cf.sections():
+        cf.add_section(config_name)
+    # iterate through parameter dict and set values
+    for k,v in params.items():
+        cf.set(config_name, k, v)
+    # make the parameter set default, if requested
+    if make_default:
+        cf.set('DEFAULT', 'default_config', config_name)
+
+    cf.write(open(config_file, 'w'))
+
+    return
+
+def setup_latools():
+    """
+    Convenience function for configuring latools.
+    """
+    print('You will be asked a few questions to configure latools\nfor your specific laboratory needs.')
+    lab_name = input('What is the name of your lab? : ')
+
+    params = {}
+    params['srmfile'] = input('Where is your SRM.csv file? [blank = default] : ')
+
+    make_default = input('Do you want this to be your default? [Y/n] : ').lower() != 'n'
+
+    set_config(lab_name, params, make_default=make_default)
+
+    print("\nConfiguration set. You're good to go!")
+
     return
