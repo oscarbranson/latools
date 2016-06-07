@@ -1038,7 +1038,7 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, outdir=None, ranges=False, focus='despiked', filt=False,
+    def trace_plots(self, analytes=None, outdir=None, ranges=False, focus=None, filt=False,
                     scale='log', figsize=[10, 4], stats=True, stat='nanmean', err='nanstd',):
         """
         Plot analytes as a function of time.
@@ -1074,7 +1074,10 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         for s in self.data:
-            stg = s.focus_stage
+            if focus is None:
+                focus = stg = s.focus_stage
+            else:
+                stg = s.focus_stage
             s.setfocus(focus)
             fig = s.tplot(analytes=analytes, figsize=figsize, scale=scale, filt=filt,
                           ranges=ranges, stats=stats, stat=stat, err=err)
@@ -1318,7 +1321,8 @@ class D(object):
     despiked : bool
     cols : array_like
     analytes : array_like
-    rawdata, despiked, signal, background, bkgsub, ratios, calibrated : dict
+    data : dict
+        despiked, signal, background, bkgsub, ratios, calibrated
     focus : dict
     cmap : dict
     bkg, sig, trn : array_like, bool
@@ -1386,7 +1390,7 @@ class D(object):
             info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) .*AcqMethod (.*)',lines[2]).groups()
             self.date = info[0]
             self.method = info[1]
-            self.despiked = lines[3][:8] == 'Despiked'
+            self.data['despiked'] = lines[3][:8] == 'Despiked'
         except:
             pass
 
@@ -1395,11 +1399,14 @@ class D(object):
         self.analytes = self.cols[1:]
         f.close()
 
+        # create data dict
+        self.data = {}
+
         # load data
         raw = np.loadtxt(csv_file, delimiter=',', skiprows=dstart, comments='     ').T
-        self.rawdata = {}
+        self.data['rawdata'] = {}
         for i in range(len(self.cols)):
-            self.rawdata[self.cols[i]] = raw[i]
+            self.data['rawdata'][self.cols[i]] = raw[i]
 
         # most recently worked on data step
         self.setfocus('rawdata')
@@ -1450,7 +1457,7 @@ class D(object):
         -------
         None
         """
-        self.focus = getattr(self, stage)
+        self.focus = self.data[stage]
         self.focus_stage = stage
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
@@ -1505,7 +1512,7 @@ class D(object):
         if tstep is None:
             tstep = np.diff(self.Time[:2])
         if ~hasattr(self, 'despiked'):
-            self.despiked = {}
+            self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
@@ -1520,7 +1527,7 @@ class D(object):
                     replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
                     # and subsitite them in
                     v[over] = replacements
-                self.despiked[a] = v
+                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
@@ -1543,7 +1550,7 @@ class D(object):
         if ~isinstance(win, int):
             win = int(win)
         if ~hasattr(self, 'despiked'):
-            self.despiked = {}
+            self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
@@ -1565,7 +1572,7 @@ class D(object):
                     replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
                     # and subsitite them in
                     v[over] = replacements
-                self.despiked[a] = v
+                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
@@ -2033,13 +2040,13 @@ class D(object):
         """
         if analytes is None:
             analytes = self.analytes
-        self.background = {}
-        self.signal = {}
+        self.data['background'] = {}
+        self.data['signal'] = {}
         for v in analytes:
-            self.background[v] = self.focus[v].copy()
-            self.background[v][~self.bkg] = np.nan
-            self.signal[v] = self.focus[v].copy()
-            self.signal[v][~self.sig] = np.nan
+            self.data['background'][v] = self.focus[v].copy()
+            self.data['background'][v][~self.bkg] = np.nan
+            self.data['signal'][v] = self.focus[v].copy()
+            self.data['signal'][v][~self.sig] = np.nan
 
     def bkg_correct(self, mode='constant'):
         """
@@ -2064,14 +2071,14 @@ class D(object):
         self.sigrange()
         self.separate()
 
-        self.bkgsub = {}
+        self.data['bkgsub'] = {}
         if mode == 'constant':
             for c in self.analytes:
-                self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
+                self.data['bkgsub'][c] = self.data['signal'][c] - np.nanmean(self.data['background'][c])
         if (mode != 'constant'):
             for c in self.analytes:
                 p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg], mode)
-                self.bkgsub[c] = self.signal[c] - np.polyval(p, self.Time)
+                self.data['bkgsub'][c] = self.data['signal'][c] - np.polyval(p, self.Time)
         self.setfocus('bkgsub')
         return
 
@@ -2097,9 +2104,9 @@ class D(object):
         self.ratio_params = params
 
         self.setfocus(stage)
-        self.ratios = {}
+        self.data['ratios'] = {}
         for a in self.analytes:
-            self.ratios[a] = \
+            self.data['ratios'][a] = \
                 self.focus[a] / self.focus[denominator]
         self.setfocus('ratios')
         return
@@ -2118,16 +2125,16 @@ class D(object):
         None
         """
         # can have calibration function stored in self and pass *coefs?
-        self.calibrated = {}
+        self.data['calibrated'] = {}
         for a in self.analytes:
             coefs = calib_dict[a]
             if len(coefs) == 1:
-                self.calibrated[a] = \
-                    self.ratios[a] * coefs
+                self.data['calibrated'][a] = \
+                    self.data['ratios'][a] * coefs
             else:
-                self.calibrated[a] = \
-                    np.polyval(coefs, self.ratios[a])
-                    # self.ratios[a] * coefs[0] + coefs[1]
+                self.data['calibrated'][a] = \
+                    np.polyval(coefs, self.data['ratios'][a])
+                    # self.data['ratios'][a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
@@ -2689,7 +2696,7 @@ class D(object):
             for lims in self.sigrng:
                 ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-        ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
+        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage, transform=ax.transAxes,
                 ha='left', va='top')
 
         ax.set_xlabel('Time (s)')
