@@ -5,6 +5,7 @@ import warnings
 import configparser
 import pkg_resources
 import time
+import json
 import numpy as np
 import pandas as pd
 import brewer2mpl as cb  # for colours
@@ -23,54 +24,86 @@ from IPython import display
 class analyse(object):
     """
     For processing and analysing whole LA-ICPMS datasets.
+
+    Parameters
+    ----------
+    csv_folder : str
+        The path to a directory containing multiple data files.
+    errorhunt : bool
+        Whether or not to print each data file name before
+        import. This is useful for tracing which data file
+        is causing the import to fail.
+    config : str
+        The name of the configuration to use for the analysis.
+        This determines which configuration set from the
+        latools.cfg file is used, and overrides the default
+        configuration setup. You might sepcify this if your lab
+        routinely uses two different instruments.
+    dataformat : str or dict
+        Either a path to a data format .json file, or a
+        dataformat dict. See documentation for more details.
+
+    Attributes
+    ----------
+    folder : str
+        Path to the directory containing the data files, as
+        specified by `csv_folder`.
+    dirname : str
+        The name of the directory containing the data files,
+        without the entire path.
+    files : array_like
+        A list of all files in `folder`.
+    param_dir : str
+        The directory where parameters are stored.
+    report_dir : str
+        The directory where plots are saved.
+    data : array_like
+        A list of `latools.D` data objects.
+    data_dict : dict
+        A dict of `latools.D` data objects, labelled by sample
+        name.
+    samples : array_like
+        A list of samples.
+    analytes : array_like
+        A list of analytes measured.
+    stds : array_like
+        A list of the `latools.D` objects containing hte SRM
+        data. These must contain 'STD' in the file name.
+    cmaps : dict
+        An analyte-specific colour map, used for plotting.
+
+    Methods
+    -------
+    autorange
+    bkgcorrect
+    calibrate
+    calibration_plot
+    crossplot
+    despike
+    filter_clear
+    filter_clustering
+    filter_correlation
+    filter_distribution
+    filter_off
+    filter_on
+    filter_threshold
+    find_expcoef
+    get_focus
+    getstats
+    load_calibration
+    load_params
+    load_ranges
+    ratio
+    save_params
+    save_ranges
+    srm_id
+    stat_boostrap
+    stat_samples
+    trace_plots
     """
     def __init__(self, csv_folder, errorhunt=False, config=None, dataformat=None):
         """
         For processing and analysing whole LA-ICPMS datasets.
-
-        Attributes
-        ----------
-        folder : str
-        dirname : str
-        files : array_like
-        param_dir : str
-        report_dir : str
-        data : array_like
-        samples : array_like
-        analytes : array_like
-        data_dict : dict
-        stds : array_like
-        srms_ided : bool
-        cmaps : dict
-
-        Methods
-        -------
-        autorange
-        bkgcorrect
-        calibrate
-        calibration_plot
-        crossplot
-        despike
-        filter_clear
-        filter_clustering
-        filter_correlation
-        filter_distribution
-        filter_off
-        filter_on
-        filter_threshold
-        find_expcoef
-        get_focus
-        getstats
-        load_calibration
-        load_params
-        load_ranges
-        ratio
-        save_params
-        save_ranges
-        srm_id
-        stat_boostrap
-        stat_samples
-        trace_plots
         """
         self.folder = csv_folder
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
@@ -90,20 +123,39 @@ class analyse(object):
         conf.read(pkg_resources.resource_filename('latools','latools.cfg'))
         # load defaults into dict
         pconf = dict(conf.defaults())
-        pconf['srmfile'] = pkg_resources.resource_filename('latools',pconf['srmfile'])
         # if no config is given, check to see what the default setting is
-        if pconf['config'] != 'DEFAULT':
+        if (config is None) & (pconf['config'] != 'DEFAULT'):
             config = pconf['config']
-        if config is not None:
-            # replace default parameters with user-specfic ones
+        else:
+            config = 'DEFAULT'
+        # if ther eare any non-default parameters, replace defaults in the pconf dict
+        if config != 'DEFAULT':
             for o in conf.options(config):
                 pconf[o] = conf.get(config, o)
 
-        # assign all parameters as class attributes
-        self.srmfile = pconf['srmfile']
-        if dataformat is not None:
-            self.dataformat = eval(pconf['dataformat'])
-        else self.dataformat = dataformat
+        # check srmfile exists, and store it in a class attribute.
+        if os.path.exists(pconf['srmfile']):
+            self.srmfile = pconf['srmfile']
+        elif os.path.exists(pkg_resources.resource_filename('latools',pconf['srmfile'])):
+            self.srmfile = pkg_resources.resource_filename('latools',pconf['srmfile'])
+        else:
+            raise ValueError('The SRM file specified in the' + config + ' configuration cannot be found.\nPlease make sure the file exists, and that the path in the config file is correct.\nTo locate the config file, run `latools.config_locator()`.')
+
+        # load in dataformat information.
+        # if dataformat is not provided during initialisation, assign it from configuration file
+        if dataformat is None:
+            dataformat = pconf['dataformat']
+        # if it's a string, check the file exists and import it.
+        if isinstance(dataformat, str):
+            if os.path.exists(dataformat):
+                self.dataformat = json.load(open(dataformat))
+            elif os.path.exists(pkg_resources.resource_filename('latools',dataformat)):
+                self.dataformat = json.load(open(pkg_resources.resource_filename('latools',dataformat)))
+            else:
+                raise ValueError('The dataformat file specified in the' + config + ' configuration cannot be found.\nPlease make sure the file exists, and that the path in the config file is correct.\nTo locate the config file, run `latools.config_locator()`.')
+        # if it's a dict, just assign it straight away.
+        elif isinstance(dataformat, dict):
+            self.dataformat = dataformat
 
         # load data (initialise D objects)
         self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files if 'csv' in f])
@@ -176,7 +228,7 @@ class analyse(object):
             The proportional intensity of the fitted gaussian tails that
             determines the transition width cutoff (lower = wider transition
             regions excluded).
-        trans_mult : array-like, len=2
+        trans_mult : array_like, len=2
             Multiples of the peak FWHM to add to the transition cutoffs, e.g.
             if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
@@ -712,6 +764,7 @@ class analyse(object):
                             samples=None):
         """
         Applies a distribution filter to the data.
+
         Parameters
         ----------
         analyte : str
@@ -1231,7 +1284,7 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
-            list of functions that take a single array-like input,
+            list of functions that take a single array_like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         ci : float
@@ -1265,7 +1318,7 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
-            list of functions that take a single array-like input,
+            list of functions that take a single array_like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
@@ -1448,24 +1501,60 @@ class D(object):
     """
     Container for data from a single laser ablation analysis.
 
+    Parameters
+    ----------
+    csv_folder : str
+        The path to a directory containing multiple data files.
+    errorhunt : bool
+        Whether or not to print each data file name before
+        import. This is useful for tracing which data file
+        is causing the import to fail.
+    dataformat : str or dict
+        Either a path to a data format .json file, or a
+        dataformat dict. See documentation for more details.
+
     Attributes
     ----------
-    filt : str
     sample : str
-    Dfile : str
-    date : str
-    method : str
-    despiked : bool
-    cols : array_like
+        Sample name.
+    meta : dict
+        Metadata extracted from the csv header. Contents varies,
+        depending on your `dataformat`.
     analytes : array_like
+        A list of analytes measured.
     data : dict
-        despiked, signal, background, bkgsub, ratios, calibrated
+        A dictionary containing the raw data, and modified data
+        from each processing stage. Entries can be:
+            rawdata: created during initialisation.
+            despiked: created by `despike`
+            signal: created by `autorange`
+            background: created by `autorange`
+            bkgsub: created by `bkg_correct`
+            ratios: created by `ratio`
+            calibrated: created by `calibrate`
     focus : dict
+        A dictionary containing one item from `data`. This is the
+        currently 'active' data that processing functions will
+        work on. This data is also directly available as class
+        attributes with the same names as the items in `focus`.
+    focus_stage : str
+        Identifies which item in `data` is currently assigned to `focus`.
     cmap : dict
+        A dictionary containing hex colour strings corresponding
+        to each measured analyte.
     bkg, sig, trn : array_like, bool
+        Boolean arrays identifying signal, background and transition
+        regions. Created by `autorange`.
     bkgrng, sigrng, trnrng : array_like
+        An array of shape (n, 2) containing pairs of values that
+        describe the Time limits of background, signal and transition
+        regions.
     ns : array_like
+        An integer array the same length as the data, where each analysis
+        spot is labelled with a unique number. Used for separating
+        analysys spots when calculating sample statistics.
     filt : filt object
+        An object for storing, selecting and creating data filters.
 
     Methods
     -------
@@ -1516,7 +1605,7 @@ class D(object):
                 self.meta = {}
                 for k, v in dataformat['regex'].items():
                     if v is not None:
-                        out = re.search(v[-1], lines[k]).groups()
+                        out = re.search(v[-1], lines[int(k)]).groups()
                         for i in np.arange(len(v[0])):
                             self.meta[v[0][i]] = out[i]
             # identify column names
@@ -1554,10 +1643,12 @@ class D(object):
         if errorhunt:
             print('   -> OK')
 
+        return
+
         # set up corrections dict
         # self.corrections = {}
 
-    def setfocus(self, stage):
+    def setfocus(self, focus):
         """
         Set the 'focus' attribute of the data file.
 
@@ -1568,8 +1659,8 @@ class D(object):
 
         Parameters
         ----------
-        stage : str
-            the name of the analysis stage desired:
+        focus : str
+            The name of the analysis stage desired:
                 'rawdata': raw data, loaded from csv file when object
                     is initialised.
                 'despiked': despiked data.
@@ -1586,8 +1677,8 @@ class D(object):
         -------
         None
         """
-        self.focus = self.data[stage]
-        self.focus_stage = stage
+        self.focus = self.data[focus]
+        self.focus_stage = focus
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
 
@@ -1598,16 +1689,18 @@ class D(object):
 
         Parameters
         ----------
-        a : TYPE
-            Description of `a`.
-        window : TYPE
+        a : array_like
+            Array to calculate the rolling window of
+        window : int
             Description of `window`.
-        pad : TYPE
+        pad : same as dtype(a)
             Description of `pad`.
 
         Returns
         -------
-        None
+        array_like
+            An array of shape (n, window), where n is either len(a) - window
+            if pad is None, or len(a) if pad is not None.
         """
         shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
         strides = a.strides + (a.strides[-1],)
@@ -1625,10 +1718,11 @@ class D(object):
 
         Parameters
         ----------
-        exponent : TYPE
-            Description of `exponent`.
-        tstep : TYPE
-            Description of `tstep`.
+        exponent : float
+            Expinent used in filter
+        tstep : float
+            The time increment between data points.
+            Calculated from Time variable if None.
 
         Returns
         -------
@@ -1668,9 +1762,10 @@ class D(object):
         Parameters
         ----------
         win : int
-            Description of `win`.
+            The window used to calculate rolling statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling
+            mean above which data are considered outliers.
 
         Returns
         -------
@@ -1712,17 +1807,21 @@ class D(object):
         Parameters
         ----------
         expdecay_filter : bool
-            Description of `expdecay_filter`.
-        exponent : TYPE
-            Description of `exponent`.
-        tstep : TYPE
-            Description of `tstep`.
+            Whether or not to apply the exponential decay filter.
+        exponent : None or float
+            The exponent for the exponential decay filter. If None,
+            it is determined automatically using `find_expocoef`.
+        tstep : None or float
+            The timeinterval between measurements. If None, it is
+            determined automatically from the Time variable.
         spike_filter : bool
-            Description of `spike_filter`.
+            Whether or not to apply the standard deviation spike filter.
         win : int
-            Description of `win`.
+            The rolling window over which the spike filter calculates
+            the trace statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling mean
+            that data are excluded.
 
         Returns
         -------
@@ -1745,6 +1844,7 @@ class D(object):
         Parameters
         ----------
         x, y : array_like
+            1D arrays of the independent (x) and dependent (y) variables.
 
         Returns
         -------
@@ -1758,7 +1858,8 @@ class D(object):
 
         Parameters
         ----------
-        x : array-like
+        x : array_like
+            Independent variable.
         *p : parameters unpacked to A, mu, sigma
             A: area
             mu: centre
@@ -1779,12 +1880,14 @@ class D(object):
         For determining the x coordinates
         for a given y intensity (i.e. width at a given height).
 
-        Parameters:
-            y:  float
-                The height at which to calculate peak width.
-            *p: parameters unpacked to mu, sigma
-                mu: peak center
-                sigma: peak width
+        Parameters
+        ----------
+        y : float
+            The height at which to calculate peak width.
+        *p : parameters unpacked to mu, sigma
+            mu: peak center
+            sigma: peak width
+
         Return
         ------
         array_like
@@ -1805,10 +1908,12 @@ class D(object):
         Parameters
         ----------
         x, y : array_like
+            1D Arrays of independent and dependent variables.
         c : float
-            Description of `c`.
+            The threshold below which the first minimum should
+            be returned.
         win : int
-            Description of `win`.
+            The window used to calculate rolling statistics.
 
         Returns
         -------
@@ -1832,10 +1937,12 @@ class D(object):
         Parameters
         ----------
         x, y : array_like
+            1D Arrays of independent and dependent variables.
         c : float
-            Description of `c`.
+            The threshold above which the first minimum should
+            be returned.
         win : int
-            Description of `win`.
+            The window used to calculate rolling statistics.
 
         Returns
         -------
@@ -1857,13 +1964,15 @@ class D(object):
 
         Parameters
         ----------
-        a : array-like
+        a : array_like
+            The 1D array to calculate the rolling gradient of.
         win : int
             The width of the rolling window.
 
         Returns
         -------
-        None
+        array_like
+            Gradient of a, assuming as constant integer x-scale.
         """
         # check to see if 'window' is odd (even does not work)
         if win % 2 == 0:
@@ -1881,35 +1990,37 @@ class D(object):
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,conf=0.01, trans_mult=[0., 0.]):
         """
-        Separates signal, background and transition regions.
+                Automatically separates signal and background data regions.
 
-        Function to automatically detect signal and background regions in the
-        laser data, based on the behaviour of a target analyte. An ideal target
-        analyte should be abundant and homogenous in the sample.
+        Automatically detect signal and background regions in the laser
+        data, based on the behaviour of a single analyte. The analyte used
+        should be abundant and homogenous in the sample.
 
         Step 1: Thresholding
-        The background is initially determined using a gaussian kernel density
-        estimator (kde) of all the data. The minima in the kde define the
-        boundaries between distinct data distributions. All data below than the
-        first (lowest) kde minima are labelled 'background', and all above this
-        limit are labelled 'signal'.
+        The background signal is determined using a gaussian kernel density
+        estimator (kde) of all the data. Under normal circumstances, this
+        kde should find two distinct data distributions, corresponding to
+        'signal' and 'background'. The minima between these two distributions
+        is taken as a rough threshold to identify signal and background regions.
+        Any point where the trace crosses this thrshold is identified as a
+        'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
-        then determined, and the transitions are removed from both signal and
-        background. The width of the transitions is determined by fitting a
-        gaussian to the smoothed first derivative of the analyte trace, and
-        determining its width at a point where the gaussian intensity is at a
-        set limit. These gaussians are fit to subsets of the data that contain
-        the transitions, which are centered around the approximate transition
-        locations determined in Step 1, +/- win data points. The peak is isolated
-        by finding the minima and maxima of a second derivative, and the
-        gaussian is fit to the isolate peak.
+        then determined, and the transitions are excluded from analysis. The
+        width of the transitions is determined by fitting a gaussian to the
+        smoothed first derivative of the analyte trace, and determining its
+        width at a point where the gaussian intensity is at at `conf` time the
+        gaussian maximum. These gaussians are fit to subsets of the data centered
+        around the transitions regions determined in Step 1, +/- `win` data points.
+        The peak is further isolated by finding the minima and maxima of a second
+        derivative within this window, and the gaussian is fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
-            Description of `analyte`.
+            The analyte that autorange should consider. For best results,
+            choose an analyte that is present homogeneously in high concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -1922,11 +2033,12 @@ class D(object):
             The proportional intensity of the fitted gaussian tails that
             determines the transition width cutoff (lower = wider transition
             regions excluded).
-        trans_mult : array-like, len=2
+        trans_mult : array_like, len=2
             Multiples of the peak FWHM to add to the transition cutoffs, e.g.
             if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
+
 
         Adds
         ----
@@ -2066,22 +2178,15 @@ class D(object):
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
         self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
 
-        # bkgr = np.concatenate([[0],
-        #                       self.Time[self.bkg ^ np.roll(self.bkg, -1)],
-        #                       [self.Time[-1]]])
-        # self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
-
-        # if self.sig[-1]:
-        #     self.sig[-1] = False
-        # sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
-        # self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
-
     def bkgrange(self, rng=None):
         """
         Calculate background boolean array from list of limit pairs.
 
         Generate a background boolean string based on a list of [min,max] value
         pairs stored in self.bkgrng.
+
+        If `rng` is supplied, these will be added to the bkgrng list before
+        the boolean arrays are calculated.
 
         Parameters
         ----------
@@ -2113,6 +2218,9 @@ class D(object):
         Generate a background boolean string based on a list of [min,max] value
         pairs stored in self.bkgrng.
 
+        If `rng` is supplied, these will be added to the sigrng list before
+        the boolean arrays are calculated.
+
         Parameters
         ----------
         rng : array_like
@@ -2141,13 +2249,7 @@ class D(object):
         Calculate signal and background boolean arrays from lists of limit pairs.
         """
         self.sig = tuples_2_bool(self.sigrng, self.Time)
-        # self.sig = np.array([False] * self.Time.size)
-        # for ls, us in self.sigrng:
-        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
         self.bkg = tuples_2_bool(self.bkgrng, self.Time)
-        # self.bkg = np.array([False] * self.Time.size)
-        # for lb, ub in self.bkgrng:
-        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
         self.trn = ~self.bkg & ~self.sig
         return
 
@@ -2171,11 +2273,11 @@ class D(object):
             analytes = self.analytes
         self.data['background'] = {}
         self.data['signal'] = {}
-        for v in analytes:
-            self.data['background'][v] = self.focus[v].copy()
-            self.data['background'][v][~self.bkg] = np.nan
-            self.data['signal'][v] = self.focus[v].copy()
-            self.data['signal'][v][~self.sig] = np.nan
+        for a in analytes:
+            self.data['background'][a] = self.focus[a].copy()
+            self.data['background'][a][~self.bkg] = np.nan
+            self.data['signal'][a] = self.focus[a].copy()
+            self.data['signal'][a][~self.sig] = np.nan
 
     def bkg_correct(self, mode='constant'):
         """
@@ -2211,7 +2313,7 @@ class D(object):
         self.setfocus('bkgsub')
         return
 
-    def ratio(self, denominator='Ca43', stage='signal'):
+    def ratio(self, denominator='Ca43', focus='signal'):
         """
         Divide all analytes by a specified denominator analyte.
 
@@ -2219,10 +2321,9 @@ class D(object):
         ----------
         denominator : str
             The analyte used as the denominator.
-        stage : str
+        focus : str
             The analysis stage to perform the ratio calculation on.
-            Defaults to 'signal', the isolates, background-corrected
-            regions identified as good data.
+            Defaults to 'signal'.
 
         Returns
         -------
@@ -2232,7 +2333,7 @@ class D(object):
         del(params['self'])
         self.ratio_params = params
 
-        self.setfocus(stage)
+        self.setfocus(focus)
         self.data['ratios'] = {}
         for a in self.analytes:
             self.data['ratios'][a] = \
@@ -2243,6 +2344,9 @@ class D(object):
     def calibrate(self, calib_dict):
         """
         Apply calibration to data.
+
+        The `calib_dict` must be calculated at the `analyse` level,
+        and passed to this calibrate function.
 
         Parameters
         ----------
@@ -2288,7 +2392,7 @@ class D(object):
                 bool: True applies filter specified in filt.switches.
                 str: logical string specifying a partucular filter
         stat_fns : array_like
-            List of functions that take a single array-like input,
+            List of functions that take a single array_like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
@@ -2374,20 +2478,22 @@ class D(object):
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None):
         """
-        Apply distribution filter.
-
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        binwidth : TYPE
-            Description of `binwidth`.
-        filt : TYPE
-            Description of `filt`.
-        transform : TYPE
-            Description of `transform`.
-        output : TYPE
-            Description of `output`.
+        analyte : str
+            The analyte that the filter applies to.
+        binwidth : str of float
+            Specify the bin width of the kernel density estimator.
+            Passed to `scipy.stats.gaussian_kde`.
+            str: The method used to automatically estimate bin width.
+                 Can be 'scott' or 'silverman'.
+            float: Manually specify the binwidth of the data.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        transform : str
+            If 'log', applies a log transform to the data before calculating
+            the distribution.
 
         Returns
         -------
@@ -2439,20 +2545,79 @@ class D(object):
 
     def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, **kwargs):
         """
-        Apply clustering filter.
+        Applies an n-dimensional clustering filter to the data.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : TYPE
-            Description of `filt`.
-        normalise : TYPE
-            Description of `normalise`.
-        method : TYPE
-            Description of `method`.
-        include_time : TYPE
-            Description of `include_time`.
+        analytes : str
+            The analyte(s) that the filter applies to.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        normalise : bool
+            Whether or not to normalise the data to zero mean and unit variance.
+            Reccomended if clustering based on more than 1 analyte.
+            Uses `sklearn.preprocessing.scale`.
+        method : str
+            Which clustering algorithm to use. Can be:
+                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+                             Automatically determines number of clusters
+                             in data based on the `bandwidth` of expected
+                             variation.
+                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+                          the characteristics of a known number of clusters
+                          within the data. Must provide `n_clusters` to specify
+                          the expected number of clusters.
+                'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
+                          determines the number and characteristics of clusters
+                          within the data based on the 'connectivity' of the data
+                          (i.e. how far apart each data point is in a
+                          multi-dimensional parameter space). Requires you to set
+                          `eps`, the minimum distance point must be from another
+                          point to be considered in the same cluster, and
+                          `min_samples`, the minimum number of points that must be
+                          within the minimum distance for it to be considered a
+                          cluster. It may also be run in automatic mode by specifying
+                          `n_clusters` alongside `min_samples`, where eps is
+                          decreased until the desired number of clusters is obtained.
+                For more information on these algorithms, refer to the documentation.
+        include_time : bool
+            Whether or not to include the Time variable in the clustering analysis.
+            Useful if you're looking for spatially continuous clusters in your data,
+            i.e. this will identify each spot in your analysis as an individual
+            cluster.
+        **kwargs
+            Parameters passed to the clustering algorithm specified by `method`.
+
+        Meanshift Parameters
+        --------------------
+        bandwidth : str or float
+            The bandwith (float) or bandwidth method ('scott' or 'silverman')
+            used to estimate the data bandwidth.
+        bin_seeding : bool
+            Modifies the behaviour of the meanshift algorithm. Refer to
+            sklearn.cluster.meanshift documentation.
+
+        K-Means Parameters
+        ------------------
+        n_clusters : int
+            The number of clusters expected in the data.
+
+        DBSCAN Parameters
+        -----------------
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample variance.
+            Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -2520,19 +2685,23 @@ class D(object):
                 name = namebase + '_{:.0f}'.format(k)
                 self.filt.add(name, v, info=info, params=params)
 
+        return
+
 
     def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False):
         """
-        Identify clusters using Meanshift algorythm.
+        Identify clusters using Meanshift algorithm.
 
         Parameters
         ----------
         data : array_like
-            array of size [n_features, n_samples].
+            array of size [n_samples, n_features].
         bandwidth : float or None
             If None, bandwidth is estimated automatically using
             sklean.cluster.estimate_bandwidth
         bin_seeding : bool
+            Setting this option to True will speed up the algorithm.
+            See sklearn documentation for full description.
 
         Returns
         -------
@@ -2556,12 +2725,14 @@ class D(object):
 
     def cluster_kmeans(self, data, n_clusters):
         """
-        Identify clusters using K-Means algorythm.
+        Identify clusters using K-Means algorithm.
 
         Parameters
         ----------
+        data : array_like
+            array of size [n_samples, n_features].
         n_clusters : int
-            Description of `data`.
+            The number of clusters expected in the data.
 
         Returns
         -------
@@ -2582,20 +2753,25 @@ class D(object):
 
     def cluster_DBSCAN(self, data, eps=None, min_samples=None, n_clusters=None, maxiter=200):
         """
-        Identify clusters using DBSCAN algorythm.
+        Identify clusters using DBSCAN algorithm.
 
         Parameters
         ----------
         data : array_like
-            Description of `data`.
-        eps : optional, float
-            Description of `eps`.
-        min_samples : optional, int
-            Description of `min_samples`.
-        n_clusters : optional, int
-            Description of `n_clusters`.
-        maxiter : optional, int
-            Description of `maxiter`.
+            array of size [n_samples, n_features].
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample variance.
+            Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -2651,15 +2827,19 @@ class D(object):
         Parameters
         ----------
         x_analyte, y_analyte : str
-            Description of `x_analyte`.
-        window : int
-            Description of `window`.
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
         r_threshold : float
-            Description of `r_threshold`.
+            The correlation index above which to exclude data.
+            Note: the absolute pearson R value is considered, so
+            negative correlations below -`r_threshold` will also
+            be excluded.
         p_threshold : float
-            Description of `p_threshold`.
+            The significant level below which data are excluded.
         filt : bool
-            Description of `filt`.
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
 
         Returns
         -------
@@ -2703,7 +2883,7 @@ class D(object):
         self.filt.off(filt=name)
         self.filt.on(analyte=y_analyte, filt=name)
 
-        return #r, p
+        return
 
 
     # Plotting Functions
@@ -2845,14 +3025,17 @@ class D(object):
 
         Parameters
         ----------
-        analytes : array_like
-            Description of `analytes`.
-        bins : int
-            Description of `bins`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         lognorm : bool
-            Description of `lognorm`.
-        filt : bool
-            Description of `filt`.
+            Whether or not to log normalise the colour scale
+            of the 2D histogram.
+        bins : int
+            The number of bins in the 2D histogram.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
 
         Returns
         -------
@@ -2926,22 +3109,30 @@ class D(object):
 
         return fig, axes
 
-    def filt_report(self, filt, analyte=None, save=None):
+    def filt_report(self, filt=None, analyte=None, save=None):
         """
         Visualise effect of data filters.
 
         Parameters
         ----------
+        filt : str
+            Exact or partial name of filter to plot. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name will be plotted.
+            Defaults to all filters.
         analyte : str
-            Which analyte to plot.
+            Name of analyte to plot.
         save : str
-            Location to save plot.
+            file path to save the plot
 
         Returns
         -------
         (fig, axes)
         """
-        filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
+        if filt is None:
+            filts = list(self.filt.components.keys())
+        else:
+            filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
         nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
         fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
         fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
@@ -3055,17 +3246,42 @@ class filt(object):
     """
     Container for storing, selecting and creating data filters.
 
+    Parameters
+    ----------
+    size : int
+        The length that the filters need to be (should be
+        the same as your data).
+    analytes : array_like
+        A list of the analytes measured in your data.
+
     Attributes
     ----------
     size : int
+        The length that the filters need to be (should be
+        the same as your data).
     analytes : array_like
+        A list of the analytes measured in your data.
     components : dict
+        A dict containing each individual filter that has been
+        created.
     info : dict
+        A dict containing descriptive information about each
+        filter in `components`.
     params : dict
+        A dict containing the parameters used to create
+        each filter, which can be passed directly to the
+        corresponding filter function to recreate the filter.
     switches : dict
+        A dict of boolean switches specifying which filters
+        are active for each analyte.
     keys : dict
+        A dict of logical strings specifying which filters are
+        applied to each analyte.
     sequence : dict
+        A numbered dict specifying what order the filters were
+        applied in (for some filters, order matters).
     n : int
+        The number of filters applied to the data.
 
     Methods
     -------
