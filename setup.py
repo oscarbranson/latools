@@ -23,6 +23,8 @@ setup(name='latools',
                         'scipy',
                         'mpld3',
                         'Ipython',
+                        'configparser',
+                        'pkg_resources',
                         ],
       package_data={
         'latools': ['latools.cfg'],
