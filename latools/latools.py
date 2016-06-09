@@ -381,13 +381,13 @@ class analyse(object):
 
         return
 
-    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12., exponentplot=False):
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None, noise_despiker=True, win=3, nlim=12., exponentplot=False):
         """
         Despikes data with exponential decay and noise filters.
 
         Parameters
         ----------
-        expdecay_filter : bool
+        expdecay_despiker : bool
             Whether or not to apply the exponential decay filter.
         exponent : None or float
             The exponent for the exponential decay filter. If None,
@@ -395,7 +395,7 @@ class analyse(object):
         tstep : None or float
             The timeinterval between measurements. If None, it is
             determined automatically from the Time variable.
-        spike_filter : bool
+        noise_despiker : bool
             Whether or not to apply the standard deviation spike filter.
         win : int
             The rolling window over which the spike filter calculates
@@ -418,7 +418,7 @@ class analyse(object):
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
         for d in self.data:
-            d.despike(expdecay_filter, exponent, tstep, spike_filter, win, nlim)
+            d.despike(expdecay_despiker, exponent, tstep, noise_despiker, win, nlim)
         return
 
     def save_ranges(self):
@@ -1585,7 +1585,7 @@ class D(object):
     cluster_meanshift
     crossplot
     despike
-    expdecay_filter
+    expdecay_despiker
     fastgrad
     filt_report
     filter_clustering
@@ -1606,7 +1606,7 @@ class D(object):
     separate
     setfocus
     sigrange
-    spike_filter
+    noise_despiker
     tplot
     """
     def __init__(self, csv_file, dataformat=None, errorhunt=False):
@@ -1730,7 +1730,7 @@ class D(object):
         else:
             return out
 
-    def expdecay_filter(self, exponent=None, tstep=None):
+    def expdecay_despiker(self, exponent=None, tstep=None):
         """
         Apply exponential decay filter to remove unrealistically low values.
 
@@ -1773,7 +1773,7 @@ class D(object):
         return
 
     # spike filter
-    def spike_filter(self, win=3, nlim=12.):
+    def noise_despiker(self, win=3, nlim=12.):
         """
         Apply standard deviation filter to remove anomalous high values.
 
@@ -1818,13 +1818,13 @@ class D(object):
         self.setfocus('despiked')
         return
 
-    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None, noise_despiker=True, win=3, nlim=12.):
         """
-        Applies expdecay_filter and spike_filter to data.
+        Applies expdecay_despiker and noise_despiker to data.
 
         Parameters
         ----------
-        expdecay_filter : bool
+        expdecay_despiker : bool
             Whether or not to apply the exponential decay filter.
         exponent : None or float
             The exponent for the exponential decay filter. If None,
@@ -1832,7 +1832,7 @@ class D(object):
         tstep : None or float
             The timeinterval between measurements. If None, it is
             determined automatically from the Time variable.
-        spike_filter : bool
+        noise_despiker : bool
             Whether or not to apply the standard deviation spike filter.
         win : int
             The rolling window over which the spike filter calculates
@@ -1845,10 +1845,10 @@ class D(object):
         -------
         None
         """
-        if spike_filter:
-            self.spike_filter(win, nlim)
-        if expdecay_filter:
-            self.expdecay_filter(exponent, tstep)
+        if noise_despiker:
+            self.noise_despiker(win, nlim)
+        if expdecay_despiker:
+            self.expdecay_despiker(exponent, tstep)
 
         params = locals()
         del(params['self'])
@@ -3372,7 +3372,7 @@ class filt(object):
         self.sequence[self.n] = name
         self.n += 1
         for a in self.analytes:
-            self.switches[a][name] = True
+            self.switches[a][name] = False
         return
 
     def remove(self, name):
