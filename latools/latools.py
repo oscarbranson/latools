@@ -1,4 +1,5 @@
 import os
+import shutil
 import re
 import itertools
 import warnings
@@ -6,6 +7,7 @@ import configparser
 import pkg_resources
 import time
 import json
+import pprint
 import numpy as np
 import pandas as pd
 import brewer2mpl as cb  # for colours
@@ -20,6 +22,9 @@ from scipy.optimize import curve_fit
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from IPython import display
+
+# deactivate IPython deprecations warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 class analyse(object):
     """
@@ -42,6 +47,9 @@ class analyse(object):
     dataformat : str or dict
         Either a path to a data format .json file, or a
         dataformat dict. See documentation for more details.
+    extension : str
+        The file extension of your data files. Defaults to
+        '.csv'.
 
     Attributes
     ----------
@@ -101,19 +109,19 @@ class analyse(object):
     stat_samples
     trace_plots
     """
-    def __init__(self, csv_folder, errorhunt=False, config=None, dataformat=None):
+    def __init__(self, csv_folder, errorhunt=False, config=None, dataformat=None, extension='.csv'):
         """
         For processing and analysing whole LA-ICPMS datasets.
         """
         self.folder = csv_folder
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
-        self.files = np.array(os.listdir(self.folder))
+        self.files = np.array([f for f in os.listdir(self.folder) if extension in f])
 
         # make output directories
-        self.param_dir = self.folder + '/params/'
+        self.param_dir = re.sub('//','/', self.folder + '/params/')
         if not os.path.isdir(self.param_dir):
             os.mkdir(self.param_dir)
-        self.report_dir = self.folder + '/reports/'
+        self.report_dir = re.sub('//', '/', self.folder + '/reports/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
@@ -132,6 +140,7 @@ class analyse(object):
         if config != 'DEFAULT':
             for o in conf.options(config):
                 pconf[o] = conf.get(config, o)
+        self.config = config
 
         # check srmfile exists, and store it in a class attribute.
         if os.path.exists(pconf['srmfile']):
@@ -158,7 +167,8 @@ class analyse(object):
             self.dataformat = dataformat
 
         # load data (initialise D objects)
-        self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files if 'csv' in f])
+        self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files])
+
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].analytes)
 
@@ -177,10 +187,10 @@ class analyse(object):
         f.close()
 
         # report
-        print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
-        print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
+        print('latools analysis using "' + self.config + '" configuration:')
+        print('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} samples'.format(len(self.data), len(self.stds),
               len(self.data) - len(self.stds)))
-        print('Analytes: ' + ' '.join(self.analytes))
+        print('  Analytes: ' + ' '.join(self.analytes))
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
                   conf=0.01, trans_mult=[0., 0.]):
@@ -1209,7 +1219,7 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, outdir=None, ranges=False, focus=None, filt=False,
+    def trace_plots(self, analytes=None, ranges=False, focus=None, outdir=None, filt=False,
                     scale='log', figsize=[10, 4], stats=True, stat='nanmean', err='nanstd',):
         """
         Plot analytes as a function of time.
@@ -1218,14 +1228,16 @@ class analyse(object):
         ----------
         analytes : optional, array_like or str
             The analyte(s) to plot. Defaults to all analytes.
-        outdir : TYPE
-            Description of `outdir`.
         ranges : bool
-            Description of `ranges`.
+            Whether or not to show the signal/backgroudn regions
+            identified by 'autorange'.
         focus : str
             The focus 'stage' of the analysis to plot. Can be
             'rawdata', 'despiked':, 'signal', 'background',
             'bkgsub', 'ratios' or 'calibrated'.
+        outdir : str
+            Path to a directory where you'd like the plots to be
+            saved. Defaults to 'reports/[focus]' in your data directory.
         filt : str, dict or bool
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
@@ -1248,7 +1260,7 @@ class analyse(object):
         None
         """
         if outdir is None:
-            outdir = self.report_dir
+            outdir = self.report_dir + '/' + self.focus_stage
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         for s in self.data:
@@ -1385,88 +1397,94 @@ class analyse(object):
         return pd.concat(slst)
 
     # parameter input/output
-    def save_params(self, output_file=None):
+    def save_params(self, output_file=None, update=True):
         """
         Save analysis parameters.
+
+        TODO: must export configuration file and SRM file with parameters.
 
         Parameters
         ----------
         output_file : str
             Where to save the output file. Defaults to
             './params/YYMMDD-HHMM.param'.
+        update : bool
+            Whether or not to update the parameter file
+            before saving.
 
         Returns
         -------
         None
         """
         # get all parameters from all samples as a dict
-        dparams = {}
-        plist = []
-        for d in self.data:
-            dparams[d.sample] = d.get_params()
-            plist.append(list(dparams[d.sample].keys()))
-        # get all parameter keys
-        plist = np.unique(plist)
-        plist = plist[plist != 'sample']
+        if (not hasattr(self, 'params')) | (update):
+            dparams = {}
+            plist = []
+            for d in self.data:
+                dparams[d.sample] = d.get_params()
+                plist.append(list(dparams[d.sample].keys()))
+            # get all parameter keys
+            plist = np.unique(plist)
+            plist = plist[plist != 'sample']
 
-        # convert dict into array
-        params = []
-        for s in self.samples:
-            row = []
-            for p in plist:
-                row.append(dparams[s][p])
-            params.append(row)
-        params = np.array(params)
+            # convert dict into array
+            params = []
+            for s in self.samples:
+                row = []
+                for p in plist:
+                    row.append(dparams[s][p])
+                params.append(row)
+            params = np.array(params)
 
-        # calculate parameter 'sets'
-        sets = np.zeros(params.shape)
-        for c in np.arange(plist.size):
-            col = params[:,c]
-            i = 0
-            for r in np.arange(1, col.size):
-                if isinstance(col[r], (str, float, dict, int)):
-                    if col[r] != col[r-1]:
-                        i += 1
+            # calculate parameter 'sets'
+            sets = np.zeros(params.shape)
+            for c in np.arange(plist.size):
+                col = params[:,c]
+                i = 0
+                for r in np.arange(1, col.size):
+                    if isinstance(col[r], (str, float, dict, int)):
+                        if col[r] != col[r-1]:
+                            i += 1
+                    else:
+                        if any(col[r] != col[r-1]):
+                            i += 1
+
+                    sets[r,c] = i
+
+            ssets = np.apply_along_axis(sum,1,sets)
+            nsets = np.unique(ssets, return_counts=True)
+            setorder = np.argsort(nsets[1])[::-1]
+
+            out = {}
+            out['exceptions'] = {}
+            first = True
+            for so in setorder:
+                setn = nsets[0][so]
+                setn_samples = self.samples[ssets == setn]
+                if first:
+                    out['general'] = dparams[setn_samples[0]]
+                    del out['general']['sample']
+                    general_key = sets[self.samples == setn_samples[0],:][0,:]
+                    first = False
                 else:
-                    if any(col[r] != col[r-1]):
-                        i += 1
+                    setn_key = sets[self.samples == setn_samples[0],:][0,:]
+                    exception_param = plist[general_key != setn_key]
+                    for s in setn_samples:
+                        out['exceptions'][s] = {}
+                        for ep in exception_param:
+                            out['exceptions'][s][ep] = dparams[s][ep]
 
-                sets[r,c] = i
+            out['calib'] = {}
+            out['calib']['calib_dict'] = self.calib_dict
+            out['calib']['srm_rng'] = self.srm_rng
+            out['calib']['calibration_params'] = self.calibration_params
 
-        ssets = np.apply_along_axis(sum,1,sets)
-        nsets = np.unique(ssets, return_counts=True)
-        setorder = np.argsort(nsets[1])[::-1]
-
-        out = {}
-        out['exceptions'] = {}
-        first = True
-        for so in setorder:
-            setn = nsets[0][so]
-            setn_samples = self.samples[ssets == setn]
-            if first:
-                out['general'] = dparams[setn_samples[0]]
-                del out['general']['sample']
-                general_key = sets[self.samples == setn_samples[0],:][0,:]
-                first = False
-            else:
-                setn_key = sets[self.samples == setn_samples[0],:][0,:]
-                exception_param = plist[general_key != setn_key]
-                for s in setn_samples:
-                    out['exceptions'][s] = {}
-                    for ep in exception_param:
-                        out['exceptions'][s][ep] = dparams[s][ep]
-
-        out['calib'] = {}
-        out['calib']['calib_dict'] = self.calib_dict
-        out['calib']['srm_rng'] = self.srm_rng
-        out['calib']['calibration_params'] = self.calibration_params
-
-        self.params = out
+            self.params = out
 
         if output_file is None:
-            outputfile = './params/' + time.strftime('%y%m%d-%H%M') + '.param'
+            outputfile = './params/' + time.strftime('%y%m%d-%H%M') + '.json'
         f = open(output_file, 'w')
-        f.write(str(self.params))
+        pprint.pprint(self.params, stream=f)
         f.close()
 
         return
@@ -2441,9 +2459,15 @@ class D(object):
         """
         Apply threshold filter.
 
-        Generates threshold filters for analytes, when provided with analyte,
-        threshold, and mode. Mode specifies whether data 'below'
-        or 'above' the threshold are kept.
+        Generates threshold filters for the given analytes above and below
+        the specified threshold.
+
+        Two filters are created with prefixes '_above' and '_below'.
+            '_above' keeps all the data above the threshold.
+            '_below' keeps all the data below the threshold.
+
+        i.e. to select data below the threshold value, you should turn the
+        '_above' filter off.
 
         Parameters
         ----------
@@ -2453,8 +2477,6 @@ class D(object):
             Description of `threshold`.
         filt : TYPE
             Description of `filt`.
-        mode : TYPE
-            Description of `mode`.
 
         Returns
         -------
@@ -3226,7 +3248,7 @@ class D(object):
         dict
             dict of analysis parameters
         """
-        outputs = ['sample', 'method',
+        outputs = ['sample',
                    'ratio_params',
                    'despike_params',
                    'autorange_params',
@@ -3720,7 +3742,7 @@ def pretty_element(s):
     return '$^{' + g[1] + '}$' + g[0]
 
 
-def collate_csvs(in_dir,out_dir='./csvs'):
+def collate_data(in_dir, extension='.csv', out_dir=None):
     """
     Copy all csvs in nested directroy to single directory.
 
@@ -3730,23 +3752,26 @@ def collate_csvs(in_dir,out_dir='./csvs'):
     Parameters
     ----------
     in_dir : str
-        input directory containing csv files in subfolders
+        Input directory containing csv files in subfolders
+    extension : str
+        The extension that identifies your data files.
+        Defaults to '.csv'.
     out_dir : str
-        destination directory
+        Destination directory
 
     Returns
     -------
     None
     """
-    import os
-    import shutil
+    if out_dir is None:
+        out_dir = './' + re.search('^\.(.*)',extension).groups(0)[0]
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
 
     for p, d, fs in os.walk(in_dir):
         for f in fs:
-            if '.csv' in f:
+            if extension in f:
                 shutil.copy(p + '/' + f, out_dir + '/' + f)
     return
 
@@ -3852,17 +3877,60 @@ def add_config(config_name, params, config_file=None, make_default=True):
 def intial_configuration():
     """
     Convenience function for configuring latools.
+
+    Run this function when you first use `latools` to specify the
+    location of you SRM data file and your data format file.
+
+    See documentation for full details.
     """
     print('You will be asked a few questions to configure latools\nfor your specific laboratory needs.')
     lab_name = input('What is the name of your lab? : ')
 
     params = {}
-    params['srmfile'] = input('Where is your SRM.csv file? [blank = default] : ')
+    OK = False
+    while ~OK:
+        srmfile = input('Where is your SRM.csv file? [blank = default] : ')
+        if srmfile != '':
+            if os.path.exists(srmfile):
+                params['srmfile'] = srmfile
+                OK = True
+            else:
+                print("You told us the SRM data file was at: "+ semfile +"\nlatools can't find that file. Please check it exists, and \ncheck that the path was correct. The file path must be complete, not relative.")
+        else:
+            print("No path provided. Using default GeoRem values for NIST610, NIST612 and NIST614.")
+            OK = True
 
-    make_default = input('Do you want this to be your default? [Y/n] : ').lower() != 'n'
+        OK = False
+
+    while ~OK:
+        dataformatfile = input('Where is your dataformat.json file? [blank = default] : ')
+        if dataformatfile != '':
+            if os.path.exists(dataformatfile):
+                params['srmfile'] = dataformatfile
+                OK = True
+            else:
+                print("You told us the dataformat file was at: "+ dataformatfile +"\nlatools can't find that file. Please check it exists, and \ncheck that the path was correct. The file path must be complete, not relative.")
+        else:
+            print("No path provided. Using default dataformat for the UC Davis Agilent 7700.")
+            OK = True
+
+
+    make_default = input('Do you want to use these files as your default? [Y/n] : ').lower() != 'n'
 
     add_config(lab_name, params, make_default=make_default)
 
     print("\nConfiguration set. You're good to go!")
+
+    return
+
+def get_example_data(destination_dir):
+    if os.path.isdir(destination_dir):
+        overwrite = input(destination_dir + ' already exists. Overwrite? [N/y]: ').lower() == 'y'
+        if overwrite:
+            shutil.rmtree(destination_dir)
+        else:
+            print(destination_dir + ' was not overwritten.')
+
+    shutil.copytree(pkg_resources.resource_filename('latools', 'resources/test_data'), destination_dir)
 
     return
