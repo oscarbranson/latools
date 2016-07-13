@@ -24,7 +24,6 @@ setup(name='latools',
                         'mpld3',
                         'Ipython',
                         'configparser',
-                        'pkg_resources',
                         ],
       package_data={
         'latools': ['latools.cfg'],
