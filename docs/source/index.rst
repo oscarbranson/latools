@@ -1,4 +1,4 @@
-.. latools documentation master file
+.. latools documentation master file:
 
 Laser Ablation Tools (latools)
 ==============================

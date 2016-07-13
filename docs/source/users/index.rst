@@ -1,10 +1,10 @@
 .. _users-guide-index:
 
-############
-User's Guide
-############
+##########
+User Guide
+##########
 
-.. htmlonly::
+.. only:: html
 
     :Release: |version|
     :Date: |today|
@@ -13,6 +13,7 @@ User's Guide
     :maxdepth: 2
 
     intro.rst
-    config/index.rst
+    installing.rst
     beginners/index.rst
+    config/index.rst
     advanced/index.rst

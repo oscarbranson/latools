@@ -35,8 +35,12 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
+    'sphinx.ext.intersphinx',
     'numpydoc',
 ]
+
+intersphinx_mapping = {'pandas': ('http://pandas.pydata.org/pandas-docs/stable', None),
+                       'numpy': ('http://docs.scipy.org/doc/numpy/', None)}
 
 numpydoc_show_class_members = False
 

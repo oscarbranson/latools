@@ -4,7 +4,7 @@
 Beginner's Guide
 ################
 
-.. htmlonly::
+.. only:: html
 
     :Release: |version|
     :Date: |today|
@@ -13,13 +13,14 @@ Beginner's Guide
 .. toctree::
     :maxdepth: 2
 
-    getting-started.rst
-    data-import.rst
-    plotting.rst
-    despiking.rst
-    signal-background.rst
-    ratios.rst
-    calibration.rst
-    filtering.rst
-    statistics.rst
-    FAQ.rst
+    1-getting-started.rst
+    2-data-import.rst
+    3-plotting.rst
+    4-despiking.rst
+    5-signal-background.rst
+    6-ratios.rst
+    7-calibration.rst
+    8-filtering.rst
+    9-statistics.rst
+    10-summary.rst
+    11-FAQ.rst

@@ -2,7 +2,7 @@
 Configuration Guide
 ###################
 
-.. htmlonly::
+.. only:: html
 
     :Release: |version|
     :Date: |today|
@@ -10,5 +10,4 @@ Configuration Guide
 .. toctree::
     :maxdepth: 2
 
-    installing.rst
     customising.rst

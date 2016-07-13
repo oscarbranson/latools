@@ -1,3 +1,5 @@
+.. _beginner_FAQ:
+
 ####
 FAQs
 ####

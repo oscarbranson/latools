@@ -1,10 +1,10 @@
-.. _advanced-guide-index:
+.. _advanced_topics:
 
-##############
-Advanced Guide
-##############
+###############
+Advanced Topics
+###############
 
-.. htmlonly::
+.. only:: html
 
     :Release: |version|
     :Date: |today|
@@ -13,5 +13,9 @@ Advanced Guide
 .. toctree::
     :maxdepth: 2
 
+    structure.rst
     advanced-filtering.rst
     advanced-plotting.rst
+    data-formats.rst
+    cfg-file.rst
+    autorange-fn.rst
