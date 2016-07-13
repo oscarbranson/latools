@@ -16,9 +16,7 @@
     ]
   },
   "genfromtext_args": {
-    "skip_footer": 0,
     "delimiter": ",",
-    "comments": "     ",
     "skip_header": 4
   },
   "column_id": {
