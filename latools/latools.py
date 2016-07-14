@@ -4,7 +4,7 @@ import re
 import itertools
 import warnings
 import configparser
-import pkg_resources
+import pkg_resources as pkgrs
 import time
 import pprint
 import numpy as np
@@ -24,6 +24,7 @@ from IPython import display
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
+
 
 class analyse(object):
     """
@@ -115,16 +116,18 @@ class analyse(object):
     sample_stats
     trace_plots
     """
-    def __init__(self, data_folder, errorhunt=False, config=None, dataformat=None, extension='.csv', srm_identifier='STD'):
+    def __init__(self, data_folder, errorhunt=False, config=None,
+                 dataformat=None, extension='.csv', srm_identifier='STD'):
         """
         For processing and analysing whole LA-ICPMS datasets.
         """
         self.folder = data_folder
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
-        self.files = np.array([f for f in os.listdir(self.folder) if extension in f])
+        self.files = np.array([f for f in os.listdir(self.folder)
+                               if extension in f])
 
         # make output directories
-        self.param_dir = re.sub('//','/', self.folder + '/params/')
+        self.param_dir = re.sub('//', '/', self.folder + '/params/')
         if not os.path.isdir(self.param_dir):
             os.mkdir(self.param_dir)
         self.report_dir = re.sub('//', '/', self.folder + '/reports/')
@@ -134,7 +137,7 @@ class analyse(object):
         # load configuration parameters
         # read in config file
         conf = configparser.ConfigParser()
-        conf.read(pkg_resources.resource_filename('latools','latools.cfg'))
+        conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
         # load defaults into dict
         pconf = dict(conf.defaults())
         # if no config is given, check to see what the default setting is
@@ -142,7 +145,8 @@ class analyse(object):
             config = pconf['config']
         else:
             config = 'DEFAULT'
-        # if ther eare any non-default parameters, replace defaults in the pconf dict
+        # if ther eare any non-default parameters, replace defaults in
+        # the pconf dict
         if config != 'DEFAULT':
             for o in conf.options(config):
                 pconf[o] = conf.get(config, o)
@@ -151,21 +155,38 @@ class analyse(object):
         # check srmfile exists, and store it in a class attribute.
         if os.path.exists(pconf['srmfile']):
             self.srmfile = pconf['srmfile']
-        elif os.path.exists(pkg_resources.resource_filename('latools',pconf['srmfile'])):
-            self.srmfile = pkg_resources.resource_filename('latools',pconf['srmfile'])
+        elif os.path.exists(pkgrs.resource_filename('latools',
+                                                    pconf['srmfile'])):
+            self.srmfile = pkgrs.resource_filename('latools',
+                                                    pconf['srmfile'])
         else:
-            raise ValueError('The SRM file specified in the ' + config + ' configuration cannot be found.\nPlease make sure the file exists, and that the path in the config file is correct.\nTo locate the config file, run `latools.config_locator()`.\n\n' + config + ' file: ' + pconf['srmfile'])
+            raise ValueError(('The SRM file specified in the ' + config +
+                              ' configuration cannot be found.\n'
+                              'Please make sure the file exists, and that the '
+                              'path in the config file is correct.\n'
+                              'To locate the config file, run '
+                              '`latools.config_locator()`.\n\n'
+                              '' + config + ' file: ' + pconf['srmfile']))
 
         # load in dataformat information.
         # check dataformat file exists, and store it in a class attribute.
-        # if dataformat is not provided during initialisation, assign it from configuration file
+        # if dataformat is not provided during initialisation, assign it
+        # from configuration file
         if dataformat is None:
             if os.path.exists(pconf['dataformat']):
                 dataformat = pconf['dataformat']
-            elif os.path.exists(pkg_resources.resource_filename('latools', pconf['dataformat'])):
-                dataformat = pkg_resources.resource_filename('latools', pconf['dataformat'])
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        pconf['dataformat'])):
+                dataformat = pkgrs.resource_filename('latools',
+                                                     pconf['dataformat'])
             else:
-                raise ValueError('The dataformat file specified in the ' + config + ' configuration cannot be found.\nPlease make sure the file exists, and that the path in the config file is correct.\nTo locate the config file, run `latools.config_locator()`.\n\n' + config + ' file: ' + dataformat)
+                raise ValueError(('The dataformat file specified in the ' +
+                                  config + ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that '
+                                  'the path in the config file is correct.\n'
+                                  'To locate the config file, run '
+                                  '`latools.config_locator()`.\n\n' +
+                                  config + ' file: ' + dataformat))
             self.dataformat_file = dataformat
         else:
             self.dataformat_file = 'None: dict provided'
@@ -176,21 +197,19 @@ class analyse(object):
                 self.dataformat = eval(open(dataformat).read())
                 # self.dataformat = json.load(open(dataformat))
             else:
-                warnings.warn("The dataformat file (" + dataformat + ") cannot be found.\nPlease make sure the file exists, and that the path is correct.\n\nFile Path: " + dataformat)
-
-            # if os.path.exists(pkg_resources.resource_filename('latools',dataformat)):
-            #     self.dataformat = json.load(open(pkg_resources.resource_filename('latools',dataformat)))
-
-                # warn that default format has been loaded because provided not found.
-            # else:
-                # raise ValueError('The dataformat file specified in the' + config + ' configuration cannot be found.\nPlease make sure the file exists, and that the path in the config file is correct.\nTo locate the config file, run `latools.config_locator()`.')
+                warnings.warn(("The dataformat file (" + dataformat +
+                               ") cannot be found.\nPlease make sure the file "
+                               "exists, and that the path is correct.\n\nFile "
+                               "Path: " + dataformat))
 
         # if it's a dict, just assign it straight away.
         elif isinstance(dataformat, dict):
             self.dataformat = dataformat
 
         # load data (initialise D objects)
-        self.data = np.array([D(self.folder + '/' + f, dataformat=self.dataformat, errorhunt=errorhunt) for f in self.files])
+        self.data = np.array([D(self.folder + '/' + f,
+                                dataformat=self.dataformat,
+                                errorhunt=errorhunt) for f in self.files])
 
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].analytes)
@@ -201,19 +220,23 @@ class analyse(object):
 
         self.srm_identifier = srm_identifier
         self.stds = []
-        _ = [self.stds.append(s) for s in self.data if self.srm_identifier in s.sample]
+        _ = [self.stds.append(s) for s in self.data
+             if self.srm_identifier in s.sample]
         self.srms_ided = False
 
         self.cmaps = self.data[0].cmap
 
         f = open('errors.log', 'a')
-        f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
+        f.write(('Errors and warnings during LATOOLS analysis '
+                 'are stored here.\n\n'))
         f.close()
 
         # report
         print('latools analysis using "' + self.config + '" configuration:')
-        print('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} samples'.format(len(self.data), len(self.stds),
-              len(self.data) - len(self.stds)))
+        print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
+               'samples').format(len(self.data),
+                                 len(self.stds),
+                                 len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
@@ -230,9 +253,9 @@ class analyse(object):
         estimator (kde) of all the data. Under normal circumstances, this
         kde should find two distinct data distributions, corresponding to
         'signal' and 'background'. The minima between these two distributions
-        is taken as a rough threshold to identify signal and background regions.
-        Any point where the trace crosses this thrshold is identified as a
-        'transition'.
+        is taken as a rough threshold to identify signal and background
+        regions. Any point where the trace crosses this thrshold is identified
+        as a 'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
@@ -240,16 +263,18 @@ class analyse(object):
         width of the transitions is determined by fitting a gaussian to the
         smoothed first derivative of the analyte trace, and determining its
         width at a point where the gaussian intensity is at at `conf` time the
-        gaussian maximum. These gaussians are fit to subsets of the data centered
-        around the transitions regions determined in Step 1, +/- `win` data points.
-        The peak is further isolated by finding the minima and maxima of a second
-        derivative within this window, and the gaussian is fit to the isolated peak.
+        gaussian maximum. These gaussians are fit to subsets of the data
+        centered around the transitions regions determined in Step 1, +/- `win`
+        data points. The peak is further isolated by finding the minima and
+        maxima of a second derivative within this window, and the gaussian is
+        fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
             The analyte that autorange should consider. For best results,
-            choose an analyte that is present homogeneously in high concentrations.
+            choose an analyte that is present homogeneously in high
+            concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -271,8 +296,8 @@ class analyse(object):
         Adds
         ----
         bkg, sig, trn : bool, array_like
-            Boolean arrays the same length as the data, identifying 'background',
-            'signal' and 'transition' data regions.
+            Boolean arrays the same length as the data, identifying
+            'background', 'signal' and 'transition' data regions.
         bkgrng, sigrng, trnrng: array_like
             Pairs of values specifying the edges of the 'background', 'signal'
             and 'transition' data regions in the same units as the Time axis.
@@ -285,14 +310,15 @@ class analyse(object):
             d.autorange(analyte, gwin, win, smwin,
                         conf, trans_mult)
 
-    def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False, trimlim=None):
+    def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False,
+                     trimlim=None):
         """
         Determines exponential decay coefficient for despike filter.
 
         Fits an exponential decay function to the washout phase of standards
-        to determine the washout time of your laser cell. The exponential coefficient
-        reported is `nsd_below` standard deviations below the fitted exponent, to ensure that
-        no real data is removed.
+        to determine the washout time of your laser cell. The exponential
+        coefficient reported is `nsd_below` standard deviations below the
+        fitted exponent, to ensure that no real data is removed.
 
         Parameters
         ----------
@@ -344,12 +370,15 @@ class analyse(object):
         for analyte in analyte:
             for v in self.stds:
                 for trnrng in v.trnrng[1::2]:
-                    tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
-                    sm = np.apply_along_axis(np.nanmean, 1, v.rolling_window(tr, 3, pad=0))
+                    tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
+                                   (v.Time < trnrng[1])])
+                    sm = np.apply_along_axis(np.nanmean, 1,
+                                             v.rolling_window(tr, 3, pad=0))
                     sm[0] = sm[1]
                     trim = findtrim(sm, trimlim) + 2
                     trans.append(normalise(tr[trim:]))
-                    times.append(np.arange(tr[trim:].size) * np.diff(v.Time[:2]))
+                    times.append(np.arange(tr[trim:].size) *
+                                 np.diff(v.Time[:2]))
 
         times = np.concatenate(times)
         trans = np.concatenate(trans)
@@ -387,7 +416,12 @@ class analyse(object):
             ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
             ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5,),
                     color='b', label='Used')
-            ax.text(0.95, 0.75, 'y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: %.2f' % (ep, np.diag(ecov)**.5, eeR2, ep - nsd_below * np.diag(ecov)**.5),
+            ax.text(0.95, 0.75,
+                    ('y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: '
+                     '%.2f') % (ep,
+                                np.diag(ecov)**.5,
+                                eeR2,
+                                ep - nsd_below * np.diag(ecov)**.5),
                     transform=ax.transAxes, ha='right', va='top', size=12)
             ax.set_xlim(0, ax.get_xlim()[-1])
             ax.set_xlabel('Time (s)')
@@ -400,12 +434,14 @@ class analyse(object):
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
         print('-------------------------------------')
-        print('Exponential Decay Coefficient: {:0.2f}'.format(self.expdecay_coef[0]))
+        print(('Exponential Decay Coefficient: '
+               '{:0.2f}').format(self.expdecay_coef[0]))
         print('-------------------------------------')
 
         return
 
-    def despike(self, expdecay_despiker=True, exponent=None, tstep=None, noise_despiker=True, win=3, nlim=12., exponentplot=False):
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+                noise_despiker=True, win=3, nlim=12., exponentplot=False):
         """
         Despikes data with exponential decay and noise filters.
 
@@ -438,11 +474,13 @@ class analyse(object):
         if exponent is None:
             if ~hasattr(self, 'expdecay_coef'):
                 print('Exponential Decay Coefficient not provided.')
-                print('Coefficient will be determined from the washout\ntimes of the standards (takes a while...).')
+                print(('Coefficient will be determined from the washout\n'
+                       'times of the standards (may take a while...).'))
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
         for d in self.data:
-            d.despike(expdecay_despiker, exponent, tstep, noise_despiker, win, nlim)
+            d.despike(expdecay_despiker, exponent, tstep,
+                      noise_despiker, win, nlim)
         return
 
     def save_ranges(self):
@@ -450,7 +488,8 @@ class analyse(object):
         Saves signal/background/transition data ranges for each sample.
         """
         if os.path.isfile(self.param_dir + 'bkg.rng'):
-            f = input('Range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
+            f = input(('Range files already exist. Do you want to overwrite '
+                       'them (old files will be lost)? [Y/n]: '))
             if 'n' in f or 'N' in f:
                 print('Ranges not saved. Run self.save_ranges() to try again.')
                 return
@@ -609,7 +648,8 @@ class analyse(object):
         nms0 = id(self, s)
 
         if len(self.stds) > 1:
-            ans = input('Were all other SRMs measured in the same sequence? [Y/n]')
+            ans = input(('Were all other SRMs measured in '
+                         'the same sequence? [Y/n]'))
             if ans.lower() == 'n':
                 for s in self.stds[1:]:
                     id(self, s)
@@ -676,7 +716,8 @@ class analyse(object):
 
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
-                  srmfile=None, analytes=None):
+                  srmfile=None, analytes=None,
+                  uncertainties=True):
         """
         Calibrates the data to measured SRM values.
 
@@ -725,15 +766,12 @@ class analyse(object):
         srmtable = []
         for a in self.analytes:
             analyte_name = re.sub("[^A-Za-z]", "", a)
-            srmtable.append(srmdat.loc[srmdat.index.str.contains(r'|'.join(srm_names)) & srmdat.Item.str.contains(analyte_name)])
+            tmp = srmdat.loc[srmdat.index.str.contains(r'|'.join(srm_names)) &
+                             srmdat.Item.str.contains(analyte_name)]
+            if len(tmp) > len(srm_names):
+                tmp = tmp.loc[tmp.Item == analyte_name, :]
+            srmtable.append(tmp)
         self.srmtable = pd.concat(srmtable, keys=self.analytes)
-
-        # f = open(self.srmfile).readlines()
-        # self.srm_vals = {}
-        # for srm in self.stds[0].std_labels.keys():
-        #     self.srm_vals[srm] = {}
-        #     for a in self.analytes:
-        #         self.srm_vals[srm][a] = [l.split(',')[1] for l in f if re.match(re.sub("[^A-Za-z]", "", a) + '.*' + srm, l.strip()) is not None][0]
 
         # make calibration
         if not hasattr(self, 'calib_dict'):
@@ -747,6 +785,7 @@ class analyse(object):
         for a in analytes:
             self.calib_data[a] = {}
             self.calib_data[a]['srm'] = []
+            self.calib_data[a]['errs'] = []
             self.calib_data[a]['counts'] = []
             x = []
             y = []
@@ -755,21 +794,49 @@ class analyse(object):
                 for srm in s.std_labels.keys():
                     y = s.focus[a][s.std_labels[srm]]
                     y = y[~np.isnan(y)]
-                    x = [float(self.srmtable.loc[(a, srm), 'Value'])] * len(y)
+                    x = [self.srmtable.loc[(a, srm), 'Value'].astype(float)] * len(y)
+                    if np.isnan(self.srmtable.loc[(a, srm), 'Uncertainty']):
+                        x_err = [0] * len(y)
+                    else:
+                        x_err = [self.srmtable.loc[(a, srm), 'Uncertainty'].astype(float)] * len(y)
 
                     self.calib_data[a]['counts'].append(y)
                     self.calib_data[a]['srm'].append(x)
+                    self.calib_data[a]['errs'].append(x_err)
 
-            self.calib_data[a]['counts'] = np.concatenate(self.calib_data[a]['counts']).astype(float)
-            self.calib_data[a]['srm'] = np.concatenate(self.calib_data[a]['srm']).astype(float)
+            self.calib_data[a]['counts'] = \
+                np.concatenate(self.calib_data[a]['counts']).astype(float)
+            self.calib_data[a]['srm'] = \
+                np.concatenate(self.calib_data[a]['srm']).astype(float)
+            self.calib_data[a]['errs'] = \
+                np.concatenate(self.calib_data[a]['errs']).astype(float)
 
-            if poly_n == 0:
-                self.calib_dict[a], _, _, _ = np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
-                                                              self.calib_data[a]['srm'])
+            # calculate calibration parameters
+            calibfn = {0: self.linfn0,
+                       1: self.linfn1,
+                       2: self.linfn2}
+
+            if poly_n > 2:
+                raise ValueError('poly_n max exceeded: must be 2 or less.')
+            fitfn = calibfn[poly_n]
+
+            if poly_n > 0:
+                p0 = tuple([1] * poly_n + [0])
             else:
-                self.calib_dict[a] = np.polyfit(self.calib_data[a]['counts'],
-                                                self.calib_data[a]['srm'],
-                                                poly_n)
+                p0 = 0
+
+            if uncertainties:
+                p, cov = curve_fit(fitfn,
+                                   self.calib_data[a]['counts'],
+                                   self.calib_data[a]['srm'],
+                                   sigma=self.calib_data[a]['errs'])
+            else:
+                p, cov = curve_fit(fitfn,
+                                   self.calib_data[a]['counts'],
+                                   self.calib_data[a]['srm'])
+            err = np.sqrt(np.diag(cov))
+
+            self.calib_dict[a] = un.uarray(p, err)
 
         # apply calibration
         for d in self.data:
@@ -779,13 +846,22 @@ class analyse(object):
         # self.save_calibration()
         return
 
-    # data filtering
+    def linfn0(self, x, m):
+        return x * m
 
+    def linfn1(self, x, m, c):
+        return x * m + c
+
+    def linfn2(self, x, n, m, c):
+        return n * x**2 + x * m + c
+
+    # data filtering
     def filter_threshold(self, analyte, threshold, filt=False, samples=None):
         """
         Applies a threshold filter to the data.
 
-        Generates two filters above and below the threshold value for a given analyte.
+        Generates two filters above and below the threshold value for a
+        given analyte.
 
         Parameters
         ----------
@@ -812,8 +888,8 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
-    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None,
-                            samples=None):
+    def filter_distribution(self, analyte, binwidth='scott', filt=False,
+                            transform=None, samples=None):
         """
         Applies a distribution filter to the data.
 
@@ -847,7 +923,9 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_distribution(analyte, binwidth='scott', filt=False, transform=None, output=False)
+            self.data_dict[s].filter_distribution(analyte, binwidth='scott',
+                                                  filt=False, transform=None,
+                                                  output=False)
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False, samples=None,
@@ -863,8 +941,8 @@ class analyse(object):
             Whether or not to apply existing filters to the data before
             calculating this filter.
         normalise : bool
-            Whether or not to normalise the data to zero mean and unit variance.
-            Reccomended if clustering based on more than 1 analyte.
+            Whether or not to normalise the data to zero mean and unit
+            variance. Reccomended if clustering based on more than 1 analyte.
             Uses `sklearn.preprocessing.scale`.
         method : str
             Which clustering algorithm to use. Can be:
@@ -878,22 +956,24 @@ class analyse(object):
                           the expected number of clusters.
                 'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
                           determines the number and characteristics of clusters
-                          within the data based on the 'connectivity' of the data
-                          (i.e. how far apart each data point is in a
-                          multi-dimensional parameter space). Requires you to set
-                          `eps`, the minimum distance point must be from another
-                          point to be considered in the same cluster, and
-                          `min_samples`, the minimum number of points that must be
-                          within the minimum distance for it to be considered a
-                          cluster. It may also be run in automatic mode by specifying
-                          `n_clusters` alongside `min_samples`, where eps is
-                          decreased until the desired number of clusters is obtained.
-                For more information on these algorithms, refer to the documentation.
+                          within the data based on the 'connectivity' of the
+                          data (i.e. how far apart each data point is in a
+                          multi-dimensional parameter space). Requires you to
+                          set `eps`, the minimum distance point must be from
+                          another point to be considered in the same cluster,
+                          and `min_samples`, the minimum number of points that
+                          must be within the minimum distance for it to be
+                          considered a cluster. It may also be run in automatic
+                          mode by specifying `n_clusters` alongside
+                          `min_samples`, where eps is decreased until the
+                          desired number of clusters is obtained.
+                For more information on these algorithms, refer to the
+                documentation.
         include_time : bool
-            Whether or not to include the Time variable in the clustering analysis.
-            Useful if you're looking for spatially continuous clusters in your data,
-            i.e. this will identify each spot in your analysis as an individual
-            cluster.
+            Whether or not to include the Time variable in the clustering
+            analysis. Useful if you're looking for spatially continuous
+            clusters in your data, i.e. this will identify each spot in your
+            analysis as an individual cluster.
         samples : optional, array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
@@ -902,7 +982,8 @@ class analyse(object):
             be sorted by the mean magnitude of the signals
             they are based on (0 = lowest)
         **kwargs
-            Parameters passed to the clustering algorithm specified by `method`.
+            Parameters passed to the clustering algorithm specified by
+            `method`.
 
         Meanshift Parameters
         --------------------
@@ -923,14 +1004,15 @@ class analyse(object):
         eps : float
             The minimum 'distance' points must be apart for them to be in the
             same cluster. Defaults to 0.3. Note: If the data are normalised
-            (they should be for DBSCAN) this is in terms of total sample variance.
-            Normalised data have a mean of 0 and a variance of 1.
+            (they should be for DBSCAN) this is in terms of total sample
+            variance. Normalised data have a mean of 0 and a variance of 1.
         min_samples : int
             The minimum number of samples within distance `eps` required
             to be considered as an independent cluster.
         n_clusters : int
             The number of clusters expected. If specified, `eps` will be
-            incrementally reduced until the expected number of clusters is found.
+            incrementally reduced until the expected number of clusters is
+            found.
         maxiter : int
             The maximum number of iterations DBSCAN will run.
 
@@ -944,11 +1026,14 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_clustering(analytes, filt=filt, normalise=normalise, method=method,
-                                                include_time=include_time, **kwargs)
+            self.data_dict[s].filter_clustering(analytes, filt=filt,
+                                                normalise=normalise,
+                                                method=method,
+                                                include_time=include_time,
+                                                **kwargs)
 
-    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9,
-                           p_threshold=0.05, filt=True):
+    def filter_correlation(self, x_analyte, y_analyte, window=None,
+                           r_threshold=0.9, p_threshold=0.05, filt=True):
         """
         Applies a correlation filter to the data.
 
@@ -988,7 +1073,9 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_correlation(x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True)
+            self.data_dict[s].filter_correlation(x_analyte, y_analyte,
+                                                 window=None, r_threshold=0.9,
+                                                 p_threshold=0.05, filt=True)
 
     def filter_on(self, filt=None, analyte=None, samples=None):
         """
@@ -1061,7 +1148,7 @@ class analyse(object):
     #     else:
 
     # plot calibrations
-    def calibration_plot(self, analytes=None, plot='errbar'):
+    def calibration_plot(self, analytes=None, plot='scatter'):
         """
         Plot the calibration lines between measured and known SRM values.
 
@@ -1083,19 +1170,14 @@ class analyse(object):
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
 
-        def rangecalc(xs, ys, pad=0.05):
-            xd = max(xs)
-            yd = max(ys)
-            return ([0 - pad * xd, max(xs) + pad * xd],
-                    [0 - pad * yd, max(ys) + pad * yd])
-
         n = len(analytes)
         if n % 4 is 0:
-            nrow = n/4
+            nrow = n/3
         else:
-            nrow = n//4 + 1
+            nrow = n//3 + 1
 
-        fig, axes = plt.subplots(int(nrow), 4, figsize=[12, 3 * nrow], tight_layout=True)
+        fig, axes = plt.subplots(int(nrow), 3, figsize=[12, 3 * nrow],
+                                 tight_layout=True)
 
         for ax, a in zip(axes.flat, analytes):
             if plot is 'errbar':
@@ -1115,24 +1197,51 @@ class analyse(object):
             if plot is 'scatter':
                 ax.scatter(self.calib_data[a]['counts'],
                            self.calib_data[a]['srm'],
-                           color=self.cmaps[a], alpha=0.2)
+                           color=self.cmaps[a], alpha=0.2,
+                           s=3)
             xlim, ylim = rangecalc(self.calib_data[a]['counts'],
-                                   self.calib_data[a]['srm'])
+                                        self.calib_data[a]['srm'])
+
             xlim[0] = ylim[0] = 0
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
 
+            # plot SRM errors
+            for v in np.unique(self.calib_data[a]['srm']):
+                ind = self.calib_data[a]['srm'] == v
+                x = self.calib_data[a]['counts'][ind]
+                bxlim = (np.nanmin(x), np.nanmax(x))
+                bxlim /= np.diff(ax.get_xlim())
+                err = np.nanmean(self.calib_data[a]['errs'][ind])
+
+                ax.axhspan(v-err, v+err, *bxlim, color=self.cmaps[a],
+                           alpha=0.2, zorder=-1)
+
             # calculate line
             x = np.array(xlim)
             coefs = self.calib_dict[a]
-            if len(coefs) == 1:
-                line = x * coefs[0]
-                label = 'y = {:0.3e}x'.format(coefs[0])
-            else:
-                line = x * coefs[0] + coefs[1]
-                label = 'y = {:0.3e}x + {:0.3e}'.format(coefs[0], coefs[1])
+            poly_n = len(coefs)-1
+
+            ps, errs = unpack_uncertainties(coefs)
+
+            calibfn = {0: self.linfn0,
+                       1: self.linfn1,
+                       2: self.linfn2}
+
+            line = calibfn[poly_n](x, *ps)
+
+            R2 = R2calc(self.calib_data[a]['srm'],
+                        calibfn[poly_n](self.calib_data[a]['counts'], *ps))
+
+            labelstr = {0: 'y = {:.2e} x',
+                        1: 'y = {:.2e} x\n+ {:.2e}',
+                        2: 'y = {:.2e} $x^2$\n+ {:.2e} x\n+ {:.2e}'}
+
+            label = (labelstr[poly_n].format(*coefs) +
+                     '\n$R^2$: {:.4f}'.format(R2))
+
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
-            ax.text(.05, .95, a, transform=ax.transAxes,
+            ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                     weight='bold', va='top', ha='left', size=12)
             ax.set_xlabel('counts/counts Ca')
             ax.set_ylabel('mol/mol Ca')
@@ -1234,14 +1343,16 @@ class analyse(object):
         udict = {}
         for i, j in zip(*np.triu_indices_from(axes, k=1)):
             for x, y in [(i, j), (j, i)]:
+                xd = nominal_values(self.focus[analytes[x]])
+                yd = nominal_values(self.focus[analytes[y]])
                 # set unit multipliers
-                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]))
-                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]))
+                mx, ux = unitpicker(np.nanmin(x))
+                my, uy = unitpicker(np.nanmax(y))
                 udict[analytes[x]] = (x, ux)
 
                 # make plot
-                px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
-                py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
+                px = xd[~np.isnan(xd)] * mx
+                py = yx[~np.isnan(yd)] * my
                 if lognorm:
                     axes[x, y].hist2d(py, px, bins,
                                       norm=mpl.colors.LogNorm(),
@@ -1266,8 +1377,10 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, samples=None, ranges=False, focus=None, outdir=None, filt=False,
-                    scale='log', figsize=[10, 4], stats=True, stat='nanmean', err='nanstd',):
+    def trace_plots(self, analytes=None, samples=None, ranges=False,
+                    focus=None, outdir=None, filt=False, scale='log',
+                    figsize=[10, 4], stats=True, stat='nanmean',
+                    err='nanstd',):
         """
         Plot analytes as a function of time.
 
@@ -1321,8 +1434,10 @@ class analyse(object):
             samples = self.samples
         for s in samples:
             self.data_dict[s].setfocus(focus)
-            fig = self.data_dict[s].tplot(analytes=analytes, figsize=figsize, scale=scale, filt=filt,
-                                          ranges=ranges, stats=stats, stat=stat, err=err)
+            fig = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
+                                          scale=scale, filt=filt,
+                                          ranges=ranges, stats=stats,
+                                          stat=stat, err=err)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -1332,6 +1447,29 @@ class analyse(object):
             plt.close(fig)
             self.data_dict[s].setfocus(stg)
 
+    # filter reports
+    def filter_reports(self, filt_str, analytes, ):
+        """
+        Plot filter reports for all filters that contain ``filt_str``
+        in the name.
+        """
+        if outdir is None:
+            outdir = self.report_dir + '/filters/' + filt_str
+            if not os.path.isdir(self.report_dir + '/filters'):
+                os.mkdir(self.report_dir + '/filters')
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        if samples is None:
+            samples = self.samples
+
+        for s in samples:
+            fig = self.data_dict[s].filt_report(filt=filt_str,
+                                                analytes=analytes,
+                                                savedir=outdir)
+            fig.savefig(outdir + '/' + s + '.pdf')
+            plt.close(fig)
+        return
 
     def stat_boostrap(self, analytes=None, filt=True,
                       stat_fn=np.nanmean, ci=95):
@@ -1409,24 +1547,6 @@ class analyse(object):
 
                 self.stats[s.sample] = s.stats
 
-        # for f in stat_fns:
-        #     setattr(self, f.__name__, [])
-        #     for s in self.data:
-        #         setattr(s, f.__name__, [])
-        #         if analytes is None:
-        #             analytes = self.analytes
-        #         for a in analytes:
-        #             if filt and hasattr(s, filts):
-        #                 if a in s.filts.keys():
-        #                     ind = s.filts[a]
-        #             else:
-        #                 ind = np.array([True] * s.focus[a].size)
-
-        #             getattr(s, f.__name__).append(f(s.focus[a][ind]))
-        #         getattr(self, f.__name__).append(getattr(s, f.__name__))
-        #     setattr(self, f.__name__, np.array(getattr(self, f.__name__)))
-        # return (np.array([f.__name__ for f in stat_fns]), np.array(self.samples), np.array(analytes)), np.array([getattr(self, f.__name__) for f in stat_fns])
-
     def getstats(self, path=None):
         """
         Return pandas dataframe of all sample statistics.
@@ -1434,7 +1554,8 @@ class analyse(object):
         slst = []
 
         for s in self.stats_calced:
-            for nm in [n for n in self.samples if self.srm_identifier not in n.upper()]:
+            for nm in [n for n in self.samples if self.srm_identifier
+                       not in n.upper()]:
                 # make multi-index
                 reps = np.arange(self.stats[nm][s].shape[1])
                 ss = np.array([s] * reps.size)
@@ -1443,7 +1564,8 @@ class analyse(object):
                 stdf = pd.DataFrame(self.stats[nm][s].T,
                                     columns=self.stats[nm]['analytes'],
                                     index=[ss, nms, reps])
-                stdf.index.set_names(['statistic', 'sample', 'rep'], inplace=True)
+                stdf.index.set_names(['statistic', 'sample', 'rep'],
+                                     inplace=True)
                 slst.append(stdf)
         out = pd.concat(slst)
 
@@ -1495,7 +1617,7 @@ class analyse(object):
             # calculate parameter 'sets'
             sets = np.zeros(params.shape)
             for c in np.arange(plist.size):
-                col = params[:,c]
+                col = params[:, c]
                 i = 0
                 for r in np.arange(1, col.size):
                     if isinstance(col[r], (str, float, dict, int)):
@@ -1505,9 +1627,9 @@ class analyse(object):
                         if any(col[r] != col[r-1]):
                             i += 1
 
-                    sets[r,c] = i
+                    sets[r, c] = i
 
-            ssets = np.apply_along_axis(sum,1,sets)
+            ssets = np.apply_along_axis(sum, 1, sets)
             nsets = np.unique(ssets, return_counts=True)
             setorder = np.argsort(nsets[1])[::-1]
 
@@ -1520,10 +1642,12 @@ class analyse(object):
                 if first:
                     out['general'] = dparams[setn_samples[0]]
                     del out['general']['sample']
-                    general_key = sets[self.samples == setn_samples[0],:][0,:]
+                    general_key = \
+                        sets[self.samples == setn_samples[0], :][0, :]
                     first = False
                 else:
-                    setn_key = sets[self.samples == setn_samples[0],:][0,:]
+                    setn_key = \
+                        sets[self.samples == setn_samples[0], :][0, :]
                     exception_param = plist[general_key != setn_key]
                     for s in setn_samples:
                         out['exceptions'][s] = {}
@@ -1570,6 +1694,7 @@ class analyse(object):
 
 
 analyze = analyse  # for the yanks
+
 
 class D(object):
     """
@@ -1667,7 +1792,9 @@ class D(object):
     """
     def __init__(self, data_file, dataformat=None, errorhunt=False):
         if errorhunt:
-            print(data_file)  # errorhunt prints each csv file name before it tries to load it, so you can tell which file is failing to load.
+            # errorhunt prints each csv file name before it tries to load it,
+            # so you can tell which file is failing to load.
+            print(data_file)
         self.file = data_file
         self.sample = os.path.basename(self.file).split('.')[0]
 
@@ -1689,19 +1816,27 @@ class D(object):
                 columns[timecol] = 'Time'
                 self.analytes = columns[~timecol]
 
-        read_data = np.genfromtxt(data_file, **dataformat['genfromtext_args']).T
+        read_data = np.genfromtxt(data_file,
+                                  **dataformat['genfromtext_args']).T
 
         # create data dict
         self.data = {}
-        self.data['rawdata'] = dict(zip(columns,read_data))
+        self.data['rawdata'] = dict(zip(columns, read_data))
 
         # set focus to rawdata
         self.setfocus('rawdata')
 
         # make a colourmap for plotting
-        self.cmap = dict(zip(self.analytes,
-                             cb.get_map('Paired', 'qualitative',
-                                        len(columns)).hex_colors))
+        try:
+            self.cmap = dict(zip(self.analytes,
+                                 cb.get_map('Paired', 'qualitative',
+                                            len(columns)).hex_colors))
+        except:
+            self.cmap = \
+                dict(zip(self.analytes,
+                         [mpl.colors.rgb2hex(c) for c
+                          in plt.cm.Dark2(np.linspace(0, 1,
+                                                      len(self.analytes)))]))
 
         # set up flags
         self.sig = np.array([False] * self.Time.size)
@@ -1742,7 +1877,8 @@ class D(object):
                     padded with np.nan. Created by self.separate, after
                     signal and background regions have been identified by
                     self.autorange.
-                'bkgsub': background subtracted data, created by self.bkg_correct
+                'bkgsub': background subtracted data, created by
+                    self.bkg_correct
                 'ratios': element ratio data, created by self.ratio.
                 'calibrated': ratio data calibrated to standards, created by
                     self.calibrate.
@@ -1818,10 +1954,12 @@ class D(object):
 
                 if sum(over) > 0:
                     # get adjacent values to over-limit values
-                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                            v[np.roll(over, 1)][:, np.newaxis]])
+                    neighbours = \
+                        np.hstack([v[np.roll(over, -1)][:, np.newaxis],
+                                   v[np.roll(over, 1)][:, np.newaxis]])
                     # calculate the mean of the neighbours
-                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
+                    replacements = np.apply_along_axis(np.nanmean, 1,
+                                                       neighbours)
                     # and subsitite them in
                     v[over] = replacements
                 self.data['despiked'][a] = v
@@ -1853,28 +1991,40 @@ class D(object):
             v = vo.copy()
             if 'time' not in a.lower():
                 # calculate rolling mean
-                with warnings.catch_warnings():  # to catch 'empty slice' warnings
+                with warnings.catch_warnings():
+                    # to catch 'empty slice' warnings
                     warnings.simplefilter("ignore", category=RuntimeWarning)
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
-                # calculate rolling standard deviation (count statistics, so **0.5)
+                    rmean = \
+                        np.apply_along_axis(np.nanmean, 1,
+                                            self.rolling_window(v, win,
+                                                                pad=np.nan))
+                    rmean = \
+                        np.apply_along_axis(np.nanmean, 1,
+                                            self.rolling_window(v, win,
+                                                                pad=np.nan))
+                # calculate rolling standard deviation
+                # (count statistics, so **0.5)
                 rstd = rmean**0.5
 
-                # find which values are over the threshold (v > rmean + nlim * rstd)
+                # find which values are over the threshold
+                # (v > rmean + nlim * rstd)
                 over = v > rmean + nlim * rstd
                 if sum(over) > 0:
                     # get adjacent values to over-limit values
-                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                            v[np.roll(over, 1)][:, np.newaxis]])
+                    neighbours = \
+                        np.hstack([v[np.roll(over, -1)][:, np.newaxis],
+                                   v[np.roll(over, 1)][:, np.newaxis]])
                     # calculate the mean of the neighbours
-                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
+                    replacements = np.apply_along_axis(np.nanmean, 1,
+                                                       neighbours)
                     # and subsitite them in
                     v[over] = replacements
                 self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
-    def despike(self, expdecay_despiker=True, exponent=None, tstep=None, noise_despiker=True, win=3, nlim=12.):
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+                noise_despiker=True, win=3, nlim=12.):
         """
         Applies expdecay_despiker and noise_despiker to data.
 
@@ -2075,9 +2225,9 @@ class D(object):
         estimator (kde) of all the data. Under normal circumstances, this
         kde should find two distinct data distributions, corresponding to
         'signal' and 'background'. The minima between these two distributions
-        is taken as a rough threshold to identify signal and background regions.
-        Any point where the trace crosses this thrshold is identified as a
-        'transition'.
+        is taken as a rough threshold to identify signal and background
+        regions. Any point where the trace crosses this thrshold is identified
+        as a 'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
@@ -2085,16 +2235,18 @@ class D(object):
         width of the transitions is determined by fitting a gaussian to the
         smoothed first derivative of the analyte trace, and determining its
         width at a point where the gaussian intensity is at at `conf` time the
-        gaussian maximum. These gaussians are fit to subsets of the data centered
-        around the transitions regions determined in Step 1, +/- `win` data points.
-        The peak is further isolated by finding the minima and maxima of a second
-        derivative within this window, and the gaussian is fit to the isolated peak.
+        gaussian maximum. These gaussians are fit to subsets of the data
+        centered around the transitions regions determined in Step 1, +/- `win`
+        data points. The peak is further isolated by finding the minima and
+        maxima of a second derivative within this window, and the gaussian is
+        fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
             The analyte that autorange should consider. For best results,
-            choose an analyte that is present homogeneously in high concentrations.
+            choose an analyte that is present homogeneously in high
+            concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -2117,8 +2269,8 @@ class D(object):
         Adds
         ----
         bkg, sig, trn : bool, array_like
-            Boolean arrays the same length as the data, identifying 'background',
-            'signal' and 'transition' data regions.
+            Boolean arrays the same length as the data, identifying
+            'background', 'signal' and 'transition' data regions.
         bkgrng, sigrng, trnrng: array_like
             Pairs of values specifying the edges of the 'background', 'signal'
             and 'transition' data regions in the same units as the Time axis.
@@ -2132,7 +2284,6 @@ class D(object):
         self.autorange_params = params
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
-        # bkg = np.array([True] * self.Time.size)  # initialise background array
 
         v = self.focus[analyte]  # get trace data
         vl = np.log10(v[v > 1])  # remove zeros from value
@@ -2186,11 +2337,12 @@ class D(object):
             except:
                 try:
                     # fit a gaussian to the transition gradient
-                    pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
-                                                            x[y == np.nanmax(y)],
-                                                            (upper - lower) / 2))
-                    # get the x positions when the fitted gaussian is at 'conf' of
-                    # maximum
+                    pg, _ = curve_fit(self.gauss, x, y,
+                                      p0=(np.nanmax(y),
+                                          x[y == np.nanmax(y)],
+                                          (upper - lower) / 2))
+                    # get the x positions when the fitted gaussian is at
+                    # 'conf' of maximum
                     tran.append(self.gauss_inv(conf, *pg[1:]) +
                                 pg[-1] * np.array(trans_mult))
                 except:
@@ -2214,8 +2366,10 @@ class D(object):
         corr = False
         for b in self.bkgrng.flat:
             if (self.sigrng - b < 0.3 * trw).any():
-                self.bkg[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
-                self.sig[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
+                self.bkg[(self.Time >= b - trw/2) &
+                         (self.Time <= b + trw/2)] = False
+                self.sig[(self.Time >= b - trw/2) &
+                         (self.Time <= b + trw/2)] = False
                 corr = True
 
         if corr:
@@ -2265,7 +2419,8 @@ class D(object):
         Parameters
         ----------
         rng : array_like
-            [min,max] pairs defining the upper and lowe limits of background regions.
+            [min,max] pairs defining the upper and lowe limits of background
+            regions.
 
         Returns
         -------
@@ -2298,7 +2453,8 @@ class D(object):
         Parameters
         ----------
         rng : array_like
-            [min,max] pairs defining the upper and lowe limits of signal regions.
+            [min,max] pairs defining the upper and lowe limits of signal
+            regions.
 
         Returns
         -------
@@ -2320,7 +2476,8 @@ class D(object):
 
     def makerangebools(self):
         """
-        Calculate signal and background boolean arrays from lists of limit pairs.
+        Calculate signal and background boolean arrays from lists of limit
+        pairs.
         """
         self.sig = tuples_2_bool(self.sigrng, self.Time)
         self.bkg = tuples_2_bool(self.bkgrng, self.Time)
@@ -2362,7 +2519,8 @@ class D(object):
         Parameters
         ----------
         mode : str or int
-            'constant' or an int describing the degree of polynomial background.
+            'constant' or an int describing the degree of polynomial
+            background.
 
         Returns
         -------
@@ -2379,11 +2537,16 @@ class D(object):
         self.data['bkgsub'] = {}
         if mode == 'constant':
             for c in self.analytes:
-                self.data['bkgsub'][c] = self.data['signal'][c] - np.nanmean(self.data['background'][c])
+                self.data['bkgsub'][c] = \
+                    (self.data['signal'][c] -
+                     np.nanmean(self.data['background'][c]))
         if (mode != 'constant'):
             for c in self.analytes:
-                p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg], mode)
-                self.data['bkgsub'][c] = self.data['signal'][c] - np.polyval(p, self.Time)
+                p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg],
+                               mode)
+                self.data['bkgsub'][c] = \
+                    (self.data['signal'][c] -
+                     np.polyval(p, self.Time))
         self.setfocus('bkgsub')
         return
 
@@ -2542,16 +2705,23 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+        vals = np.vstack(nominal_values(list(self.focus.values())))
+        if filt:
+            ind = (self.filt.grab_filt(filt, analyte) &
+                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
+        else:
+            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
+
+        trace = nominal_values(self.focus[analyte])
 
         self.filt.add(analyte + '_thresh_below',
-                           self.focus[analyte] <= threshold,
-                           'Keep below {:.3e} '.format(threshold) + analyte,
-                           params)
+                      trace <= threshold,
+                      'Keep below {:.3e} '.format(threshold) + analyte,
+                      params)
         self.filt.add(analyte + '_thresh_above',
-                           self.focus[analyte] >= threshold,
-                           'Keep above {:.3e} '.format(threshold) + analyte,
-                           params)
+                      trace >= threshold,
+                      'Keep above {:.3e} '.format(threshold) + analyte,
+                      params)
 
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None):
@@ -2581,10 +2751,15 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+        vals = np.vstack(nominal_values(list(self.focus.values())))
+        if filt:
+            ind = (self.filt.grab_filt(filt, analyte) &
+                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
+        else:
+            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
         # isolate data
-        d = self.focus[analyte][ind]
+        d = nominal_values(self.focus[analyte][ind])
 
         if transform == 'log':
             d = np.log10(d)
@@ -2633,8 +2808,8 @@ class D(object):
             Whether or not to apply existing filters to the data before
             calculating this filter.
         normalise : bool
-            Whether or not to normalise the data to zero mean and unit variance.
-            Reccomended if clustering based on more than 1 analyte.
+            Whether or not to normalise the data to zero mean and unit
+            variance. Reccomended if clustering based on more than 1 analyte.
             Uses `sklearn.preprocessing.scale`.
         method : str
             Which clustering algorithm to use. Can be:
@@ -2648,28 +2823,31 @@ class D(object):
                           the expected number of clusters.
                 'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
                           determines the number and characteristics of clusters
-                          within the data based on the 'connectivity' of the data
-                          (i.e. how far apart each data point is in a
-                          multi-dimensional parameter space). Requires you to set
-                          `eps`, the minimum distance point must be from another
-                          point to be considered in the same cluster, and
-                          `min_samples`, the minimum number of points that must be
-                          within the minimum distance for it to be considered a
-                          cluster. It may also be run in automatic mode by specifying
-                          `n_clusters` alongside `min_samples`, where eps is
-                          decreased until the desired number of clusters is obtained.
-                For more information on these algorithms, refer to the documentation.
+                          within the data based on the 'connectivity' of the
+                          data (i.e. how far apart each data point is in a
+                          multi-dimensional parameter space). Requires you to
+                          set `eps`, the minimum distance point must be from
+                          another point to be considered in the same cluster,
+                          and `min_samples`, the minimum number of points that
+                          must be within the minimum distance for it to be
+                          considered a cluster. It may also be run in automatic
+                          mode by specifying `n_clusters` alongside
+                          `min_samples`, where eps is decreased until the
+                          desired number of clusters is obtained.
+                For more information on these algorithms, refer to the
+                documentation.
         include_time : bool
-            Whether or not to include the Time variable in the clustering analysis.
-            Useful if you're looking for spatially continuous clusters in your data,
-            i.e. this will identify each spot in your analysis as an individual
-            cluster.
+            Whether or not to include the Time variable in the clustering
+            analysis. Useful if you're looking for spatially continuous
+            clusters in your data, i.e. this will identify each spot in your
+            analysis as an individual cluster.
         sort : bool
             Whether or not you want the cluster labels to
             be sorted by the mean magnitude of the signals
             they are based on (0 = lowest)
         **kwargs
-            Parameters passed to the clustering algorithm specified by `method`.
+            Parameters passed to the clustering algorithm specified by
+            `method`.
 
         Meanshift Parameters
         --------------------
@@ -2690,14 +2868,15 @@ class D(object):
         eps : float
             The minimum 'distance' points must be apart for them to be in the
             same cluster. Defaults to 0.3. Note: If the data are normalised
-            (they should be for DBSCAN) this is in terms of total sample variance.
-            Normalised data have a mean of 0 and a variance of 1.
+            (they should be for DBSCAN) this is in terms of total sample
+            variance. Normalised data have a mean of 0 and a variance of 1.
         min_samples : int
             The minimum number of samples within distance `eps` required
             to be considered as an independent cluster.
         n_clusters : int
             The number of clusters expected. If specified, `eps` will be
-            incrementally reduced until the expected number of clusters is found.
+            incrementally reduced until the expected number of clusters is
+            found.
         maxiter : int
             The maximum number of iterations DBSCAN will run.
 
@@ -2713,10 +2892,12 @@ class D(object):
             analytes = [analytes]
 
         # generate filter
+        vals = np.vstack(nominal_values(list(self.focus.values())))
         if filt:
-            ind = self.filt.grab_filt(filt, analytes) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+            ind = (self.filt.grab_filt(filt, analyte) &
+                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
         else:
-            ind = np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
         # get indices for data passed to clustering
         sampled = np.arange(self.Time.size)[ind]
@@ -2724,15 +2905,15 @@ class D(object):
         # generate data for clustering
         if len(analytes) == 1:
             # if single analyte
-            d = self.focus[analytes[0]][ind]
+            d = nominal_values(self.focus[analytes[0]][ind])
             if include_time:
                 t = self.Time[ind]
-                ds = np.vstack([d,t]).T
+                ds = np.vstack([d, t]).T
             else:
-                ds = np.array(list(zip(d,np.zeros(len(d)))))
+                ds = np.array(list(zip(d, np.zeros(len(d)))))
         else:
             # package multiple analytes
-            d = [self.focus[a][ind] for a in analytes]
+            d = [nominal_values(self.focus[a][ind]) for a in analytes]
             if include_time:
                 d.append(self.Time[ind])
             ds = np.vstack(d).T
@@ -2746,7 +2927,8 @@ class D(object):
 
         cfun = method_key[method]
 
-        filts = cfun(ds, **kwargs, sort=sort)  # return dict of cluster_no: (filt, params)
+        filts = cfun(ds, **kwargs, sort=sort)
+        # return dict of cluster_no: (filt, params)
 
         resized = {}
         for k, v in filts.items():
@@ -2757,7 +2939,7 @@ class D(object):
         info = '-'.join(analytes) + ' cluster filter.'
 
         if method == 'DBSCAN':
-            for k,v in resized.items():
+            for k, v in resized.items():
                 if isinstance(k, str):
                     name = namebase + '_core'
                 elif k < 0:
@@ -2766,13 +2948,14 @@ class D(object):
                     name = namebase + '_{:.0f}'.format(k)
                 self.filt.add(name, v, info=info, params=params)
         else:
-            for k,v in resized.items():
+            for k, v in resized.items():
                 name = namebase + '_{:.0f}'.format(k)
                 self.filt.add(name, v, info=info, params=params)
 
         return
 
-    def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False, sort=True):
+    def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False,
+                          sort=True):
         """
         Identify clusters using Meanshift algorithm.
 
@@ -2869,14 +3052,15 @@ class D(object):
         eps : float
             The minimum 'distance' points must be apart for them to be in the
             same cluster. Defaults to 0.3. Note: If the data are normalised
-            (they should be for DBSCAN) this is in terms of total sample variance.
-            Normalised data have a mean of 0 and a variance of 1.
+            (they should be for DBSCAN) this is in terms of total sample
+            variance.  Normalised data have a mean of 0 and a variance of 1.
         min_samples : int
             The minimum number of samples within distance `eps` required
             to be considered as an independent cluster.
         n_clusters : int
             The number of clusters expected. If specified, `eps` will be
-            incrementally reduced until the expected number of clusters is found.
+            incrementally reduced until the expected number of clusters is
+            found.
         maxiter : int
             The maximum number of iterations DBSCAN will run.
         sort : bool
@@ -2905,16 +3089,23 @@ class D(object):
                 clusters_last = clusters
                 eps_temp *= 0.95
                 db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-                clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                clusters = (len(set(db.labels_)) -
+                            (1 if -1 in db.labels_ else 0))
                 if clusters < clusters_last:
                     eps_temp *= 1/0.95
                     db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-                    clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
-                    warnings.warn('\n\n***Unable to find {:.0f} clusters in data. Found {:.0f} with an eps of {:.2e}'.format(n_clusters, clusters, eps_temp))
+                    clusters = (len(set(db.labels_)) -
+                                (1 if -1 in db.labels_ else 0))
+                    warnings.warn(('\n\n***Unable to find {:.0f} clusters in '
+                                   'data. Found {:.0f} with an eps of {:.2e}'
+                                   '').format(n_clusters, clusters, eps_temp))
                     break
                 niter += 1
                 if niter == maxiter:
-                    warnings.warn('\n\n***Maximum iterations ({:.0f}) reached, {:.0f} clusters not found.\nDeacrease min_samples or n_clusters (or increase maxiter).'.format(maxiter, n_clusters))
+                    warnings.warn(('\n\n***Maximum iterations ({:.0f}) reached'
+                                   ', {:.0f} clusters not found.\nDeacrease '
+                                   'min_samples or n_clusters (or increase '
+                                   'maxiter).').format(maxiter, n_clusters))
                     break
 
         labels = db.labels_
@@ -2938,7 +3129,8 @@ class D(object):
 
         return out
 
-    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True):
+    def filter_correlation(self, x_analyte, y_analyte, window=None,
+                           r_threshold=0.9, p_threshold=0.05, filt=True):
         """
         Apply correlation filter.
 
@@ -2976,15 +3168,15 @@ class D(object):
         # get filter
         ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
 
-        x = self.focus[x_analyte]
+        x = nominal_values(self.focus[x_analyte])
         x[~ind] = np.nan
         xr = self.rolling_window(x, window, pad=np.nan)
 
-        y = self.focus[y_analyte]
+        y = nominal_values(self.focus[y_analyte])
         y[~ind] = np.nan
         yr = self.rolling_window(y, window, pad=np.nan)
 
-        r, p = zip(*map(pearsonr, xr,yr))
+        r, p = zip(*map(pearsonr, xr, yr))
 
         r = np.array(r)
         p = np.array(p)
@@ -2995,14 +3187,14 @@ class D(object):
         name = x_analyte + '-' + y_analyte + '_corr'
 
         self.filt.add(name=name,
-                           filt=cfilt,
-                           info=x_analyte + ' vs. ' + y_analyte + ' correlation filter.',
-                           params=params)
+                      filt=cfilt,
+                      info=(x_analyte + ' vs. ' + y_analyte +
+                            ' correlation filter.'),
+                      params=params)
         self.filt.off(filt=name)
         self.filt.on(analyte=y_analyte, filt=name)
 
         return
-
 
     # Plotting Functions
     # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
@@ -3025,7 +3217,8 @@ class D(object):
     #     return fig, axes
 
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
-              ranges=False, stats=True, stat='nanmean', err='nanstd', interactive=False):
+              ranges=False, stats=True, stat='nanmean', err='nanstd',
+              interactive=False):
         """
         Plot analytes as a function of Time.
 
@@ -3047,7 +3240,8 @@ class D(object):
         ranges : bool
             show signal/background regions.
         stats : bool
-            plot average and error of each trace, as specified by `stat` and `err`.
+            plot average and error of each trace, as specified by `stat` and
+            `err`.
         stat : str
             average statistic to plot.
         err : str
@@ -3073,7 +3267,7 @@ class D(object):
 
         for a in analytes:
             x = self.Time
-            y = self.focus[a]
+            y, yerr = unpack_uncertainties(self.focus[a])
 
             if scale is 'log':
                 ax.set_yscale('log')
@@ -3098,24 +3292,31 @@ class D(object):
                 sts = self.stats[sig][0].size
                 if sts > 1:
                     for n in np.arange(self.n):
-                        n_ind = ind & (self.ns==n+1)
+                        n_ind = ind & (self.ns == n+1)
                         if sum(n_ind) > 2:
                             x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
-                            y = [self.stats[sig][self.stats['analytes']==a][0][n]] * 2
+                            y = [self.stats[sig][self.stats['analytes'] == a][0][n]] * 2
 
-                            yp = [self.stats[sig][self.stats['analytes']==a][0][n] + self.stats[err][self.stats['analytes']==a][0][n]] * 2
-                            yn = [self.stats[sig][self.stats['analytes']==a][0][n] - self.stats[err][self.stats['analytes']==a][0][n]] * 2
+                            yp = ([self.stats[sig][self.stats['analytes'] == a][0][n] +
+                                  self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
+                            yn = ([self.stats[sig][self.stats['analytes'] == a][0][n] -
+                                  self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
 
                             ax.plot(x, y, color=self.cmap[a], lw=2)
-                            ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
+                            ax.fill_between(x + x[::-1], yp + yn,
+                                            color=self.cmap[a], alpha=0.4,
+                                            linewidth=0)
                 else:
                     x = [self.Time[0], self.Time[-1]]
-                    y = [self.stats[sig][self.stats['analytes']==a][0]] * 2
-                    yp = [self.stats[sig][self.stats['analytes']==a][0] + self.stats[err][self.stats['analytes']==a][0]] * 2
-                    yn = [self.stats[sig][self.stats['analytes']==a][0] - self.stats[err][self.stats['analytes']==a][0]] * 2
+                    y = [self.stats[sig][self.stats['analytes'] == a][0]] * 2
+                    yp = ([self.stats[sig][self.stats['analytes'] == a][0] +
+                          self.stats[err][self.stats['analytes'] == a][0]] * 2)
+                    yn = ([self.stats[sig][self.stats['analytes'] == a][0] -
+                          self.stats[err][self.stats['analytes'] == a][0]] * 2)
 
                     ax.plot(x, y, color=self.cmap[a], lw=2)
-                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
+                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a],
+                                    alpha=0.4, linewidth=0)
 
         if ranges:
             for lims in self.bkgrng:
@@ -3130,11 +3331,12 @@ class D(object):
                     if s & (f not in drawn):
                         lims = bool_2_indices(~self.filt.components[f])
                         for u, l in lims:
-                            ax.axvspan(self.Time[u], self.Time[l], color='k', alpha=0.05, lw=0)
+                            ax.axvspan(self.Time[u], self.Time[l], color='k',
+                                       alpha=0.05, lw=0)
                         drawn.append(f)
 
-
-        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage, transform=ax.transAxes,
+        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage,
+                transform=ax.transAxes,
                 ha='left', va='top')
 
         ax.set_xlabel('Time (s)')
@@ -3174,7 +3376,8 @@ class D(object):
         (fig, axes)
         """
         if analytes is None:
-            analytes = [a for a in self.analytes if a != self.ratio_params['denominator']]
+            analytes = [a for a in self.analytes
+                        if a != self.ratio_params['denominator']]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -3237,7 +3440,7 @@ class D(object):
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
 
-        axes[0,0].set_title(self.sample, weight='bold', x=0.05, ha='left')
+        axes[0, 0].set_title(self.sample, weight='bold', x=0.05, ha='left')
 
         return fig, axes
 
@@ -3264,11 +3467,16 @@ class D(object):
         if filt is None:
             filts = list(self.filt.components.keys())
         else:
-            filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
+            filts = np.array(sorted([f for f in self.filt.components.keys()
+                                     if filt in f]))
 
-        nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
-        fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
-        fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
+        regex = re.compile('^([A-Za-z0-9-]+)_'
+                           '([A-Za-z0-9-]+)[_$]?'
+                           '([a-z0-9]+)?')
+
+        nfilts = np.array([re.match(regex, f).groups() for f in filts])
+        fgnames = np.array(['_'.join(a) for a in nfilts[:, :2]])
+        fgrps = np.unique(fgnames)  # np.unique(nfilts[:,1])
 
         ngrps = fgrps.size
 
@@ -3276,7 +3484,9 @@ class D(object):
             analytes = [analytes]
 
         for analyte in analytes:
-            m, u = unitpicker(np.nanmax(self.focus[analyte]))
+            y = nominal_values(self.focus[analyte])
+
+            m, u = unitpicker(np.nanmax(y))
 
             fig = plt.figure(figsize=(10, 3.5 * ngrps))
             axes = []
@@ -3286,59 +3496,76 @@ class D(object):
             cm = plt.cm.get_cmap('Spectral')
 
             for i in np.arange(ngrps):
-                axs = tax, hax = fig.add_axes([.1,.9-(i+1)*h,.6,h*.98]), fig.add_axes([.7,.9-(i+1)*h,.2,h*.98])
+                axs = tax, hax = (fig.add_axes([.1, .9-(i+1)*h, .6, h*.98]),
+                                  fig.add_axes([.7, .9-(i+1)*h, .2, h*.98]))
 
                 # get variables
                 fg = filts[fgnames == fgrps[i]]
-                cs = cm(np.linspace(0,1,len(fg)))
-                fn = nfilts[:,2][fgnames == fgrps[i]]
-                an = nfilts[:,0][fgnames == fgrps[i]]
-                bins = np.linspace(np.nanmin(self.focus[analyte]), np.nanmax(self.focus[analyte]), 50) * m
+                cs = cm(np.linspace(0, 1, len(fg)))
+                fn = nfilts[:, 2][fgnames == fgrps[i]]
+                an = nfilts[:, 0][fgnames == fgrps[i]]
+                bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
 
                 if 'DBSCAN' in fgrps[i]:
                     # determine data filters
-                    core_ind = self.filt.components[[f for f in fg if 'core' in f][0]]
-                    other = np.array([('noise' not in f) & ('core' not in f) for f in fg])
+                    core_ind = self.filt.components[[f for f in fg
+                                                     if 'core' in f][0]]
+                    other = np.array([('noise' not in f) & ('core' not in f)
+                                      for f in fg])
                     tfg = fg[other]
                     tfn = fn[other]
-                    tcs = cm(np.linspace(0,1,len(tfg)))
+                    tcs = cm(np.linspace(0, 1, len(tfg)))
 
                     # plot all data
-                    hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+                    hax.hist(m * y, bins, alpha=0.5, orientation='horizontal',
+                             color='k', lw=0)
                     # legend markers for core/member
                     tax.scatter([], [], s=25, label='core', c='w')
                     tax.scatter([], [], s=10, label='member', c='w')
                     # plot noise
                     try:
-                        noise_ind = self.filt.components[[f for f in fg if 'noise' in f][0]]
-                        tax.scatter(self.Time[noise_ind], m * self.focus[analyte][noise_ind], lw=1, c='k', s=15, marker='x', label='noise')
+                        noise_ind = self.filt.components[[f for f in fg
+                                                          if 'noise' in f][0]]
+                        tax.scatter(self.Time[noise_ind], m * y[noise_ind],
+                                    lw=1, c='k', s=15, marker='x',
+                                    label='noise')
                     except:
                         pass
 
                     # plot filtered data
                     for f, c, lab in zip(tfg, tcs, tfn):
                         ind = self.filt.components[f]
-                        tax.scatter(self.Time[~core_ind & ind], m * self.focus[analyte][~core_ind & ind], lw=.1, c=c, s=10)
-                        tax.scatter(self.Time[core_ind & ind], m * self.focus[analyte][core_ind & ind], lw=.1, c=c, s=25, label=lab)
-                        hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                        tax.scatter(self.Time[~core_ind & ind],
+                                    m * y[~core_ind & ind], lw=.1, c=c, s=10)
+                        tax.scatter(self.Time[core_ind & ind],
+                                    m * y[core_ind & ind], lw=.1, c=c, s=25,
+                                    label=lab)
+                        hax.hist(m * y[ind], bins, color=c, lw=0.1,
+                                 orientation='horizontal', alpha=0.6)
 
                 else:
                     # plot all data
-                    tax.scatter(self.Time, m * self.focus[analyte], c='k', alpha=0.5, lw=0.1, s=25, label='excl')
-                    hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+                    tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
+                                s=25, label='excl')
+                    hax.hist(m * y, bins, alpha=0.5, orientation='horizontal',
+                             color='k', lw=0)
 
                     # plot filtered data
                     for f, c, lab in zip(fg, cs, fn):
                         ind = self.filt.components[f]
-                        tax.scatter(self.Time[ind], m * self.focus[analyte][ind], lw=.1, c=c, s=25, label=lab)
-                        hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                        tax.scatter(self.Time[ind], m * y[ind], lw=.1,
+                                    c=c, s=25, label=lab)
+                        hax.hist(m * y[ind], bins, color=c, lw=0.1,
+                                 orientation='horizontal', alpha=0.6)
 
                 # formatting
                 for ax in axs:
-                    ax.set_ylim(np.nanmin(self.focus[analyte]) * m, np.nanmax(self.focus[analyte]) * m)
+                    ax.set_ylim(np.nanmin(y) * m, np.nanmax(y) * m)
 
                 tax.legend(scatterpoints=1, framealpha=0.5)
-                tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12, weight='bold', ha='left', va='top', transform=tax.transAxes)
+                tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12,
+                         weight='bold', ha='left', va='top',
+                         transform=tax.transAxes)
                 tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
                 tax.set_xticks(tax.get_xticks()[:-1])
                 hax.set_yticklabels([])
@@ -3353,7 +3580,8 @@ class D(object):
                 axes.append(axs)
 
             if isinstance(savedir, str):
-                fig.savefig(savedir + '/' + self.sample + '_' + analyte + '.pdf')
+                fig.savefig(savedir + '/' + self.sample + '_' +
+                            analyte + '.pdf')
 
         return fig, axes
 
@@ -3382,6 +3610,7 @@ class D(object):
         out['filter_used'] = self.filt.make_keydict()
 
         return out
+
 
 class filt(object):
     """
@@ -3453,7 +3682,8 @@ class filt(object):
             self.switches[a] = {}
 
     def __repr__(self):
-        leftpad = max([len(s) for s in self.switches[self.analytes[0]].keys()] + [11]) + 2
+        leftpad = max([len(s) for s
+                       in self.switches[self.analytes[0]].keys()] + [11]) + 2
         out = '{string:{number}s}'.format(string='Filter Name', number=leftpad)
         for a in self.analytes:
             out += '{:7s}'.format(a)
@@ -3699,7 +3929,7 @@ class filt(object):
         self.keydict = out
         return out
 
-    def grab_filt(self,filt,analyte=None):
+    def grab_filt(self, filt, analyte=None):
         """
         Flexible access to specific filter using any key format.
 
@@ -3720,12 +3950,15 @@ class filt(object):
             try:
                 ind = self.make_fromkey(filt)
             except ValueError:
-                print("\n\n***Filter key invalid. Please consult manual and try again.")
+                print(("\n\n***Filter key invalid. Please consult "
+                       "manual and try again."))
         elif isinstance(filt, dict):
             try:
                 ind = self.make_fromkey(filt[analyte])
             except ValueError:
-                print("\n\n***Filter key invalid. Please consult manual and try again.\nOR\nAnalyte missing from filter key dict.")
+                print(("\n\n***Filter key invalid. Please consult manual "
+                       "and try again.\nOR\nAnalyte missing from filter "
+                       "key dict."))
         elif filt:
             ind = self.make(analyte)
         else:
@@ -3843,6 +4076,7 @@ def unitpicker(a, llim=0.1):
             n += 1
     return float(1000**n), udict[n]
 
+
 def pretty_element(s):
     """
     Returns formatted element name.
@@ -3883,7 +4117,7 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
     None
     """
     if out_dir is None:
-        out_dir = './' + re.search('^\.(.*)',extension).groups(0)[0]
+        out_dir = './' + re.search('^\.(.*)', extension).groups(0)[0]
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
@@ -3945,7 +4179,7 @@ def config_locator():
     """
     Prints the location of the latools.cfg file.
     """
-    print(pkg_resources.resource_filename('latools', 'latools.cfg'))
+    print(pkgrs.resource_filename('latools', 'latools.cfg'))
     return
 
 
@@ -3980,7 +4214,7 @@ def add_config(config_name, params, config_file=None, make_default=True):
     """
 
     if config_file is None:
-        config_file = pkg_resources.resource_filename('latools', 'latools.cfg')
+        config_file = pkgrs.resource_filename('latools', 'latools.cfg')
     cf = configparser.ConfigParser()
     cf.read(config_file)
 
@@ -3988,7 +4222,7 @@ def add_config(config_name, params, config_file=None, make_default=True):
     if config_name not in cf.sections():
         cf.add_section(config_name)
     # iterate through parameter dict and set values
-    for k,v in params.items():
+    for k, v in params.items():
         cf.set(config_name, k, v)
     # make the parameter set default, if requested
     if make_default:
@@ -4008,7 +4242,8 @@ def intial_configuration():
 
     See documentation for full details.
     """
-    print('You will be asked a few questions to configure latools\nfor your specific laboratory needs.')
+    print(('You will be asked a few questions to configure latools\n'
+           'for your specific laboratory needs.'))
     lab_name = input('What is the name of your lab? : ')
 
     params = {}
@@ -4020,27 +4255,38 @@ def intial_configuration():
                 params['srmfile'] = srmfile
                 OK = True
             else:
-                print("You told us the SRM data file was at: "+ semfile +"\nlatools can't find that file. Please check it exists, and \ncheck that the path was correct. The file path must be complete, not relative.")
+                print(("You told us the SRM data file was at: " + semfile +
+                       "\nlatools can't find that file. Please check it "
+                       "exists, and \ncheck that the path was correct. "
+                       "The file path must be complete, not relative."))
         else:
-            print("No path provided. Using default GeoRem values for NIST610, NIST612 and NIST614.")
+            print(("No path provided. Using default GeoRem values for "
+                   "NIST610, NIST612 and NIST614."))
             OK = True
 
         OK = False
 
     while ~OK:
-        dataformatfile = input('Where is your dataformat.dict file? [blank = default] : ')
+        dataformatfile = input(('Where is your dataformat.dict file? '
+                                '[blank = default] : '))
         if dataformatfile != '':
             if os.path.exists(dataformatfile):
                 params['srmfile'] = dataformatfile
                 OK = True
             else:
-                print("You told us the dataformat file was at: "+ dataformatfile +"\nlatools can't find that file. Please check it exists, and \ncheck that the path was correct. The file path must be complete, not relative.")
+                print(("You told us the dataformat file was at: " +
+                       dataformatfile + "\nlatools can't find that file. "
+                       "Please check it exists, and \ncheck that the path "
+                       "was correct. The file path must be complete, not "
+                       "relative."))
         else:
-            print("No path provided. Using default dataformat for the UC Davis Agilent 7700.")
+            print(("No path provided. Using default dataformat "
+                   "for the UC Davis Agilent 7700."))
             OK = True
 
 
-    make_default = input('Do you want to use these files as your default? [Y/n] : ').lower() != 'n'
+    make_default = input(('Do you want to use these files as your '
+                          'default? [Y/n] : ')).lower() != 'n'
 
     add_config(lab_name, params, make_default=make_default)
 
@@ -4051,13 +4297,15 @@ def intial_configuration():
 
 def get_example_data(destination_dir):
     if os.path.isdir(destination_dir):
-        overwrite = input(destination_dir + ' already exists. Overwrite? [N/y]: ').lower() == 'y'
+        overwrite = input(destination_dir +
+                          ' already exists. Overwrite? [N/y]: ').lower() == 'y'
         if overwrite:
             shutil.rmtree(destination_dir)
         else:
             print(destination_dir + ' was not overwritten.')
 
-    shutil.copytree(pkg_resources.resource_filename('latools', 'resources/test_data'), destination_dir)
+    shutil.copytree(pkgrs.resource_filename('latools', 'resources/test_data'),
+                    destination_dir)
 
     return
 
@@ -4066,3 +4314,39 @@ def R2calc(meas, model):
     SStot = np.sum((meas - np.nanmean(meas))**2)
     SSres = np.sum((meas - model)**2)
     return 1 - (SSres/SStot)
+
+
+def rangecalc(xs, ys, pad=0.05):
+    xd = max(xs)
+    yd = max(ys)
+    return ([0 - pad * xd, max(xs) + pad * xd],
+            [0 - pad * yd, max(ys) + pad * yd])
+
+
+# uncertainties unpackers
+def unpack_uncertainties(uarray):
+    """
+    Convenience function to unpack nominal values and uncertainties from an
+    ``uncertainties.uarray``.
+
+    Returns:
+        (nominal_values, std_devs)
+    """
+    try:
+        return un.nominal_values(uarray), un.std_devs(uarray)
+    except:
+        return uarray
+
+
+def nominal_values(a):
+    try:
+        return un.nominal_values(a)
+    except:
+        return a
+
+
+def std_devs(a):
+    try:
+        return un.std_devs(a)
+    except:
+        return a
