@@ -1466,8 +1466,8 @@ class analyse(object):
 
         for s in samples:
             fig, ax = self.data_dict[s].filt_report(filt=filt_str,
-                                                analytes=analytes,
-                                                savedir=outdir)
+                                                    analytes=analytes,
+                                                    savedir=outdir)
             plt.close(fig)
         return
 
