@@ -19,3 +19,4 @@ docs/build
 latools.egg-info
 *.ipynb
 comparison/jenn_data
+comparison
