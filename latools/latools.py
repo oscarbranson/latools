@@ -1026,7 +1026,7 @@ class analyse(object):
             samples = []
 
         for s in samples:
-            self.data_dict[s].filter_clustering(analytes, filt=filt,
+            self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
                                                 normalise=normalise,
                                                 method=method,
                                                 include_time=include_time,
@@ -1446,9 +1446,10 @@ class analyse(object):
             fig.savefig(outdir + '/' + s + '_traces.pdf')
             plt.close(fig)
             self.data_dict[s].setfocus(stg)
+        return
 
     # filter reports
-    def filter_reports(self, filt_str, analytes, ):
+    def filter_reports(self, filt_str, analytes, samples=None, outdir=None):
         """
         Plot filter reports for all filters that contain ``filt_str``
         in the name.
@@ -1464,10 +1465,9 @@ class analyse(object):
             samples = self.samples
 
         for s in samples:
-            fig = self.data_dict[s].filt_report(filt=filt_str,
+            fig, ax = self.data_dict[s].filt_report(filt=filt_str,
                                                 analytes=analytes,
                                                 savedir=outdir)
-            fig.savefig(outdir + '/' + s + '.pdf')
             plt.close(fig)
         return
 
@@ -2613,6 +2613,8 @@ class D(object):
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
         """
+        TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!
+
         Calculate sample statistics
 
         Returns samples, analytes, and arrays of statistics
@@ -2655,25 +2657,25 @@ class D(object):
                 self.stats[f.__name__] = []
                 for a in analytes:
                     ind = self.filt.grab_filt(filt, a)
+                    dat = nominal_values(self.focus[a])
                     if eachtrace:
                         sts = []
                         for t in np.arange(self.n) + 1:
-                            sts.append(f(self.focus[a][ind & (self.ns==t)]))
+                            sts.append(f(dat[ind & (self.ns == t)]))
                         self.stats[f.__name__].append(sts)
                     else:
-                        self.stats[f.__name__].append(f(self.focus[a][ind]))
+                        self.stats[f.__name__].append(f(dat[ind]))
                 self.stats[f.__name__] = np.array(self.stats[f.__name__])
 
         try:
-            self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
+            self.unstats = un.uarray(self.stats['nanmean'],
+                                     self.stats['nanstd'])
         except:
             pass
 
         return
 
-
     # Data Selections Tools
-
     def filter_threshold(self, analyte, threshold, filt=False):
         """
         Apply threshold filter.
@@ -2705,24 +2707,30 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        vals = np.vstack(nominal_values(list(self.focus.values())))
-        if filt:
-            ind = (self.filt.grab_filt(filt, analyte) &
-                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
+        vals = nominal_values(self.focus[analyte])
+        if filt is not None:
+            ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
         else:
-            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
+            ind = ~np.isnan(vals)
 
-        trace = nominal_values(self.focus[analyte])
+        if any(ind):
+            trace = nominal_values(self.focus[analyte])
 
-        self.filt.add(analyte + '_thresh_below',
-                      trace <= threshold,
-                      'Keep below {:.3e} '.format(threshold) + analyte,
-                      params)
-        self.filt.add(analyte + '_thresh_above',
-                      trace >= threshold,
-                      'Keep above {:.3e} '.format(threshold) + analyte,
-                      params)
+            self.filt.add(analyte + '_thresh_below',
+                          trace <= threshold,
+                          'Keep below {:.3e} '.format(threshold) + analyte,
+                          params)
+            self.filt.add(analyte + '_thresh_above',
+                          trace >= threshold,
+                          'Keep above {:.3e} '.format(threshold) + analyte,
+                          params)
+        else:
+            # if there are no data
+            name = analyte + '_thresh_nodata'
+            info = analyte + ' threshold filter (no data)'
 
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None):
         """
@@ -2752,51 +2760,61 @@ class D(object):
 
         # generate filter
         vals = np.vstack(nominal_values(list(self.focus.values())))
-        if filt:
+        if filt is not None:
             ind = (self.filt.grab_filt(filt, analyte) &
                    np.apply_along_axis(all, 0, ~np.isnan(vals)))
         else:
             ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        # isolate data
-        d = nominal_values(self.focus[analyte][ind])
+        if any(ind):
+            # isolate data
+            d = nominal_values(self.focus[analyte][ind])
 
-        if transform == 'log':
-            d = np.log10(d)
+            if transform == 'log':
+                d = np.log10(d)
 
-        # gaussian kde of data
-        kde = gaussian_kde(d, bw_method=binwidth)
-        x = np.linspace(np.nanmin(d), np.nanmax(d),
-                        kde.dataset.size // 3)
-        yd = kde.pdf(x)
-        limits = np.concatenate([self.findmins(x, yd), [x.max()]])
+            # gaussian kde of data
+            kde = gaussian_kde(d, bw_method=binwidth)
+            x = np.linspace(np.nanmin(d), np.nanmax(d),
+                            kde.dataset.size // 3)
+            yd = kde.pdf(x)
+            limits = np.concatenate([self.findmins(x, yd), [x.max()]])
 
-        if transform == 'log':
-            limits = 10**limits
+            if transform == 'log':
+                limits = 10**limits
 
-        if limits.size > 1:
-            first = True
-            for i in np.arange(limits.size):
-                if first:
-                    filt = self.focus[analyte] < limits[i]
-                    info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
-                    first = False
-                else:
-                    filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
-                    info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
+            if limits.size > 1:
+                first = True
+                for i in np.arange(limits.size):
+                    if first:
+                        filt = self.focus[analyte] < limits[i]
+                        info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
+                        first = False
+                    else:
+                        filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
+                        info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
 
-                self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
-                                   filt=filt,
-                                   info=info,
-                                   params=params)
+                    self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
+                                  filt=filt,
+                                  info=info,
+                                  params=params)
+            else:
+                self.filt.add(name=analyte + '_distribution_failed',
+                              filt=~np.isnan(self.focus[analyte]),
+                              info=analyte + ' is within a single distribution. No data removed.',
+                              params=params)
         else:
-            self.filt.add(name=analyte + '_distribution_failed',
-                               filt=~np.isnan(self.focus[analyte]),
-                               info=analyte + ' is within a single distribution. No data removed.',
-                               params=params)
+            # if there are no data
+            name = analyte + '_distribution_0'
+            info = analyte + ' distribution filter (no data)'
+
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params)
         return
 
-    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, sort=True, **kwargs):
+    def filter_clustering(self, analytes, filt=False, normalise=True,
+                          method='meanshift', include_time=False,
+                          sort=True, **kwargs):
         """
         Applies an n-dimensional clustering filter to the data.
 
@@ -2893,64 +2911,73 @@ class D(object):
 
         # generate filter
         vals = np.vstack(nominal_values(list(self.focus.values())))
-        if filt:
-            ind = (self.filt.grab_filt(filt, analyte) &
+        if filt is not None:
+            ind = (self.filt.grab_filt(filt, analytes) &
                    np.apply_along_axis(all, 0, ~np.isnan(vals)))
         else:
             ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        # get indices for data passed to clustering
-        sampled = np.arange(self.Time.size)[ind]
+        if any(ind):
 
-        # generate data for clustering
-        if len(analytes) == 1:
-            # if single analyte
-            d = nominal_values(self.focus[analytes[0]][ind])
-            if include_time:
-                t = self.Time[ind]
-                ds = np.vstack([d, t]).T
-            else:
-                ds = np.array(list(zip(d, np.zeros(len(d)))))
-        else:
-            # package multiple analytes
-            d = [nominal_values(self.focus[a][ind]) for a in analytes]
-            if include_time:
-                d.append(self.Time[ind])
-            ds = np.vstack(d).T
+            # get indices for data passed to clustering
+            sampled = np.arange(self.Time.size)[ind]
 
-        if normalise | (len(analytes) > 1):
-            ds = preprocessing.scale(ds)
-
-        method_key = {'kmeans': self.cluster_kmeans,
-                      'DBSCAN': self.cluster_DBSCAN,
-                      'meanshift': self.cluster_meanshift}
-
-        cfun = method_key[method]
-
-        filts = cfun(ds, **kwargs, sort=sort)
-        # return dict of cluster_no: (filt, params)
-
-        resized = {}
-        for k, v in filts.items():
-            resized[k] = np.zeros(self.Time.size, dtype=bool)
-            resized[k][sampled] = v
-
-        namebase = '-'.join(analytes) + '_cluster-' + method
-        info = '-'.join(analytes) + ' cluster filter.'
-
-        if method == 'DBSCAN':
-            for k, v in resized.items():
-                if isinstance(k, str):
-                    name = namebase + '_core'
-                elif k < 0:
-                    name = namebase + '_noise'
+            # generate data for clustering
+            if len(analytes) == 1:
+                # if single analyte
+                d = nominal_values(self.focus[analytes[0]][ind])
+                if include_time:
+                    t = self.Time[ind]
+                    ds = np.vstack([d, t]).T
                 else:
+                    ds = np.array(list(zip(d, np.zeros(len(d)))))
+            else:
+                # package multiple analytes
+                d = [nominal_values(self.focus[a][ind]) for a in analytes]
+                if include_time:
+                    d.append(self.Time[ind])
+                ds = np.vstack(d).T
+
+            if normalise | (len(analytes) > 1):
+                ds = preprocessing.scale(ds)
+
+            method_key = {'kmeans': self.cluster_kmeans,
+                          'DBSCAN': self.cluster_DBSCAN,
+                          'meanshift': self.cluster_meanshift}
+
+            cfun = method_key[method]
+
+            filts = cfun(ds, **kwargs, sort=sort)
+            # return dict of cluster_no: (filt, params)
+
+            resized = {}
+            for k, v in filts.items():
+                resized[k] = np.zeros(self.Time.size, dtype=bool)
+                resized[k][sampled] = v
+
+            namebase = '-'.join(analytes) + '_cluster-' + method
+            info = '-'.join(analytes) + ' cluster filter.'
+
+            if method == 'DBSCAN':
+                for k, v in resized.items():
+                    if isinstance(k, str):
+                        name = namebase + '_core'
+                    elif k < 0:
+                        name = namebase + '_noise'
+                    else:
+                        name = namebase + '_{:.0f}'.format(k)
+                    self.filt.add(name, v, info=info, params=params)
+            else:
+                for k, v in resized.items():
                     name = namebase + '_{:.0f}'.format(k)
-                self.filt.add(name, v, info=info, params=params)
+                    self.filt.add(name, v, info=info, params=params)
         else:
-            for k, v in resized.items():
-                name = namebase + '_{:.0f}'.format(k)
-                self.filt.add(name, v, info=info, params=params)
+            # if there are no data
+            name = '-'.join(analytes) + '_cluster-' + method + '_0'
+            info = '-'.join(analytes) + ' cluster filter.'
+
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params)
 
         return
 
