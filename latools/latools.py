@@ -1158,7 +1158,7 @@ class analyse(object):
     #     else:
 
     # plot calibrations
-    def calibration_plot(self, analytes=None, datarange=True):
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False):
         """
         Plot the calibration lines between measured and known SRM values.
 
@@ -1169,8 +1169,11 @@ class analyse(object):
         datarange : boolean
             Whether or not to show the distribution of the measured data
             alongside the calibration curve.
-
-        TODO: Implement a log-log scale?
+        loglog : boolean
+            Whether or not to plot the data on a log-log scale. This is
+            useful if you have two low standards very close together,
+            and want to check whether your data are between them, or
+            below them.
 
         Returns
         -------
@@ -1186,12 +1189,16 @@ class analyse(object):
         else:
             nrow = n//3 + 1
 
+#         fig, axes = plt.subplots(int(nrow), 3, figsize=[12, 3 * nrow],
+#                                  tight_layout=True)
+
         axes = []
 
         if not datarange:
             fig = plt.figure(figsize=[12, 3 * nrow])
         else:
             fig = plt.figure(figsize=[14, 3 * nrow])
+
         gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
                                    hspace=0.3, wspace=0.3)
 
@@ -1205,8 +1212,7 @@ class analyse(object):
                 f = 0.8
                 p0 = gs[i].get_position(fig)
                 p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
-                p2 = [p0.x0 + p0.width * f, p0.y0,
-                      p0.width * (1 - f), p0.height]
+                p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
                 ax = fig.add_axes(p1)
                 axh = fig.add_axes(p2)
                 i += 1
@@ -1216,11 +1222,30 @@ class analyse(object):
                        self.calib_data[a]['srm'],
                        color=self.cmaps[a], alpha=0.2,
                        s=3)
-            xlim, ylim = rangecalc(self.calib_data[a]['counts'],
-                                   self.calib_data[a]['srm'],
-                                   pad=0.1)
 
-            xlim[0] = ylim[0] = 0
+            # work out axis scaling
+            if not loglog:
+                xlim, ylim = rangecalc(self.calib_data[a]['counts'],
+                                       self.calib_data[a]['srm'],
+                                       pad=0.1)
+                xlim[0] = ylim[0] = 0
+            else:
+                xd = self.calib_data[a]['counts'][self.calib_data[a]['counts'] > 0]
+                yd = self.calib_data[a]['srm'][self.calib_data[a]['srm'] > 0]
+
+                xlim = [10**np.floor(np.log10(np.nanmin(xd))),
+                        10**np.ceil(np.log10(np.nanmax(xd)))]
+                ylim = [10**np.floor(np.log10(np.nanmin(yd))),
+                        10**np.ceil(np.log10(np.nanmax(yd)))]
+
+                # scale sanity checks
+                if xlim[0] == xlim[1]:
+                    xlim[0] = ylim[0]
+                if ylim[0] == ylim[1]:
+                    ylim[0] = xlim[0]
+
+                ax.set_xscale('log')
+                ax.set_yscale('log')
 
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
@@ -1236,8 +1261,8 @@ class analyse(object):
 #                 ax.axhspan(v-err, v+err, *bxlim, color=self.cmaps[a],
 #                            alpha=0.2, zorder=-1)
 
-            # calculate line
-            x = np.array(xlim)
+            # calculate line and R2
+            x = np.logspace(*np.log10(xlim), 100)
             coefs = self.calib_dict[a]
             poly_n = len(coefs)-1
 
@@ -1259,29 +1284,47 @@ class analyse(object):
             label = (labelstr[poly_n].format(*coefs) +
                      '\n$R^2$: {:.4f}'.format(R2))
 
+            # plot line of best fit
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
+
+            # labels
             ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                     weight='bold', va='top', ha='left', size=12)
             ax.set_xlabel('counts/counts Ca')
             ax.set_ylabel('mol/mol Ca')
-
             # write calibration equation on graph
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
                     va='bottom', ha='right')
 
+            # plot data distribution historgram alongside calibration plot
             if datarange:
-                axh.set_xticks([])
-                axh.set_ylim(ylim)
-                axh.set_yticklabels([])
-
                 # isolate data
-                meas = nominal_values(data.focus[a])
+                meas = nominal_values(self.focus[a])
                 meas = meas[~np.isnan(meas)]
 
+                # check and set y scale
+                if np.nanmin(meas) < ylim[0]:
+                    if loglog:
+                        mmeas = meas[meas > 0]
+                        ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
+                    else:
+                        ylim[0] = np.nanmin(meas)
+                    ax.set_ylim(ylim)
+
                 # hist
-                bins = np.linspace(*ylim, 30)
+                if loglog:
+                    bins = np.logspace(*np.log10(ylim), 30)
+                else:
+                    bins = np.linspace(*ylim, 30)
+
                 axh.hist(meas, bins=bins, orientation='horizontal',
                          color=self.cmaps[a], lw=0.5, alpha=0.5)
+
+                if loglog:
+                    axh.set_yscale('log')
+                axh.set_ylim(ylim)
+                axh.set_xticks([])
+                axh.set_yticklabels([])
 
         return fig, axes
 
