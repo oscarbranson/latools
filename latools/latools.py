@@ -122,15 +122,16 @@ class analyse(object):
         For processing and analysing whole LA-ICPMS datasets.
         """
         self.folder = data_folder
+        self.parent_folder = os.path.realpath(data_folder)
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
         self.files = np.array([f for f in os.listdir(self.folder)
                                if extension in f])
 
         # make output directories
-        self.param_dir = re.sub('//', '/', self.folder + '/params/')
+        self.param_dir = re.sub('//', '/', self.parent_folder + '/params/')
         if not os.path.isdir(self.param_dir):
             os.mkdir(self.param_dir)
-        self.report_dir = re.sub('//', '/', self.folder + '/reports/')
+        self.report_dir = re.sub('//', '/', self.parent_folder + '/reports/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
@@ -1444,6 +1445,7 @@ class analyse(object):
             # for l, u in s.bkgrng:
             #     ax.axvspan(l, u, color='k', alpha=0.1)
             fig.savefig(outdir + '/' + s + '_traces.pdf')
+            # TODO: on older(?) computers generates an 'OSError: [Errno 24] Too many open files'
             plt.close(fig)
             self.data_dict[s].setfocus(stg)
         return
