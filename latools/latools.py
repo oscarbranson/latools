@@ -1198,6 +1198,8 @@ class analyse(object):
             fig = plt.figure(figsize=[12, 3 * nrow])
         else:
             fig = plt.figure(figsize=[14, 3 * nrow])
+            if not hasattr(self, 'focus'):
+                self.get_focus()
 
         gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
                                    hspace=0.3, wspace=0.3)
@@ -1652,51 +1654,50 @@ class analyse(object):
         for ax, an in zip(axs, analytes):
             i = 0
             for s in samples:
-                d = self.stats[s]
-                n = d[stat].shape[1]
-                if n > 1:
-                    x = np.linspace(i - .1 * n / 2, i + .1 * n / 2, n)
-                else:
-                    x = [i]
-                a_ind = d['analytes'] == an
+                if self.srm_identifier not in s:
+                    d = self.stats[s]
+                    n = d[stat].shape[1]
+                    if n > 1:
+                        x = np.linspace(i - .1 * n / 2, i + .1 * n / 2, n)
+                    else:
+                        x = [i]
+                    a_ind = d['analytes'] == an
 
-                m, u = unitpicker(np.nanmin(d[stat][a_ind][0]))
+                    m, u = unitpicker(np.nanmin(d[stat][a_ind][0]))
 
-                # plot individual ablations with error bars
-                ax.errorbar(x, d[stat][a_ind][0] * m,
-                            yerr=d[err][a_ind][0] * m,
-                            marker='o', color=self.cmaps[an],
-                            lw=0, elinewidth=1)
+                    # plot individual ablations with error bars
+                    ax.errorbar(x, d[stat][a_ind][0] * m,
+                                yerr=d[err][a_ind][0] * m,
+                                marker='o', color=self.cmaps[an],
+                                lw=0, elinewidth=1)
 
-                ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
-                                                 pretty_element(self.data[0].ratio_params['denominator']),
-                                                 u))
+                    ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
+                                                     pretty_element(self.data[0].ratio_params['denominator']),
+                                                     u))
 
-                # plot whole-sample mean
-                if len(x) > 1:
-                    # mean calculation with error propagation?
-                    # umean = un.uarray(d[stat][a_ind][0] * m, d[err][a_ind][0] * m).mean()
-                    # std = un.std_devs(umean)
-                    # mean = un.nominal_values(umean)
-                    mean = np.nanmean(d[stat][a_ind][0] * m)
-                    std = np.nanstd(d[stat][a_ind][0] * m)
-                    ax.plot(x, [mean] * len(x), c=self.cmaps[an], lw=2)
-                    ax.fill_between(x, [mean + std] * len(x),
-                                    [mean - std] * len(x),
-                                    lw=0, alpha=0.2, color=self.cmaps[an])
+                    # plot whole-sample mean
+                    if len(x) > 1:
+                        # mean calculation with error propagation?
+                        # umean = un.uarray(d[stat][a_ind][0] * m, d[err][a_ind][0] * m).mean()
+                        # std = un.std_devs(umean)
+                        # mean = un.nominal_values(umean)
+                        mean = np.nanmean(d[stat][a_ind][0] * m)
+                        std = np.nanstd(d[stat][a_ind][0] * m)
+                        ax.plot(x, [mean] * len(x), c=self.cmaps[an], lw=2)
+                        ax.fill_between(x, [mean + std] * len(x),
+                                        [mean - std] * len(x),
+                                        lw=0, alpha=0.2, color=self.cmaps[an])
 
-                # highlight each sample
-                if i % 2 == 1:
-                    ax.axvspan(i-.5, i+.5, color=(0, 0, 0, 0.05), lw=0)
+                    # highlight each sample
+                    if i % 2 == 1:
+                        ax.axvspan(i-.5, i+.5, color=(0, 0, 0, 0.05), lw=0)
 
-                i += 1
+                    i += 1
 
             ax.set_xticks(np.arange(0, len(self.stats)))
             ax.set_xlim(-0.5, len(self.stats)-.5)
-            if ax.is_last_row():
-                ax.set_xticklabels(samples)
-            else:
-                ax.set_xticklabels([])
+
+            ax.set_xticklabels(samples)
 
         return fig, ax
 
@@ -1845,6 +1846,95 @@ class analyse(object):
             s = re.sub('array', 'np.array', s)
             params = eval(s)
         self.params = params
+        return
+
+    # raw data export function
+    def export_traces(self, outdir=None, focus_stage=None, analytes=None,
+                      samples=None, filt=False):
+        """
+        Function to export raw data.
+
+        Parameters
+        ----------
+        outdir : str
+        focus_stage : str
+            The name of the analysis stage desired:
+                'rawdata': raw data, loaded from csv file.
+                'despiked': despiked data.
+                'signal'/'background': isolated signal and background data.
+                    Created by self.separate, after signal and background
+                    regions have been identified by self.autorange.
+                'bkgsub': background subtracted data, created by
+                    self.bkg_correct
+                'ratios': element ratio data, created by self.ratio.
+                'calibrated': ratio data calibrated to standards, created by
+                    self.calibrate.
+            Defaults to the most recent stage of analysis.
+        analytes : str or array-like
+            Either a single analyte, or list of analytes to export.
+            Defaults to all analytes.
+        samples : str or array-like
+            Either a single sample name, or list of samples to export.
+            Defaults to all samples.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        """
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is None:
+            samples = self.samples
+        elif isinstance(samples, str):
+            samples = [samples]
+
+        if focus_stage is None:
+            focus_stage = self.data[0].focus_stage
+
+        if outdir is None:
+            outdir = '%s/export_%s' % (self.parent_folder, self.folder)
+
+        ud = {'rawdata': 'counts',
+              'despiked': 'counts',
+              'signal': 'counts',
+              'bkgsub': 'background corrected counts',
+              'ratios': 'counts/count %s' % (self.ratio_params['denominator']),
+              'calibrated': 'mol/mol %s' % (self.ratio_params['denominator'])}
+
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        for s in samples:
+            d = self.data_dict[s].data[focus_stage]
+            ind = self.data_dict[s].filt.grab_filt(filt)
+            out = {}
+            errs = isinstance(self.data_dict[s].data[focus_stage][analytes[0]][0],
+                              un.AffineScalarFunc)
+            for a in analytes:
+                out[a] = nominal_values(d[a][ind])
+                if errs:
+                    out[a + '_std'] = std_devs(d[a][ind])
+
+            out = pd.DataFrame(out, index=self.data_dict[s].Time[ind])
+            out.index.name = 'Time'
+
+            header = ['# Sample: %s' % (s),
+                      '# Data Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      '# Processed using %s configuration' % (self.config),
+                      '# Analysis Stage: %s' % (focus_stage),
+                      '# Unit: %s' % ud[focus_stage]]
+
+            header = '\n'.join(header) + '\n'
+
+            csv = out.to_csv()
+
+            with open('%s/%s.csv' % (outdir, s), 'w') as f:
+                f.write(header)
+                f.write(csv)
         return
 
 
