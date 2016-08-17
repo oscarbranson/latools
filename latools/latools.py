@@ -1158,7 +1158,7 @@ class analyse(object):
     #     else:
 
     # plot calibrations
-    def calibration_plot(self, analytes=None, plot='scatter'):
+    def calibration_plot(self, analytes=None, datarange=True):
         """
         Plot the calibration lines between measured and known SRM values.
 
@@ -1166,11 +1166,11 @@ class analyse(object):
         ----------
         analytes : optional, array_like or str
             The analyte(s) to plot. Defaults to all analytes.
-        plot : str
-            Type of plot to produce.
-                'errbar': plots the mean and standard deviation
-                          of SRM measurements.
-                'scatter': plots all SRM data as individual points.
+        datarange : boolean
+            Whether or not to show the distribution of the measured data
+            alongside the calibration curve.
+
+        TODO: Implement a log-log scale?
 
         Returns
         -------
@@ -1186,46 +1186,55 @@ class analyse(object):
         else:
             nrow = n//3 + 1
 
-        fig, axes = plt.subplots(int(nrow), 3, figsize=[12, 3 * nrow],
-                                 tight_layout=True)
+        axes = []
 
-        for ax, a in zip(axes.flat, analytes):
-            if plot is 'errbar':
-                srms = []
-                means = []
-                stds = []
-                for s in np.unique(self.calib_data[a]['srm']):
-                    srms.append(s)
-                    means.append(np.nanmean(self.calib_data[a]
-                                 ['counts'][self.calib_data[a]
-                                 ['srm'] == s]))
-                    stds.append(np.nanstd(self.calib_data[a]
-                                ['counts'][self.calib_data[a]
-                                ['srm'] == s]))
-                ax.errorbar(means, srms, xerr=stds, lw=0, elinewidth=2,
-                            ecolor=self.cmaps[a])
-            if plot is 'scatter':
-                ax.scatter(self.calib_data[a]['counts'],
-                           self.calib_data[a]['srm'],
-                           color=self.cmaps[a], alpha=0.2,
-                           s=3)
+        if not datarange:
+            fig = plt.figure(figsize=[12, 3 * nrow])
+        else:
+            fig = plt.figure(figsize=[14, 3 * nrow])
+        gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
+                                   hspace=0.3, wspace=0.3)
+
+        i = 0
+        for a in analytes:
+            if not datarange:
+                ax = fig.add_axes(gs[i].get_position(fig))
+                axes.append(ax)
+                i += 1
+            else:
+                f = 0.8
+                p0 = gs[i].get_position(fig)
+                p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
+                p2 = [p0.x0 + p0.width * f, p0.y0,
+                      p0.width * (1 - f), p0.height]
+                ax = fig.add_axes(p1)
+                axh = fig.add_axes(p2)
+                i += 1
+
+            # plot calibration data
+            ax.scatter(self.calib_data[a]['counts'],
+                       self.calib_data[a]['srm'],
+                       color=self.cmaps[a], alpha=0.2,
+                       s=3)
             xlim, ylim = rangecalc(self.calib_data[a]['counts'],
-                                        self.calib_data[a]['srm'])
+                                   self.calib_data[a]['srm'],
+                                   pad=0.1)
 
             xlim[0] = ylim[0] = 0
+
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
 
-            # plot SRM errors
-            for v in np.unique(self.calib_data[a]['srm']):
-                ind = self.calib_data[a]['srm'] == v
-                x = self.calib_data[a]['counts'][ind]
-                bxlim = (np.nanmin(x), np.nanmax(x))
-                bxlim /= np.diff(ax.get_xlim())
-                err = np.nanmean(self.calib_data[a]['errs'][ind])
+#             # plot SRM errors
+#             for v in np.unique(self.calib_data[a]['srm']):
+#                 ind = self.calib_data[a]['srm'] == v
+#                 x = self.calib_data[a]['counts'][ind]
+#                 bxlim = (np.nanmin(x), np.nanmax(x))
+#                 bxlim /= np.diff(ax.get_xlim())
+#                 err = np.nanmean(self.calib_data[a]['errs'][ind])
 
-                ax.axhspan(v-err, v+err, *bxlim, color=self.cmaps[a],
-                           alpha=0.2, zorder=-1)
+#                 ax.axhspan(v-err, v+err, *bxlim, color=self.cmaps[a],
+#                            alpha=0.2, zorder=-1)
 
             # calculate line
             x = np.array(xlim)
@@ -1260,8 +1269,19 @@ class analyse(object):
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
                     va='bottom', ha='right')
 
-        for ax in axes.flat[n:]:
-            fig.delaxes(ax)
+            if datarange:
+                axh.set_xticks([])
+                axh.set_ylim(ylim)
+                axh.set_yticklabels([])
+
+                # isolate data
+                meas = nominal_values(data.focus[a])
+                meas = meas[~np.isnan(meas)]
+
+                # hist
+                bins = np.linspace(*ylim, 30)
+                axh.hist(meas, bins=bins, orientation='horizontal',
+                         color=self.cmaps[a], lw=0.5, alpha=0.5)
 
         return fig, axes
 
