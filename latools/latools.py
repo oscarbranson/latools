@@ -1269,6 +1269,7 @@ class analyse(object):
     def get_focus(self, filt=False):
         """
         Collect all data from all samples into a single array.
+        Data from standards is not collected.
 
         Parameters
         ----------
@@ -1293,7 +1294,7 @@ class analyse(object):
                 ind = s.filt.grab_filt(filt)
                 for a in self.analytes:
                     tmp = s.focus[a].copy()
-                    tmp[ind] = np.nan
+                    tmp[~ind] = np.nan
                     self.focus[a].append(tmp)
 
         for k, v in self.focus.items():
