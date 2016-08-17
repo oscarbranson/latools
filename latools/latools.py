@@ -122,16 +122,18 @@ class analyse(object):
         For processing and analysing whole LA-ICPMS datasets.
         """
         self.folder = data_folder
-        self.parent_folder = os.path.realpath(data_folder)
+        self.parent_folder = os.path.dirname(os.path.realpath(data_folder))
         self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
         self.files = np.array([f for f in os.listdir(self.folder)
                                if extension in f])
 
         # make output directories
-        self.param_dir = re.sub('//', '/', self.parent_folder + '/params/')
+        self.param_dir = re.sub('//', '/',
+                                self.parent_folder + '/params_' + data_folder + '/')
         if not os.path.isdir(self.param_dir):
             os.mkdir(self.param_dir)
-        self.report_dir = re.sub('//', '/', self.parent_folder + '/reports/')
+        self.report_dir = re.sub('//', '/',
+                                 self.parent_folder + '/reports_' + data_folder + '/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
@@ -227,10 +229,10 @@ class analyse(object):
 
         self.cmaps = self.data[0].cmap
 
-        f = open('errors.log', 'a')
-        f.write(('Errors and warnings during LATOOLS analysis '
-                 'are stored here.\n\n'))
-        f.close()
+        # f = open('errors.log', 'a')
+        # f.write(('Errors and warnings during LATOOLS analysis '
+        #          'are stored here.\n\n'))
+        # f.close()
 
         # report
         print('latools analysis using "' + self.config + '" configuration:')
@@ -614,6 +616,11 @@ class analyse(object):
         -------
         None
         """
+
+        params = locals()
+        del(params['self'])
+        self.ratio_params = params
+
         for s in self.data:
             s.ratio(denominator=denominator, focus=focus)
         return
@@ -718,7 +725,7 @@ class analyse(object):
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
                   srmfile=None, analytes=None,
-                  uncertainties=True):
+                  uncertainties=False):
         """
         Calibrates the data to measured SRM values.
 
@@ -782,6 +789,8 @@ class analyse(object):
 
         if analytes is None:
             analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
         for a in analytes:
             self.calib_data[a] = {}
@@ -883,8 +892,8 @@ class analyse(object):
         """
         if samples is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = []
+        elif isinstance(samples, str):
+            samples = [samples]
 
         for s in samples:
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
@@ -921,7 +930,7 @@ class analyse(object):
         if samples is None:
             samples = self.samples
         if isinstance(samples, str):
-            samples = []
+            samples = [samples]
 
         for s in samples:
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
@@ -1024,7 +1033,7 @@ class analyse(object):
         if samples is None:
             samples = self.samples
         if isinstance(samples, str):
-            samples = []
+            samples = [samples]
 
         for s in samples:
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
@@ -1071,7 +1080,7 @@ class analyse(object):
         if samples is None:
             samples = self.samples
         if isinstance(samples, str):
-            samples = []
+            samples = [samples]
 
         for s in samples:
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
@@ -1538,6 +1547,9 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
         self.stats = {}
         self.stats_calced = [f.__name__ for f in stat_fns]
 
@@ -1548,6 +1560,81 @@ class analyse(object):
                                eachtrace=eachtrace)
 
                 self.stats[s.sample] = s.stats
+
+    # function for visualising sample statistics
+    def statplot(self, analytes=None, samples=None, figsize=None,
+                 stat='nanmean', err='nanstd'):
+        if ~hasattr(self, 'stats'):
+            self.sample_stats()
+
+        if analytes is None:
+                analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is None:
+            samples = self.samples
+        elif isinstance(samples, str):
+            samples = [samples]
+
+        analytes = [a for a in analytes if a !=
+                    self.data[0].ratio_params['denominator']]
+
+        if figsize is None:
+            figsize = (1.5 * len(self.stats), 3 * len(analytes))
+
+        fig, axs = plt.subplots(len(analytes), 1, figsize=figsize)
+
+        for ax, an in zip(axs, analytes):
+            i = 0
+            for s in samples:
+                d = self.stats[s]
+                n = d[stat].shape[1]
+                if n > 1:
+                    x = np.linspace(i - .1 * n / 2, i + .1 * n / 2, n)
+                else:
+                    x = [i]
+                a_ind = d['analytes'] == an
+
+                m, u = unitpicker(np.nanmin(d[stat][a_ind][0]))
+
+                # plot individual ablations with error bars
+                ax.errorbar(x, d[stat][a_ind][0] * m,
+                            yerr=d[err][a_ind][0] * m,
+                            marker='o', color=self.cmaps[an],
+                            lw=0, elinewidth=1)
+
+                ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
+                                                 pretty_element(self.data[0].ratio_params['denominator']),
+                                                 u))
+
+                # plot whole-sample mean
+                if len(x) > 1:
+                    # mean calculation with error propagation?
+                    # umean = un.uarray(d[stat][a_ind][0] * m, d[err][a_ind][0] * m).mean()
+                    # std = un.std_devs(umean)
+                    # mean = un.nominal_values(umean)
+                    mean = np.nanmean(d[stat][a_ind][0] * m)
+                    std = np.nanstd(d[stat][a_ind][0] * m)
+                    ax.plot(x, [mean] * len(x), c=self.cmaps[an], lw=2)
+                    ax.fill_between(x, [mean + std] * len(x),
+                                    [mean - std] * len(x),
+                                    lw=0, alpha=0.2, color=self.cmaps[an])
+
+                # highlight each sample
+                if i % 2 == 1:
+                    ax.axvspan(i-.5, i+.5, color=(0, 0, 0, 0.05), lw=0)
+
+                i += 1
+
+            ax.set_xticks(np.arange(0, len(self.stats)))
+            ax.set_xlim(-0.5, len(self.stats)-.5)
+            if ax.is_last_row():
+                ax.set_xticklabels(samples)
+            else:
+                ax.set_xticklabels([])
+
+        return fig, ax
 
     def getstats(self, path=None):
         """
@@ -1573,6 +1660,8 @@ class analyse(object):
 
         if path is not None:
             out.to_csv(path)
+
+        self.stats_df = out
 
         return out
 
@@ -2646,8 +2735,7 @@ class D(object):
         """
         if analytes is None:
                 analytes = self.analytes
-
-        if isinstance(analytes, str):
+        elif isinstance(analytes, str):
             analytes = [analytes]
 
         self.stats = {}
