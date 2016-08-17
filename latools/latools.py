@@ -12,6 +12,7 @@ import pandas as pd
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import uncertainties as unc
 import uncertainties.unumpy as un
 import sklearn.cluster as cl
 from sklearn import preprocessing
@@ -1901,8 +1902,10 @@ class analyse(object):
               'despiked': 'counts',
               'signal': 'counts',
               'bkgsub': 'background corrected counts',
-              'ratios': 'counts/count %s' % (self.ratio_params['denominator']),
-              'calibrated': 'mol/mol %s' % (self.ratio_params['denominator'])}
+              'ratios': 'counts/count {:s}',
+              'calibrated': 'mol/mol {:s}'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.ratio_params['denominator'])
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -1912,7 +1915,7 @@ class analyse(object):
             ind = self.data_dict[s].filt.grab_filt(filt)
             out = {}
             errs = isinstance(self.data_dict[s].data[focus_stage][analytes[0]][0],
-                              un.AffineScalarFunc)
+                              unc.AffineScalarFunc)
             for a in analytes:
                 out[a] = nominal_values(d[a][ind])
                 if errs:
