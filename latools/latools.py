@@ -2160,35 +2160,6 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    def rolling_window(self, a, window, pad=None):
-        """
-        Returns (win, len(a)) rolling-window array of data.
-
-        Parameters
-        ----------
-        a : array_like
-            Array to calculate the rolling window of
-        window : int
-            Description of `window`.
-        pad : same as dtype(a)
-            Description of `pad`.
-
-        Returns
-        -------
-        array_like
-            An array of shape (n, window), where n is either len(a) - window
-            if pad is None, or len(a) if pad is not None.
-        """
-        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-        strides = a.strides + (a.strides[-1],)
-        out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-        if pad is not None:
-            blankpad = np.empty((window//2, window, ))
-            blankpad[:] = pad
-            return np.concatenate([blankpad, out, blankpad])
-        else:
-            return out
-
     def expdecay_despiker(self, exponent=None, tstep=None):
         """
         Apply exponential decay filter to remove unrealistically low values.
@@ -2263,11 +2234,11 @@ class D(object):
                     warnings.simplefilter("ignore", category=RuntimeWarning)
                     rmean = \
                         np.apply_along_axis(np.nanmean, 1,
-                                            self.rolling_window(v, win,
+                                            rolling_window(v, win,
                                                                 pad=np.nan))
                     rmean = \
                         np.apply_along_axis(np.nanmean, 1,
-                                            self.rolling_window(v, win,
+                                            rolling_window(v, win,
                                                                 pad=np.nan))
                 # calculate rolling standard deviation
                 # (count statistics, so **0.5)
@@ -2412,7 +2383,7 @@ class D(object):
             x position of minima
 
         """
-        yd = self.fastgrad(y[::-1], win)
+        yd = fastgrad(y[::-1], win)
         mins = self.findmins(x[::-1], yd)
         clos = abs(mins - c)
         return mins[clos == min(clos)] - min(clos)
@@ -2440,44 +2411,10 @@ class D(object):
         float
             x position of minima
         """
-        yd = self.fastgrad(y, win)
+        yd = fastgrad(y, win)
         mins = self.findmins(x, yd)
         clos = abs(mins - c)
         return mins[clos == min(abs(clos))] + min(clos)
-
-    def fastgrad(self, a, win=11):
-        """
-        Returns rolling-window gradient of a.
-
-        Function to efficiently calculate the rolling gradient of a numpy
-        array using 'stride_tricks' to split up a 1D array into an ndarray of
-        sub-sections of the original array, of dimensions [len(a)-win, win].
-
-        Parameters
-        ----------
-        a : array_like
-            The 1D array to calculate the rolling gradient of.
-        win : int
-            The width of the rolling window.
-
-        Returns
-        -------
-        array_like
-            Gradient of a, assuming as constant integer x-scale.
-        """
-        # check to see if 'window' is odd (even does not work)
-        if win % 2 == 0:
-            win -= 1  # subtract 1 from window if it is even.
-        # trick for efficient 'rolling' computation in numpy
-        # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-        # strides = a.strides + (a.strides[-1],)
-        # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-        wins = self.rolling_window(a, win)
-        # apply rolling gradient to data
-        a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
-
-        return np.concatenate([np.zeros(int(win/2)), list(a),
-                              np.zeros(int(win / 2))])
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5, conf=0.01, trans_mult=[0., 0.]):
         """
@@ -2562,7 +2499,8 @@ class D(object):
 
         mins = self.findmins(x, yd)  # find minima in kde
 
-        bkg = v < 1.2 * 10**mins[0]  # set background as lowest distribution
+        vs
+        bkg = v < 10**(1.2 * mins[0])  # set background as lowest distribution
         if not bkg[0]:
             bkg[0] = True
 
@@ -2573,7 +2511,7 @@ class D(object):
         # remove transitions by fitting a gaussian to the gradients of
         # each transition
         # 1. calculate the absolute gradient of the target trace.
-        g = abs(self.fastgrad(v, gwin))
+        g = abs(fastgrad(v, gwin))
         # 2. determine the approximate index of each transition
         zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)] - 1
         tran = []  # initialise empty list for transition pairs
@@ -3465,11 +3403,11 @@ class D(object):
 
         x = nominal_values(self.focus[x_analyte])
         x[~ind] = np.nan
-        xr = self.rolling_window(x, window, pad=np.nan)
+        xr = rolling_window(x, window, pad=np.nan)
 
         y = nominal_values(self.focus[y_analyte])
         y[~ind] = np.nan
-        yr = self.rolling_window(y, window, pad=np.nan)
+        yr = rolling_window(y, window, pad=np.nan)
 
         r, p = zip(*map(pearsonr, xr, yr))
 
@@ -4645,3 +4583,102 @@ def std_devs(a):
         return un.std_devs(a)
     except:
         return a
+
+
+def rolling_window(a, window, pad=None):
+    """
+    Returns (win, len(a)) rolling-window array of data.
+
+    Parameters
+    ----------
+    a : array_like
+        Array to calculate the rolling window of
+    window : int
+        Description of `window`.
+    pad : same as dtype(a)
+        Description of `pad`.
+
+    Returns
+    -------
+    array_like
+        An array of shape (n, window), where n is either len(a) - window
+        if pad is None, or len(a) if pad is not None.
+    """
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    if pad is not None:
+        blankpad = np.empty((window//2, window, ))
+        blankpad[:] = pad
+        return np.concatenate([blankpad, out, blankpad])
+    else:
+        return out
+
+def fastsmooth(a, win=11):
+    """
+    Returns rolling-window smooth of a.
+
+    Function to efficiently calculate the rolling mean of a numpy
+    array using 'stride_tricks' to split up a 1D array into an ndarray of
+    sub-sections of the original array, of dimensions [len(a)-win, win].
+
+    Parameters
+    ----------
+    a : array_like
+        The 1D array to calculate the rolling gradient of.
+    win : int
+        The width of the rolling window.
+
+    Returns
+    -------
+    array_like
+        Gradient of a, assuming as constant integer x-scale.
+    """
+    # check to see if 'window' is odd (even does not work)
+    if win % 2 == 0:
+        win -= 1  # subtract 1 from window if it is even.
+    # trick for efficient 'rolling' computation in numpy
+    # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+    # strides = a.strides + (a.strides[-1],)
+    # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    wins = rolling_window(a, win)
+    # apply rolling gradient to data
+    a = map(np.nanmean, wins)
+
+    return np.concatenate([np.zeros(int(win/2)), list(a),
+                          np.zeros(int(win / 2))])
+
+
+def fastgrad(a, win=11):
+    """
+    Returns rolling-window gradient of a.
+
+    Function to efficiently calculate the rolling gradient of a numpy
+    array using 'stride_tricks' to split up a 1D array into an ndarray of
+    sub-sections of the original array, of dimensions [len(a)-win, win].
+
+    Parameters
+    ----------
+    a : array_like
+        The 1D array to calculate the rolling gradient of.
+    win : int
+        The width of the rolling window.
+
+    Returns
+    -------
+    array_like
+        Gradient of a, assuming as constant integer x-scale.
+    """
+    # check to see if 'window' is odd (even does not work)
+    if win % 2 == 0:
+        win -= 1  # subtract 1 from window if it is even.
+    # trick for efficient 'rolling' computation in numpy
+    # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+    # strides = a.strides + (a.strides[-1],)
+    # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    wins = rolling_window(a, win)
+    # apply rolling gradient to data
+    a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
+
+    return np.concatenate([np.zeros(int(win/2)), list(a),
+                          np.zeros(int(win / 2))])
