@@ -2315,49 +2315,49 @@ class D(object):
         """
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
-    def gauss(self, x, *p):
-        """ Gaussian function.
+    # def gauss(self, x, *p):
+    #     """ Gaussian function.
 
-        Parameters
-        ----------
-        x : array_like
-            Independent variable.
-        *p : parameters unpacked to A, mu, sigma
-            A: area
-            mu: centre
-            sigma: width
+    #     Parameters
+    #     ----------
+    #     x : array_like
+    #         Independent variable.
+    #     *p : parameters unpacked to A, mu, sigma
+    #         A: area
+    #         mu: centre
+    #         sigma: width
 
-        Return
-        ------
-        array_like
-            gaussian descriped by *p.
-        """
-        A, mu, sigma = p
-        return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
+    #     Return
+    #     ------
+    #     array_like
+    #         gaussian descriped by *p.
+    #     """
+    #     A, mu, sigma = p
+    #     return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
 
-    def gauss_inv(self, y, *p):
-        """
-        Inverse Gaussian function.
+    # def gauss_inv(self, y, *p):
+    #     """
+    #     Inverse Gaussian function.
 
-        For determining the x coordinates
-        for a given y intensity (i.e. width at a given height).
+    #     For determining the x coordinates
+    #     for a given y intensity (i.e. width at a given height).
 
-        Parameters
-        ----------
-        y : float
-            The height at which to calculate peak width.
-        *p : parameters unpacked to mu, sigma
-            mu: peak center
-            sigma: peak width
+    #     Parameters
+    #     ----------
+    #     y : float
+    #         The height at which to calculate peak width.
+    #     *p : parameters unpacked to mu, sigma
+    #         mu: peak center
+    #         sigma: peak width
 
-        Return
-        ------
-        array_like
-            x positions either side of mu where gauss(x) == y.
-        """
-        mu, sigma = p
-        return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
-                         mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
+    #     Return
+    #     ------
+    #     array_like
+    #         x positions either side of mu where gauss(x) == y.
+    #     """
+    #     mu, sigma = p
+    #     return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
+    #                      mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
 
     # def findlower(self, x, y, c, win=3):
     #     """
@@ -2526,42 +2526,42 @@ class D(object):
                 ys = g[:z+win]
             # determine location of maximum gradient
             c = self.Time[z]  # xs[ys == np.nanmax(ys)]
-            # try:  # in case some of them don't work...
-            # fit a gaussian to the first derivative of each
-            # transition. Initial guess parameters are determined
-            # by:
-            #   - A: maximum gradient in data
-            #   - mu: c
-            #   - sigma: half the exponential decay coefficient used
-            #       for despiking OR 1., if there is no exponent.
-            try:
-                width = 0.5 * abs(self.despike_params['exponent'])
+            try:  # in case some of them don't work...
+                # fit a gaussian to the first derivative of each
+                # transition. Initial guess parameters are determined
+                # by:
+                #   - A: maximum gradient in data
+                #   - mu: c
+                #   - sigma: half the exponential decay coefficient used
+                #       for despiking OR 1., if there is no exponent.
+                try:
+                    width = 0.5 * abs(self.despike_params['exponent'])
+                except:
+                    width = 1.
+                # The 'sigma' parameter of curve_fit:
+                # This weights the fit by distance from c - i.e. data closer
+                # to c are more important in the fit than data further away
+                # from c. This allows the function to fit the correct curve,
+                # even if the data window has captured two independent
+                # transitions (i.e. end of one ablation and start of next)
+                # ablation are < win time steps apart).
+                pg, _ = curve_fit(gauss, xs, ys,
+                                  p0=(np.nanmax(ys),
+                                      c,
+                                      width),
+                                  sigma=abs(xs - c) + .1)
+                # get the x positions when the fitted gaussian is at 'conf' of
+                # maximum
+                tran.append(gauss_inv(conf, *pg[1:]) +
+                            pg[-1] * np.array(trans_mult))
             except:
-                width = 1.
-            # The 'sigma' parameter of curve_fit:
-            # This weights the fit by distance from c - i.e. data closer
-            # to c are more important in the fit than data further away
-            # from c. This allows the function to fit the correct curve,
-            # even if the data window has captured two independent
-            # transitions (i.e. end of one ablation and start of next)
-            # ablation are < win time steps apart).
-            pg, _ = curve_fit(self.gauss, xs, ys,
-                              p0=(np.nanmax(ys),
-                                  c,
-                                  width),
-                              sigma=abs(xs - c) + .1)
-            # get the x positions when the fitted gaussian is at 'conf' of
-            # maximum
-            tran.append(self.gauss_inv(conf, *pg[1:]) +
-                        pg[-1] * np.array(trans_mult))
-            # except:
-            #     warnings.warn(("Transition identification at " +
-            #                    "{:.1f} failed.".format(self.Time[z]) +
-            #                    "\nPlease check the data plots and make sure " +
-            #                    "everything is OK.\n(Run " +
-            #                    "'trace_plots(ranges=True)'"),
-            #                   UserWarning)
-            #     pass  # if it fails for any reason, warn and skip it!
+                warnings.warn(("Transition identification at " +
+                               "{:.1f} failed.".format(self.Time[z]) +
+                               "\nPlease check the data plots and make sure " +
+                               "everything is OK.\n(Run " +
+                               "'trace_plots(ranges=True)'"),
+                              UserWarning)
+                pass  # if it fails for any reason, warn and skip it!
 
         # for z in zeros:  # for each approximate transition
         #     # isolate the data around the transition
@@ -2582,23 +2582,23 @@ class D(object):
         #         x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
         #         y = g[(self.Time >= lower) & (self.Time <= upper)]
         #         # fit a gaussian to the transition gradient
-        #         pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
+        #         pg, _ = curve_fit(gauss, x, y, p0=(np.nanmax(y),
         #                                                 x[y == np.nanmax(y)],
         #                                                 (upper - lower) / 2))
         #         # get the x positions when the fitted gaussian is at 'conf' of
         #         # maximum
-        #         tran.append(self.gauss_inv(conf, *pg[1:]) +
+        #         tran.append(gauss_inv(conf, *pg[1:]) +
         #                     pg[-1] * np.array(trans_mult))
         #     except:
         #         try:
         #             # fit a gaussian to the transition gradient
-        #             pg, _ = curve_fit(self.gauss, x, y,
+        #             pg, _ = curve_fit(gauss, x, y,
         #                               p0=(np.nanmax(y),
         #                                   x[y == np.nanmax(y)],
         #                                   (upper - lower) / 2))
         #             # get the x positions when the fitted gaussian is at
         #             # 'conf' of maximum
-        #             tran.append(self.gauss_inv(conf, *pg[1:]) +
+        #             tran.append(gauss_inv(conf, *pg[1:]) +
         #                         pg[-1] * np.array(trans_mult))
         #         except:
         #             pass
@@ -4327,6 +4327,52 @@ class filt(object):
 
 
 # other useful functions
+def gauss(self, x, *p):
+    """ Gaussian function.
+
+    Parameters
+    ----------
+    x : array_like
+        Independent variable.
+    *p : parameters unpacked to A, mu, sigma
+        A: area
+        mu: centre
+        sigma: width
+
+    Return
+    ------
+    array_like
+        gaussian descriped by *p.
+    """
+    A, mu, sigma = p
+    return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
+
+
+def gauss_inv(self, y, *p):
+    """
+    Inverse Gaussian function.
+
+    For determining the x coordinates
+    for a given y intensity (i.e. width at a given height).
+
+    Parameters
+    ----------
+    y : float
+        The height at which to calculate peak width.
+    *p : parameters unpacked to mu, sigma
+        mu: peak center
+        sigma: peak width
+
+    Return
+    ------
+    array_like
+        x positions either side of mu where gauss(x) == y.
+    """
+    mu, sigma = p
+    return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
+                     mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
+
+
 def unitpicker(a, llim=0.1):
     """
     Determines the most appropriate plotting unit for data.
@@ -4565,7 +4611,6 @@ def intial_configuration():
                    "for the UC Davis Agilent 7700."))
             OK = True
 
-
     make_default = input(('Do you want to use these files as your '
                           'default? [Y/n] : ')).lower() != 'n'
 
@@ -4662,6 +4707,7 @@ def rolling_window(a, window, pad=None):
     else:
         return out
 
+
 def fastsmooth(a, win=11):
     """
     Returns rolling-window smooth of a.
@@ -4730,3 +4776,9 @@ def fastgrad(a, win=11):
 
     return np.concatenate([np.zeros(int(win/2)), list(a),
                           np.zeros(int(win / 2))])
+
+
+# def gaus_deriv(x, *p):
+#     A, mu, sigma = p
+#     return A * ((np.exp((-(x-mu)**2)/(2*sigma**2)) * (x-mu)) /
+#                 (np.sqrt(2 * np.pi) * sigma**3))
