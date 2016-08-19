@@ -118,23 +118,25 @@ class analyse(object):
     trace_plots
     """
     def __init__(self, data_folder, errorhunt=False, config=None,
-                 dataformat=None, extension='.csv', srm_identifier='STD'):
+                 dataformat=None, extension='.csv', srm_identifier='STD',
+                 cmap=None):
         """
         For processing and analysing whole LA-ICPMS datasets.
         """
-        self.folder = data_folder
-        self.parent_folder = os.path.dirname(os.path.realpath(data_folder))
-        self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
+        self.folder = os.path.realpath(data_folder)
+        self.parent_folder = os.path.dirname(self.folder)
         self.files = np.array([f for f in os.listdir(self.folder)
                                if extension in f])
 
         # make output directories
         self.param_dir = re.sub('//', '/',
-                                self.parent_folder + '/params_' + data_folder + '/')
+                                self.parent_folder + '/params_' +
+                                os.path.basename(self.folder) + '/')
         if not os.path.isdir(self.param_dir):
             os.mkdir(self.param_dir)
         self.report_dir = re.sub('//', '/',
-                                 self.parent_folder + '/reports_' + data_folder + '/')
+                                 self.parent_folder + '/reports_' +
+                                 os.path.basename(self.folder) + '/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
 
@@ -213,7 +215,8 @@ class analyse(object):
         # load data (initialise D objects)
         self.data = np.array([D(self.folder + '/' + f,
                                 dataformat=self.dataformat,
-                                errorhunt=errorhunt) for f in self.files])
+                                errorhunt=errorhunt,
+                                cmap=cmap) for f in self.files])
 
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].analytes)
@@ -642,10 +645,10 @@ class analyse(object):
             stdnms = []
             s.srm_rngs = {}
             for n in np.arange(s.n) + 1:
-                fig = s.tplot(scale='log')
+                fig, ax = s.tplot(scale='log')
                 lims = s.Time[s.ns == n][[0, -1]]
-                fig.axes[0].axvspan(lims[0], lims[1],
-                                    color='r', alpha=0.2, lw=0)
+                ax.axvspan(lims[0], lims[1],
+                           color='r', alpha=0.2, lw=0)
                 display.clear_output(wait=True)
                 display.display(fig)
                 stdnm = input('Name this standard: ')
@@ -1265,7 +1268,11 @@ class analyse(object):
 #                            alpha=0.2, zorder=-1)
 
             # calculate line and R2
-            x = np.logspace(*np.log10(xlim), 100)
+            if loglog:
+                x = np.logspace(*np.log10(xlim), 100)
+            else:
+                x = np.array(xlim)
+
             coefs = self.calib_dict[a]
             poly_n = len(coefs)-1
 
@@ -1423,13 +1430,13 @@ class analyse(object):
                 xd = nominal_values(self.focus[analytes[x]])
                 yd = nominal_values(self.focus[analytes[y]])
                 # set unit multipliers
-                mx, ux = unitpicker(np.nanmin(x))
-                my, uy = unitpicker(np.nanmax(y))
+                mx, ux = unitpicker(np.nanmin(xd))
+                my, uy = unitpicker(np.nanmax(yd))
                 udict[analytes[x]] = (x, ux)
 
                 # make plot
                 px = xd[~np.isnan(xd)] * mx
-                py = yx[~np.isnan(yd)] * my
+                py = yd[~np.isnan(yd)] * my
                 if lognorm:
                     axes[x, y].hist2d(py, px, bins,
                                       norm=mpl.colors.LogNorm(),
@@ -1450,6 +1457,10 @@ class analyse(object):
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
+
+        # TODO:
+        #  - When lower right plot has axes, they are always 0:1 range.
+        #  - Some x and y labels are a 10**3 different... inconsistently?.
 
         return fig, axes
 
@@ -1511,18 +1522,19 @@ class analyse(object):
             samples = self.samples
         for s in samples:
             self.data_dict[s].setfocus(focus)
-            fig = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
-                                          scale=scale, filt=filt,
-                                          ranges=ranges, stats=stats,
-                                          stat=stat, err=err)
+            f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
+                                           scale=scale, filt=filt,
+                                           ranges=ranges, stats=stats,
+                                           stat=stat, err=err)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
             # for l, u in s.bkgrng:
             #     ax.axvspan(l, u, color='k', alpha=0.1)
-            fig.savefig(outdir + '/' + s + '_traces.pdf')
-            # TODO: on older(?) computers generates an 'OSError: [Errno 24] Too many open files'
-            plt.close(fig)
+            f.savefig(outdir + '/' + s + '_traces.pdf')
+            # TODO: on older(?) computers raises
+            # 'OSError: [Errno 24] Too many open files'
+            plt.close(f)
             self.data_dict[s].setfocus(stg)
         return
 
@@ -2038,7 +2050,7 @@ class D(object):
     noise_despiker
     tplot
     """
-    def __init__(self, data_file, dataformat=None, errorhunt=False):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -2085,6 +2097,13 @@ class D(object):
                          [mpl.colors.rgb2hex(c) for c
                           in plt.cm.Dark2(np.linspace(0, 1,
                                                       len(self.analytes)))]))
+        # update colourmap with provided values
+        if isinstance(cmap, dict):
+            for k, v in cmap.items():
+                if k in self.cmap.keys():
+                    self.cmap[k] = v
+
+
 
         # set up flags
         self.sig = np.array([False] * self.Time.size)
@@ -2544,6 +2563,8 @@ class D(object):
         mins = self.findmins(x, yd)  # find minima in kde
 
         bkg = v < 1.2 * 10**mins[0]  # set background as lowest distribution
+        if not bkg[0]:
+            bkg[0] = True
 
         # assign rough background and signal regions based on kde minima
         self.bkg = bkg
@@ -2565,10 +2586,10 @@ class D(object):
                 xs = self.Time[:z+win]
                 ys = g[:z+win]
             # determine location of maximum gradient
-            c = xs[ys == np.nanmax(ys)]
+            c = self.Time[z]  # xs[ys == np.nanmax(ys)]
             try:  # in case some of them don't work...
-                # locate the limits of the main peak (find turning point either side of
-                # peak centre using a second derivative)
+                # locate the limits of the main peak (find turning point either
+                # side of peak centre using a second derivative)
                 lower = self.findlower(xs, ys, c, smwin)
                 upper = self.findupper(xs, ys, c, smwin)
                 # isolate transition peak for fit
@@ -3625,7 +3646,7 @@ class D(object):
         else:
             ax.legend(bbox_to_anchor=(1.12, 1))
 
-        return fig
+        return fig, ax
 
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True):
         """
