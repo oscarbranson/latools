@@ -380,7 +380,7 @@ class analyse(object):
                     tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
                                    (v.Time < trnrng[1])])
                     sm = np.apply_along_axis(np.nanmean, 1,
-                                             v.rolling_window(tr, 3, pad=0))
+                                             rolling_window(tr, 3, pad=0))
                     sm[0] = sm[1]
                     trim = findtrim(sm, trimlim) + 2
                     trans.append(normalise(tr[trim:]))
@@ -2359,62 +2359,62 @@ class D(object):
         return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
                          mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
 
-    def findlower(self, x, y, c, win=3):
-        """
-        Returns the first local minima in y below c.
+    # def findlower(self, x, y, c, win=3):
+    #     """
+    #     Returns the first local minima in y below c.
 
-        Finds the first local minima below a specified point. Used for
-        defining the lower limit of the data window used for transition
-        fitting.
+    #     Finds the first local minima below a specified point. Used for
+    #     defining the lower limit of the data window used for transition
+    #     fitting.
 
-        Parameters
-        ----------
-        x, y : array_like
-            1D Arrays of independent and dependent variables.
-        c : float
-            The threshold below which the first minimum should
-            be returned.
-        win : int
-            The window used to calculate rolling statistics.
+    #     Parameters
+    #     ----------
+    #     x, y : array_like
+    #         1D Arrays of independent and dependent variables.
+    #     c : float
+    #         The threshold below which the first minimum should
+    #         be returned.
+    #     win : int
+    #         The window used to calculate rolling statistics.
 
-        Returns
-        -------
-        float
-            x position of minima
+    #     Returns
+    #     -------
+    #     float
+    #         x position of minima
 
-        """
-        yd = fastgrad(y[::-1], win)
-        mins = self.findmins(x[::-1], yd)
-        clos = abs(mins - c)
-        return mins[clos == min(clos)] - min(clos)
+    #     """
+    #     yd = fastgrad(y[::-1], win)
+    #     mins = self.findmins(x[::-1], yd)
+    #     clos = abs(mins - c)
+    #     return mins[clos == min(clos)] - min(clos)
 
-    def findupper(self, x, y, c, win=3):
-        """
-        Returns the first local minima in y above c.
+    # def findupper(self, x, y, c, win=3):
+    #     """
+    #     Returns the first local minima in y above c.
 
-        Finds the first local minima above a specified point. Used for
-        defining the lower limit of the data window used for transition
-        fitting.
+    #     Finds the first local minima above a specified point. Used for
+    #     defining the lower limit of the data window used for transition
+    #     fitting.
 
-        Parameters
-        ----------
-        x, y : array_like
-            1D Arrays of independent and dependent variables.
-        c : float
-            The threshold above which the first minimum should
-            be returned.
-        win : int
-            The window used to calculate rolling statistics.
+    #     Parameters
+    #     ----------
+    #     x, y : array_like
+    #         1D Arrays of independent and dependent variables.
+    #     c : float
+    #         The threshold above which the first minimum should
+    #         be returned.
+    #     win : int
+    #         The window used to calculate rolling statistics.
 
-        Returns
-        -------
-        float
-            x position of minima
-        """
-        yd = fastgrad(y, win)
-        mins = self.findmins(x, yd)
-        clos = abs(mins - c)
-        return mins[clos == min(abs(clos))] + min(clos)
+    #     Returns
+    #     -------
+    #     float
+    #         x position of minima
+    #     """
+    #     yd = fastgrad(y, win)
+    #     mins = self.findmins(x, yd)
+    #     clos = abs(mins - c)
+    #     return mins[clos == min(abs(clos))] + min(clos)
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5, conf=0.01, trans_mult=[0., 0.]):
         """
@@ -2499,8 +2499,8 @@ class D(object):
 
         mins = self.findmins(x, yd)  # find minima in kde
 
-        vs
-        bkg = v < 10**(1.2 * mins[0])  # set background as lowest distribution
+        vs = fastsmooth(v, gwin)
+        bkg = vs < 10**(1.2 * mins[0])  # set background as lowest distribution
         if not bkg[0]:
             bkg[0] = True
 
@@ -2513,10 +2513,11 @@ class D(object):
         # 1. calculate the absolute gradient of the target trace.
         g = abs(fastgrad(v, gwin))
         # 2. determine the approximate index of each transition
-        zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)] - 1
+        zeros = bool_2_indices(bkg).flatten()
         tran = []  # initialise empty list for transition pairs
+
         for z in zeros:  # for each approximate transition
-            # isolate the data around the transition
+            #isolate the data around the transition
             if z - win > 0:
                 xs = self.Time[z-win:z+win]
                 ys = g[z-win:z+win]
@@ -2525,35 +2526,82 @@ class D(object):
                 ys = g[:z+win]
             # determine location of maximum gradient
             c = self.Time[z]  # xs[ys == np.nanmax(ys)]
-            try:  # in case some of them don't work...
-                # locate the limits of the main peak (find turning point either
-                # side of peak centre using a second derivative)
-                lower = self.findlower(xs, ys, c, smwin)
-                upper = self.findupper(xs, ys, c, smwin)
-                # isolate transition peak for fit
-                x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
-                y = g[(self.Time >= lower) & (self.Time <= upper)]
-                # fit a gaussian to the transition gradient
-                pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
-                                                        x[y == np.nanmax(y)],
-                                                        (upper - lower) / 2))
-                # get the x positions when the fitted gaussian is at 'conf' of
-                # maximum
-                tran.append(self.gauss_inv(conf, *pg[1:]) +
-                            pg[-1] * np.array(trans_mult))
+            # try:  # in case some of them don't work...
+            # fit a gaussian to the first derivative of each
+            # transition. Initial guess parameters are determined
+            # by:
+            #   - A: maximum gradient in data
+            #   - mu: c
+            #   - sigma: half the exponential decay coefficient used
+            #       for despiking OR 1., if there is no exponent.
+            try:
+                width = 0.5 * abs(self.despike_params['exponent'])
             except:
-                try:
-                    # fit a gaussian to the transition gradient
-                    pg, _ = curve_fit(self.gauss, x, y,
-                                      p0=(np.nanmax(y),
-                                          x[y == np.nanmax(y)],
-                                          (upper - lower) / 2))
-                    # get the x positions when the fitted gaussian is at
-                    # 'conf' of maximum
-                    tran.append(self.gauss_inv(conf, *pg[1:]) +
-                                pg[-1] * np.array(trans_mult))
-                except:
-                    pass
+                width = 1.
+            # The 'sigma' parameter of curve_fit:
+            # This weights the fit by distance from c - i.e. data closer
+            # to c are more important in the fit than data further away
+            # from c. This allows the function to fit the correct curve,
+            # even if the data window has captured two independent
+            # transitions (i.e. end of one ablation and start of next)
+            # ablation are < win time steps apart).
+            pg, _ = curve_fit(self.gauss, xs, ys,
+                              p0=(np.nanmax(ys),
+                                  c,
+                                  width),
+                              sigma=abs(xs - c) + .1)
+            # get the x positions when the fitted gaussian is at 'conf' of
+            # maximum
+            tran.append(self.gauss_inv(conf, *pg[1:]) +
+                        pg[-1] * np.array(trans_mult))
+            # except:
+            #     warnings.warn(("Transition identification at " +
+            #                    "{:.1f} failed.".format(self.Time[z]) +
+            #                    "\nPlease check the data plots and make sure " +
+            #                    "everything is OK.\n(Run " +
+            #                    "'trace_plots(ranges=True)'"),
+            #                   UserWarning)
+            #     pass  # if it fails for any reason, warn and skip it!
+
+        # for z in zeros:  # for each approximate transition
+        #     # isolate the data around the transition
+        #     if z - win > 0:
+        #         xs = self.Time[z-win:z+win]
+        #         ys = g[z-win:z+win]
+        #     else:
+        #         xs = self.Time[:z+win]
+        #         ys = g[:z+win]
+        #     # determine location of maximum gradient
+        #     c = self.Time[z]  # xs[ys == np.nanmax(ys)]
+        #     try:  # in case some of them don't work...
+        #         # locate the limits of the main peak (find turning point either
+        #         # side of peak centre using a second derivative)
+        #         lower = self.findlower(xs, ys, c, smwin)
+        #         upper = self.findupper(xs, ys, c, smwin)
+        #         # isolate transition peak for fit
+        #         x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
+        #         y = g[(self.Time >= lower) & (self.Time <= upper)]
+        #         # fit a gaussian to the transition gradient
+        #         pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
+        #                                                 x[y == np.nanmax(y)],
+        #                                                 (upper - lower) / 2))
+        #         # get the x positions when the fitted gaussian is at 'conf' of
+        #         # maximum
+        #         tran.append(self.gauss_inv(conf, *pg[1:]) +
+        #                     pg[-1] * np.array(trans_mult))
+        #     except:
+        #         try:
+        #             # fit a gaussian to the transition gradient
+        #             pg, _ = curve_fit(self.gauss, x, y,
+        #                               p0=(np.nanmax(y),
+        #                                   x[y == np.nanmax(y)],
+        #                                   (upper - lower) / 2))
+        #             # get the x positions when the fitted gaussian is at
+        #             # 'conf' of maximum
+        #             tran.append(self.gauss_inv(conf, *pg[1:]) +
+        #                         pg[-1] * np.array(trans_mult))
+        #         except:
+        #             pass
         # remove the transition regions from the signal and background ids.
         for t in tran:
             self.bkg[(self.Time > t[0]) & (self.Time < t[1])] = False
