@@ -870,6 +870,13 @@ class analyse(object):
         return n * x**2 + x * m + c
 
     # data filtering
+    # TODO:
+    #   - implement 'filter sets'. Subsets dicts of samples at the 'analyse'
+    #       level that are all filtered in the same way. Should be able to:
+    #           a) Name the set
+    #           b) Apply and on/off filters independently for each set.
+    #           c) Each set should have a 'filter_status' function, listing
+    #               the state of each filter for each analyte within the set.
     def filter_threshold(self, analyte, threshold, filt=False, samples=None):
         """
         Applies a threshold filter to the data.
@@ -1510,9 +1517,7 @@ class analyse(object):
         None
         """
         if focus is None:
-            focus = stg = self.data[0].focus_stage
-        else:
-            stg = self.data[0].focus_stage
+            focus = self.data[0].focus_stage
         if outdir is None:
             outdir = self.report_dir + '/' + focus
         if not os.path.isdir(outdir):
@@ -1521,11 +1526,10 @@ class analyse(object):
         if samples is None:
             samples = self.samples
         for s in samples:
-            self.data_dict[s].setfocus(focus)
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
                                            scale=scale, filt=filt,
                                            ranges=ranges, stats=stats,
-                                           stat=stat, err=err)
+                                           stat=stat, err=err, focus_stage=focus)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -1535,7 +1539,6 @@ class analyse(object):
             # TODO: on older(?) computers raises
             # 'OSError: [Errno 24] Too many open files'
             plt.close(f)
-            self.data_dict[s].setfocus(stg)
         return
 
     # filter reports
@@ -1666,6 +1669,8 @@ class analyse(object):
 
         for ax, an in zip(axs, analytes):
             i = 0
+            stab = self.getstats()
+            m, u = unitpicker(np.nanmin(stab.loc[:, an].values))
             for s in samples:
                 if self.srm_identifier not in s:
                     d = self.stats[s]
@@ -1675,8 +1680,6 @@ class analyse(object):
                     else:
                         x = [i]
                     a_ind = d['analytes'] == an
-
-                    m, u = unitpicker(np.nanmin(d[stat][a_ind][0]))
 
                     # plot individual ablations with error bars
                     ax.errorbar(x, d[stat][a_ind][0] * m,
@@ -2315,108 +2318,8 @@ class D(object):
         """
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
-    # def gauss(self, x, *p):
-    #     """ Gaussian function.
-
-    #     Parameters
-    #     ----------
-    #     x : array_like
-    #         Independent variable.
-    #     *p : parameters unpacked to A, mu, sigma
-    #         A: area
-    #         mu: centre
-    #         sigma: width
-
-    #     Return
-    #     ------
-    #     array_like
-    #         gaussian descriped by *p.
-    #     """
-    #     A, mu, sigma = p
-    #     return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
-
-    # def gauss_inv(self, y, *p):
-    #     """
-    #     Inverse Gaussian function.
-
-    #     For determining the x coordinates
-    #     for a given y intensity (i.e. width at a given height).
-
-    #     Parameters
-    #     ----------
-    #     y : float
-    #         The height at which to calculate peak width.
-    #     *p : parameters unpacked to mu, sigma
-    #         mu: peak center
-    #         sigma: peak width
-
-    #     Return
-    #     ------
-    #     array_like
-    #         x positions either side of mu where gauss(x) == y.
-    #     """
-    #     mu, sigma = p
-    #     return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
-    #                      mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
-
-    # def findlower(self, x, y, c, win=3):
-    #     """
-    #     Returns the first local minima in y below c.
-
-    #     Finds the first local minima below a specified point. Used for
-    #     defining the lower limit of the data window used for transition
-    #     fitting.
-
-    #     Parameters
-    #     ----------
-    #     x, y : array_like
-    #         1D Arrays of independent and dependent variables.
-    #     c : float
-    #         The threshold below which the first minimum should
-    #         be returned.
-    #     win : int
-    #         The window used to calculate rolling statistics.
-
-    #     Returns
-    #     -------
-    #     float
-    #         x position of minima
-
-    #     """
-    #     yd = fastgrad(y[::-1], win)
-    #     mins = self.findmins(x[::-1], yd)
-    #     clos = abs(mins - c)
-    #     return mins[clos == min(clos)] - min(clos)
-
-    # def findupper(self, x, y, c, win=3):
-    #     """
-    #     Returns the first local minima in y above c.
-
-    #     Finds the first local minima above a specified point. Used for
-    #     defining the lower limit of the data window used for transition
-    #     fitting.
-
-    #     Parameters
-    #     ----------
-    #     x, y : array_like
-    #         1D Arrays of independent and dependent variables.
-    #     c : float
-    #         The threshold above which the first minimum should
-    #         be returned.
-    #     win : int
-    #         The window used to calculate rolling statistics.
-
-    #     Returns
-    #     -------
-    #     float
-    #         x position of minima
-    #     """
-    #     yd = fastgrad(y, win)
-    #     mins = self.findmins(x, yd)
-    #     clos = abs(mins - c)
-    #     return mins[clos == min(abs(clos))] + min(clos)
-
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5, conf=0.01, trans_mult=[0., 0.]):
+    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
+                  conf=0.01, trans_mult=[0., 0.]):
         """
                 Automatically separates signal and background data regions.
 
@@ -2517,7 +2420,7 @@ class D(object):
         tran = []  # initialise empty list for transition pairs
 
         for z in zeros:  # for each approximate transition
-            #isolate the data around the transition
+            # isolate the data around the transition
             if z - win > 0:
                 xs = self.Time[z-win:z+win]
                 ys = g[z-win:z+win]
@@ -3498,8 +3401,8 @@ class D(object):
     #     return fig, axes
 
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
-              ranges=False, stats=True, stat='nanmean', err='nanstd',
-              interactive=False):
+              ranges=False, stats=False, stat='nanmean', err='nanstd',
+              interactive=False, focus_stage=None):
         """
         Plot analytes as a function of Time.
 
@@ -3543,12 +3446,15 @@ class D(object):
         if analytes is None:
             analytes = self.analytes
 
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
 
         for a in analytes:
             x = self.Time
-            y, yerr = unpack_uncertainties(self.focus[a])
+            y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
             if scale is 'log':
                 ax.set_yscale('log')
@@ -4133,7 +4039,9 @@ class filt(object):
         array_like
             boolean filter
         """
-        if isinstance(analyte, str):
+        if analyte is None:
+            analyte = self.analytes
+        elif isinstance(analyte, str):
             analyte = [analyte]
 
         out = []
@@ -4327,7 +4235,7 @@ class filt(object):
 
 
 # other useful functions
-def gauss(self, x, *p):
+def gauss(x, *p):
     """ Gaussian function.
 
     Parameters
@@ -4348,7 +4256,7 @@ def gauss(self, x, *p):
     return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
 
 
-def gauss_inv(self, y, *p):
+def gauss_inv(y, *p):
     """
     Inverse Gaussian function.
 
