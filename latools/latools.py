@@ -699,7 +699,7 @@ class analyse(object):
         Parameters
         ----------
         params : str
-            Specify the parameter filt to load the calibration from.
+            Specify the parameter file to load the calibration from.
             If None, it assumes that the parameters are already loaded
             (using `load_params`).
 
@@ -877,7 +877,41 @@ class analyse(object):
     #           b) Apply and on/off filters independently for each set.
     #           c) Each set should have a 'filter_status' function, listing
     #               the state of each filter for each analyte within the set.
-    def filter_threshold(self, analyte, threshold, filt=False, samples=None):
+
+    def make_subset(self, samples=None, name=None):
+        """
+        Creates a subset of samples, which can be treated independently.
+
+        Parameters
+        ----------
+        samples : str or array-like
+            Name of sample, or list of sample names.
+        name : (optional) str or number
+            The name of the sample group. Defaults to n + 1, where n is
+            the highest existing group number
+        """
+        if isinstance(samples, str):
+            samples = [samples]
+
+        if not hasattr(self, 'subsets'):
+            self.subsets = dict(zip(self.samples, [0]*len(self.samples)))
+            self.subset_key = {}
+
+        if name is None:
+            name = max([x for x in self.subsets.values() if isinstance(x, int)]) + 1
+
+        if samples is not None:
+            for s in samples:
+                self.subsets[s] = name
+
+        for subset in np.unique(list(self.subsets.values())):
+            self.subset_key[subset] = sorted([k for k, v in self.subsets.items() if v == subset])
+
+        return name
+
+
+    def filter_threshold(self, analyte, threshold, filt=False,
+                         samples=None, subset=None):
         """
         Applies a threshold filter to the data.
 
@@ -896,21 +930,34 @@ class analyse(object):
         samples : array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
 
         Returns
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        elif isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
-                            transform=None, samples=None):
+                            transform=None, samples=None, subset=None):
         """
         Applies a distribution filter to the data.
 
@@ -938,10 +985,20 @@ class analyse(object):
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
@@ -950,7 +1007,7 @@ class analyse(object):
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False, samples=None,
-                          sort=True, **kwargs):
+                          sort=True, subset=None, **kwargs):
         """
         Applies an n-dimensional clustering filter to the data.
 
@@ -1041,10 +1098,20 @@ class analyse(object):
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
@@ -1054,7 +1121,8 @@ class analyse(object):
                                                 **kwargs)
 
     def filter_correlation(self, x_analyte, y_analyte, window=None,
-                           r_threshold=0.9, p_threshold=0.05, filt=True):
+                           r_threshold=0.9, p_threshold=0.05, filt=True,
+                           subset=None):
         """
         Applies a correlation filter to the data.
 
@@ -1088,17 +1156,27 @@ class analyse(object):
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
                                                  window=None, r_threshold=0.9,
                                                  p_threshold=0.05, filt=True)
 
-    def filter_on(self, filt=None, analyte=None, samples=None):
+    def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters on for particular analytes and samples.
 
@@ -1119,15 +1197,25 @@ class analyse(object):
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filt.on(analyte, filt)
 
-    def filter_off(self, filt=None, analyte=None, samples=None):
+    def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters off for particular analytes and samples.
 
@@ -1148,20 +1236,67 @@ class analyse(object):
         -------
         None
         """
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             self.data_dict[s].filt.off(analyte, filt)
 
-    def filter_clear(self):
+    def filter_status(self, sample=None, subset=None):
+        if sample is None and subset is None:
+            if not hasattr(self, 'subsets'):
+                self.make_subset(samples=None)
+            for k, v in self.subset_key.items():
+                print('Subset {:s}:'.format(str(k)))
+                print('Samples: ' + ', '.join(v))
+                print('\n' + self.data_dict[v[0]].filt.__repr__())
+                return
+
+        elif sample is not None:
+            print('Sample: ' + sample)
+            print(self.data_dict[sample].filt.__repr__())
+            return
+
+        elif subset is not None:
+            print('Subset {:s}:'.format(subset))
+            print('Samples: ' + ', '.join(self.subset_key[subset]))
+            print('\n' +
+                  self.data_dict[self.subset_key[subset][0]].filt.__repr__())
+            return
+
+    def filter_clear(self, samples=None, subset=None):
         """
         Clears (deletes) all data filters.
         """
-        for d in self.data:
-            d.filt.clear()
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in samples:
+            self.data_dict[s].filt.clear()
 
     # def filter_status(self, sample=None):
     #     if sample is not None:
@@ -1346,7 +1481,7 @@ class analyse(object):
         return fig, axes
 
     # fetch all the data from the data objects
-    def get_focus(self, filt=False):
+    def get_focus(self, filt=False, samples=None, subset=None):
         """
         Collect all data from all samples into a single array.
         Data from standards is not collected.
@@ -1362,12 +1497,29 @@ class analyse(object):
         -------
         None
         """
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
         t = 0
         self.focus = {'Time': []}
         for a in self.analytes:
             self.focus[a] = []
 
-        for s in self.data:
+        for sa in samples:
+            s = self.data_dict[sa]
             if self.srm_identifier not in s.sample:
                 self.focus['Time'].append(s.Time + t)
                 t += max(s.Time)
@@ -1379,10 +1531,11 @@ class analyse(object):
 
         for k, v in self.focus.items():
             self.focus[k] = np.concatenate(v)
+        return
 
     # crossplot of all data
     def crossplot(self, analytes=None, lognorm=True,
-                  bins=25, filt=False, **kwargs):
+                  bins=25, filt=False, samples=None, subset=None, **kwargs):
         """
         Plot analytes against each other as 2D histograms.
 
@@ -1406,8 +1559,8 @@ class analyse(object):
         """
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
-        if not hasattr(self, 'focus'):
-            self.get_focus(filt)
+
+        self.get_focus(filt, samples, subset)
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -1475,7 +1628,7 @@ class analyse(object):
     def trace_plots(self, analytes=None, samples=None, ranges=False,
                     focus=None, outdir=None, filt=False, scale='log',
                     figsize=[10, 4], stats=True, stat='nanmean',
-                    err='nanstd',):
+                    err='nanstd', subset=None):
         """
         Plot analytes as a function of time.
 
@@ -1523,8 +1676,21 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
         for s in samples:
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
                                            scale=scale, filt=filt,
@@ -1542,7 +1708,8 @@ class analyse(object):
         return
 
     # filter reports
-    def filter_reports(self, filt_str, analytes, samples=None, outdir=None):
+    def filter_reports(self, filt_str, analytes, samples=None,
+                       outdir=None, subset=None):
         """
         Plot filter reports for all filters that contain ``filt_str``
         in the name.
@@ -1554,8 +1721,20 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
             fig, ax = self.data_dict[s].filt_report(filt=filt_str,
@@ -1636,16 +1815,17 @@ class analyse(object):
         self.stats_calced = [f.__name__ for f in stat_fns]
 
         # calculate stats for each sample
-        for s in self.data:
-            if self.srm_identifier not in s.sample:
-                s.sample_stats(analytes, filt=filt, stat_fns=stat_fns,
-                               eachtrace=eachtrace)
+        for s in self.samples:
+            if self.srm_identifier not in s:
+                self.data_dict[s].sample_stats(analytes, filt=filt,
+                                               stat_fns=stat_fns,
+                                               eachtrace=eachtrace)
 
-                self.stats[s.sample] = s.stats
+                self.stats[s] = self.data_dict[s].stats
 
     # function for visualising sample statistics
     def statplot(self, analytes=None, samples=None, figsize=None,
-                 stat='nanmean', err='nanstd'):
+                 stat='nanmean', err='nanstd', subset=None):
         if ~hasattr(self, 'stats'):
             self.sample_stats()
 
@@ -1654,10 +1834,20 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        elif isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         analytes = [a for a in analytes if a !=
                     self.data[0].ratio_params['denominator']]
@@ -1717,15 +1907,30 @@ class analyse(object):
 
         return fig, ax
 
-    def getstats(self, path=None):
+    def getstats(self, path=None, samples=None, subset=None):
         """
         Return pandas dataframe of all sample statistics.
         """
         slst = []
 
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
         for s in self.stats_calced:
-            for nm in [n for n in self.samples if self.srm_identifier
-                       not in n.upper()]:
+            for nm in [n for n in samples if self.srm_identifier
+                       not in n]:
                 # make multi-index
                 reps = np.arange(self.stats[nm][s].shape[1])
                 ss = np.array([s] * reps.size)
@@ -1751,7 +1956,9 @@ class analyse(object):
         """
         Save analysis parameters.
 
-        TODO: must export configuration file and SRM file with parameters.
+        TODO:
+            - must export configuration file and SRM file with parameters.
+            - implement 'subset' export.
 
         Parameters
         ----------
@@ -1866,7 +2073,7 @@ class analyse(object):
 
     # raw data export function
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
-                      samples=None, filt=False):
+                      samples=None, subset=None, filt=False):
         """
         Function to export raw data.
 
@@ -1902,10 +2109,20 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        if samples is None:
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
             samples = self.samples
-        elif isinstance(samples, str):
-            samples = [samples]
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         if focus_stage is None:
             focus_stage = self.data[0].focus_stage
@@ -2458,7 +2675,8 @@ class D(object):
                 tran.append(gauss_inv(conf, *pg[1:]) +
                             pg[-1] * np.array(trans_mult))
             except:
-                warnings.warn(("Transition identification at " +
+                warnings.warn(("\nSample {:s}:".format(self.sample) +
+                               "\nTransition identification at " +
                                "{:.1f} failed.".format(self.Time[z]) +
                                "\nPlease check the data plots and make sure " +
                                "everything is OK.\n(Run " +
