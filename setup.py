@@ -24,6 +24,7 @@ setup(name='latools',
                         'mpld3',
                         'Ipython',
                         'configparser',
+                        'tqdm',
                         ],
       package_data={
         'latools': ['latools.cfg'],

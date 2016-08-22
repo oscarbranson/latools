@@ -22,6 +22,9 @@ from scipy.optimize import curve_fit
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from IPython import display
+# status bars!!!
+from tqdm import tnrange, tqdm_notebook
+
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -313,9 +316,10 @@ class analyse(object):
         -------
         None
         """
-        for d in self.data:
+        for d in tqdm_notebook(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
                         conf, trans_mult)
+        return
 
     def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False,
                      trimlim=None):
@@ -485,7 +489,8 @@ class analyse(object):
                        'times of the standards (may take a while...).'))
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
-        for d in self.data:
+
+        for d in tqdm_notebook(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
                       noise_despiker, win, nlim)
         return
@@ -599,7 +604,7 @@ class analyse(object):
         -------
         None
         """
-        for s in self.data:
+        for s in tqdm_notebook(self.data, desc='Background Correction'):
             s.bkg_correct(mode=mode)
         return
 
@@ -625,7 +630,7 @@ class analyse(object):
         del(params['self'])
         self.ratio_params = params
 
-        for s in self.data:
+        for s in tqdm_notebook(self.data, desc='Ratio Calculation'):
             s.ratio(denominator=denominator, focus=focus)
         return
 
@@ -853,7 +858,7 @@ class analyse(object):
             self.calib_dict[a] = un.uarray(p, err)
 
         # apply calibration
-        for d in self.data:
+        for d in tqdm_notebook(self.data, desc='Calibration'):
             d.calibrate(self.calib_dict)
 
         # save calibration parameters
@@ -953,7 +958,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Threshold Filter'):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
@@ -1000,7 +1005,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
                                                   filt=False, transform=None,
                                                   output=False)
@@ -1113,7 +1118,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Clustering Filter'):
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
                                                 normalise=normalise,
                                                 method=method,
@@ -1171,7 +1176,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
                                                  window=None, r_threshold=0.9,
                                                  p_threshold=0.05, filt=True)
@@ -1584,43 +1589,58 @@ class analyse(object):
                   'Greens', 'Greys', 'Oranges', 'OrRd',
                   'PuBu', 'PuBuGn', 'PuRd', 'Purples',
                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
-        udict = {}
-        for i, j in zip(*np.triu_indices_from(axes, k=1)):
-            for x, y in [(i, j), (j, i)]:
-                xd = nominal_values(self.focus[analytes[x]])
-                yd = nominal_values(self.focus[analytes[y]])
-                # set unit multipliers
-                mx, ux = unitpicker(np.nanmin(xd))
-                my, uy = unitpicker(np.nanmax(yd))
-                udict[analytes[x]] = (x, ux)
 
-                # make plot
-                px = xd[~np.isnan(xd)] * mx
-                py = yd[~np.isnan(yd)] * my
-                if lognorm:
-                    axes[x, y].hist2d(py, px, bins,
-                                      norm=mpl.colors.LogNorm(),
-                                      cmap=plt.get_cmap(cmlist[x]))
-                else:
-                    axes[x, y].hist2d(py, px, bins,
-                                      cmap=plt.get_cmap(cmlist[x]))
-                axes[x, y].set_ylim([px.min(), px.max()])
-                axes[x, y].set_xlim([py.min(), py.max()])
+        # isolate nominal_values for all analytes
+        focus = {k:nominal_values(v) for k, v in d.focus.items()}
+        # determine units for all analytes
+        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        # determine ranges for all analytes
+        rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
+                     np.nanmax(focus[a] * udict[a][0])) for a in analytes}
+
+        for i,j in zip(*np.triu_indices_from(axes, k=1)):
+            # get analytes
+            ai = analytes[i]
+            aj = analytes[j]
+
+            # remove nan, apply multipliers
+            pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
+            pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
+
+            # make plot
+            if lognorm:
+                axes[i, j].hist2d(pj, pi, bins,
+                                  norm=mpl.colors.LogNorm(),
+                                  cmap=plt.get_cmap(cmlist[i]))
+                axes[j, i].hist2d(pi, pj, bins,
+                                  norm=mpl.colors.LogNorm(),
+                                  cmap=plt.get_cmap(cmlist[j]))
+            else:
+                axes[i, j].hist2d(pj, pi, bins,
+                                  cmap=plt.get_cmap(cmlist[i]))
+                axes[j, i].hist2d(pi, pj, bins,
+                                  cmap=plt.get_cmap(cmlist[j]))
+
+            axes[i, j].set_ylim(*rdict[ai])
+            axes[i, j].set_xlim(*rdict[aj])
+
+            axes[j, i].set_ylim(*rdict[aj])
+            axes[j, i].set_xlim(*rdict[ai])
+
         # diagonal labels
-        for a, (i, u) in udict.items():
-            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
+        for a, n in zip(analytes, np.arange(len(analytes))):
+            axes[n, n].annotate(a+'\n'+udict[a][1], (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
+            axes[n, n].set_xlim(*rdict[a])
+            axes[n, n].set_ylim(*rdict[a])
+
         # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
             axes[j, i].xaxis.set_visible(True)
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
-
-        # TODO:
-        #  - When lower right plot has axes, they are always 0:1 range.
-        #  - Some x and y labels are a 10**3 different... inconsistently?.
 
         return fig, axes
 
@@ -1691,7 +1711,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Drawing Plots'):
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
                                            scale=scale, filt=filt,
                                            ranges=ranges, stats=stats,
@@ -2675,8 +2695,8 @@ class D(object):
                 tran.append(gauss_inv(conf, *pg[1:]) +
                             pg[-1] * np.array(trans_mult))
             except:
-                warnings.warn(("\nSample {:s}:".format(self.sample) +
-                               "\nTransition identification at " +
+                warnings.warn(("\nSample {:s}: ".format(self.sample) +
+                               "Transition identification at " +
                                "{:.1f} failed.".format(self.Time[z]) +
                                "\nPlease check the data plots and make sure " +
                                "everything is OK.\n(Run " +
