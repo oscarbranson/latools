@@ -859,7 +859,7 @@ class analyse(object):
 
         # apply calibration
         for d in tqdm_notebook(self.data, desc='Calibration'):
-            d.calibrate(self.calib_dict)
+            d.calibrate(self.calib_dict, analytes)
 
         # save calibration parameters
         # self.save_calibration()
@@ -1007,8 +1007,7 @@ class analyse(object):
 
         for s in tqdm_notebook(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
-                                                  filt=False, transform=None,
-                                                  output=False)
+                                                  filt=False, transform=None)
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False, samples=None,
@@ -1265,7 +1264,10 @@ class analyse(object):
                 self.make_subset(samples=None)
             for k, v in self.subset_key.items():
                 print('Subset {:s}:'.format(str(k)))
-                print('Samples: ' + ', '.join(v))
+                if len(v) == len(self.samples):
+                    print('Samples: All')
+                else:
+                    print('Samples: ' + ', '.join(v))
                 print('\n' + self.data_dict[v[0]].filt.__repr__())
                 return
 
@@ -1591,7 +1593,7 @@ class analyse(object):
                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
 
         # isolate nominal_values for all analytes
-        focus = {k:nominal_values(v) for k, v in d.focus.items()}
+        focus = {k:nominal_values(v) for k, v in self.focus.items()}
         # determine units for all analytes
         udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
         # determine ranges for all analytes
@@ -1756,7 +1758,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in samples:
+        for s in tqdm_notebook(samples, desc='Drawing Plots'):
             fig, ax = self.data_dict[s].filt_report(filt=filt_str,
                                                     analytes=analytes,
                                                     savedir=outdir)
@@ -2974,7 +2976,7 @@ class D(object):
         self.setfocus('ratios')
         return
 
-    def calibrate(self, calib_dict):
+    def calibrate(self, calib_dict, analytes=None):
         """
         Apply calibration to data.
 
@@ -2991,8 +2993,13 @@ class D(object):
         None
         """
         # can have calibration function stored in self and pass *coefs?
-        self.data['calibrated'] = {}
-        for a in self.analytes:
+        if analytes is None:
+            analytes = self.analytes
+
+        if 'calibrated' not in self.data.keys():
+            self.data['calibrated'] = {}
+
+        for a in analytes:
             coefs = calib_dict[a]
             if len(coefs) == 1:
                 self.data['calibrated'][a] = \
@@ -3127,11 +3134,11 @@ class D(object):
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
 
-    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None):
+    def filter_distribution(self, analytes, binwidth='scott', filt=False, transform=None):
         """
         Parameters
         ----------
-        analyte : str
+        analytes : str or list
             The analyte that the filter applies to.
         binwidth : str of float
             Specify the bin width of the kernel density estimator.
@@ -3153,6 +3160,9 @@ class D(object):
         params = locals()
         del(params['self'])
 
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
         # generate filter
         vals = np.vstack(nominal_values(list(self.focus.values())))
         if filt is not None:
@@ -3162,49 +3172,50 @@ class D(object):
             ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
         if any(ind):
-            # isolate data
-            d = nominal_values(self.focus[analyte][ind])
+            for analyte in analytes
+                # isolate data
+                d = nominal_values(self.focus[analyte][ind])
 
-            if transform == 'log':
-                d = np.log10(d)
+                if transform == 'log':
+                    d = np.log10(d)
 
-            # gaussian kde of data
-            kde = gaussian_kde(d, bw_method=binwidth)
-            x = np.linspace(np.nanmin(d), np.nanmax(d),
-                            kde.dataset.size // 3)
-            yd = kde.pdf(x)
-            limits = np.concatenate([self.findmins(x, yd), [x.max()]])
+                # gaussian kde of data
+                kde = gaussian_kde(d, bw_method=binwidth)
+                x = np.linspace(np.nanmin(d), np.nanmax(d),
+                                kde.dataset.size // 3)
+                yd = kde.pdf(x)
+                limits = np.concatenate([self.findmins(x, yd), [x.max()]])
 
-            if transform == 'log':
-                limits = 10**limits
+                if transform == 'log':
+                    limits = 10**limits
 
-            if limits.size > 1:
-                first = True
-                for i in np.arange(limits.size):
-                    if first:
-                        filt = self.focus[analyte] < limits[i]
-                        info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
-                        first = False
-                    else:
-                        filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
-                        info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
+                if limits.size > 1:
+                    first = True
+                    for i in np.arange(limits.size):
+                        if first:
+                            filt = self.focus[analyte] < limits[i]
+                            info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
+                            first = False
+                        else:
+                            filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
+                            info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
 
-                    self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
-                                  filt=filt,
-                                  info=info,
+                        self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
+                                      filt=filt,
+                                      info=info,
+                                      params=params)
+                else:
+                    self.filt.add(name=analyte + '_distribution_failed',
+                                  filt=~np.isnan(nominal_values(self.focus[analyte])),
+                                  info=analyte + ' is within a single distribution. No data removed.',
                                   params=params)
             else:
-                self.filt.add(name=analyte + '_distribution_failed',
-                              filt=~np.isnan(self.focus[analyte]),
-                              info=analyte + ' is within a single distribution. No data removed.',
-                              params=params)
-        else:
-            # if there are no data
-            name = analyte + '_distribution_0'
-            info = analyte + ' distribution filter (no data)'
+                # if there are no data
+                name = analyte + '_distribution_0'
+                info = analyte + ' distribution filter (no data)'
 
-            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-                          info=info, params=params)
+                self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                              info=info, params=params)
         return
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
@@ -3411,15 +3422,16 @@ class D(object):
         labels_unique = np.unique(labels)
 
         if sort:
-            avs = [np.nanmean(data[labels == lab]) for lab in labels_unique]
+            ds = np.apply_along_axis(sum, 1, data)
+            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
             order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(labels_unique, order))
+            sdict = dict(zip(order, labels_unique))
         else:
             sdict = dict(zip(labels_unique, labels_unique))
 
         out = {}
-        for lab in labels_unique:
-            out[sdict[lab]] = labels == lab
+        for ind, lab in sdict.items():
+            out[lab] = labels == ind
 
         return out
 
@@ -3450,15 +3462,16 @@ class D(object):
         labels_unique = np.unique(labels)
 
         if sort:
-            avs = [np.nanmean(data[labels == lab]) for lab in labels_unique]
+            ds = np.apply_along_axis(sum, 1, data)
+            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
             order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(labels_unique, order))
+            sdict = dict(zip(order, labels_unique))
         else:
             sdict = dict(zip(labels_unique, labels_unique))
 
         out = {}
-        for lab in labels_unique:
-            out[sdict[lab]] = labels == lab
+        for ind, lab in sdict.items():
+            out[lab] = labels == ind
 
         return out
 
@@ -3534,9 +3547,10 @@ class D(object):
         labels_unique = np.unique(labels)
 
         if sort:
-            avs = [np.nanmean(data[labels == lab]) for lab in labels_unique]
+            ds = np.apply_along_axis(sum, 1, data)
+            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
             order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(labels_unique, order))
+            sdict = dict(zip(order, labels_unique))
         else:
             sdict = dict(zip(labels_unique, labels_unique))
 
@@ -3544,8 +3558,8 @@ class D(object):
         core_samples_mask[db.core_sample_indices_] = True
 
         out = {}
-        for lab in labels_unique:
-            out[sdict[lab]] = labels == lab
+        for ind, lab in sdict.items():
+            out[lab] = labels == ind
 
         out['core'] = core_samples_mask
 
