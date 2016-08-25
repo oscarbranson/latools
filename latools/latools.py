@@ -962,7 +962,8 @@ class analyse(object):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
-                            transform=None, samples=None, subset=None):
+                            transform=None, samples=None, subset=None,
+                            min_data=10):
         """
         Applies a distribution filter to the data.
 
@@ -985,6 +986,9 @@ class analyse(object):
         samples : array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
 
         Returns
         -------
@@ -1007,11 +1011,12 @@ class analyse(object):
 
         for s in tqdm_notebook(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
-                                                  filt=False, transform=None)
+                                                  filt=filt, transform=None,
+                                                  min_data=min_data)
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False, samples=None,
-                          sort=True, subset=None, **kwargs):
+                          sort=True, subset=None, min_data=10, **kwargs):
         """
         Applies an n-dimensional clustering filter to the data.
 
@@ -1063,6 +1068,9 @@ class analyse(object):
             Whether or not you want the cluster labels to
             be sorted by the mean magnitude of the signals
             they are based on (0 = lowest)
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
         **kwargs
             Parameters passed to the clustering algorithm specified by
             `method`.
@@ -1122,6 +1130,7 @@ class analyse(object):
                                                 normalise=normalise,
                                                 method=method,
                                                 include_time=include_time,
+                                                min_data=min_data,
                                                 **kwargs)
 
     def filter_correlation(self, x_analyte, y_analyte, window=None,
@@ -1178,7 +1187,7 @@ class analyse(object):
         for s in tqdm_notebook(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
                                                  window=None, r_threshold=0.9,
-                                                 p_threshold=0.05, filt=True)
+                                                 p_threshold=0.05, filt=filt)
 
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
         """
@@ -1759,10 +1768,10 @@ class analyse(object):
                                   "subset."))
 
         for s in tqdm_notebook(samples, desc='Drawing Plots'):
-            fig, ax = self.data_dict[s].filt_report(filt=filt_str,
-                                                    analytes=analytes,
-                                                    savedir=outdir)
-            plt.close(fig)
+            self.data_dict[s].filt_report(filt=filt_str,
+                                          analytes=analytes,
+                                          savedir=outdir)
+            # plt.close(fig)
         return
 
     def stat_boostrap(self, analytes=None, filt=True,
@@ -3134,7 +3143,8 @@ class D(object):
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
 
-    def filter_distribution(self, analytes, binwidth='scott', filt=False, transform=None):
+    def filter_distribution(self, analytes, binwidth='scott', filt=False,
+                            transform=None, min_data=10):
         """
         Parameters
         ----------
@@ -3152,6 +3162,9 @@ class D(object):
         transform : str
             If 'log', applies a log transform to the data before calculating
             the distribution.
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
 
         Returns
         -------
@@ -3163,16 +3176,16 @@ class D(object):
         if isinstance(analytes, str):
             analytes = [analytes]
 
-        # generate filter
-        vals = np.vstack(nominal_values(list(self.focus.values())))
-        if filt is not None:
-            ind = (self.filt.grab_filt(filt, analyte) &
-                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
-        else:
-            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
+        for analyte in analytes:
+            # generate filter
+            vals = np.vstack(nominal_values(list(self.focus.values())))
+            if filt is not None:
+                ind = (self.filt.grab_filt(filt, analyte) &
+                       np.apply_along_axis(all, 0, ~np.isnan(vals)))
+            else:
+                ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        if any(ind):
-            for analyte in analytes
+            if sum(ind) > min_data:
                 # isolate data
                 d = nominal_values(self.focus[analyte][ind])
 
@@ -3212,7 +3225,7 @@ class D(object):
             else:
                 # if there are no data
                 name = analyte + '_distribution_0'
-                info = analyte + ' distribution filter (no data)'
+                info = analyte + ' distribution filter (< {:.0f} data points)'.format(min_data)
 
                 self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                               info=info, params=params)
@@ -3220,7 +3233,7 @@ class D(object):
 
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False,
-                          sort=True, **kwargs):
+                          sort=True, min_data=10, **kwargs):
         """
         Applies an n-dimensional clustering filter to the data.
 
@@ -3269,6 +3282,9 @@ class D(object):
             Whether or not you want the cluster labels to
             be sorted by the mean magnitude of the signals
             they are based on (0 = lowest)
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
         **kwargs
             Parameters passed to the clustering algorithm specified by
             `method`.
@@ -3323,7 +3339,7 @@ class D(object):
         else:
             ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        if any(ind):
+        if sum(ind) > min_data:
 
             # get indices for data passed to clustering
             sampled = np.arange(self.Time.size)[ind]
@@ -3380,7 +3396,7 @@ class D(object):
         else:
             # if there are no data
             name = '-'.join(analytes) + '_cluster-' + method + '_0'
-            info = '-'.join(analytes) + ' cluster filter.'
+            info = '-'.join(analytes) + ' cluster filter failed.'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
@@ -4021,8 +4037,9 @@ class D(object):
             if isinstance(savedir, str):
                 fig.savefig(savedir + '/' + self.sample + '_' +
                             analyte + '.pdf')
-
-        return fig, axes
+            plt.close(fig)
+        return
+        # return fig, axes
 
     # reporting
     def get_params(self):
