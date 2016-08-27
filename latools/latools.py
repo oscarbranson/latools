@@ -142,6 +142,11 @@ class analyse(object):
                                  os.path.basename(self.folder) + '/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
+        self.export_dir = re.sub('//', '/',
+                                 self.parent_folder + '/export_' +
+                                 os.path.basename(self.folder) + '/')
+        if not os.path.isdir(self.export_dir):
+            os.mkdir(self.export_dir)
 
         # load configuration parameters
         # read in config file
@@ -1135,7 +1140,7 @@ class analyse(object):
 
     def filter_correlation(self, x_analyte, y_analyte, window=None,
                            r_threshold=0.9, p_threshold=0.05, filt=True,
-                           subset=None):
+                           samples=None, subset=None):
         """
         Applies a correlation filter to the data.
 
@@ -1186,8 +1191,10 @@ class analyse(object):
 
         for s in tqdm_notebook(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
-                                                 window=None, r_threshold=0.9,
-                                                 p_threshold=0.05, filt=filt)
+                                                 window=window,
+                                                 r_threshold=r_threshold,
+                                                 p_threshold=p_threshold,
+                                                 filt=filt)
 
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
         """
@@ -2159,7 +2166,7 @@ class analyse(object):
             focus_stage = self.data[0].focus_stage
 
         if outdir is None:
-            outdir = '%s/export_%s' % (self.parent_folder, self.folder)
+            outdir = self.export_dir
 
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
@@ -3611,7 +3618,9 @@ class D(object):
         # automatically determine appripriate window?
 
         # make window odd
-        if window % 2 != 1:
+        if window is None:
+            window = 11
+        elif window % 2 != 1:
             window += 1
 
         params = locals()
@@ -3726,7 +3735,7 @@ class D(object):
 
             if scale is 'log':
                 ax.set_yscale('log')
-                y[y == 0] = 1
+                y[y == 0] = np.nan
 
             if filt:
                 ind = self.filt.grab_filt(filt, a)
