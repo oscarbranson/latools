@@ -27,6 +27,8 @@ setup(name='latools',
                         'tqdm',
                         ],
       package_data={
-        'latools': ['latools.cfg'],
+        'latools': ['latools.cfg',
+                    'resources/*',
+                    'resources/test_data/*'],
       },
       zip_safe=False)

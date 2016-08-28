@@ -1609,7 +1609,7 @@ class analyse(object):
                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
 
         # isolate nominal_values for all analytes
-        focus = {k:nominal_values(v) for k, v in self.focus.items()}
+        focus = {k: nominal_values(v) for k, v in self.focus.items()}
         # determine units for all analytes
         udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
         # determine ranges for all analytes
@@ -1861,6 +1861,38 @@ class analyse(object):
 
                 self.stats[s] = self.data_dict[s].stats
 
+    def ablation_times(self, samples=None, subset=None):
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        ats = {}
+
+        for s in samples:
+            ats[s] = self.data_dict[s].ablation_times()
+
+        frames = []
+        for s in samples:
+            d = ats[s]
+            td = pd.DataFrame.from_dict(d, orient='index')
+            td.columns = ['Time']
+            frames.append(td)
+        out = pd.concat(frames, keys=samples)
+        out.index.names = ['sample', 'rep']
+        return out
+
     # function for visualising sample statistics
     def statplot(self, analytes=None, samples=None, figsize=None,
                  stat='nanmean', err='nanstd', subset=None):
@@ -1945,7 +1977,7 @@ class analyse(object):
 
         return fig, ax
 
-    def getstats(self, path=None, samples=None, subset=None):
+    def getstats(self, path=None, samples=None, subset=None, ablation_time=False):
         """
         Return pandas dataframe of all sample statistics.
         """
@@ -1981,6 +2013,14 @@ class analyse(object):
                                      inplace=True)
                 slst.append(stdf)
         out = pd.concat(slst)
+
+        if ablation_time:
+            ats = self.ablation_times(samples=samples, subset=subset)
+            ats['statistic'] = 'nanmean'
+            ats.set_index('statistic', append=True, inplace=True)
+            ats = ats.reorder_levels(['statistic', 'sample', 'rep'])
+
+            out = out.join(ats)
 
         if path is not None:
             out.to_csv(path)
@@ -3092,6 +3132,22 @@ class D(object):
             pass
 
         return
+
+    def ablation_times(self):
+        """
+        Function for calculating the ablation time for each
+        ablation.
+
+        Returns
+        -------
+            dict of times for each ablation.
+
+        """
+        ats = {}
+        for n in np.arange(self.n) + 1:
+            t = self.Time[self.ns == n]
+            ats[n - 1] = t.max() - t.min()
+        return ats
 
     # Data Selections Tools
     def filter_threshold(self, analyte, threshold, filt=False):
