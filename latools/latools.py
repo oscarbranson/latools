@@ -1,29 +1,32 @@
-import os
-import shutil
-import re
-import itertools
-import warnings
 import configparser
-import pkg_resources as pkgrs
-import time
+import itertools
+import os
 import pprint
-import numpy as np
-import pandas as pd
+import re
+import shutil
+import time
+import warnings
+
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import multiprocessing as mp
+import numpy as np
+import pandas as pd
+import pkg_resources as pkgrs
+import sklearn.cluster as cl
 import uncertainties as unc
 import uncertainties.unumpy as un
-import sklearn.cluster as cl
-from sklearn import preprocessing
+
+from mpld3 import plugins
+from mpld3 import enable_notebook, disable_notebook
 from scipy.stats import gaussian_kde
 from scipy.stats import pearsonr
 from scipy.optimize import curve_fit
-from mpld3 import plugins
-from mpld3 import enable_notebook, disable_notebook
+from sklearn import preprocessing
+
 from IPython import display
-# status bars!!!
-from tqdm import tnrange, tqdm_notebook
+from tqdm import tnrange, tqdm_notebook # status bars!
 
 
 # deactivate IPython deprecations warnings
