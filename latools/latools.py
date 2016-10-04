@@ -122,7 +122,7 @@ class analyse(object):
     """
     def __init__(self, data_folder, errorhunt=False, config=None,
                  dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None):
+                 cmap=None, time_format=None):
         """
         For processing and analysing whole LA-ICPMS datasets.
         """
@@ -239,6 +239,19 @@ class analyse(object):
              if self.srm_identifier in s.sample]
         self.srms_ided = False
 
+        # create universal time scale
+        if 'date' in self.data[0].meta.keys():
+            self.starttimes = self.get_starttimes(time_format)
+
+            for d in self.data_dict.values():
+                d.uTime = d.Time + self.starttimes.loc[d.sample, 'Dseconds']
+
+        else:
+            warnings.warn("Time not found in data file. Background " +
+                          "correction \n and calibration may not behave as" +
+                          "expected.\n")
+
+        # copy colour map to top level
         self.cmaps = self.data[0].cmap
 
         # f = open('errors.log', 'a')
@@ -254,8 +267,34 @@ class analyse(object):
                                  len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
 
+    def get_starttimes(self, time_format=None):
+        try:
+            sd = {}
+            for k, v in self.data_dict.items():
+                sd[k] = v.meta['date']
+
+            sd = pd.DataFrame.from_dict(sd, orient='index')
+            sd.columns = ['date']
+
+            sd.loc[:, 'date'] = pd.to_datetime(sd['date'], format=time_format)
+
+            sd['Ddate'] = sd.date - sd.date.min()
+            sd['Dseconds'] = sd.Ddate / np.timedelta64(1, 's')
+            sd.sort_values(by='Dseconds', inplace=True)
+            sd['sequence'] = range(sd.shape[0])
+            return sd
+        except:
+            ValueError(("Cannot determine data file start times.\n" +
+                        "This could be because:\n  1) 'date' " +
+                        "not specified in 'regex' section of \n" +
+                        "     file format. Consult 'data format' documentation\n  "+
+                        "   and modify appropriately.\n  2) time_format cannot be" +
+                        " automatically determined.\n     Consult 'strptime'" +
+                        " documentation, and provide a\n     valid 'time_format'."))
+
+
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
-                  conf=0.01, trans_mult=[0., 0.]):
+                  conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.]):
         """
         Automatically separates signal and background data regions.
 
@@ -323,7 +362,7 @@ class analyse(object):
         """
         for d in tqdm_notebook(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
-                        conf, trans_mult)
+                        conf, on_mult, off_mult)
         return
 
     def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False,
@@ -590,7 +629,7 @@ class analyse(object):
         return
 
     # functions for background correction and ratios
-    def bkgcorrect(self, mode='constant'):
+    def bkgcorrect(self, mode='individual', background_type='constant'):
         """
         Subtracts background from signal.
 
@@ -609,8 +648,12 @@ class analyse(object):
         -------
         None
         """
-        for s in tqdm_notebook(self.data, desc='Background Correction'):
-            s.bkg_correct(mode=mode)
+        if mode == 'individual':
+            for s in tqdm_notebook(self.data, desc='Background Correction'):
+                s.bkg_correct(mode=background_type)
+        elif mode == 'combined':
+            # combined background code goes here.
+            pass
         return
 
     def ratio(self,  denominator='Ca43', focus='signal'):
@@ -2614,7 +2657,7 @@ class D(object):
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
-                  conf=0.01, trans_mult=[0., 0.]):
+                  conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.)):
         """
                 Automatically separates signal and background data regions.
 
@@ -2657,15 +2700,13 @@ class D(object):
         smwin : int
             The smoothing window used for calculating the second derivative.
             Must be odd.
-        conf : float
-            The proportional intensity of the fitted gaussian tails that
-            determines the transition width cutoff (lower = wider transition
-            regions excluded).
-        trans_mult : array_like, len=2
-            Multiples of the peak FWHM to add to the transition cutoffs, e.g.
-            if the transitions consistently leave some bad data proceeding the
-            transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
-            right hand side of the limit.
+        on_mult and off_mult : tuple, len=2
+            Factors to control the width of the excluded transition regions.
+            A region n times the full-width-half-maximum of the transition
+            gradient will be removed either side of the transition center.
+            `on_mult` and `off_mult` refer to the laser-on and laser-off
+            transitions, respectively. See manual for full explanation.
+            Defaults to (1.5,1) and (1, 1.5).
 
 
         Adds
@@ -2712,6 +2753,10 @@ class D(object):
         g = abs(fastgrad(v, gwin))
         # 2. determine the approximate index of each transition
         zeros = bool_2_indices(bkg).flatten()
+        if zeros[0] == 0:
+            zeros = zeros[1:]
+        if zeros[-1] == bkg.size:
+            zeros = zeros[:-1]
         tran = []  # initialise empty list for transition pairs
 
         for z in zeros:  # for each approximate transition
@@ -2719,9 +2764,16 @@ class D(object):
             if z - win > 0:
                 xs = self.Time[z-win:z+win]
                 ys = g[z-win:z+win]
+                # determine type of transition (on/off)
+                # checkes whether first - last value in window is
+                # positive ('on') or negative ('off')
+                tp = np.diff(v[z-win:z+win][[0, -1]]) > 0
+
             else:
                 xs = self.Time[:z+win]
                 ys = g[:z+win]
+                # determine type of transition (on/off)
+                tp = np.diff(v[:z+win][[0, -1]]) > 0
             # determine location of maximum gradient
             c = self.Time[z]  # xs[ys == np.nanmax(ys)]
             try:  # in case some of them don't work...
@@ -2750,8 +2802,15 @@ class D(object):
                                   sigma=abs(xs - c) + .1)
                 # get the x positions when the fitted gaussian is at 'conf' of
                 # maximum
-                tran.append(gauss_inv(conf, *pg[1:]) +
-                            pg[-1] * np.array(trans_mult))
+                # determine transition FWHM
+                fwhm = 2 * pg[-1] * np.sqrt(2 * np.log(2))
+                # apply on_mult or off_mult, as appropriate.
+                if tp:
+                    lim = np.array([-fwhm, fwhm]) * np.array(on_mult) + pg[1]
+                else:
+                    lim = np.array([-fwhm, fwhm]) * np.array(off_mult) + pg[1]
+
+                tran.append(lim)
             except:
                 warnings.warn(("\nSample {:s}: ".format(self.sample) +
                                "Transition identification at " +
@@ -2762,45 +2821,6 @@ class D(object):
                               UserWarning)
                 pass  # if it fails for any reason, warn and skip it!
 
-        # for z in zeros:  # for each approximate transition
-        #     # isolate the data around the transition
-        #     if z - win > 0:
-        #         xs = self.Time[z-win:z+win]
-        #         ys = g[z-win:z+win]
-        #     else:
-        #         xs = self.Time[:z+win]
-        #         ys = g[:z+win]
-        #     # determine location of maximum gradient
-        #     c = self.Time[z]  # xs[ys == np.nanmax(ys)]
-        #     try:  # in case some of them don't work...
-        #         # locate the limits of the main peak (find turning point either
-        #         # side of peak centre using a second derivative)
-        #         lower = self.findlower(xs, ys, c, smwin)
-        #         upper = self.findupper(xs, ys, c, smwin)
-        #         # isolate transition peak for fit
-        #         x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
-        #         y = g[(self.Time >= lower) & (self.Time <= upper)]
-        #         # fit a gaussian to the transition gradient
-        #         pg, _ = curve_fit(gauss, x, y, p0=(np.nanmax(y),
-        #                                                 x[y == np.nanmax(y)],
-        #                                                 (upper - lower) / 2))
-        #         # get the x positions when the fitted gaussian is at 'conf' of
-        #         # maximum
-        #         tran.append(gauss_inv(conf, *pg[1:]) +
-        #                     pg[-1] * np.array(trans_mult))
-        #     except:
-        #         try:
-        #             # fit a gaussian to the transition gradient
-        #             pg, _ = curve_fit(gauss, x, y,
-        #                               p0=(np.nanmax(y),
-        #                                   x[y == np.nanmax(y)],
-        #                                   (upper - lower) / 2))
-        #             # get the x positions when the fitted gaussian is at
-        #             # 'conf' of maximum
-        #             tran.append(gauss_inv(conf, *pg[1:]) +
-        #                         pg[-1] * np.array(trans_mult))
-        #         except:
-        #             pass
         # remove the transition regions from the signal and background ids.
         for t in tran:
             self.bkg[(self.Time > t[0]) & (self.Time < t[1])] = False
@@ -4715,8 +4735,20 @@ def bool_2_indices(bool_array):
     """
     if ~isinstance(bool_array, np.ndarray):
         bool_array = np.array(bool_array)
-    lims = np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
-    return np.reshape(lims, (len(lims)/2, 2))
+    if bool_array[-1]:
+        bool_array[-1] = False
+    lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
+    if lims[-1] == bool_array.size - 1:
+        lims[-1] = bool_array.size
+    return np.reshape(lims, (len(lims) // 2, 2))
+
+
+def enumerate_bool(bool_array, nstart=0):
+    ind = bool_2_indices(bool_array)
+    ns = np.full(bool_array.size, nstart, dtype=int)
+    for n, lims in enumerate(ind):
+        ns[lims[0]:lims[-1]] = nstart + n + 1
+    return ns
 
 
 def tuples_2_bool(tuples, x):
