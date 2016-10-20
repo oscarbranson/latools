@@ -20,8 +20,7 @@ import uncertainties.unumpy as un
 
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
-from scipy.stats import gaussian_kde
-from scipy.stats import pearsonr
+from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
 from sklearn import preprocessing
 
@@ -368,7 +367,7 @@ class analyse(object):
                         conf, on_mult, off_mult)
         return
 
-    def find_expcoef(self, nsd_below=12., analyte='Ca43', plot=False,
+    def find_expcoef(self, nsd_below=0., analyte='Ca43', plot=False,
                      trimlim=None):
         """
         Determines exponential decay coefficient for despike filter.
@@ -1549,6 +1548,28 @@ class analyse(object):
 
         return fig, axes
 
+    # set the focus attribute for specified samples
+    def set_focus(self, stage, samples=None, subset=None):
+        """
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in samples:
+            self.data_dict[s].set_focus(stage)
+
     # fetch all the data from the data objects
     def get_focus(self, filt=False, samples=None, subset=None):
         """
@@ -1561,6 +1582,8 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
+        samples : str or list
+        subset : str or int
 
         Returns
         -------
@@ -1583,15 +1606,14 @@ class analyse(object):
                                   "subset."))
 
         t = 0
-        self.focus = {'Time': []}
+        self.focus = {'uTime': []}
         for a in self.analytes:
             self.focus[a] = []
 
         for sa in samples:
             s = self.data_dict[sa]
             if self.srm_identifier not in s.sample:
-                self.focus['Time'].append(s.Time + t)
-                t += max(s.Time)
+                self.focus['uTime'].append(s.uTime)
                 ind = s.filt.grab_filt(filt)
                 for a in self.analytes:
                     tmp = s.focus[a].copy()
@@ -2536,12 +2558,24 @@ class D(object):
 
                 if sum(over) > 0:
                     # get adjacent values to over-limit values
-                    neighbours = \
-                        np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                   v[np.roll(over, 1)][:, np.newaxis]])
-                    # calculate the mean of the neighbours
-                    replacements = np.apply_along_axis(np.nanmean, 1,
-                                                       neighbours)
+                    # calculate replacement values
+                    neighbours = []
+                    fixend = False
+                    oover = over.copy()
+                    if oover[0]:
+                        neighbours.append([v[1], np.nan])
+                        oover[0] = False
+                    if oover[-1]:
+                        oover[-1] = False
+                        fixend = True
+                    neighbours.append(np.hstack([v[np.roll(oover, -1)][:, np.newaxis],
+                                                 v[np.roll(oover, 1)][:, np.newaxis]]))
+                    if fixend:
+                        neighbours.append([v[-2], np.nan])
+                        
+                    neighbours = np.vstack(neighbours)
+
+                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
                     # and subsitite them in
                     v[over] = replacements
                 self.data['despiked'][a] = v
@@ -2572,18 +2606,21 @@ class D(object):
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
-                # calculate rolling mean
-                with warnings.catch_warnings():
+                # calculate rolling mean using convolution
+                kernel = np.ones(win) / win
+                rmean = np.convolve(v, kernel, 'same')
+
+                # with warnings.catch_warnings():
                     # to catch 'empty slice' warnings
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    rmean = \
-                        np.apply_along_axis(np.nanmean, 1,
-                                            rolling_window(v, win,
-                                                                pad=np.nan))
-                    rmean = \
-                        np.apply_along_axis(np.nanmean, 1,
-                                            rolling_window(v, win,
-                                                                pad=np.nan))
+                    # warnings.simplefilter("ignore", category=RuntimeWarning)
+                    # rmean = \
+                    #     np.apply_along_axis(np.nanmean, 1,
+                    #                         rolling_window(v, win,
+                    #                                             pad=np.nan))
+                    # rmean = \
+                    #     np.apply_along_axis(np.nanmean, 1,
+                    #                         rolling_window(v, win,
+                    #                                             pad=np.nan))
                 # calculate rolling standard deviation
                 # (count statistics, so **0.5)
                 rstd = rmean**0.5
