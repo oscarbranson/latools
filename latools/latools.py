@@ -249,9 +249,14 @@ class analyse(object):
                 d.uTime = d.Time + self.starttimes.loc[d.sample, 'Dseconds']
 
         else:
-            warnings.warn("Time not found in data file. Background " +
-                          "correction \n and calibration may not behave as" +
-                          "expected.\n")
+            ts = 0
+            for d in self.data_dict.values():
+                d.uTime = d.Time + ts
+                ts += d.Time[-1]
+            warnings.warn("Time not found in data file. Universal time scale\n" + 
+                          "approximated as continuously measured samples.\n" + 
+                          "Background correction and calibration may not behave\n" +
+                          "as expected.")
 
         # copy colour map to top level
         self.cmaps = self.data[0].cmap
@@ -630,34 +635,226 @@ class analyse(object):
 
         return
 
-    # functions for background correction and ratios
-    def bkgcorrect(self, mode='individual', background_type='constant'):
+    # functions for background correction
+    def get_background(self, n_min=10):
         """
-        Subtracts background from signal.
+        Extract all background data from all samples on universal time scale.
+        Used by both 'polynomial' and 'weightedmean' methods.
 
         Parameters
         ----------
-        mode : str or int
-            str: 'constant' subtracts the mean of all background
-            regions from signal.
-            int: fits an nth order polynomial to the background
-            data, and subtracts the predicted background values
-            from the signal regions. The integer values of `mode`
-            specifies the order of the polynomial. Useful if you
-            have significant drift in your background.
-
+        n_min : int
+            The minimum number of points a background region must
+            have to be included in calculation.
+        
         Returns
         -------
-        None
+        pandas.DataFrame object containing background data.
         """
-        if mode == 'individual':
-            for s in tqdm_notebook(self.data, desc='Background Correction'):
-                s.bkg_correct(mode=background_type)
-        elif mode == 'combined':
-            # combined background code goes here.
-            pass
+            
+        allbkgs = {'uTime': [],
+                   'ns': []}
+        
+        for a in self.analytes:
+            allbkgs[a] = []
+
+        n0 = 0
+        for s in self.data_dict.values():
+            allbkgs['uTime'].append(s.uTime[s.bkg])
+            allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
+            n0 = allbkgs['ns'][-1][-1]
+            for a in self.analytes:
+                allbkgs[a].append(s.focus[a][s.bkg])
+                    
+        allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
+        bkgs = pd.DataFrame(allbkgs)
+        
+        return bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+
+    def bkg_calc(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
+        """
+        Calculate the background to subtract from the analyses
+
+        Parameters
+        ----------
+        analytes : str or array-like
+        background_type : str
+            'weighted_mean': 
+            'polynomial':
+            'spline':
+            'individual_mean':
+        n_min : int
+
+
+        Weighted Mean
+        -------------
+        weight_fwhm : float
+        cstep : float or None
+        
+        Polynomial
+        ----------
+        poly_order : int
+        cstep : float or None
+
+        Spline
+        ------
+
+        Individual Mean
+        ---------------
+
+        """
+        
+        if analytes is None:
+            analytes = self.analytes
+            self.bkg = {}
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+        
+        
+        # Gaussian-weighted average
+        # extract background data from whole dataset
+        if 'raw' not in self.bkg.keys():
+            self.bkg['raw'] = self.get_background(n_min)
+
+        # calculate per-background region stats
+        def stderr(a):
+            return np.std(a) / np.sqrt(len(a))
+
+        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
+
+        if 'calc' not in self.bkg.keys():
+            # create time points to calculate background
+            if cstep is None:
+                cstep = self.bkg['raw']['uTime'].ptp() / 100
+            bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
+                              self.bkg['raw']['uTime'].max(),
+                              cstep)
+            # calculate background for all elements
+            self.bkg['calc'] = {a: weighted_average(self.bkg['raw'].uTime, 
+                                                    self.bkg['raw'].loc[:,a],
+                                                    bkg_t,
+                                                    weight_fwhm) for a in analytes}
+            self.bkg['calc']['uTime'] = bkg_t
+        else:
+            for a in analytes:
+                 self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime, 
+                                                        self.bkg['raw'].loc[:,a],
+                                                        self.bkg['calc']['uTime'],
+                                                        weight_fwhm)
+            
+        # Polynomial
+        
+        # spline?
+        
+        # Individual polynomial
+        
         return
 
+    def bkg_subtract(self, analytes=None):
+        """
+        Subtract calculated background from data.
+
+        Must run bkg_calc first!
+        """
+
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        for d in tqdm_notebook(self.data_dict.values(), desc='Background Correction'):
+            [d.bkg_subtract(a, un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][0]),
+                                         np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][2])),
+                            ~d.sig) for a in self.analytes]
+        self.set_focus('bkgsub')
+        return
+
+    def bkg_plot(self, analytes=None, figsize=[12,5], yscale='log', ylim=None):
+        if not hasattr(self, 'bkg'):
+            raise ValueError("Please run bkg_calc before attempting to\n" +
+                             "plot the background.")
+        
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+        
+        fig,ax = plt.subplots(1, 1, figsize=figsize)
+        
+        for a in analytes:
+            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:,a], 
+                       alpha=0.2, s=3, c=self.cmaps[a],
+                       lw=0.5)
+        
+            for i,r in self.bkg['summary'].iterrows():
+                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
+                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
+                yl = [r.loc[a, 'mean'] - r.loc[a, 'std']] * 2
+                yu = [r.loc[a, 'mean'] + r.loc[a, 'std']] * 2
+
+                ax.fill_between(x, yl, yu, alpha=0.5, lw=0.5, color=self.cmaps[a])
+
+                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 4,
+                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 4)
+                yl = [r.loc[a, 'mean'] - r.loc[a, 'stderr']] * 2
+                yu = [r.loc[a, 'mean'] + r.loc[a, 'stderr']] * 2
+
+                l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=1, color='k', label='SE')
+
+            ax.plot(self.bkg['calc']['uTime'],
+                    self.bkg['calc'][a][0], 
+                    c=self.cmaps[a], zorder=2)
+            ax.fill_between(self.bkg['calc']['uTime'],
+                            self.bkg['calc'][a][0] + self.bkg['calc'][a][2],
+                            self.bkg['calc'][a][0] - self.bkg['calc'][a][2], 
+                            color=self.cmaps[a], alpha=0.3, zorder=1)
+                
+            
+        if yscale == 'log':
+            ax.set_yscale('log')
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        
+        # scale x axis to range ± 2.5%
+        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025*self.bkg['raw']['uTime'].ptp(), 
+                    self.bkg['raw']['uTime'].max() + 0.025*self.bkg['raw']['uTime'].ptp())
+        
+        
+        for s, r in self.starttimes.iterrows():
+            x = r.Dseconds
+            ax.axvline(x)
+            ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
+        
+        return fig, ax
+
+    # def bkgcorrect(self, mode='individual', background_type='constant'):
+    #     """
+    #     Subtracts background from signal.
+
+    #     Parameters
+    #     ----------
+    #     mode : str or int
+    #         str: 'constant' subtracts the mean of all background
+    #         regions from signal.
+    #         int: fits an nth order polynomial to the background
+    #         data, and subtracts the predicted background values
+    #         from the signal regions. The integer values of `mode`
+    #         specifies the order of the polynomial. Useful if you
+    #         have significant drift in your background.
+
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     if mode == 'individual':
+    #         for s in tqdm_notebook(self.data, desc='Background Correction'):
+    #             s.bkg_correct(mode=background_type)
+    #     elif mode == 'combined':
+    #         # combined background code goes here.
+    #         pass
+    #     return
+
+    # functions for calculating ratios
     def ratio(self,  denominator='Ca43', focus='signal'):
         """
         Calculates the ratio of all analytes to a single analyte.
@@ -1568,7 +1765,7 @@ class analyse(object):
                                   "subset."))
 
         for s in samples:
-            self.data_dict[s].set_focus(stage)
+            self.data_dict[s].setfocus(stage)
 
     # fetch all the data from the data objects
     def get_focus(self, filt=False, samples=None, subset=None):
@@ -3024,6 +3221,58 @@ class D(object):
             self.data['signal'][a] = self.focus[a].copy()
             self.data['signal'][a][~self.sig] = np.nan
 
+
+    # def bkg_subtract(self, bkgs):
+    #     """
+    #     Subtract provided background from signal (focus stage).
+        
+    #     Results is saved in new 'bkgsub' focus stage
+
+    #     Parameters
+    #     ----------
+    #     bkgs : dict
+    #         dict containing background values to subtract from
+    #         focus stage of data.
+            
+
+    #     Returns
+    #     -------
+    #     None
+    #     """
+        
+    #     if any(a not in bkgs.keys() for a in analytes):
+    #         warnings.warn(('Not all analytes have been provided in bkgs.\n' +
+    #                        "If you didn't do this on purpose, something is\n" +
+    #                        "wrong!"))
+        
+    #     self.data['bkgsub'] = {}
+    #     for a in self.analytes:
+    #         self.data['bkgsub'][a] = self.focus[a] - bkgs[a]
+    #     self.setfocus('bkgsub')
+    #     return
+
+    def bkg_subtract(self, analyte, bkg, ind=None):
+        """
+        Subtract provided background from signal (focus stage).
+        
+        Results is saved in new 'bkgsub' focus stage
+            
+
+        Returns
+        -------
+        None
+        """
+        
+        if 'bkgsub' not in self.data.keys():
+            self.data['bkgsub'] = {}
+        
+        self.data['bkgsub'][analyte] = self.focus[analyte] - bkg
+        
+        if ind is not None:
+            self.data['bkgsub'][analyte][ind] = np.nan
+
+        return
+
     def bkg_correct(self, mode='constant'):
         """
         Subtract background from signal.
@@ -3795,7 +4044,7 @@ class D(object):
 
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None):
+              interactive=False, focus_stage=None, err_envelope=False):
         """
         Plot analytes as a function of Time.
 
@@ -3857,15 +4106,22 @@ class D(object):
                 ind = self.filt.grab_filt(filt, a)
                 xf = x.copy()
                 yf = y.copy()
+                yerrf = yerr.copy()
                 if any(~ind):
                     xf[~ind] = np.nan
                     yf[~ind] = np.nan
-
+                    yerrf[~ind] = np.nan
                 if any(~ind):
                     ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
                 ax.plot(xf, yf, color=self.cmap[a], label=a)
+                if err_envelope:
+                    ax.fill_between(xf, yf-yerrf, yf+yerrf, color=self.cmap[a],
+                                    alpha=0.2, zorder=-1)
             else:
                 ax.plot(x, y, color=self.cmap[a], label=a)
+                if err_envelope:
+                    ax.fill_between(x, y-yerr, y+yerr, color=self.cmap[a],
+                                    alpha=0.2, zorder=-1)
 
             # Plot averages and error envelopes
             if stats and hasattr(self, 'stats'):
@@ -5096,3 +5352,36 @@ def fastgrad(a, win=11):
 #     A, mu, sigma = p
 #     return A * ((np.exp((-(x-mu)**2)/(2*sigma**2)) * (x-mu)) /
 #                 (np.sqrt(2 * np.pi) * sigma**3))
+
+def weighted_average(x,y,x_new,fwhm=300):
+    """
+    Calculate gaussian weigted moving mean, SD and SE.
+    
+    Parameters
+    ----------
+    x, y : array-like
+        The x and y data to smooth
+    x_new : array-like
+        The new x-scale to interpolate the data
+
+    """
+    bin_avg = np.zeros(len(x_new))
+    bin_std = np.zeros(len(x_new))
+    bin_se = np.zeros(len(x_new))
+
+    # Gaussian function as weights
+    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+    
+    for index in range(0,len(x_new)):
+        xn = x_new[index]
+        weights = gauss(x, 1, xn, sigma)
+        weights /= sum(weights)
+        # weighted mean
+        bin_avg[index] = np.average(y, weights=weights)
+        # weighted standard deviation
+        bin_std[index] = np.sqrt(np.average((y-bin_avg[index])**2, weights=weights))
+        # weighted standard error (mean / sqrt(n_points_in_gaussian))
+        bin_se[index] = np.sqrt(np.average((y-bin_avg[index])**2, weights=weights)) / \
+                        np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
+
+    return bin_avg, bin_std, bin_se
