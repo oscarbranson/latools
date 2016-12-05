@@ -855,7 +855,7 @@ class analyse(object):
     #     return
 
     # functions for calculating ratios
-    def ratio(self,  denominator='Ca43', focus='signal'):
+    def ratio(self,  denominator='Ca43', focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -3313,7 +3313,7 @@ class D(object):
         self.setfocus('bkgsub')
         return
 
-    def ratio(self, denominator='Ca43', focus='signal'):
+    def ratio(self, denominator='Ca43', focus='bkgsub'):
         """
         Divide all analytes by a specified denominator analyte.
 
@@ -3338,6 +3338,7 @@ class D(object):
         for a in self.analytes:
             self.data['ratios'][a] = \
                 self.focus[a] / self.focus[denominator]
+        self.data['ratios'][~self.sig] = np.nan
         self.setfocus('ratios')
         return
 
