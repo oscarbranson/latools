@@ -21,3 +21,7 @@ latools.egg-info
 comparison/jenn_data
 comparison
 Training
+test_data
+latools/__pycache__
+latools2.sublime-workspace
+latools2.sublime-project
