@@ -253,8 +253,8 @@ class analyse(object):
             for d in self.data_dict.values():
                 d.uTime = d.Time + ts
                 ts += d.Time[-1]
-            warnings.warn("Time not found in data file. Universal time scale\n" + 
-                          "approximated as continuously measured samples.\n" + 
+            warnings.warn("Time not found in data file. Universal time scale\n" +
+                          "approximated as continuously measured samples.\n" +
                           "Background correction and calibration may not behave\n" +
                           "as expected.")
 
@@ -646,15 +646,15 @@ class analyse(object):
         n_min : int
             The minimum number of points a background region must
             have to be included in calculation.
-        
+
         Returns
         -------
         pandas.DataFrame object containing background data.
         """
-            
+
         allbkgs = {'uTime': [],
                    'ns': []}
-        
+
         for a in self.analytes:
             allbkgs[a] = []
 
@@ -665,10 +665,10 @@ class analyse(object):
             n0 = allbkgs['ns'][-1][-1]
             for a in self.analytes:
                 allbkgs[a].append(s.focus[a][s.bkg])
-                    
+
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
         bkgs = pd.DataFrame(allbkgs)
-        
+
         return bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
 
     def bkg_calc(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
@@ -679,7 +679,7 @@ class analyse(object):
         ----------
         analytes : str or array-like
         background_type : str
-            'weighted_mean': 
+            'weighted_mean':
             'polynomial':
             'spline':
             'individual_mean':
@@ -690,7 +690,7 @@ class analyse(object):
         -------------
         weight_fwhm : float
         cstep : float or None
-        
+
         Polynomial
         ----------
         poly_order : int
@@ -703,14 +703,14 @@ class analyse(object):
         ---------------
 
         """
-        
+
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
         elif isinstance(analytes, str):
             analytes = [analytes]
-        
-        
+
+
         # Gaussian-weighted average
         # extract background data from whole dataset
         if 'raw' not in self.bkg.keys():
@@ -730,24 +730,24 @@ class analyse(object):
                               self.bkg['raw']['uTime'].max(),
                               cstep)
             # calculate background for all elements
-            self.bkg['calc'] = {a: weighted_average(self.bkg['raw'].uTime, 
+            self.bkg['calc'] = {a: weighted_average(self.bkg['raw'].uTime,
                                                     self.bkg['raw'].loc[:,a],
                                                     bkg_t,
                                                     weight_fwhm) for a in analytes}
             self.bkg['calc']['uTime'] = bkg_t
         else:
             for a in analytes:
-                 self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime, 
+                 self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
                                                         self.bkg['raw'].loc[:,a],
                                                         self.bkg['calc']['uTime'],
                                                         weight_fwhm)
-            
+
         # Polynomial
-        
+
         # spline?
-        
+
         # Individual polynomial
-        
+
         return
 
     def bkg_subtract(self, analytes=None):
@@ -773,19 +773,19 @@ class analyse(object):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
                              "plot the background.")
-        
+
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
-        
+
         fig,ax = plt.subplots(1, 1, figsize=figsize)
-        
+
         for a in analytes:
-            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:,a], 
+            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:,a],
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
-        
+
             for i,r in self.bkg['summary'].iterrows():
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
@@ -802,29 +802,29 @@ class analyse(object):
                 l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=1, color='k', label='SE')
 
             ax.plot(self.bkg['calc']['uTime'],
-                    self.bkg['calc'][a][0], 
+                    self.bkg['calc'][a][0],
                     c=self.cmaps[a], zorder=2)
             ax.fill_between(self.bkg['calc']['uTime'],
                             self.bkg['calc'][a][0] + self.bkg['calc'][a][2],
-                            self.bkg['calc'][a][0] - self.bkg['calc'][a][2], 
+                            self.bkg['calc'][a][0] - self.bkg['calc'][a][2],
                             color=self.cmaps[a], alpha=0.3, zorder=1)
-                
-            
+
+
         if yscale == 'log':
             ax.set_yscale('log')
         if ylim is not None:
             ax.set_ylim(ylim)
-        
+
         # scale x axis to range ± 2.5%
-        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025*self.bkg['raw']['uTime'].ptp(), 
+        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025*self.bkg['raw']['uTime'].ptp(),
                     self.bkg['raw']['uTime'].max() + 0.025*self.bkg['raw']['uTime'].ptp())
-        
-        
+
+
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
             ax.axvline(x)
             ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
-        
+
         return fig, ax
 
     # def bkgcorrect(self, mode='individual', background_type='constant'):
@@ -2769,7 +2769,7 @@ class D(object):
                                                  v[np.roll(oover, 1)][:, np.newaxis]]))
                     if fixend:
                         neighbours.append([v[-2], np.nan])
-                        
+
                     neighbours = np.vstack(neighbours)
 
                     replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
@@ -3225,7 +3225,7 @@ class D(object):
     # def bkg_subtract(self, bkgs):
     #     """
     #     Subtract provided background from signal (focus stage).
-        
+
     #     Results is saved in new 'bkgsub' focus stage
 
     #     Parameters
@@ -3233,18 +3233,18 @@ class D(object):
     #     bkgs : dict
     #         dict containing background values to subtract from
     #         focus stage of data.
-            
+
 
     #     Returns
     #     -------
     #     None
     #     """
-        
+
     #     if any(a not in bkgs.keys() for a in analytes):
     #         warnings.warn(('Not all analytes have been provided in bkgs.\n' +
     #                        "If you didn't do this on purpose, something is\n" +
     #                        "wrong!"))
-        
+
     #     self.data['bkgsub'] = {}
     #     for a in self.analytes:
     #         self.data['bkgsub'][a] = self.focus[a] - bkgs[a]
@@ -3254,20 +3254,20 @@ class D(object):
     def bkg_subtract(self, analyte, bkg, ind=None):
         """
         Subtract provided background from signal (focus stage).
-        
+
         Results is saved in new 'bkgsub' focus stage
-            
+
 
         Returns
         -------
         None
         """
-        
+
         if 'bkgsub' not in self.data.keys():
             self.data['bkgsub'] = {}
-        
+
         self.data['bkgsub'][analyte] = self.focus[analyte] - bkg
-        
+
         if ind is not None:
             self.data['bkgsub'][analyte][ind] = np.nan
 
@@ -5040,6 +5040,22 @@ def bool_2_indices(bool_array):
 
 
 def enumerate_bool(bool_array, nstart=0):
+    """
+    Consecutively numbers contiguous booleans in array.
+
+    i.e. a boolean sequence, and resulting numbering
+    T F T T T F T F F F T T F
+    0 - 1 1 1 - 2 - - - 3 3 -
+
+    where '-'
+
+    Parameters
+    ----------
+    bool_array : array_like
+        Array of booleans.
+    nstart : int
+        The number of the first boolean group.
+    """
     ind = bool_2_indices(bool_array)
     ns = np.full(bool_array.size, nstart, dtype=int)
     for n, lims in enumerate(ind):
@@ -5356,7 +5372,7 @@ def fastgrad(a, win=11):
 def weighted_average(x,y,x_new,fwhm=300):
     """
     Calculate gaussian weigted moving mean, SD and SE.
-    
+
     Parameters
     ----------
     x, y : array-like
@@ -5371,7 +5387,7 @@ def weighted_average(x,y,x_new,fwhm=300):
 
     # Gaussian function as weights
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-    
+
     for index in range(0,len(x_new)):
         xn = x_new[index]
         weights = gauss(x, 1, xn, sigma)
