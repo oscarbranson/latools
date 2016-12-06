@@ -22,6 +22,7 @@ from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
+import scipy.interpolate as interp
 from sklearn import preprocessing
 
 from IPython import display
@@ -546,95 +547,6 @@ class analyse(object):
                       noise_despiker, win, nlim)
         return
 
-    def save_ranges(self):
-        """
-        Saves signal/background/transition data ranges for each sample.
-        """
-        if os.path.isfile(self.param_dir + 'bkg.rng'):
-            f = input(('Range files already exist. Do you want to overwrite '
-                       'them (old files will be lost)? [Y/n]: '))
-            if 'n' in f or 'N' in f:
-                print('Ranges not saved. Run self.save_ranges() to try again.')
-                return
-        bkgrngs = []
-        sigrngs = []
-        for d in self.data:
-            bkgrngs.append(d.sample + ':' + str(d.bkgrng.tolist()))
-            sigrngs.append(d.sample + ':' + str(d.sigrng.tolist()))
-        bkgrngs = '\n'.join(bkgrngs)
-        sigrngs = '\n'.join(sigrngs)
-
-        fb = open(self.param_dir + 'bkg.rng', 'w')
-        fb.write(bkgrngs)
-        fb.close()
-        fs = open(self.param_dir + 'sig.rng', 'w')
-        fs.write(sigrngs)
-        fs.close()
-        return
-
-    def load_ranges(self, bkgrngs=None, sigrngs=None):
-        """
-        Loads signal/background/transition data ranges for each sample.
-
-        Parameters
-        ----------
-        bkgrngs : str or None
-            A array of size (2, n) specifying time intervals that are
-            background regions.
-        sigrngs : str or None
-            A array of size (2, n) specifying time intervals that are
-            signal regions.
-
-        Returns
-        -------
-        None
-        """
-        if bkgrngs is None:
-            bkgrngs = self.param_dir + 'bkg.rng'
-        bkgs = open(bkgrngs).readlines()
-        samples = []
-        bkgrngs = []
-        for b in bkgs:
-            samples.append(re.match('(.*):{1}(.*)',
-                           b.strip()).groups()[0])
-            bkgrngs.append(eval(re.match('(.*):{1}(.*)',
-                           b.strip()).groups()[1]))
-        for s, rngs in zip(samples, bkgrngs):
-            self.data_dict[s].bkgrng = np.array(rngs)
-
-        if sigrngs is None:
-            sigrngs = self.param_dir + 'sig.rng'
-        sigs = open(sigrngs).readlines()
-        samples = []
-        sigrngs = []
-        for s in sigs:
-            samples.append(re.match('(.*):{1}(.*)',
-                           s.strip()).groups()[0])
-            sigrngs.append(eval(re.match('(.*):{1}(.*)',
-                           s.strip()).groups()[1]))
-        for s, rngs in zip(samples, sigrngs):
-            self.data_dict[s].sigrng = np.array(rngs)
-
-        # number the signal regions (used for statistics and standard matching)
-        for s in self.data:
-            # re-create booleans
-            s.makerangebools()
-
-            # make trnrng
-            s.trn[[0, -1]] = False
-            s.trnrng = s.Time[s.trn ^ np.roll(s.trn, 1)]
-
-            # number traces
-            n = 1
-            for i in range(len(s.sig)-1):
-                if s.sig[i]:
-                    s.ns[i] = n
-                if s.sig[i] and ~s.sig[i+1]:
-                    n += 1
-            s.n = int(max(s.ns))  # record number of traces
-
-        return
-
     # functions for background correction
     def get_background(self, n_min=10):
         """
@@ -669,38 +581,29 @@ class analyse(object):
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
         bkgs = pd.DataFrame(allbkgs)
 
-        return bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        self.bkg = {}
+        # extract background data from whole dataset
+        self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        # calculate per-background region stats
+        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
-    def bkg_calc(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
+        return
+
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
         """
-        Calculate the background to subtract from the analyses
+        Background calculation using a gaussian weighted mean.
 
         Parameters
         ----------
         analytes : str or array-like
-        background_type : str
-            'weighted_mean':
-            'polynomial':
-            'spline':
-            'individual_mean':
-        n_min : int
-
-
-        Weighted Mean
-        -------------
         weight_fwhm : float
+            The full-width-at-half-maximum of the gaussian used
+            to calculate the weighted average.
+        n_min : int
+            Background regions with fewer than n_min points
+            will not be included in the fit.
         cstep : float or None
-
-        Polynomial
-        ----------
-        poly_order : int
-        cstep : float or None
-
-        Spline
-        ------
-
-        Individual Mean
-        ---------------
+            The interval between calculated background points.
 
         """
 
@@ -710,18 +613,10 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
+        if ~hasattr(self, 'bkg'):
+            self.get_background(n_min)
 
         # Gaussian-weighted average
-        # extract background data from whole dataset
-        if 'raw' not in self.bkg.keys():
-            self.bkg['raw'] = self.get_background(n_min)
-
-        # calculate per-background region stats
-        def stderr(a):
-            return np.std(a) / np.sqrt(len(a))
-
-        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
-
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
             if cstep is None:
@@ -729,28 +624,74 @@ class analyse(object):
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
                               cstep)
-            # calculate background for all elements
-            self.bkg['calc'] = {a: weighted_average(self.bkg['raw'].uTime,
-                                                    self.bkg['raw'].loc[:,a],
-                                                    bkg_t,
-                                                    weight_fwhm) for a in analytes}
+            self.bkg['calc'] = {}
             self.bkg['calc']['uTime'] = bkg_t
-        else:
-            for a in analytes:
-                 self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
-                                                        self.bkg['raw'].loc[:,a],
-                                                        self.bkg['calc']['uTime'],
-                                                        weight_fwhm)
 
-        # Polynomial
-
-        # spline?
-
-        # Individual polynomial
+        for a in analytes:
+             self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
+                                                    self.bkg['raw'].loc[:,a],
+                                                    self.bkg['calc']['uTime'],
+                                                    weight_fwhm)
 
         return
 
-    def bkg_subtract(self, analytes=None):
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, cstep=None):
+        """
+        Background calculation using a 1D interpolation.
+
+        scipy.interpolate.interp1D is used for interpolation.
+
+        Parameters
+        ----------
+        analytes : str or array-like
+        kind : str or int
+            Integer specifying the order of the spline interpolation
+            used, or string specifying a type of interpolation.
+            Passed to `scipy.interpolate.interp1D`
+        n_min : int
+            Background regions with fewer than n_min points
+            will not be included in the fit.
+        cstep : float or None
+            The interval between calculated background points.
+
+        """
+        if analytes is None:
+            analytes = self.analytes
+            self.bkg = {}
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if ~hasattr(self, 'bkg'):
+            self.get_background(n_min)
+
+        if 'calc' not in self.bkg.keys():
+            # create time points to calculate background
+            if cstep is None:
+                cstep = self.bkg['raw']['uTime'].ptp() / 100
+            bkg_t = np.arange(self.bkg['summary']['uTime']['mean'].min(),
+                              self.bkg['summary']['uTime']['mean'].max(),
+                              cstep)
+
+            self.bkg['calc'] = {}
+            self.bkg['calc']['uTime'] = bkg_t
+
+        d = self.bkg['summary']
+        for a in analytes:
+            imean = interp.interp1d(d.loc[:,('uTime','mean')],
+                                   d.loc[:,(a, 'mean')],
+                                   kind=kind)
+            istd = interp.interp1d(d.loc[:,('uTime','mean')],
+                                   d.loc[:,(a, 'std')],
+                                   kind=kind)
+            ise = interp.interp1d(d.loc[:,('uTime','mean')],
+                                  d.loc[:,(a, 'stderr')],
+                                  kind=kind)
+            self.bkg['calc'][a] = {'mean': imean(self.bkg['calc']['uTime']),
+                                   'std': istd(self.bkg['calc']['uTime']),
+                                   'stderr': ise(self.bkg['calc']['uTime'])}
+        return
+
+    def bkg_subtract(self, analytes=None, errtype='stderr'):
         """
         Subtract calculated background from data.
 
@@ -763,8 +704,8 @@ class analyse(object):
             analytes = [analytes]
 
         for d in tqdm_notebook(self.data_dict.values(), desc='Background Correction'):
-            [d.bkg_subtract(a, un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][0]),
-                                         np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][2])),
+            [d.bkg_subtract(a, un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
+                                         np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
                             ~d.sig) for a in self.analytes]
         self.set_focus('bkgsub')
         return
@@ -826,33 +767,6 @@ class analyse(object):
             ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
 
         return fig, ax
-
-    # def bkgcorrect(self, mode='individual', background_type='constant'):
-    #     """
-    #     Subtracts background from signal.
-
-    #     Parameters
-    #     ----------
-    #     mode : str or int
-    #         str: 'constant' subtracts the mean of all background
-    #         regions from signal.
-    #         int: fits an nth order polynomial to the background
-    #         data, and subtracts the predicted background values
-    #         from the signal regions. The integer values of `mode`
-    #         specifies the order of the polynomial. Useful if you
-    #         have significant drift in your background.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if mode == 'individual':
-    #         for s in tqdm_notebook(self.data, desc='Background Correction'):
-    #             s.bkg_correct(mode=background_type)
-    #     elif mode == 'combined':
-    #         # combined background code goes here.
-    #         pass
-    #     return
 
     # functions for calculating ratios
     def ratio(self,  denominator='Ca43', focus='bkgsub'):
@@ -944,6 +858,106 @@ class analyse(object):
 
         return
 
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
+        # compile mean and standard errors of samples
+        for s in self.stds:
+            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err','mean']]))
+            stdtab.index.name = 'uTime'
+
+            for n in range(1,s.n+1):
+                ind = s.ns == n
+                for a in s.analytes:
+                    aind = ind & ~np.isnan(nominal_values(s.focus[a]))
+                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                           (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                               (a, 'err')] = np.nanmean(s.focus[a][aind]) / np.sqrt(sum(aind))
+
+            # sort column multiindex
+            stdtab = stdtab.loc[:,stdtab.columns.sort_values()]
+            # sort row index
+            stdtab.sort_index(inplace=True)
+
+            # create 'SRM' column for naming SRM
+            stdtab.loc[:,'SRM'] = ''
+            stdtab.loc[:,'STD'] = s.sample
+
+            s.stdtab = stdtab
+
+        self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+
+        # load SRM info
+        srmdat = pd.read_csv(self.srmfile)
+        srmdat.set_index('SRM', inplace=True)
+        srmdat = srmdat.loc[srms_used]
+
+        # isolate measured elements
+        elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
+        srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+        # label elements
+        srmdat.loc[:,'element'] = np.nan
+        for e in elements:
+            srmdat.loc[srmdat.Item.str.contains(e),'element'] = e
+
+        # convert to table in same format as stdtab
+        srm_tab = srmdat.loc[:,['Value','element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+
+        # Auto-ID STDs
+        # 1. identify elements in measured SRMS with biggest range of values
+        meas_tab = self.stdtab.loc[:,(slice(None),'mean')]  # isolate means of standards
+        meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
+        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+        meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+
+        ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
+        # (used as weights later)
+
+        # 2. Work out which standard is which
+        # normalise all elements between 0-1
+        def normalise(a):
+            a = nominal_values(a)
+            if np.nanmin(a) < np.nanmax(a):
+                return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
+            else:
+                return np.ones(a.shape)
+
+        nmeas = meas_tab.apply(normalise, 0)
+        nmeas.replace(np.nan,1, inplace=True)
+        nsrm_tab = srm_tab.apply(normalise, 0)
+        nsrm_tab.replace(np.nan,1, inplace=True)
+
+        for uT, r in nmeas.iterrows():  # for each standard...
+            idx = abs((nsrm_tab - r) * ranges).sum(1)
+            # calculate the absolute difference between the normalised elemental
+            # values for each measured SRM and the SRM table. Each element is
+            # multiplied by the relative range seen in that element (i.e. range / mean
+            # measuerd value), so that elements with a large difference are given
+            # more importance in identifying the SRM.
+            # This produces a table, where wach row contains the difference between
+            # a known vs. measured SRM. The measured SRM is identified as the SRM that
+            # has the smallest weighted sum value.
+            self.stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+        self.stdtab = self.stdtab.reset_index().set_index(['STD','SRM','uTime'])
+
+
+        # combine to make SRM reference tables
+        srmtabs = {}
+        for a in self.analytes:
+            el = re.findall('[A-Za-z]+',a)[0]
+
+            sub = self.stdtab.loc[:,a]
+
+            srmsub = srmdat.loc[srmdat.element==el, ['Value','Uncertainty']]
+
+            srmtab = sub.join(srmsub)
+            srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
+
+            srmtabs[a] = srmtab
+
+        self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
+        self.srms_ided = True
+        return
+
     def load_calibration(self, params=None):
         """
         Loads calibration from global .calib file.
@@ -981,7 +995,7 @@ class analyse(object):
     # apply calibration to data
     def calibrate(self, poly_n=0, focus='ratios',
                   srmfile=None, analytes=None,
-                  uncertainties=False):
+                  uncertainties=False, srms_used=None):
         """
         Calibrates the data to measured SRM values.
 
@@ -1019,7 +1033,11 @@ class analyse(object):
             self.srmfile = srmfile
 
         if not self.srms_ided:
-            self.srm_id()
+            if srms_used is None:
+                self.srm_id()
+            else:
+                self.srm_id_auto(srms_used)
+
 
         # get SRM values
         srmdat = pd.read_csv(self.srmfile)
@@ -1600,9 +1618,6 @@ class analyse(object):
         else:
             nrow = n//3 + 1
 
-#         fig, axes = plt.subplots(int(nrow), 3, figsize=[12, 3 * nrow],
-#                                  tight_layout=True)
-
         axes = []
 
         if not datarange:
@@ -1662,17 +1677,6 @@ class analyse(object):
 
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-
-#             # plot SRM errors
-#             for v in np.unique(self.calib_data[a]['srm']):
-#                 ind = self.calib_data[a]['srm'] == v
-#                 x = self.calib_data[a]['counts'][ind]
-#                 bxlim = (np.nanmin(x), np.nanmax(x))
-#                 bxlim /= np.diff(ax.get_xlim())
-#                 err = np.nanmean(self.calib_data[a]['errs'][ind])
-
-#                 ax.axhspan(v-err, v+err, *bxlim, color=self.cmaps[a],
-#                            alpha=0.2, zorder=-1)
 
             # calculate line and R2
             if loglog:
@@ -2475,7 +2479,6 @@ class analyse(object):
 
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
-              'signal': 'counts',
               'bkgsub': 'background corrected counts',
               'ratios': 'counts/count {:s}',
               'calibrated': 'mol/mol {:s}'}
@@ -2489,12 +2492,12 @@ class analyse(object):
             d = self.data_dict[s].data[focus_stage]
             ind = self.data_dict[s].filt.grab_filt(filt)
             out = {}
-            errs = isinstance(self.data_dict[s].data[focus_stage][analytes[0]][0],
-                              unc.AffineScalarFunc)
+
             for a in analytes:
                 out[a] = nominal_values(d[a][ind])
-                if errs:
+                if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])
+                    out[a + '_std'][out[a + '_std'] == 0] = np.nan
 
             out = pd.DataFrame(out, index=self.data_dict[s].Time[ind])
             out.index.name = 'Time'
@@ -2510,7 +2513,7 @@ class analyse(object):
 
             csv = out.to_csv()
 
-            with open('%s/%s.csv' % (outdir, s), 'w') as f:
+            with open('%s/%s_%s.csv' % (outdir, s, focus_stage), 'w') as f:
                 f.write(header)
                 f.write(csv)
         return
@@ -3117,139 +3120,6 @@ class D(object):
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
         self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
 
-    def bkgrange(self, rng=None):
-        """
-        Calculate background boolean array from list of limit pairs.
-
-        Generate a background boolean string based on a list of [min,max] value
-        pairs stored in self.bkgrng.
-
-        If `rng` is supplied, these will be added to the bkgrng list before
-        the boolean arrays are calculated.
-
-        Parameters
-        ----------
-        rng : array_like
-            [min,max] pairs defining the upper and lowe limits of background
-            regions.
-
-        Returns
-        -------
-        None
-        """
-        if rng is not None:
-            if np.array(rng).ndim is 1:
-                self.bkgrng = np.append(self.bkgrng, np.array([rng]), 0)
-            else:
-                self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
-
-        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
-        # self.bkg = np.array([False] * self.Time.size)
-        # for lb, ub in self.bkgrng:
-        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
-
-        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
-        return
-
-    def sigrange(self, rng=None):
-        """
-        Calculate signal boolean array from list of limit pairs.
-
-        Generate a background boolean string based on a list of [min,max] value
-        pairs stored in self.bkgrng.
-
-        If `rng` is supplied, these will be added to the sigrng list before
-        the boolean arrays are calculated.
-
-        Parameters
-        ----------
-        rng : array_like
-            [min,max] pairs defining the upper and lowe limits of signal
-            regions.
-
-        Returns
-        -------
-        None
-        """
-        if rng is not None:
-            if np.array(rng).ndim is 1:
-                self.sigrng = np.append(self.sigrng, np.array([rng]), 0)
-            else:
-                self.sigrng = np.append(self.sigrng, np.array(rng), 0)
-
-        self.sig = tuples_2_bool(self.sigrng, self.Time)
-        # self.sig = np.array([False] * self.Time.size)
-        # for ls, us in self.sigrng:
-        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
-
-        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
-        return
-
-    def makerangebools(self):
-        """
-        Calculate signal and background boolean arrays from lists of limit
-        pairs.
-        """
-        self.sig = tuples_2_bool(self.sigrng, self.Time)
-        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
-        self.trn = ~self.bkg & ~self.sig
-        return
-
-    def separate(self, analytes=None):
-        """
-        Extract signal and backround data into separate arrays.
-
-        Isolates signal and background signals from raw data for specified
-        elements.
-
-        Parameters
-        ----------
-        analytes : array_like
-            list of analyte names (default = all analytes)
-
-        Returns
-        -------
-        None
-        """
-        if analytes is None:
-            analytes = self.analytes
-        self.data['background'] = {}
-        self.data['signal'] = {}
-        for a in analytes:
-            self.data['background'][a] = self.focus[a].copy()
-            self.data['background'][a][~self.bkg] = np.nan
-            self.data['signal'][a] = self.focus[a].copy()
-            self.data['signal'][a][~self.sig] = np.nan
-
-
-    # def bkg_subtract(self, bkgs):
-    #     """
-    #     Subtract provided background from signal (focus stage).
-
-    #     Results is saved in new 'bkgsub' focus stage
-
-    #     Parameters
-    #     ----------
-    #     bkgs : dict
-    #         dict containing background values to subtract from
-    #         focus stage of data.
-
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-
-    #     if any(a not in bkgs.keys() for a in analytes):
-    #         warnings.warn(('Not all analytes have been provided in bkgs.\n' +
-    #                        "If you didn't do this on purpose, something is\n" +
-    #                        "wrong!"))
-
-    #     self.data['bkgsub'] = {}
-    #     for a in self.analytes:
-    #         self.data['bkgsub'][a] = self.focus[a] - bkgs[a]
-    #     self.setfocus('bkgsub')
-    #     return
 
     def bkg_subtract(self, analyte, bkg, ind=None):
         """
@@ -3271,46 +3141,6 @@ class D(object):
         if ind is not None:
             self.data['bkgsub'][analyte][ind] = np.nan
 
-        return
-
-    def bkg_correct(self, mode='constant'):
-        """
-        Subtract background from signal.
-
-        Subtract constant or polynomial background from all analytes.
-
-        Parameters
-        ----------
-        mode : str or int
-            'constant' or an int describing the degree of polynomial
-            background.
-
-        Returns
-        -------
-        None
-        """
-        params = locals()
-        del(params['self'])
-        self.bkgcorrect_params = params
-
-        self.bkgrange()
-        self.sigrange()
-        self.separate()
-
-        self.data['bkgsub'] = {}
-        if mode == 'constant':
-            for c in self.analytes:
-                self.data['bkgsub'][c] = \
-                    (self.data['signal'][c] -
-                     np.nanmean(self.data['background'][c]))
-        if (mode != 'constant'):
-            for c in self.analytes:
-                p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg],
-                               mode)
-                self.data['bkgsub'][c] = \
-                    (self.data['signal'][c] -
-                     np.polyval(p, self.Time))
-        self.setfocus('bkgsub')
         return
 
     def ratio(self, denominator='Ca43', focus='bkgsub'):
@@ -3338,7 +3168,6 @@ class D(object):
         for a in self.analytes:
             self.data['ratios'][a] = \
                 self.focus[a] / self.focus[denominator]
-        self.data['ratios'][~self.sig] = np.nan
         self.setfocus('ratios')
         return
 
@@ -4906,32 +4735,6 @@ def gauss(x, *p):
     A, mu, sigma = p
     return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
 
-
-def gauss_inv(y, *p):
-    """
-    Inverse Gaussian function.
-
-    For determining the x coordinates
-    for a given y intensity (i.e. width at a given height).
-
-    Parameters
-    ----------
-    y : float
-        The height at which to calculate peak width.
-    *p : parameters unpacked to mu, sigma
-        mu: peak center
-        sigma: peak width
-
-    Return
-    ------
-    array_like
-        x positions either side of mu where gauss(x) == y.
-    """
-    mu, sigma = p
-    return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
-                     mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
-
-
 def unitpicker(a, llim=0.1):
     """
     Determines the most appropriate plotting unit for data.
@@ -5401,4 +5204,9 @@ def weighted_average(x,y,x_new,fwhm=300):
         bin_se[index] = np.sqrt(np.average((y-bin_avg[index])**2, weights=weights)) / \
                         np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
 
-    return bin_avg, bin_std, bin_se
+    return {'mean': bin_avg,
+            'std': bin_std,
+            'stderr': bin_se}
+
+def stderr(a):
+    return np.std(a) / np.sqrt(len(a))
