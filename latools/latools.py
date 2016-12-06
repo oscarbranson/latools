@@ -535,7 +535,7 @@ class analyse(object):
         None
         """
         if exponent is None:
-            if ~hasattr(self, 'expdecay_coef'):
+            if not hasattr(self, 'expdecay_coef'):
                 print('Exponential Decay Coefficient not provided.')
                 print(('Coefficient will be determined from the washout\n'
                        'times of the standards (may take a while...).'))
@@ -613,8 +613,7 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        if ~hasattr(self, 'bkg'):
-            self.get_background(n_min)
+        self.get_background(n_min)
 
         # Gaussian-weighted average
         if 'calc' not in self.bkg.keys():
@@ -661,8 +660,7 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        if ~hasattr(self, 'bkg'):
-            self.get_background(n_min)
+        self.get_background(n_min)
 
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
@@ -884,7 +882,7 @@ class analyse(object):
 
             s.stdtab = stdtab
 
-        self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+        stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
         # load SRM info
         srmdat = pd.read_csv(self.srmfile)
@@ -904,7 +902,7 @@ class analyse(object):
 
         # Auto-ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
-        meas_tab = self.stdtab.loc[:,(slice(None),'mean')]  # isolate means of standards
+        meas_tab = stdtab.loc[:,(slice(None),'mean')]  # isolate means of standards
         meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
         meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
         meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
@@ -936,8 +934,8 @@ class analyse(object):
             # This produces a table, where wach row contains the difference between
             # a known vs. measured SRM. The measured SRM is identified as the SRM that
             # has the smallest weighted sum value.
-            self.stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-        self.stdtab = self.stdtab.reset_index().set_index(['STD','SRM','uTime'])
+            stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+        stdtab = stdtab.reset_index().set_index(['STD','SRM','uTime'])
 
 
         # combine to make SRM reference tables
@@ -945,7 +943,7 @@ class analyse(object):
         for a in self.analytes:
             el = re.findall('[A-Za-z]+',a)[0]
 
-            sub = self.stdtab.loc[:,a]
+            sub = stdtab.loc[:,a]
 
             srmsub = srmdat.loc[srmdat.element==el, ['Value','Uncertainty']]
 
@@ -955,7 +953,6 @@ class analyse(object):
             srmtabs[a] = srmtab
 
         self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
-        self.srms_ided = True
         return
 
     def load_calibration(self, params=None):
@@ -993,9 +990,8 @@ class analyse(object):
         return
 
     # apply calibration to data
-    def calibrate(self, poly_n=0, focus='ratios',
-                  srmfile=None, analytes=None,
-                  uncertainties=False, srms_used=None):
+    def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
+              srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
         """
         Calibrates the data to measured SRM values.
 
@@ -1020,7 +1016,7 @@ class analyse(object):
         None
         """
         # MAKE CALIBRATION CLEVERER!?
-        #   USE ALL DATA, NOT AVERAGES?
+        #   USE ALL DATA OR AVERAGES?
         #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
         #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
@@ -1029,115 +1025,93 @@ class analyse(object):
         del(params['self'])
         self.calibration_params = params
 
-        if srmfile is not None:
-            self.srmfile = srmfile
-
-        if not self.srms_ided:
-            if srms_used is None:
-                self.srm_id()
-            else:
-                self.srm_id_auto(srms_used)
-
-
-        # get SRM values
-        srmdat = pd.read_csv(self.srmfile)
-        srmdat.set_index('SRM', inplace=True)
-
-        srm_names = self.stds[0].std_labels.keys()
-
-        srmtable = []
-        for a in self.analytes:
-            analyte_name = re.sub("[^A-Za-z]", "", a)
-            tmp = srmdat.loc[srmdat.index.str.contains(r'|'.join(srm_names)) &
-                             srmdat.Item.str.contains(analyte_name)]
-            if len(tmp) > len(srm_names):
-                tmp = tmp.loc[tmp.Item == analyte_name, :]
-            srmtable.append(tmp)
-        self.srmtable = pd.concat(srmtable, keys=self.analytes)
-
-        # make calibration
-        if not hasattr(self, 'calib_dict'):
-            self.calib_dict = {}
-        if not hasattr(self, 'calib_data'):
-            self.calib_data = {}
-
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
 
+        if not hasattr(self, 'srmtabs'):
+            self.srm_id_auto(srms_used)
+
+        # calibration functions
+        def calib_0(P, x):
+            return x * P[0]
+
+        def calib_n(P, x):
+            # where p is a list of polynomial coefficients n items long,
+            # corresponding to [..., 2nd, 1st, 0th] order coefficients
+            return np.polyval(P, x)
+
+        # wrapper for ODR fitting
+        def odrfit(x, y, fn, coef0, sx=None, sy=None):
+            dat = odr.RealData(x=x, y=y,
+                               sx=sx, sy=sy)
+            m = odr.Model(fn)
+            mod = odr.ODR(dat, m, coef0)
+            mod.run()
+            return un.uarray(mod.output.beta, mod.output.sd_beta)
+
+        # make container for calibration params
+        if not hasattr(self, 'calib_params'):
+            self.calib_params = pd.DataFrame(columns=self.analytes)
+
+        # set up calibration functions
+        if not hasattr(self, 'calib_fns'):
+            self.calib_fns = {}
+
         for a in analytes:
-            self.calib_data[a] = {}
-            self.calib_data[a]['srm'] = []
-            self.calib_data[a]['errs'] = []
-            self.calib_data[a]['counts'] = []
-            x = []
-            y = []
-            for s in self.stds:
-                s.setfocus(focus)
-                for srm in s.std_labels.keys():
-                    y = s.focus[a][s.std_labels[srm]]
-                    y = y[~np.isnan(y)]
-                    x = [self.srmtable.loc[(a, srm), 'Value'].astype(float)] * len(y)
-                    if np.isnan(self.srmtable.loc[(a, srm), 'Uncertainty']):
-                        x_err = [0] * len(y)
+            if poly_n == 0:
+                self.calib_fns[a] = calib_0
+                p0 = [1]
+            else:
+                self.calib_fns[a] = calib_n
+                p0 = [1] * (poly_n - 1) + [0]
+
+            # calculate calibrations
+            if drift_correct:
+                for n,g in self.srmtabs.loc[a,:].groupby(level=0):
+                    if srm_errors:
+                        p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
+                                   y=self.srmtabs.loc[a,'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a,'meas_err'].values,
+                                   sy=self.srmtabs.loc[a,'srm_err'].values,
+                                   fn=self.calib_fns[a],
+                                   coef0=p0)
                     else:
-                        x_err = [self.srmtable.loc[(a, srm), 'Uncertainty'].astype(float)] * len(y)
-
-                    self.calib_data[a]['counts'].append(y)
-                    self.calib_data[a]['srm'].append(x)
-                    self.calib_data[a]['errs'].append(x_err)
-
-            self.calib_data[a]['counts'] = \
-                np.concatenate(self.calib_data[a]['counts']).astype(float)
-            self.calib_data[a]['srm'] = \
-                np.concatenate(self.calib_data[a]['srm']).astype(float)
-            self.calib_data[a]['errs'] = \
-                np.concatenate(self.calib_data[a]['errs']).astype(float)
-
-            # calculate calibration parameters
-            calibfn = {0: self.linfn0,
-                       1: self.linfn1,
-                       2: self.linfn2}
-
-            if poly_n > 2:
-                raise ValueError('poly_n max exceeded: must be 2 or less.')
-            fitfn = calibfn[poly_n]
-
-            if poly_n > 0:
-                p0 = tuple([1] * poly_n + [0])
+                        p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
+                                   y=self.srmtabs.loc[a,'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a,'meas_err'].values,
+                                   fn=self.calib_fns[a],
+                                   coef0=p0)
+                    uTime = g.index.get_level_values('uTime').values.mean()
+                    self.calib_params.loc[uTime, a] = p
             else:
-                p0 = 0
-
-            if uncertainties:
-                p, cov = curve_fit(fitfn,
-                                   self.calib_data[a]['counts'],
-                                   self.calib_data[a]['srm'],
-                                   sigma=self.calib_data[a]['errs'])
-            else:
-                p, cov = curve_fit(fitfn,
-                                   self.calib_data[a]['counts'],
-                                   self.calib_data[a]['srm'])
-            err = np.sqrt(np.diag(cov))
-
-            self.calib_dict[a] = un.uarray(p, err)
+                if srm_errors:
+                    p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
+                               y=self.srmtabs.loc[a,'srm_mean'].values,
+                               sx=self.srmtabs.loc[a,'meas_err'].values,
+                               sy=self.srmtabs.loc[a,'srm_err'].values,
+                               fn=self.calib_fns[a],
+                               coef0=p0)
+                else:
+                    p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
+                               y=self.srmtabs.loc[a,'srm_mean'].values,
+                               sx=self.srmtabs.loc[a,'meas_err'].values,
+                               fn=self.calib_fns[a],
+                               coef0=p0)
+                self.calib_params.loc[0,a] = p
 
         # apply calibration
         for d in tqdm_notebook(self.data, desc='Calibration'):
-            d.calibrate(self.calib_dict, analytes)
+            try:
+                d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
+            except:
+                print(d.sample + ' failed - probably first or last SRM\nwhich is outside interpolated time range.')
 
-        # save calibration parameters
-        # self.save_calibration()
+    #     # save calibration parameters
+    #     # self.save_calibration()
         return
 
-    def linfn0(self, x, m):
-        return x * m
-
-    def linfn1(self, x, m, c):
-        return x * m + c
-
-    def linfn2(self, x, n, m, c):
-        return n * x**2 + x * m + c
 
     # data filtering
     # TODO:
@@ -1609,6 +1583,7 @@ class analyse(object):
         (fig, axes)
             matplotlib objects
         """
+
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
 
@@ -1643,23 +1618,27 @@ class analyse(object):
                 p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
                 ax = fig.add_axes(p1)
                 axh = fig.add_axes(p2)
+                axes.append((ax,axh))
                 i += 1
 
             # plot calibration data
-            ax.scatter(self.calib_data[a]['counts'],
-                       self.calib_data[a]['srm'],
-                       color=self.cmaps[a], alpha=0.2,
-                       s=3)
+            ax.errorbar(self.srmtabs.loc[a,'meas_mean'].values,
+                        self.srmtabs.loc[a,'srm_mean'].values,
+                        xerr=self.srmtabs.loc[a,'meas_err'].values,
+                        yerr=self.srmtabs.loc[a,'srm_err'].values,
+                        color=self.cmaps[a], alpha=0.6,
+                        lw=0, elinewidth=1, marker='o',
+                        capsize=0, markersize=5)
 
             # work out axis scaling
             if not loglog:
-                xlim, ylim = rangecalc(self.calib_data[a]['counts'],
-                                       self.calib_data[a]['srm'],
+                xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a,'meas_mean'].values),
+                                       nominal_values(self.srmtabs.loc[a,'srm_mean'].values),
                                        pad=0.1)
                 xlim[0] = ylim[0] = 0
             else:
-                xd = self.calib_data[a]['counts'][self.calib_data[a]['counts'] > 0]
-                yd = self.calib_data[a]['srm'][self.calib_data[a]['srm'] > 0]
+                xd = self.srmtabs.loc[a,'meas_mean'][self.srmtabs.loc[a,'meas_mean'] > 0].values
+                yd = self.srmtabs.loc[a,'srm_mean'][self.srmtabs.loc[a,'srm_mean'] > 0].values
 
                 xlim = [10**np.floor(np.log10(np.nanmin(xd))),
                         10**np.ceil(np.log10(np.nanmax(xd)))]
@@ -1684,31 +1663,33 @@ class analyse(object):
             else:
                 x = np.array(xlim)
 
-            coefs = self.calib_dict[a]
-            poly_n = len(coefs)-1
-
-            ps, errs = unpack_uncertainties(coefs)
-
-            calibfn = {0: self.linfn0,
-                       1: self.linfn1,
-                       2: self.linfn2}
-
-            line = calibfn[poly_n](x, *ps)
-
-            R2 = R2calc(self.calib_data[a]['srm'],
-                        calibfn[poly_n](self.calib_data[a]['counts'], *ps))
-
-            labelstr = {0: 'y = {:.2e} x',
-                        1: 'y = {:.2e} x\n+ {:.2e}',
-                        2: 'y = {:.2e} $x^2$\n+ {:.2e} x\n+ {:.2e}'}
-
-            label = (labelstr[poly_n].format(*coefs) +
-                     '\n$R^2$: {:.4f}'.format(R2))
+            coefs = self.calib_params[a][0]
 
             # plot line of best fit
+            line = nominal_values(self.calib_fns[a](coefs, x))
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
+            R2 = R2calc(self.srmtabs.loc[a,'srm_mean'],
+                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a,'meas_mean'])))
+
             # labels
+            if len(coefs) == 1:
+                label = 'y = {:.2e} x'.format(coefs[0])
+            else:
+                label = r''
+                for n, p in enumerate(coefs):
+                    if len(coefs)-n-1 == 0:
+                        label += '{:.1e}'.format(p)
+                    elif len(coefs)-n-1 == 1:
+                        label += '{:.1e} x\n+ '.format(p)
+                    else:
+                        label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs)-n-1) + '}$\n+ '
+
+            if '{:.3f}'.format(R2) == '1.000':
+                label += '\n$R^2$: >0.999'
+            else:
+                label += '\n$R^2$: {:.3f}'.format(R2)
+
             ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                     weight='bold', va='top', ha='left', size=12)
             ax.set_xlabel('counts/counts Ca')
@@ -2165,7 +2146,7 @@ class analyse(object):
     # function for visualising sample statistics
     def statplot(self, analytes=None, samples=None, figsize=None,
                  stat='nanmean', err='nanstd', subset=None):
-        if ~hasattr(self, 'stats'):
+        if not hasattr(self, 'stats'):
             self.sample_stats()
 
         if analytes is None:
@@ -2743,12 +2724,12 @@ class D(object):
         None
         """
         # if exponent is None:
-        #     if ~hasattr(self, 'expdecay_coef'):
+        #     if not hasattr(self, 'expdecay_coef'):
         #         self.find_expcoef()
         #     exponent = self.expdecay_coef
         if tstep is None:
             tstep = np.diff(self.Time[:2])
-        if ~hasattr(self, 'despiked'):
+        if not hasattr(self, 'despiked'):
             self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
@@ -2801,7 +2782,7 @@ class D(object):
         """
         if ~isinstance(win, int):
             win = int(win)
-        if ~hasattr(self, 'despiked'):
+        if not hasattr(self, 'despiked'):
             self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
@@ -3171,7 +3152,25 @@ class D(object):
         self.setfocus('ratios')
         return
 
-    def calibrate(self, calib_dict, analytes=None):
+    def drift_params(self, pout, a):
+        p_nom = list(zip(*pout.loc[:,a].apply(nominal_values)))
+        p_err = list(zip(*pout.loc[:,a].apply(std_devs)))
+
+        if len(p_nom) > 1:
+            npar = len(p_nom)
+
+            ps = []
+            for i in range(npar):
+                p_est = interp.interp1d(pout.index.values, p_nom[i])
+                e_est = interp.interp1d(pout.index.values, p_err[i])
+                ps.append(un.uarray(p_est(self.uTime), e_est(self.uTime)))
+
+            return ps
+        else:
+            return pout[a]
+
+
+    def calibrate(self, calib_fns, calib_params, analytes=None, drift_correct=False):
         """
         Apply calibration to data.
 
@@ -3195,14 +3194,23 @@ class D(object):
             self.data['calibrated'] = {}
 
         for a in analytes:
-            coefs = calib_dict[a]
-            if len(coefs) == 1:
-                self.data['calibrated'][a] = \
-                    self.data['ratios'][a] * coefs
+            if drift_correct:
+                P = self.drift_params(calib_params, a)
             else:
-                self.data['calibrated'][a] = \
-                    np.polyval(coefs, self.data['ratios'][a])
-                    # self.data['ratios'][a] * coefs[0] + coefs[1]
+                P = calib_params[a].values[0]
+
+            self.data['calibrated'][a] = \
+                calib_fns[a](P,
+                             self.data['ratios'][a])
+
+                # coefs = calib_params[a]
+                # if len(coefs) == 1:
+                #     self.data['calibrated'][a] = \
+                #         self.data['ratios'][a] * coefs
+                # else:
+                #     self.data['calibrated'][a] = \
+                #         np.polyval(coefs, self.data['ratios'][a])
+                        # self.data['ratios'][a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
