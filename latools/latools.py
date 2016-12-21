@@ -20,6 +20,7 @@ import uncertainties.unumpy as un
 
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
+from scipy import odr
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
 import scipy.interpolate as interp
@@ -788,73 +789,74 @@ class analyse(object):
         params = locals()
         del(params['self'])
         self.ratio_params = params
+        self.ratio_denominator = denominator
 
         for s in tqdm_notebook(self.data, desc='Ratio Calculation'):
             s.ratio(denominator=denominator, focus=focus)
         return
 
     # functions for identifying SRMs
-    def srm_id(self):
-        """
-        Asks the user to name the SRMs measured.
-        """
-        s = self.stds[0]
-        fig = s.tplot(scale='log')
-        display.clear_output(wait=True)
-        display.display(fig)
+    # def srm_id(self):
+    #     """
+    #     Asks the user to name the SRMs measured.
+    #     """
+    #     s = self.stds[0]
+    #     fig = s.tplot(scale='log')
+    #     display.clear_output(wait=True)
+    #     display.display(fig)
 
-        n0 = s.n
+    #     n0 = s.n
 
-        def id(self, s):
-            stdnms = []
-            s.srm_rngs = {}
-            for n in np.arange(s.n) + 1:
-                fig, ax = s.tplot(scale='log')
-                lims = s.Time[s.ns == n][[0, -1]]
-                ax.axvspan(lims[0], lims[1],
-                           color='r', alpha=0.2, lw=0)
-                display.clear_output(wait=True)
-                display.display(fig)
-                stdnm = input('Name this standard: ')
-                stdnms.append(stdnm)
-                s.srm_rngs[stdnm] = lims
-                plt.close(fig)
-            return stdnms
+    #     def id(self, s):
+    #         stdnms = []
+    #         s.srm_rngs = {}
+    #         for n in np.arange(s.n) + 1:
+    #             fig, ax = s.tplot(scale='log')
+    #             lims = s.Time[s.ns == n][[0, -1]]
+    #             ax.axvspan(lims[0], lims[1],
+    #                        color='r', alpha=0.2, lw=0)
+    #             display.clear_output(wait=True)
+    #             display.display(fig)
+    #             stdnm = input('Name this standard: ')
+    #             stdnms.append(stdnm)
+    #             s.srm_rngs[stdnm] = lims
+    #             plt.close(fig)
+    #         return stdnms
 
-        nms0 = id(self, s)
+    #     nms0 = id(self, s)
 
-        if len(self.stds) > 1:
-            ans = input(('Were all other SRMs measured in '
-                         'the same sequence? [Y/n]'))
-            if ans.lower() == 'n':
-                for s in self.stds[1:]:
-                    id(self, s)
-            else:
-                for s in self.stds[1:]:
-                    if s.n == n0:
-                        s.srm_rngs = {}
-                        for n in np.arange(s.n) + 1:
-                            s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
-                    else:
-                        _ = id(self, s)
+    #     if len(self.stds) > 1:
+    #         ans = input(('Were all other SRMs measured in '
+    #                      'the same sequence? [Y/n]'))
+    #         if ans.lower() == 'n':
+    #             for s in self.stds[1:]:
+    #                 id(self, s)
+    #         else:
+    #             for s in self.stds[1:]:
+    #                 if s.n == n0:
+    #                     s.srm_rngs = {}
+    #                     for n in np.arange(s.n) + 1:
+    #                         s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
+    #                 else:
+    #                     _ = id(self, s)
 
-        display.clear_output()
+    #     display.clear_output()
 
-        # record srm_rng in self
-        self.srm_rng = {}
-        for s in self.stds:
-            self.srm_rng[s.sample] = s.srm_rngs
+    #     # record srm_rng in self
+    #     self.srm_rng = {}
+    #     for s in self.stds:
+    #         self.srm_rng[s.sample] = s.srm_rngs
 
-        # make boolean identifiers in standard D
-        for sn, rs in self.srm_rng.items():
-            s = self.data_dict[sn]
-            s.std_labels = {}
-            for srm, rng in rs.items():
-                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+    #     # make boolean identifiers in standard D
+    #     for sn, rs in self.srm_rng.items():
+    #         s = self.data_dict[sn]
+    #         s.std_labels = {}
+    #         for srm, rng in rs.items():
+    #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
 
-        self.srms_ided = True
+    #     self.srms_ided = True
 
-        return
+    #     return
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
         # compile mean and standard errors of samples
@@ -955,39 +957,39 @@ class analyse(object):
         self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
         return
 
-    def load_calibration(self, params=None):
-        """
-        Loads calibration from global .calib file.
+    # def load_calibration(self, params=None):
+    #     """
+    #     Loads calibration from global .calib file.
 
-        Parameters
-        ----------
-        params : str
-            Specify the parameter file to load the calibration from.
-            If None, it assumes that the parameters are already loaded
-            (using `load_params`).
+    #     Parameters
+    #     ----------
+    #     params : str
+    #         Specify the parameter file to load the calibration from.
+    #         If None, it assumes that the parameters are already loaded
+    #         (using `load_params`).
 
-        Returns
-        -------
-        None
-        """
-        if isinstance(params, str):
-            self.load_params(params)
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     if isinstance(params, str):
+    #         self.load_params(params)
 
-        # load srm_rng and expand to standards
-        self.srm_rng = self.params['calib']['srm_rng']
+    #     # load srm_rng and expand to standards
+    #     self.srm_rng = self.params['calib']['srm_rng']
 
-        # make boolean identifiers in standard D
-        for s in self.stds:
-            s.srm_rngs = self.srm_rng[s.sample]
-            s.std_labels = {}
-            for srm, rng in s.srm_rngs.items():
-                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
-        self.srms_ided = True
+    #     # make boolean identifiers in standard D
+    #     for s in self.stds:
+    #         s.srm_rngs = self.srm_rng[s.sample]
+    #         s.std_labels = {}
+    #         for srm, rng in s.srm_rngs.items():
+    #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+    #     self.srms_ided = True
 
-        # load calib dict
-        self.calib_dict = self.params['calib']['calib_dict']
+    #     # load calib dict
+    #     self.calib_dict = self.params['calib']['calib_dict']
 
-        return
+    #     return
 
     # apply calibration to data
     def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
@@ -3143,6 +3145,7 @@ class D(object):
         params = locals()
         del(params['self'])
         self.ratio_params = params
+        self.ratio_denominator = denominator
 
         self.setfocus(focus)
         self.data['ratios'] = {}
