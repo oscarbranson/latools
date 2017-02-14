@@ -1,9 +1,10 @@
 import configparser
 import itertools
-import os, sys
+import os
 import pprint
 import re
 import shutil
+import sys
 import time
 import warnings
 
@@ -910,7 +911,7 @@ class analyse(object):
         srmdat = srmdat.loc[srms_used]
 
         # isolate measured elements
-        elements = np.unique([re.findall('[A - Za - z]+', a)[0] for a in self.analytes])
+        elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
         srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
         # label elements
         srmdat.loc[:, 'element'] = np.nan
@@ -924,7 +925,7 @@ class analyse(object):
         # 1. identify elements in measured SRMS with biggest range of values
         meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
         meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
-        meas_tab.columns = [re.findall('[A - Za - z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
         meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
 
         ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
@@ -960,7 +961,7 @@ class analyse(object):
         # combine to make SRM reference tables
         srmtabs = {}
         for a in self.analytes:
-            el = re.findall('[A - Za - z]+', a)[0]
+            el = re.findall('[A-Za-z]+', a)[0]
 
             sub = stdtab.loc[:, a]
 
@@ -2660,7 +2661,7 @@ class D(object):
                             self.meta[v[0][i]] = out[i]
             # identify column names
             if dataformat['column_id']['name_row'] is not None:
-                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(', '))
+                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(','))
                 timecol = np.array([dataformat['column_id']['timekey'] in c.lower() for c in columns])
                 columns[timecol] = 'Time'
                 self.analytes = columns[~timecol]
@@ -4195,9 +4196,9 @@ class D(object):
             filts = np.array(sorted([f for f in self.filt.components.keys()
                                      if filt in f]))
 
-        regex = re.compile('^([A - Za - z0 - 9-]+)_'
-                           '([A - Za - z0 - 9-]+)[_$]?'
-                           '([a - z0 - 9]+)?')
+        regex = re.compile('^([A-Za-z0-9-]+)_'
+                           '([A-Za-z0-9-]+)[_$]?'
+                           '([a-z0-9]+)?')
 
         nfilts = np.array([re.match(regex, f).groups() for f in filts])
         fgnames = np.array(['_'.join(a) for a in nfilts[:, :2]])
@@ -4833,14 +4834,14 @@ def pretty_element(s):
     Parameters
     ----------
     s : str
-        of format [A - Z][a - z]?[0 - 9]+
+        of format [A-Z][a-z]?[0-9]+
 
     Returns
     -------
     str
         LaTeX formatted string with superscript numbers.
     """
-    g = re.match('([A - Z][a - z]?)([0 - 9]+)', s).groups()
+    g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
     return '$^{' + g[1] + '}$' + g[0]
 
 
