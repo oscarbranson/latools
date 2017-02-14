@@ -127,7 +127,7 @@ class analyse(object):
     """
     def __init__(self, data_folder, errorhunt=False, config=None,
                  dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None, time_format=None):
+                 cmap=None, time_format=None, internal_standard='Ca43'):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -234,7 +234,7 @@ class analyse(object):
         self.data = np.array([D(self.folder + '/' + f,
                                 dataformat=self.dataformat,
                                 errorhunt=errorhunt,
-                                cmap=cmap) for f in self.files])
+                                cmap=cmap, internal_standard=internal_standard) for f in self.files])
 
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].analytes)
@@ -319,7 +319,7 @@ class analyse(object):
                         " documentation, and provide a\n     valid 'time_format'."))
 
     @_log
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
+    def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.]):
         """
         Automatically separates signal and background data regions.
@@ -386,12 +386,15 @@ class analyse(object):
         -------
         None
         """
+        if analyte is None:
+            analyte = self.internal_standard
+
         for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
                         conf, on_mult, off_mult)
         return
 
-    def find_expcoef(self, nsd_below=0., analyte='Ca43', plot=False,
+    def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
                      trimlim=None):
         """
         Determines exponential decay coefficient for despike filter.
@@ -424,6 +427,10 @@ class analyse(object):
         -------
         None
         """
+        if analyte is None:
+            analyte = self.internal_standard
+
+        print('Calculating exponential decay coefficient\nfrom SRM washouts...')
 
         if isinstance(analyte, str):
             analyte = [analyte]
@@ -514,10 +521,7 @@ class analyse(object):
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
-        print(' -------------------------------------')
-        print(('Exponential Decay Coefficient: '
-               '{:0.2f}').format(self.expdecay_coef[0]))
-        print(' -------------------------------------')
+        print('  {:0.2f}'.format(self.expdecay_coef[0]))
 
         return
 
@@ -555,11 +559,10 @@ class analyse(object):
         """
         if exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                print('Exponential Decay Coefficient not provided.')
-                print(('Coefficient will be determined from the washout\n'
-                       'times of the standards (may take a while...).'))
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
+            time.sleep(0.2)
+
 
         for d in tqdm(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
@@ -627,6 +630,7 @@ class analyse(object):
             The interval between calculated background points.
 
         """
+        print("Calculating moving weighted mean background (fwhm={}s)...".format(weight_fwhm))
 
         if analytes is None:
             analytes = self.analytes
@@ -676,6 +680,8 @@ class analyse(object):
             The interval between calculated background points.
 
         """
+        print("Calculating polynomial background ({} order)...".format(kind))
+
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
@@ -724,7 +730,7 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        for d in tqdm(self.data_dict.values(), desc='Background Correction'):
+        for d in tqdm(self.data_dict.values(), desc='Background Subtraction'):
             [d.bkg_subtract(a,
                             un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
                                       np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
@@ -791,7 +797,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, denominator='Ca43', focus='bkgsub'):
+    def ratio(self, denominator=None, focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -808,6 +814,9 @@ class analyse(object):
         -------
         None
         """
+
+        if denominator is None:
+            denominator = self.internal_standard
 
         self.ratio_denominator = denominator
 
@@ -2637,7 +2646,7 @@ class D(object):
     noise_despiker
     tplot
     """
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43'):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -2925,7 +2934,7 @@ class D(object):
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
     @_log
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
+    def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.)):
         """
                 Automatically separates signal and background data regions.
@@ -2991,6 +3000,9 @@ class D(object):
         -------
         None
         """
+
+        if analyte is None:
+            analyte = self.internal_standard
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
@@ -3170,7 +3182,7 @@ class D(object):
         return
 
     @_log
-    def ratio(self, denominator='Ca43', focus='bkgsub'):
+    def ratio(self, denominator=None, focus='bkgsub'):
         """
         Divide all analytes by a specified denominator analyte.
 
@@ -3186,6 +3198,9 @@ class D(object):
         -------
         None
         """
+        if denominator is None:
+            denominator = self.internal_standard
+
         self.ratio_denominator = denominator
 
         self.setfocus(focus)
