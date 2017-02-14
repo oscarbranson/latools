@@ -29,7 +29,7 @@ import scipy.interpolate as interp
 from sklearn import preprocessing
 
 from IPython import display
-from tqdm import tnrange, tqdm_notebook  # status bars!
+from tqdm import tqdm  # status bars!
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -386,7 +386,7 @@ class analyse(object):
         -------
         None
         """
-        for d in tqdm_notebook(self.data, desc='AutoRange'):
+        for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
                         conf, on_mult, off_mult)
         return
@@ -561,13 +561,13 @@ class analyse(object):
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
 
-        for d in tqdm_notebook(self.data, desc='Despiking'):
+        for d in tqdm(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
                       noise_despiker, win, nlim)
         return
 
     # functions for background correction
-    def get_background(self, n_min=10):
+    def get_background(self, n_min=10, focus_stage='despiked'):
         """
         Extract all background data from all samples on universal time scale.
         Used by both 'polynomial' and 'weightedmean' methods.
@@ -595,7 +595,7 @@ class analyse(object):
             allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
             n0 = allbkgs['ns'][-1][-1]
             for a in self.analytes:
-                allbkgs[a].append(s.focus[a][s.bkg])
+                allbkgs[a].append(s.data[focus_stage][a][s.bkg])
 
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
         bkgs = pd.DataFrame(allbkgs)
@@ -724,11 +724,12 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        for d in tqdm_notebook(self.data_dict.values(), desc='Background Correction'):
-            [d.bkg_subtract(a, un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
-                                         np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
+        for d in tqdm(self.data_dict.values(), desc='Background Correction'):
+            [d.bkg_subtract(a,
+                            un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
+                                      np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
                             ~d.sig) for a in self.analytes]
-        self.set_focus('bkgsub')
+            d.setfocus('bkgsub')
         return
 
     @_log
@@ -810,7 +811,7 @@ class analyse(object):
 
         self.ratio_denominator = denominator
 
-        for s in tqdm_notebook(self.data, desc='Ratio Calculation'):
+        for s in tqdm(self.data, desc='Ratio Calculation'):
             s.ratio(denominator=denominator, focus=focus)
         return
 
@@ -1120,7 +1121,7 @@ class analyse(object):
                 self.calib_params.loc[0, a] = p
 
         # apply calibration
-        for d in tqdm_notebook(self.data, desc='Calibration'):
+        for d in tqdm(self.data, desc='Calibration'):
             try:
                 d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
             except:
@@ -1215,7 +1216,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Threshold Filter'):
+        for s in tqdm(samples, desc='Threshold Filter'):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
     @_log
@@ -1267,7 +1268,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Distribution Filter'):
+        for s in tqdm(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
                                                   filt=filt, transform=None,
                                                   min_data=min_data)
@@ -1389,7 +1390,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Clustering Filter'):
+        for s in tqdm(samples, desc='Clustering Filter'):
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
                                                 normalise=normalise,
                                                 method=method,
@@ -1449,7 +1450,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Correlation Filter'):
+        for s in tqdm(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
                                                  window=window,
                                                  r_threshold=r_threshold,
@@ -2012,7 +2013,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Drawing Plots'):
+        for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
                                            scale=scale, filt=filt,
                                            ranges=ranges, stats=stats,
@@ -2058,7 +2059,7 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
-        for s in tqdm_notebook(samples, desc='Drawing Plots'):
+        for s in tqdm(samples, desc='Drawing Plots'):
             self.data_dict[s].filt_report(filt=filt_str,
                                           analytes=analytes,
                                           savedir=outdir)
