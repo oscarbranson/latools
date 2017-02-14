@@ -28,14 +28,15 @@ import scipy.interpolate as interp
 from sklearn import preprocessing
 
 from IPython import display
-from tqdm import tnrange, tqdm_notebook # status bars!
+from tqdm import tnrange, tqdm_notebook  # status bars!
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
+
 class analyse(object):
     """
-    For processing and analysing whole LA-ICPMS datasets.
+    For processing and analysing whole LA - ICPMS datasets.
 
     Parameters
     ----------
@@ -91,7 +92,7 @@ class analyse(object):
     srm_identifier : str
         A string present in the file names of all standards.
     cmaps : dict
-        An analyte-specific colour map, used for plotting.
+        An analyte - specific colour map, used for plotting.
 
 
     Methods
@@ -127,7 +128,7 @@ class analyse(object):
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None):
         """
-        For processing and analysing whole LA-ICPMS datasets.
+        For processing and analysing whole LA - ICPMS datasets.
         """
         # initialise log
         params = locals()
@@ -167,7 +168,7 @@ class analyse(object):
             config = pconf['config']
         else:
             config = 'DEFAULT'
-        # if ther eare any non-default parameters, replace defaults in
+        # if ther eare any non - default parameters, replace defaults in
         # the pconf dict
         if config != 'DEFAULT':
             for o in conf.options(config):
@@ -180,7 +181,7 @@ class analyse(object):
         elif os.path.exists(pkgrs.resource_filename('latools',
                                                     pconf['srmfile'])):
             self.srmfile = pkgrs.resource_filename('latools',
-                                                    pconf['srmfile'])
+                                                   pconf['srmfile'])
         else:
             raise ValueError(('The SRM file specified in the ' + config +
                               ' configuration cannot be found.\n'
@@ -311,11 +312,10 @@ class analyse(object):
             ValueError(("Cannot determine data file start times.\n" +
                         "This could be because:\n  1) 'date' " +
                         "not specified in 'regex' section of \n" +
-                        "     file format. Consult 'data format' documentation\n  "+
+                        "     file format. Consult 'data format' documentation\n  " +
                         "   and modify appropriately.\n  2) time_format cannot be" +
                         " automatically determined.\n     Consult 'strptime'" +
                         " documentation, and provide a\n     valid 'time_format'."))
-
 
     @_log
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
@@ -407,7 +407,7 @@ class analyse(object):
             coefficient when calculating the filter exponent.
         analyte : str
             The analyte to consider when determining the coefficient.
-            Use high-concentration analyte for best estimates.
+            Use high - concentration analyte for best estimates.
         plot : bool or str
             bool: Creates a plot of the fit if True.
             str: Creates a plot, and saves it to the location
@@ -494,7 +494,7 @@ class analyse(object):
             ax.scatter(ti, tr, alpha=0.6, color='k', marker='o')
             fitx = np.linspace(0, max(ti))
             ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
-            ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5,),
+            ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5, ),
                     color='b', label='Used')
             ax.text(0.95, 0.75,
                     ('y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: '
@@ -513,10 +513,10 @@ class analyse(object):
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
-        print('-------------------------------------')
+        print(' -------------------------------------')
         print(('Exponential Decay Coefficient: '
                '{:0.2f}').format(self.expdecay_coef[0]))
-        print('-------------------------------------')
+        print(' -------------------------------------')
 
         return
 
@@ -602,21 +602,22 @@ class analyse(object):
         self.bkg = {}
         # extract background data from whole dataset
         self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
-        # calculate per-background region stats
+        # calculate per - background region stats
         self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
         return
 
     @_log
-    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
+                              n_min=20, cstep=None):
         """
         Background calculation using a gaussian weighted mean.
 
         Parameters
         ----------
-        analytes : str or array-like
+        analytes : str or array - like
         weight_fwhm : float
-            The full-width-at-half-maximum of the gaussian used
+            The full - width - at - half - maximum of the gaussian used
             to calculate the weighted average.
         n_min : int
             Background regions with fewer than n_min points
@@ -634,7 +635,7 @@ class analyse(object):
 
         self.get_background(n_min)
 
-        # Gaussian-weighted average
+        # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
             if cstep is None:
@@ -646,10 +647,10 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         for a in analytes:
-             self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
-                                                    self.bkg['raw'].loc[:,a],
-                                                    self.bkg['calc']['uTime'],
-                                                    weight_fwhm)
+            self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
+                                                   self.bkg['raw'].loc[:, a],
+                                                   self.bkg['calc']['uTime'],
+                                                   weight_fwhm)
 
         return
 
@@ -662,7 +663,7 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : str or array-like
+        analytes : str or array - like
         kind : str or int
             Integer specifying the order of the spline interpolation
             used, or string specifying a type of interpolation.
@@ -695,14 +696,14 @@ class analyse(object):
 
         d = self.bkg['summary']
         for a in analytes:
-            imean = interp.interp1d(d.loc[:,('uTime','mean')],
-                                   d.loc[:,(a, 'mean')],
+            imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                    d.loc[:, (a, 'mean')],
+                                    kind=kind)
+            istd = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                   d.loc[:, (a, 'std')],
                                    kind=kind)
-            istd = interp.interp1d(d.loc[:,('uTime','mean')],
-                                   d.loc[:,(a, 'std')],
-                                   kind=kind)
-            ise = interp.interp1d(d.loc[:,('uTime','mean')],
-                                  d.loc[:,(a, 'stderr')],
+            ise = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                  d.loc[:, (a, 'stderr')],
                                   kind=kind)
             self.bkg['calc'][a] = {'mean': imean(self.bkg['calc']['uTime']),
                                    'std': istd(self.bkg['calc']['uTime']),
@@ -730,7 +731,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_plot(self, analytes=None, figsize=[12,5], yscale='log', ylim=None):
+    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
                              "plot the background.")
@@ -740,14 +741,14 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        fig,ax = plt.subplots(1, 1, figsize=figsize)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
 
         for a in analytes:
-            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:,a],
+            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
 
-            for i,r in self.bkg['summary'].iterrows():
+            for i, r in self.bkg['summary'].iterrows():
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
                 yl = [r.loc[a, 'mean'] - r.loc[a, 'std']] * 2
@@ -770,16 +771,14 @@ class analyse(object):
                             self.bkg['calc'][a]['mean'] - self.bkg['calc'][a]['stderr'],
                             color=self.cmaps[a], alpha=0.3, zorder=1)
 
-
         if yscale == 'log':
             ax.set_yscale('log')
         if ylim is not None:
             ax.set_ylim(ylim)
 
         # scale x axis to range ± 2.5%
-        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025*self.bkg['raw']['uTime'].ptp(),
-                    self.bkg['raw']['uTime'].max() + 0.025*self.bkg['raw']['uTime'].ptp())
-
+        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025 * self.bkg['raw']['uTime'].ptp(),
+                    self.bkg['raw']['uTime'].max() + 0.025 * self.bkg['raw']['uTime'].ptp())
 
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
@@ -790,7 +789,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self,  denominator='Ca43', focus='bkgsub'):
+    def ratio(self, denominator='Ca43', focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -880,26 +879,26 @@ class analyse(object):
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
         # compile mean and standard errors of samples
         for s in self.stds:
-            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err','mean']]))
+            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
             stdtab.index.name = 'uTime'
 
-            for n in range(1,s.n+1):
+            for n in range(1, s.n + 1):
                 ind = s.ns == n
                 for a in s.analytes:
                     aind = ind & ~np.isnan(nominal_values(s.focus[a]))
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                           (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                               (a, 'mean')] = np.nanmean(s.focus[a][aind])
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                (a, 'err')] = np.nanmean(s.focus[a][aind]) / np.sqrt(sum(aind))
 
             # sort column multiindex
-            stdtab = stdtab.loc[:,stdtab.columns.sort_values()]
+            stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
             # sort row index
             stdtab.sort_index(inplace=True)
 
             # create 'SRM' column for naming SRM
-            stdtab.loc[:,'SRM'] = ''
-            stdtab.loc[:,'STD'] = s.sample
+            stdtab.loc[:, 'SRM'] = ''
+            stdtab.loc[:, 'STD'] = s.sample
 
             s.stdtab = stdtab
 
@@ -911,21 +910,21 @@ class analyse(object):
         srmdat = srmdat.loc[srms_used]
 
         # isolate measured elements
-        elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
+        elements = np.unique([re.findall('[A - Za - z]+', a)[0] for a in self.analytes])
         srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
         # label elements
-        srmdat.loc[:,'element'] = np.nan
+        srmdat.loc[:, 'element'] = np.nan
         for e in elements:
-            srmdat.loc[srmdat.Item.str.contains(e),'element'] = e
+            srmdat.loc[srmdat.Item.str.contains(e), 'element'] = e
 
         # convert to table in same format as stdtab
-        srm_tab = srmdat.loc[:,['Value','element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+        srm_tab = srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
 
-        # Auto-ID STDs
+        # Auto - ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
-        meas_tab = stdtab.loc[:,(slice(None),'mean')]  # isolate means of standards
+        meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
         meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
-        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+        meas_tab.columns = [re.findall('[A - Za - z]+', a)[0] for a in meas_tab.columns]  # rename to element names
         meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
 
         ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
@@ -941,9 +940,9 @@ class analyse(object):
                 return np.ones(a.shape)
 
         nmeas = meas_tab.apply(normalise, 0)
-        nmeas.replace(np.nan,1, inplace=True)
+        nmeas.replace(np.nan, 1, inplace=True)
         nsrm_tab = srm_tab.apply(normalise, 0)
-        nsrm_tab.replace(np.nan,1, inplace=True)
+        nsrm_tab.replace(np.nan, 1, inplace=True)
 
         for uT, r in nmeas.iterrows():  # for each standard...
             idx = abs((nsrm_tab - r) * ranges).sum(1)
@@ -956,17 +955,16 @@ class analyse(object):
             # a known vs. measured SRM. The measured SRM is identified as the SRM that
             # has the smallest weighted sum value.
             stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-        stdtab = stdtab.reset_index().set_index(['STD','SRM','uTime'])
-
+        stdtab = stdtab.reset_index().set_index(['STD', 'SRM', 'uTime'])
 
         # combine to make SRM reference tables
         srmtabs = {}
         for a in self.analytes:
-            el = re.findall('[A-Za-z]+',a)[0]
+            el = re.findall('[A - Za - z]+', a)[0]
 
-            sub = stdtab.loc[:,a]
+            sub = stdtab.loc[:, a]
 
-            srmsub = srmdat.loc[srmdat.element==el, ['Value','Uncertainty']]
+            srmsub = srmdat.loc[srmdat.element == el, ['Value', 'Uncertainty']]
 
             srmtab = sub.join(srmsub)
             srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
@@ -1013,7 +1011,7 @@ class analyse(object):
     # apply calibration to data
     @_log
     def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
-              srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
+                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
         """
         Calibrates the data to measured SRM values.
 
@@ -1088,37 +1086,37 @@ class analyse(object):
 
             # calculate calibrations
             if drift_correct:
-                for n,g in self.srmtabs.loc[a,:].groupby(level=0):
+                for n, g in self.srmtabs.loc[a, :].groupby(level=0):
                     if srm_errors:
-                        p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
-                                   y=self.srmtabs.loc[a,'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a,'meas_err'].values,
-                                   sy=self.srmtabs.loc[a,'srm_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
+                                   sy=self.srmtabs.loc[a, 'srm_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     else:
-                        p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
-                                   y=self.srmtabs.loc[a,'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a,'meas_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     uTime = g.index.get_level_values('uTime').values.mean()
                     self.calib_params.loc[uTime, a] = p
             else:
                 if srm_errors:
-                    p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
-                               y=self.srmtabs.loc[a,'srm_mean'].values,
-                               sx=self.srmtabs.loc[a,'meas_err'].values,
-                               sy=self.srmtabs.loc[a,'srm_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
+                               sy=self.srmtabs.loc[a, 'srm_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
                 else:
-                    p = odrfit(x=self.srmtabs.loc[a,'meas_mean'].values,
-                               y=self.srmtabs.loc[a,'srm_mean'].values,
-                               sx=self.srmtabs.loc[a,'meas_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
-                self.calib_params.loc[0,a] = p
+                self.calib_params.loc[0, a] = p
 
         # apply calibration
         for d in tqdm_notebook(self.data, desc='Calibration'):
@@ -1130,7 +1128,6 @@ class analyse(object):
     #     # save calibration parameters
     #     # self.save_calibration()
         return
-
 
     # data filtering
     # TODO:
@@ -1148,7 +1145,7 @@ class analyse(object):
 
         Parameters
         ----------
-        samples : str or array-like
+        samples : str or array - like
             Name of sample, or list of sample names.
         name : (optional) str or number
             The name of the sample group. Defaults to n + 1, where n is
@@ -1158,7 +1155,7 @@ class analyse(object):
             samples = [samples]
 
         if not hasattr(self, 'subsets'):
-            self.subsets = dict(zip(self.samples, [0]*len(self.samples)))
+            self.subsets = dict(zip(self.samples, [0] * len(self.samples)))
             self.subset_key = {}
 
         if name is None:
@@ -1172,7 +1169,6 @@ class analyse(object):
             self.subset_key[subset] = sorted([k for k, v in self.subsets.items() if v == subset])
 
         return name
-
 
     @_log
     def filter_threshold(self, analyte, threshold, filt=False,
@@ -1280,7 +1276,7 @@ class analyse(object):
                           method='meanshift', include_time=False, samples=None,
                           sort=True, subset=None, min_data=10, **kwargs):
         """
-        Applies an n-dimensional clustering filter to the data.
+        Applies an n - dimensional clustering filter to the data.
 
         Parameters
         ----------
@@ -1307,7 +1303,7 @@ class analyse(object):
                           determines the number and characteristics of clusters
                           within the data based on the 'connectivity' of the
                           data (i.e. how far apart each data point is in a
-                          multi-dimensional parameter space). Requires you to
+                          multi - dimensional parameter space). Requires you to
                           set `eps`, the minimum distance point must be from
                           another point to be considered in the same cluster,
                           and `min_samples`, the minimum number of points that
@@ -1346,7 +1342,7 @@ class analyse(object):
             Modifies the behaviour of the meanshift algorithm. Refer to
             sklearn.cluster.meanshift documentation.
 
-        K-Means Parameters
+        K - Means Parameters
         ------------------
         n_clusters : int
             The number of clusters expected in the data.
@@ -1412,7 +1408,7 @@ class analyse(object):
         above `r_threshold` and statistically significant.
 
         Data will be excluded where their absolute R value is greater than
-        `r_threshold` AND the p-value associated with the correlation is
+        `r_threshold` AND the p - value associated with the correlation is
         less than `p_threshold`. i.e. only correlations that are statistically
         significant are considered.
 
@@ -1606,7 +1602,7 @@ class analyse(object):
             Whether or not to show the distribution of the measured data
             alongside the calibration curve.
         loglog : boolean
-            Whether or not to plot the data on a log-log scale. This is
+            Whether or not to plot the data on a log - log scale. This is
             useful if you have two low standards very close together,
             and want to check whether your data are between them, or
             below them.
@@ -1622,9 +1618,9 @@ class analyse(object):
 
         n = len(analytes)
         if n % 4 is 0:
-            nrow = n/3
+            nrow = n / 3
         else:
-            nrow = n//3 + 1
+            nrow = n // 3 + 1
 
         axes = []
 
@@ -1651,27 +1647,27 @@ class analyse(object):
                 p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
                 ax = fig.add_axes(p1)
                 axh = fig.add_axes(p2)
-                axes.append((ax,axh))
+                axes.append((ax, axh))
                 i += 1
 
             # plot calibration data
-            ax.errorbar(self.srmtabs.loc[a,'meas_mean'].values,
-                        self.srmtabs.loc[a,'srm_mean'].values,
-                        xerr=self.srmtabs.loc[a,'meas_err'].values,
-                        yerr=self.srmtabs.loc[a,'srm_err'].values,
+            ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
+                        self.srmtabs.loc[a, 'srm_mean'].values,
+                        xerr=self.srmtabs.loc[a, 'meas_err'].values,
+                        yerr=self.srmtabs.loc[a, 'srm_err'].values,
                         color=self.cmaps[a], alpha=0.6,
                         lw=0, elinewidth=1, marker='o',
                         capsize=0, markersize=5)
 
             # work out axis scaling
             if not loglog:
-                xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a,'meas_mean'].values),
-                                       nominal_values(self.srmtabs.loc[a,'srm_mean'].values),
+                xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values),
+                                       nominal_values(self.srmtabs.loc[a, 'srm_mean'].values),
                                        pad=0.1)
                 xlim[0] = ylim[0] = 0
             else:
-                xd = self.srmtabs.loc[a,'meas_mean'][self.srmtabs.loc[a,'meas_mean'] > 0].values
-                yd = self.srmtabs.loc[a,'srm_mean'][self.srmtabs.loc[a,'srm_mean'] > 0].values
+                xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
+                yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
 
                 xlim = [10**np.floor(np.log10(np.nanmin(xd))),
                         10**np.ceil(np.log10(np.nanmax(xd)))]
@@ -1702,8 +1698,8 @@ class analyse(object):
             line = nominal_values(self.calib_fns[a](coefs, x))
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
-            R2 = R2calc(self.srmtabs.loc[a,'srm_mean'],
-                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a,'meas_mean'])))
+            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'],
+                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])))
 
             # labels
             if len(coefs) == 1:
@@ -1711,12 +1707,12 @@ class analyse(object):
             else:
                 label = r''
                 for n, p in enumerate(coefs):
-                    if len(coefs)-n-1 == 0:
+                    if len(coefs) - n - 1 == 0:
                         label += '{:.1e}'.format(p)
-                    elif len(coefs)-n-1 == 1:
+                    elif len(coefs) - n - 1 == 1:
                         label += '{:.1e} x\n+ '.format(p)
                     else:
-                        label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs)-n-1) + '}$\n+ '
+                        label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs) - n - 1) + '}$\n+ '
 
             if '{:.3f}'.format(R2) == '1.000':
                 label += '\n$R^2$: >0.999'
@@ -1901,7 +1897,7 @@ class analyse(object):
         rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                      np.nanmax(focus[a] * udict[a][0])) for a in analytes}
 
-        for i,j in zip(*np.triu_indices_from(axes, k=1)):
+        for i, j in zip(*np.triu_indices_from(axes, k=1)):
             # get analytes
             ai = analytes[i]
             aj = analytes[j]
@@ -1932,7 +1928,7 @@ class analyse(object):
 
         # diagonal labels
         for a, n in zip(analytes, np.arange(len(analytes))):
-            axes[n, n].annotate(a+'\n'+udict[a][1], (0.5, 0.5),
+            axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
             axes[n, n].set_xlim(*rdict[a])
@@ -2123,7 +2119,7 @@ class analyse(object):
             to cope with numpy NaN values.
         eachtrace : bool
             Whether to calculate the statistics for each analysis
-            spot individually, or to produce per-sample means.
+            spot individually, or to produce per - sample means.
             Default is True.
 
         Returns
@@ -2241,7 +2237,7 @@ class analyse(object):
                                                      pretty_element(self.data[0].ratio_params['denominator']),
                                                      u))
 
-                    # plot whole-sample mean
+                    # plot whole - sample mean
                     if len(x) > 1:
                         # mean calculation with error propagation?
                         # umean = un.uarray(d[stat][a_ind][0] * m, d[err][a_ind][0] * m).mean()
@@ -2256,12 +2252,12 @@ class analyse(object):
 
                     # highlight each sample
                     if i % 2 == 1:
-                        ax.axvspan(i-.5, i+.5, color=(0, 0, 0, 0.05), lw=0)
+                        ax.axvspan(i - .5, i + .5, color=(0, 0, 0, 0.05), lw=0)
 
                     i += 1
 
             ax.set_xticks(np.arange(0, len(self.stats)))
-            ax.set_xlim(-0.5, len(self.stats)-.5)
+            ax.set_xlim(-0.5, len(self.stats) - .5)
 
             ax.set_xticklabels(samples)
 
@@ -2292,11 +2288,11 @@ class analyse(object):
         for s in self.stats_calced:
             for nm in [n for n in samples if self.srm_identifier
                        not in n]:
-                # make multi-index
+                # make multi - index
                 reps = np.arange(self.stats[nm][s].shape[1])
                 ss = np.array([s] * reps.size)
                 nms = np.array([nm] * reps.size)
-                # make sub-dataframe
+                # make sub - dataframe
                 stdf = pd.DataFrame(self.stats[nm][s].T,
                                     columns=self.stats[nm]['analytes'],
                                     index=[ss, nms, reps])
@@ -2333,7 +2329,7 @@ class analyse(object):
         ----------
         output_file : str
             Where to save the output file. Defaults to
-            './params/YYMMDD-HHMM.param'.
+            './params/YYMMDD - HHMM.param'.
         update : bool
             Whether or not to update the parameter file
             before saving.
@@ -2369,10 +2365,10 @@ class analyse(object):
                 i = 0
                 for r in np.arange(1, col.size):
                     if isinstance(col[r], (str, float, dict, int)):
-                        if col[r] != col[r-1]:
+                        if col[r] != col[r - 1]:
                             i += 1
                     else:
-                        if any(col[r] != col[r-1]):
+                        if any(col[r] != col[r - 1]):
                             i += 1
 
                     sets[r, c] = i
@@ -2410,7 +2406,7 @@ class analyse(object):
             self.params = out
 
         if output_file is None:
-            outputfile = './params/' + time.strftime('%y%m%d-%H%M') + '.dict'
+            outputfile = './params/' + time.strftime('%y%m%d - %H%M') + '.dict'
         f = open(output_file, 'w')
         pprint.pprint(self.params, stream=f)
         f.close()
@@ -2434,7 +2430,7 @@ class analyse(object):
         """
         if isinstance(params, str):
             s = open(params, 'r').read()
-            # make it numpy-friendly for eval
+            # make it numpy - friendly for eval
             s = re.sub('array', 'np.array', s)
             params = eval(s)
         self.params = params
@@ -2463,10 +2459,10 @@ class analyse(object):
                 'calibrated': ratio data calibrated to standards, created by
                     self.calibrate.
             Defaults to the most recent stage of analysis.
-        analytes : str or array-like
+        analytes : str or array - like
             Either a single analyte, or list of analytes to export.
             Defaults to all analytes.
-        samples : str or array-like
+        samples : str or array - like
             Either a single sample name, or list of samples to export.
             Defaults to all samples.
         filt : str, dict or bool
@@ -2653,7 +2649,7 @@ class D(object):
 
         with open(data_file) as f:
             lines = f.readlines()
-            # read the metadata, using key, regex pairs in the line-numbered
+            # read the metadata, using key, regex pairs in the line - numbered
             # dataformat['regex'] dict.
             if 'regex' in dataformat.keys():
                 self.meta = {}
@@ -2664,7 +2660,7 @@ class D(object):
                             self.meta[v[0][i]] = out[i]
             # identify column names
             if dataformat['column_id']['name_row'] is not None:
-                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(','))
+                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(', '))
                 timecol = np.array([dataformat['column_id']['timekey'] in c.lower() for c in columns])
                 columns[timecol] = 'Time'
                 self.analytes = columns[~timecol]
@@ -2695,8 +2691,6 @@ class D(object):
             for k, v in cmap.items():
                 if k in self.cmap.keys():
                     self.cmap[k] = v
-
-
 
         # set up flags
         self.sig = np.array([False] * self.Time.size)
@@ -2791,7 +2785,7 @@ class D(object):
                 over = np.roll(lowlim > v, -1)
 
                 if sum(over) > 0:
-                    # get adjacent values to over-limit values
+                    # get adjacent values to over - limit values
                     # calculate replacement values
                     neighbours = []
                     fixend = False
@@ -2844,17 +2838,17 @@ class D(object):
                 kernel = np.ones(win) / win
                 rmean = np.convolve(v, kernel, 'same')
 
-                # with warnings.catch_warnings():
-                    # to catch 'empty slice' warnings
-                    # warnings.simplefilter("ignore", category=RuntimeWarning)
-                    # rmean = \
-                    #     np.apply_along_axis(np.nanmean, 1,
-                    #                         rolling_window(v, win,
-                    #                                             pad=np.nan))
-                    # rmean = \
-                    #     np.apply_along_axis(np.nanmean, 1,
-                    #                         rolling_window(v, win,
-                    #                                             pad=np.nan))
+            # with warnings.catch_warnings():
+                # to catch 'empty slice' warnings
+                # warnings.simplefilter("ignore", category=RuntimeWarning)
+                # rmean = \
+                #     np.apply_along_axis(np.nanmean, 1,
+                #                         rolling_window(v, win,
+                #                                             pad=np.nan))
+                # rmean = \
+                #     np.apply_along_axis(np.nanmean, 1,
+                #                         rolling_window(v, win,
+                #                                             pad=np.nan))
                 # calculate rolling standard deviation
                 # (count statistics, so **0.5)
                 rstd = rmean**0.5
@@ -2863,7 +2857,7 @@ class D(object):
                 # (v > rmean + nlim * rstd)
                 over = v > rmean + nlim * rstd
                 if sum(over) > 0:
-                    # get adjacent values to over-limit values
+                    # get adjacent values to over - limit values
                     neighbours = \
                         np.hstack([v[np.roll(over, -1)][:, np.newaxis],
                                    v[np.roll(over, 1)][:, np.newaxis]])
@@ -2975,11 +2969,11 @@ class D(object):
             Must be odd.
         on_mult and off_mult : tuple, len=2
             Factors to control the width of the excluded transition regions.
-            A region n times the full-width-half-maximum of the transition
+            A region n times the full - width - half - maximum of the transition
             gradient will be removed either side of the transition center.
-            `on_mult` and `off_mult` refer to the laser-on and laser-off
+            `on_mult` and `off_mult` refer to the laser - on and laser - off
             transitions, respectively. See manual for full explanation.
-            Defaults to (1.5,1) and (1, 1.5).
+            Defaults to (1.5, 1) and (1, 1.5).
 
 
         Adds
@@ -3032,18 +3026,18 @@ class D(object):
         for z in zeros:  # for each approximate transition
             # isolate the data around the transition
             if z - win > 0:
-                xs = self.Time[z-win:z+win]
-                ys = g[z-win:z+win]
+                xs = self.Time[z - win:z + win]
+                ys = g[z - win:z + win]
                 # determine type of transition (on/off)
                 # checkes whether first - last value in window is
                 # positive ('on') or negative ('off')
-                tp = np.diff(v[z-win:z+win][[0, -1]]) > 0
+                tp = np.diff(v[z - win:z + win][[0, -1]]) > 0
 
             else:
-                xs = self.Time[:z+win]
-                ys = g[:z+win]
+                xs = self.Time[:z + win]
+                ys = g[:z + win]
                 # determine type of transition (on/off)
-                tp = np.diff(v[:z+win][[0, -1]]) > 0
+                tp = np.diff(v[:z + win][[0, -1]]) > 0
             # determine location of maximum gradient
             c = self.Time[z]  # xs[ys == np.nanmax(ys)]
             try:  # in case some of them don't work...
@@ -3103,17 +3097,17 @@ class D(object):
         # final check to catch missed transitions
         # calculate average transition width
         tr = self.Time[self.trn ^ np.roll(self.trn, 1)]
-        tr = np.reshape(tr, [tr.size//2, 2])
+        tr = np.reshape(tr, [tr.size // 2, 2])
         self.trnrng = tr
         trw = np.mean(np.diff(tr, axis=1))
 
         corr = False
         for b in self.bkgrng.flat:
             if (self.sigrng - b < 0.3 * trw).any():
-                self.bkg[(self.Time >= b - trw/2) &
-                         (self.Time <= b + trw/2)] = False
-                self.sig[(self.Time >= b - trw/2) &
-                         (self.Time <= b + trw/2)] = False
+                self.bkg[(self.Time >= b - trw / 2) &
+                         (self.Time <= b + trw / 2)] = False
+                self.sig[(self.Time >= b - trw / 2) &
+                         (self.Time <= b + trw / 2)] = False
                 corr = True
 
         if corr:
@@ -3121,10 +3115,10 @@ class D(object):
 
         # number the signal regions (used for statistics and standard matching)
         n = 1
-        for i in range(len(self.sig)-1):
+        for i in range(len(self.sig) - 1):
             if self.sig[i]:
                 self.ns[i] = n
-            if self.sig[i] and ~self.sig[i+1]:
+            if self.sig[i] and ~self.sig[i + 1]:
                 n += 1
         self.n = int(max(self.ns))  # record number of traces
 
@@ -3138,18 +3132,17 @@ class D(object):
         sigrng and bkgrng arrays. These arrays can be saved by 'save_ranges' in
         the analyse object.
         """
-        self.bkg[[0,-1]] = False
+        self.bkg[[0, -1]] = False
         bkgr = self.Time[self.bkg ^ np.roll(self.bkg, -1)]
-        self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
+        self.bkgrng = np.reshape(bkgr, [bkgr.size // 2, 2])
 
         self.sig[[0, -1]] = False
         sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
-        self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
+        self.sigrng = np.reshape(sigr, [sigr.size // 2, 2])
 
         self.trn[[0, -1]] = False
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
-        self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
-
+        self.trnrng = np.reshape(trnr, [trnr.size // 2, 2])
 
     @_log
     def bkg_subtract(self, analyte, bkg, ind=None):
@@ -3202,8 +3195,8 @@ class D(object):
         return
 
     def drift_params(self, pout, a):
-        p_nom = list(zip(*pout.loc[:,a].apply(nominal_values)))
-        p_err = list(zip(*pout.loc[:,a].apply(std_devs)))
+        p_nom = list(zip(*pout.loc[:, a].apply(nominal_values)))
+        p_err = list(zip(*pout.loc[:, a].apply(std_devs)))
 
         if len(p_nom) > 1:
             npar = len(p_nom)
@@ -3217,7 +3210,6 @@ class D(object):
             return ps
         else:
             return pout[a]
-
 
     @_log
     def calibrate(self, calib_fns, calib_params, analytes=None, drift_correct=False):
@@ -3253,14 +3245,14 @@ class D(object):
                 calib_fns[a](P,
                              self.data['ratios'][a])
 
-                # coefs = calib_params[a]
-                # if len(coefs) == 1:
-                #     self.data['calibrated'][a] = \
-                #         self.data['ratios'][a] * coefs
-                # else:
-                #     self.data['calibrated'][a] = \
-                #         np.polyval(coefs, self.data['ratios'][a])
-                        # self.data['ratios'][a] * coefs[0] + coefs[1]
+            # coefs = calib_params[a]
+            # if len(coefs) == 1:
+            #     self.data['calibrated'][a] = \
+            #         self.data['ratios'][a] * coefs
+            # else:
+            #     self.data['calibrated'][a] = \
+            #         np.polyval(coefs, self.data['ratios'][a])
+            #         self.data['ratios'][a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
@@ -3292,7 +3284,7 @@ class D(object):
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
-            True: per-ablation statistics
+            True: per - ablation statistics
             False: whole sample statistics
 
         Returns
@@ -3500,7 +3492,7 @@ class D(object):
                           method='meanshift', include_time=False,
                           sort=True, min_data=10, **kwargs):
         """
-        Applies an n-dimensional clustering filter to the data.
+        Applies an n - dimensional clustering filter to the data.
 
         Parameters
         ----------
@@ -3527,7 +3519,7 @@ class D(object):
                           determines the number and characteristics of clusters
                           within the data based on the 'connectivity' of the
                           data (i.e. how far apart each data point is in a
-                          multi-dimensional parameter space). Requires you to
+                          multi - dimensional parameter space). Requires you to
                           set `eps`, the minimum distance point must be from
                           another point to be considered in the same cluster,
                           and `min_samples`, the minimum number of points that
@@ -3563,7 +3555,7 @@ class D(object):
             Modifies the behaviour of the meanshift algorithm. Refer to
             sklearn.cluster.meanshift documentation.
 
-        K-Means Parameters
+        K - Means Parameters
         ------------------
         n_clusters : int
             The number of clusters expected in the data.
@@ -3634,7 +3626,7 @@ class D(object):
 
             cfun = method_key[method]
 
-            filts = cfun(ds, **kwargs, sort=sort)
+            filts = cfun(ds, sort=sort, **kwargs)
             # return dict of cluster_no: (filt, params)
 
             resized = {}
@@ -3642,8 +3634,8 @@ class D(object):
                 resized[k] = np.zeros(self.Time.size, dtype=bool)
                 resized[k][sampled] = v
 
-            namebase = '-'.join(analytes) + '_cluster-' + method
-            info = '-'.join(analytes) + ' cluster filter.'
+            namebase = ' - '.join(analytes) + '_cluster - ' + method
+            info = ' - '.join(analytes) + ' cluster filter.'
 
             if method == 'DBSCAN':
                 for k, v in resized.items():
@@ -3660,8 +3652,8 @@ class D(object):
                     self.filt.add(name, v, info=info, params=params)
         else:
             # if there are no data
-            name = '-'.join(analytes) + '_cluster-' + method + '_0'
-            info = '-'.join(analytes) + ' cluster filter failed.'
+            name = ' - '.join(analytes) + '_cluster - ' + method + '_0'
+            info = ' - '.join(analytes) + ' cluster filter failed.'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
@@ -3718,7 +3710,7 @@ class D(object):
 
     def cluster_kmeans(self, data, n_clusters, sort=True):
         """
-        Identify clusters using K-Means algorithm.
+        Identify clusters using K - Means algorithm.
 
         Parameters
         ----------
@@ -3808,7 +3800,7 @@ class D(object):
                 clusters = (len(set(db.labels_)) -
                             (1 if -1 in db.labels_ else 0))
                 if clusters < clusters_last:
-                    eps_temp *= 1/0.95
+                    eps_temp *= 1 / 0.95
                     db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
                     clusters = (len(set(db.labels_)) -
                                 (1 if -1 in db.labels_ else 0))
@@ -3904,7 +3896,7 @@ class D(object):
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
 
-        name = x_analyte + '-' + y_analyte + '_corr'
+        name = x_analyte + ' - ' + y_analyte + '_corr'
 
         self.filt.add(name=name,
                       filt=cfilt,
@@ -4010,12 +4002,12 @@ class D(object):
                     ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
                 ax.plot(xf, yf, color=self.cmap[a], label=a)
                 if err_envelope:
-                    ax.fill_between(xf, yf-yerrf, yf+yerrf, color=self.cmap[a],
+                    ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
             else:
                 ax.plot(x, y, color=self.cmap[a], label=a)
                 if err_envelope:
-                    ax.fill_between(x, y-yerr, y+yerr, color=self.cmap[a],
+                    ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
 
             # Plot averages and error envelopes
@@ -4023,7 +4015,7 @@ class D(object):
                 sts = self.stats[sig][0].size
                 if sts > 1:
                     for n in np.arange(self.n):
-                        n_ind = ind & (self.ns == n+1)
+                        n_ind = ind & (self.ns == n + 1)
                         if sum(n_ind) > 2:
                             x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
                             y = [self.stats[sig][self.stats['analytes'] == a][0][n]] * 2
@@ -4162,7 +4154,7 @@ class D(object):
                 axes[x, y].set_xlim([py.min(), py.max()])
         # diagonal labels
         for a, (i, u) in udict.items():
-            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
+            axes[i, i].annotate(a + '\n' + u, (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
         # switch on alternating axes
@@ -4203,13 +4195,13 @@ class D(object):
             filts = np.array(sorted([f for f in self.filt.components.keys()
                                      if filt in f]))
 
-        regex = re.compile('^([A-Za-z0-9-]+)_'
-                           '([A-Za-z0-9-]+)[_$]?'
-                           '([a-z0-9]+)?')
+        regex = re.compile('^([A - Za - z0 - 9-]+)_'
+                           '([A - Za - z0 - 9-]+)[_$]?'
+                           '([a - z0 - 9]+)?')
 
         nfilts = np.array([re.match(regex, f).groups() for f in filts])
         fgnames = np.array(['_'.join(a) for a in nfilts[:, :2]])
-        fgrps = np.unique(fgnames)  # np.unique(nfilts[:,1])
+        fgrps = np.unique(fgnames)  # np.unique(nfilts[:, 1])
 
         ngrps = fgrps.size
 
@@ -4230,8 +4222,8 @@ class D(object):
             cm = plt.cm.get_cmap('Spectral')
 
             for i in np.arange(ngrps):
-                axs = tax, hax = (fig.add_axes([.1, .9-(i+1)*h, .6, h*.98]),
-                                  fig.add_axes([.7, .9-(i+1)*h, .2, h*.98]))
+                axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
+                                  fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
 
                 # get variables
                 fg = filts[fgnames == fgrps[i]]
@@ -4740,7 +4732,7 @@ class filt(object):
 
     # def plot(self, ax=None, analyte=None):
     #     if ax is None:
-    #         fig, ax = plt.subplots(1,1)
+    #         fig, ax = plt.subplots(1, 1)
     #     else:
     #         ax = ax.twinx()
     #         ax.set_yscale('linear')
@@ -4773,7 +4765,7 @@ class filt(object):
     #             xu /= self.size
     #             ax.axhspan(yl, yu, xl, xu, color='k', alpha=0.3)
 
-    #         ym = np.mean([yu,yl])
+    #         ym = np.mean([yu, yl])
 
     #         ax.text(ax.get_xlim()[1] * 1.01, ym, f, ha='left')
 
@@ -4801,7 +4793,7 @@ def gauss(x, *p):
         gaussian descriped by *p.
     """
     A, mu, sigma = p
-    return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
+    return A * np.exp(-0.5 * (-mu + x)**2 / sigma**2)
 
 def unitpicker(a, llim=0.1):
     """
@@ -4841,14 +4833,14 @@ def pretty_element(s):
     Parameters
     ----------
     s : str
-        of format [A-Z][a-z]?[0-9]+
+        of format [A - Z][a - z]?[0 - 9]+
 
     Returns
     -------
     str
         LaTeX formatted string with superscript numbers.
     """
-    g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
+    g = re.match('([A - Z][a - z]?)([0 - 9]+)', s).groups()
     return '$^{' + g[1] + '}$' + g[0]
 
 
@@ -4898,7 +4890,7 @@ def bool_2_indices(bool_array):
     Returns
     -------
     array_like
-        [2,n] array of (start, end) values describing True parts
+        [2, n] array of (start, end) values describing True parts
         of bool_array
     """
     if ~isinstance(bool_array, np.ndarray):
@@ -4917,9 +4909,9 @@ def enumerate_bool(bool_array, nstart=0):
 
     i.e. a boolean sequence, and resulting numbering
     T F T T T F T F F F T T F
-    0 - 1 1 1 - 2 - - - 3 3 -
+    0-1 1 1 - 2 ---3 3 -
 
-    where '-'
+    where ' - '
 
     Parameters
     ----------
@@ -4942,7 +4934,7 @@ def tuples_2_bool(tuples, x):
     Parameters
     ----------
     tuples : array_like
-        [2,n] array of (start, end) values
+        [2, n] array of (start, end) values
     x : array_like
         x scale the tuples are mapped to
 
@@ -4978,7 +4970,7 @@ def add_config(config_name, params, config_file=None, make_default=True):
         The name of the new configuration. This should be descriptive
         (e.g. UC Davis Foram Group)
     params : dict
-        A (parameter, value) dict defining non-default parameters
+        A (parameter, value) dict defining non - default parameters
         associated with the new configuration.
         Possible parameters include:
         srmfile : str
@@ -5097,7 +5089,7 @@ def get_example_data(destination_dir):
 def R2calc(meas, model):
     SStot = np.sum((meas - np.nanmean(meas))**2)
     SSres = np.sum((meas - model)**2)
-    return 1 - (SSres/SStot)
+    return 1 - (SSres / SStot)
 
 
 def rangecalc(xs, ys, pad=0.05):
@@ -5138,7 +5130,7 @@ def std_devs(a):
 
 def rolling_window(a, window, pad=None):
     """
-    Returns (win, len(a)) rolling-window array of data.
+    Returns (win, len(a)) rolling - window array of data.
 
     Parameters
     ----------
@@ -5156,10 +5148,10 @@ def rolling_window(a, window, pad=None):
         if pad is None, or len(a) if pad is not None.
     """
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-    strides = a.strides + (a.strides[-1],)
+    strides = a.strides + (a.strides[-1], )
     out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
     if pad is not None:
-        blankpad = np.empty((window//2, window, ))
+        blankpad = np.empty((window // 2, window))
         blankpad[:] = pad
         return np.concatenate([blankpad, out, blankpad])
     else:
@@ -5168,11 +5160,11 @@ def rolling_window(a, window, pad=None):
 
 def fastsmooth(a, win=11):
     """
-    Returns rolling-window smooth of a.
+    Returns rolling - window smooth of a.
 
     Function to efficiently calculate the rolling mean of a numpy
     array using 'stride_tricks' to split up a 1D array into an ndarray of
-    sub-sections of the original array, of dimensions [len(a)-win, win].
+    sub - sections of the original array, of dimensions [len(a) - win, win].
 
     Parameters
     ----------
@@ -5184,30 +5176,30 @@ def fastsmooth(a, win=11):
     Returns
     -------
     array_like
-        Gradient of a, assuming as constant integer x-scale.
+        Gradient of a, assuming as constant integer x - scale.
     """
     # check to see if 'window' is odd (even does not work)
     if win % 2 == 0:
         win -= 1  # subtract 1 from window if it is even.
     # trick for efficient 'rolling' computation in numpy
     # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-    # strides = a.strides + (a.strides[-1],)
+    # strides = a.strides + (a.strides[-1], )
     # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
     wins = rolling_window(a, win)
     # apply rolling gradient to data
     a = map(np.nanmean, wins)
 
-    return np.concatenate([np.zeros(int(win/2)), list(a),
+    return np.concatenate([np.zeros(int(win / 2)), list(a),
                           np.zeros(int(win / 2))])
 
 
 def fastgrad(a, win=11):
     """
-    Returns rolling-window gradient of a.
+    Returns rolling - window gradient of a.
 
     Function to efficiently calculate the rolling gradient of a numpy
     array using 'stride_tricks' to split up a 1D array into an ndarray of
-    sub-sections of the original array, of dimensions [len(a)-win, win].
+    sub - sections of the original array, of dimensions [len(a) - win, win].
 
     Parameters
     ----------
@@ -5219,38 +5211,38 @@ def fastgrad(a, win=11):
     Returns
     -------
     array_like
-        Gradient of a, assuming as constant integer x-scale.
+        Gradient of a, assuming as constant integer x - scale.
     """
     # check to see if 'window' is odd (even does not work)
     if win % 2 == 0:
         win -= 1  # subtract 1 from window if it is even.
     # trick for efficient 'rolling' computation in numpy
     # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-    # strides = a.strides + (a.strides[-1],)
+    # strides = a.strides + (a.strides[-1], )
     # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
     wins = rolling_window(a, win)
     # apply rolling gradient to data
     a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
 
-    return np.concatenate([np.zeros(int(win/2)), list(a),
+    return np.concatenate([np.zeros(int(win / 2)), list(a),
                           np.zeros(int(win / 2))])
 
 
 # def gaus_deriv(x, *p):
 #     A, mu, sigma = p
-#     return A * ((np.exp((-(x-mu)**2)/(2*sigma**2)) * (x-mu)) /
+#     return A * ((np.exp((-(x - mu)**2)/(2*sigma**2)) * (x - mu)) /
 #                 (np.sqrt(2 * np.pi) * sigma**3))
 
-def weighted_average(x,y,x_new,fwhm=300):
+def weighted_average(x, y, x_new, fwhm=300):
     """
     Calculate gaussian weigted moving mean, SD and SE.
 
     Parameters
     ----------
-    x, y : array-like
+    x, y : array - like
         The x and y data to smooth
-    x_new : array-like
-        The new x-scale to interpolate the data
+    x_new : array - like
+        The new x - scale to interpolate the data
 
     """
     bin_avg = np.zeros(len(x_new))
@@ -5260,17 +5252,17 @@ def weighted_average(x,y,x_new,fwhm=300):
     # Gaussian function as weights
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
-    for index in range(0,len(x_new)):
+    for index in range(0, len(x_new)):
         xn = x_new[index]
         weights = gauss(x, 1, xn, sigma)
         weights /= sum(weights)
         # weighted mean
         bin_avg[index] = np.average(y, weights=weights)
         # weighted standard deviation
-        bin_std[index] = np.sqrt(np.average((y-bin_avg[index])**2, weights=weights))
+        bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))
         # weighted standard error (mean / sqrt(n_points_in_gaussian))
-        bin_se[index] = np.sqrt(np.average((y-bin_avg[index])**2, weights=weights)) / \
-                        np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
+        bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \
+            np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
 
     return {'mean': bin_avg,
             'std': bin_std,
