@@ -1,6 +1,6 @@
 import configparser
 import itertools
-import os
+import os, sys
 import pprint
 import re
 import shutil
@@ -18,6 +18,7 @@ import sklearn.cluster as cl
 import uncertainties as unc
 import uncertainties.unumpy as un
 
+from functools import wraps
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from scipy import odr
@@ -29,10 +30,8 @@ from sklearn import preprocessing
 from IPython import display
 from tqdm import tnrange, tqdm_notebook # status bars!
 
-
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
-
 
 class analyse(object):
     """
@@ -130,6 +129,11 @@ class analyse(object):
         """
         For processing and analysing whole LA-ICPMS datasets.
         """
+        # initialise log
+        params = locals()
+        del(params['self'])
+        self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
+
         self.folder = os.path.realpath(data_folder)
         self.parent_folder = os.path.dirname(self.folder)
         self.files = np.array([f for f in os.listdir(self.folder)
@@ -276,6 +280,17 @@ class analyse(object):
                                  len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
 
+    def _log(fn):
+        """
+        Function for logging method calls and parameters
+        """
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            a = fn(self, *args, **kwargs)
+            self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+            return a
+        return wrapper
+
     def get_starttimes(self, time_format=None):
         try:
             sd = {}
@@ -302,6 +317,7 @@ class analyse(object):
                         " documentation, and provide a\n     valid 'time_format'."))
 
 
+    @_log
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.]):
         """
@@ -504,6 +520,7 @@ class analyse(object):
 
         return
 
+    @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
                 noise_despiker=True, win=3, nlim=12., exponentplot=False):
         """
@@ -590,6 +607,7 @@ class analyse(object):
 
         return
 
+    @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300., n_min=20, cstep=None):
         """
         Background calculation using a gaussian weighted mean.
@@ -635,6 +653,7 @@ class analyse(object):
 
         return
 
+    @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, cstep=None):
         """
         Background calculation using a 1D interpolation.
@@ -690,6 +709,7 @@ class analyse(object):
                                    'stderr': ise(self.bkg['calc']['uTime'])}
         return
 
+    @_log
     def bkg_subtract(self, analytes=None, errtype='stderr'):
         """
         Subtract calculated background from data.
@@ -709,6 +729,7 @@ class analyse(object):
         self.set_focus('bkgsub')
         return
 
+    @_log
     def bkg_plot(self, analytes=None, figsize=[12,5], yscale='log', ylim=None):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
@@ -742,11 +763,11 @@ class analyse(object):
                 l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=1, color='k', label='SE')
 
             ax.plot(self.bkg['calc']['uTime'],
-                    self.bkg['calc'][a][0],
+                    self.bkg['calc'][a]['mean'],
                     c=self.cmaps[a], zorder=2)
             ax.fill_between(self.bkg['calc']['uTime'],
-                            self.bkg['calc'][a][0] + self.bkg['calc'][a][2],
-                            self.bkg['calc'][a][0] - self.bkg['calc'][a][2],
+                            self.bkg['calc'][a]['mean'] + self.bkg['calc'][a]['stderr'],
+                            self.bkg['calc'][a]['mean'] - self.bkg['calc'][a]['stderr'],
                             color=self.cmaps[a], alpha=0.3, zorder=1)
 
 
@@ -768,6 +789,7 @@ class analyse(object):
         return fig, ax
 
     # functions for calculating ratios
+    @_log
     def ratio(self,  denominator='Ca43', focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
@@ -786,9 +808,6 @@ class analyse(object):
         None
         """
 
-        params = locals()
-        del(params['self'])
-        self.ratio_params = params
         self.ratio_denominator = denominator
 
         for s in tqdm_notebook(self.data, desc='Ratio Calculation'):
@@ -992,6 +1011,7 @@ class analyse(object):
     #     return
 
     # apply calibration to data
+    @_log
     def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
               srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
         """
@@ -1023,9 +1043,6 @@ class analyse(object):
         #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
         # check for identified srms
-        params = locals()
-        del(params['self'])
-        self.calibration_params = params
 
         if analytes is None:
             analytes = self.analytes
@@ -1124,6 +1141,7 @@ class analyse(object):
     #           c) Each set should have a 'filter_status' function, listing
     #               the state of each filter for each analyte within the set.
 
+    @_log
     def make_subset(self, samples=None, name=None):
         """
         Creates a subset of samples, which can be treated independently.
@@ -1156,6 +1174,7 @@ class analyse(object):
         return name
 
 
+    @_log
     def filter_threshold(self, analyte, threshold, filt=False,
                          samples=None, subset=None):
         """
@@ -1202,6 +1221,7 @@ class analyse(object):
         for s in tqdm_notebook(samples, desc='Threshold Filter'):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
+    @_log
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
                             transform=None, samples=None, subset=None,
                             min_data=10):
@@ -1255,6 +1275,7 @@ class analyse(object):
                                                   filt=filt, transform=None,
                                                   min_data=min_data)
 
+    @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False, samples=None,
                           sort=True, subset=None, min_data=10, **kwargs):
@@ -1350,6 +1371,11 @@ class analyse(object):
         Returns
         -------
         None
+
+
+        TODO
+        ----
+        Make cluster sorting element specific.
         """
         if samples is not None:
             subset = self.make_subset(samples)
@@ -1374,6 +1400,7 @@ class analyse(object):
                                                 min_data=min_data,
                                                 **kwargs)
 
+    @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
                            r_threshold=0.9, p_threshold=0.05, filt=True,
                            samples=None, subset=None):
@@ -1432,6 +1459,7 @@ class analyse(object):
                                                  p_threshold=p_threshold,
                                                  filt=filt)
 
+    @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters on for particular analytes and samples.
@@ -1471,6 +1499,7 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filt.on(analyte, filt)
 
+    @_log
     def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters off for particular analytes and samples.
@@ -1535,6 +1564,7 @@ class analyse(object):
                   self.data_dict[self.subset_key[subset][0]].filt.__repr__())
             return
 
+    @_log
     def filter_clear(self, samples=None, subset=None):
         """
         Clears (deletes) all data filters.
@@ -1563,6 +1593,7 @@ class analyse(object):
     #     else:
 
     # plot calibrations
+    @_log
     def calibration_plot(self, analytes=None, datarange=True, loglog=False):
         """
         Plot the calibration lines between measured and known SRM values.
@@ -1733,6 +1764,7 @@ class analyse(object):
         return fig, axes
 
     # set the focus attribute for specified samples
+    @_log
     def set_focus(self, stage, samples=None, subset=None):
         """
         """
@@ -1809,6 +1841,7 @@ class analyse(object):
         return
 
     # crossplot of all data
+    @_log
     def crossplot(self, analytes=None, lognorm=True,
                   bins=25, filt=False, samples=None, subset=None, **kwargs):
         """
@@ -1915,6 +1948,7 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
+    @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
                     focus=None, outdir=None, filt=False, scale='log',
                     figsize=[10, 4], stats=True, stat='nanmean',
@@ -1998,6 +2032,7 @@ class analyse(object):
         return
 
     # filter reports
+    @_log
     def filter_reports(self, filt_str, analytes, samples=None,
                        outdir=None, subset=None):
         """
@@ -2061,6 +2096,7 @@ class analyse(object):
 
         return
 
+    @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
@@ -2113,6 +2149,7 @@ class analyse(object):
 
                 self.stats[s] = self.data_dict[s].stats
 
+    @_log
     def ablation_times(self, samples=None, subset=None):
 
         if samples is not None:
@@ -2146,6 +2183,7 @@ class analyse(object):
         return out
 
     # function for visualising sample statistics
+    @_log
     def statplot(self, analytes=None, samples=None, figsize=None,
                  stat='nanmean', err='nanstd', subset=None):
         if not hasattr(self, 'stats'):
@@ -2229,6 +2267,7 @@ class analyse(object):
 
         return fig, ax
 
+    @_log
     def getstats(self, path=None, samples=None, subset=None, ablation_time=False):
         """
         Return pandas dataframe of all sample statistics.
@@ -2402,6 +2441,7 @@ class analyse(object):
         return
 
     # raw data export function
+    @_log
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
                       samples=None, subset=None, filt=False):
         """
@@ -2604,6 +2644,10 @@ class D(object):
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
             print(data_file)
+        params = locals()
+        del(params['self'])
+        self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
+
         self.file = data_file
         self.sample = os.path.basename(self.file).split('.')[0]
 
@@ -2670,8 +2714,15 @@ class D(object):
 
         return
 
-        # set up corrections dict
-        # self.corrections = {}
+    def _log(fn):
+        """
+        Function for logging method calls and parameters
+        """
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+            return fn(self, *args, **kwargs)
+        return wrapper
 
     def setfocus(self, focus):
         """
@@ -2825,6 +2876,7 @@ class D(object):
         self.setfocus('despiked')
         return
 
+    @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
                 noise_despiker=True, win=3, nlim=12.):
         """
@@ -2858,9 +2910,6 @@ class D(object):
         if expdecay_despiker:
             self.expdecay_despiker(exponent, tstep)
 
-        params = locals()
-        del(params['self'])
-        self.despike_params = params
         return
 
     # helper functions for data selection
@@ -2879,6 +2928,7 @@ class D(object):
         """
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
+    @_log
     def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.)):
         """
@@ -2945,9 +2995,6 @@ class D(object):
         -------
         None
         """
-        params = locals()
-        del(params['self'])
-        self.autorange_params = params
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
@@ -3104,6 +3151,7 @@ class D(object):
         self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
 
 
+    @_log
     def bkg_subtract(self, analyte, bkg, ind=None):
         """
         Subtract provided background from signal (focus stage).
@@ -3126,6 +3174,7 @@ class D(object):
 
         return
 
+    @_log
     def ratio(self, denominator='Ca43', focus='bkgsub'):
         """
         Divide all analytes by a specified denominator analyte.
@@ -3142,9 +3191,6 @@ class D(object):
         -------
         None
         """
-        params = locals()
-        del(params['self'])
-        self.ratio_params = params
         self.ratio_denominator = denominator
 
         self.setfocus(focus)
@@ -3173,6 +3219,7 @@ class D(object):
             return pout[a]
 
 
+    @_log
     def calibrate(self, calib_fns, calib_params, analytes=None, drift_correct=False):
         """
         Apply calibration to data.
@@ -3218,6 +3265,7 @@ class D(object):
         return
 
     # Function for calculating sample statistics
+    @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
@@ -3283,6 +3331,7 @@ class D(object):
 
         return
 
+    @_log
     def ablation_times(self):
         """
         Function for calculating the ablation time for each
@@ -3300,6 +3349,7 @@ class D(object):
         return ats
 
     # Data Selections Tools
+    @_log
     def filter_threshold(self, analyte, threshold, filt=False):
         """
         Apply threshold filter.
@@ -3356,6 +3406,7 @@ class D(object):
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
 
+    @_log
     def filter_distribution(self, analytes, binwidth='scott', filt=False,
                             transform=None, min_data=10):
         """
@@ -3444,6 +3495,7 @@ class D(object):
                               info=info, params=params)
         return
 
+    @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False,
                           sort=True, min_data=10, **kwargs):
@@ -3794,6 +3846,7 @@ class D(object):
 
         return out
 
+    @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
                            r_threshold=0.9, p_threshold=0.05, filt=True):
         """
@@ -3883,6 +3936,7 @@ class D(object):
 
     #     return fig, axes
 
+    @_log
     def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               interactive=False, focus_stage=None, err_envelope=False):
@@ -4030,6 +4084,7 @@ class D(object):
 
         return fig, ax
 
+    @_log
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True):
         """
         Plot analytes against each other.
@@ -4121,6 +4176,7 @@ class D(object):
 
         return fig, axes
 
+    @_log
     def filt_report(self, filt=None, analytes=None, savedir=None):
         """
         Visualise effect of data filters.
@@ -4162,6 +4218,7 @@ class D(object):
 
         for analyte in analytes:
             y = nominal_values(self.focus[analyte])
+            yh = y[~np.isnan(y)]
 
             m, u = unitpicker(np.nanmax(y))
 
@@ -4194,7 +4251,7 @@ class D(object):
                     tcs = cm(np.linspace(0, 1, len(tfg)))
 
                     # plot all data
-                    hax.hist(m * y, bins, alpha=0.5, orientation='horizontal',
+                    hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
                              color='k', lw=0)
                     # legend markers for core/member
                     tax.scatter([], [], s=25, label='core', c='w')
@@ -4217,14 +4274,14 @@ class D(object):
                         tax.scatter(self.Time[core_ind & ind],
                                     m * y[core_ind & ind], lw=.1, c=c, s=25,
                                     label=lab)
-                        hax.hist(m * y[ind], bins, color=c, lw=0.1,
+                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                  orientation='horizontal', alpha=0.6)
 
                 else:
                     # plot all data
                     tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
                                 s=25, label='excl')
-                    hax.hist(m * y, bins, alpha=0.5, orientation='horizontal',
+                    hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
                              color='k', lw=0)
 
                     # plot filtered data
@@ -4232,7 +4289,7 @@ class D(object):
                         ind = self.filt.components[f]
                         tax.scatter(self.Time[ind], m * y[ind], lw=.1,
                                     c=c, s=25, label=lab)
-                        hax.hist(m * y[ind], bins, color=c, lw=0.1,
+                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                  orientation='horizontal', alpha=0.6)
 
                 # formatting
