@@ -125,7 +125,7 @@ class analyse(object):
     sample_stats
     trace_plots
     """
-    def __init__(self, data_folder, errorhunt=False, config=None,
+    def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43'):
         """
@@ -165,16 +165,18 @@ class analyse(object):
         # load defaults into dict
         pconf = dict(conf.defaults())
         # if no config is given, check to see what the default setting is
-        if (config is None) & (pconf['config'] != 'DEFAULT'):
-            config = pconf['config']
-        else:
-            config = 'DEFAULT'
-        # if ther eare any non - default parameters, replace defaults in
+        # if (config is None) & (pconf['config'] != 'DEFAULT'):
+        #     config = pconf['config']
+        # else:
+        #     config = 'DEFAULT'
+
+        # if there are any non - default parameters, replace defaults in
         # the pconf dict
         if config != 'DEFAULT':
             for o in conf.options(config):
                 pconf[o] = conf.get(config, o)
         self.config = config
+        print('latools analysis using "' + self.config + '" configuration:')
 
         # check srmfile exists, and store it in a class attribute.
         if os.path.exists(pconf['srmfile']):
@@ -238,6 +240,12 @@ class analyse(object):
 
         self.samples = np.array([s.sample for s in self.data])
         self.analytes = np.array(self.data[0].analytes)
+        if internal_standard in self.analytes:
+            self.internal_standard = internal_standard
+        else:
+            ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
+                       'analytes in\nyour data files. Please make sure it is specified correctly.')
+        self.minimal_analytes = [internal_standard]
 
         self.data_dict = {}
         for s, d in zip(self.samples, self.data):
@@ -275,12 +283,12 @@ class analyse(object):
         # f.close()
 
         # report
-        print('latools analysis using "' + self.config + '" configuration:')
         print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
                'samples').format(len(self.data),
                                  len(self.stds),
                                  len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
+        print('  Internal Standard: {}'.format(self.internal_standard))
 
     def _log(fn):
         """
@@ -388,6 +396,8 @@ class analyse(object):
         """
         if analyte is None:
             analyte = self.internal_standard
+        elif analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
         for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
@@ -429,11 +439,10 @@ class analyse(object):
         """
         if analyte is None:
             analyte = self.internal_standard
+        elif analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
-        print('Calculating exponential decay coefficient\nfrom SRM washouts...')
-
-        if isinstance(analyte, str):
-            analyte = [analyte]
+        print('Calculating exponential decay coefficient\nfrom SRM {} washouts...'.format(analyte))
 
         def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
@@ -455,18 +464,17 @@ class analyse(object):
 
         trans = []
         times = []
-        for analyte in analyte:
-            for v in self.stds:
-                for trnrng in v.trnrng[1::2]:
-                    tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
-                                   (v.Time < trnrng[1])])
-                    sm = np.apply_along_axis(np.nanmean, 1,
-                                             rolling_window(tr, 3, pad=0))
-                    sm[0] = sm[1]
-                    trim = findtrim(sm, trimlim) + 2
-                    trans.append(normalise(tr[trim:]))
-                    times.append(np.arange(tr[trim:].size) *
-                                 np.diff(v.Time[:2]))
+        for v in self.stds:
+            for trnrng in v.trnrng[1::2]:
+                tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
+                               (v.Time < trnrng[1])])
+                sm = np.apply_along_axis(np.nanmean, 1,
+                                         rolling_window(tr, 3, pad=0))
+                sm[0] = sm[1]
+                trim = findtrim(sm, trimlim) + 2
+                trans.append(normalise(tr[trim:]))
+                times.append(np.arange(tr[trim:].size) *
+                             np.diff(v.Time[1:3]))
 
         times = np.concatenate(times)
         trans = np.concatenate(trans)
@@ -817,6 +825,8 @@ class analyse(object):
 
         if denominator is None:
             denominator = self.internal_standard
+        elif denominator not in self.minimal_analytes:
+                self.minimal_analytes.append(denominator)
 
         self.ratio_denominator = denominator
 
@@ -915,21 +925,24 @@ class analyse(object):
 
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
-        # load SRM info
-        srmdat = pd.read_csv(self.srmfile)
-        srmdat.set_index('SRM', inplace=True)
-        srmdat = srmdat.loc[srms_used]
+        if not hasattr(self, 'srmdat'):
+            # load SRM info
+            srmdat = pd.read_csv(self.srmfile)
+            srmdat.set_index('SRM', inplace=True)
+            srmdat = srmdat.loc[srms_used]
 
-        # isolate measured elements
-        elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
-        srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
-        # label elements
-        srmdat.loc[:, 'element'] = np.nan
-        for e in elements:
-            srmdat.loc[srmdat.Item.str.contains(e), 'element'] = e
+            # isolate measured elements
+            elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
+            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+            # label elements
+            srmdat.loc[:, 'element'] = np.nan
+            for e in elements:
+                srmdat.loc[srmdat.Item.str.contains(e), 'element'] = e
 
-        # convert to table in same format as stdtab
-        srm_tab = srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+            # convert to table in same format as stdtab
+            self.srmdat = srmdat
+
+        srm_tab = self.srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
 
         # Auto - ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
@@ -975,7 +988,7 @@ class analyse(object):
 
             sub = stdtab.loc[:, a]
 
-            srmsub = srmdat.loc[srmdat.element == el, ['Value', 'Uncertainty']]
+            srmsub = self.srmdat.loc[self.srmdat.element == el, ['Value', 'Uncertainty']]
 
             srmtab = sub.join(srmsub)
             srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
@@ -1215,6 +1228,9 @@ class analyse(object):
         elif not hasattr(self, 'subsets'):
             self.make_subset()
 
+        if analyte not in self.minimal_analytes:
+            self.minimal_analytes.append(analyte)
+
         if subset is None:
             samples = self.samples
         else:
@@ -1266,6 +1282,10 @@ class analyse(object):
             subset = self.make_subset(samples)
         elif not hasattr(self, 'subsets'):
             self.make_subset()
+
+
+        if analyte not in self.minimal_analytes:
+            self.minimal_analytes.append(analyte)
 
         if subset is None:
             samples = self.samples
@@ -1389,8 +1409,15 @@ class analyse(object):
         elif not hasattr(self, 'subsets'):
             self.make_subset()
 
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
+        for analyte in analytes:
+            if analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
+
         if subset is None:
-            samples = self.samples
+            samples = self.samplesobject, class_or_type_or_tuple
         else:
             try:
                 samples = self.subset_key[subset]
@@ -1448,6 +1475,10 @@ class analyse(object):
             subset = self.make_subset(samples)
         elif not hasattr(self, 'subsets'):
             self.make_subset()
+
+        for analyte in [x_analyte, y_analyte]:
+            if analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
         if subset is None:
             samples = self.samples
@@ -2217,7 +2248,7 @@ class analyse(object):
                                   "subset."))
 
         analytes = [a for a in analytes if a !=
-                    self.data[0].ratio_params['denominator']]
+                    self.data[0].ratio_denominator]
 
         if figsize is None:
             figsize = (1.5 * len(self.stats), 3 * len(analytes))
@@ -2245,7 +2276,7 @@ class analyse(object):
                                 lw=0, elinewidth=1)
 
                     ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
-                                                     pretty_element(self.data[0].ratio_params['denominator']),
+                                                     pretty_element(self.data[0].ratio_denominator),
                                                      u))
 
                     # plot whole - sample mean
@@ -2448,6 +2479,64 @@ class analyse(object):
         return
 
     # raw data export function
+    def _minimal_export_traces(self, outdir=None, analytes=None,
+                              samples=None, subset=None):
+        """
+        Used for exporting minimal dataset. DON'T USE.
+        """
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.samples
+        else:
+            try:
+                samples = self.subset_key[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        focus_stage = 'rawdata'
+        ud = 'counts'
+
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        for s in samples:
+            d = self.data_dict[s].data[focus_stage]
+            out = {}
+
+            for a in analytes:
+                out[a] = d[a]
+
+            out = pd.DataFrame(out, index=self.data_dict[s].Time)
+            out.index.name = 'Time'
+
+            header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      "# Analysis described in '../analysis.log'",
+                      '# Run latools.reproduce to import analysis.',
+                      '#',
+                      '# Sample: %s' % (s),
+                      '# Analysis Time: ' + self.data_dict[s].meta['date']]
+
+            header = '\n'.join(header) + '\n'
+
+            csv = out.to_csv()
+
+            with open('%s/%s.csv' % (outdir, s), 'w') as f:
+                f.write(header)
+                f.write(csv)
+        return
+
     @_log
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
                       samples=None, subset=None, filt=False):
@@ -2513,7 +2602,7 @@ class analyse(object):
               'ratios': 'counts/count {:s}',
               'calibrated': 'mol/mol {:s}'}
         if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.ratio_params['denominator'])
+            ud[focus_stage] = ud[focus_stage].format(self.ratio_denominator)
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -2547,6 +2636,99 @@ class analyse(object):
                 f.write(header)
                 f.write(csv)
         return
+
+    def minimal_export(self, target_analytes, override=False, path=None):
+        """
+        Exports a analysis parameters, standard info and a minimal dataset,
+        which can be imported by another user.
+        """
+        if isinstance(target_analytes, str):
+            target_analytes = [target_analytes]
+
+        if any([a not in target_analytes for a in self.minimal_analytes]) and override:
+            excluded = [a for a in self.minimal_analytes if a not in target_analytes]
+            warnings.warn('\n\nYou have chosen to specify particular analytes,\n' +
+                          'and override the default minimal_export function.\n' +
+                          'The following analytes are used in data\n' +
+                          'processing, but not included in this export:\n' +
+                          '  {}\n'.format(excluded) +
+                          'Export will continue, but we cannot guarantee\n' +
+                          'that the analysis will be reproducible. You MUST\n' +
+                          'check to make sure the analysis can be duplicated\n' +
+                          "by the `latools.reproduce` function before\n" +
+                          'distributing this dataset.')
+        else:
+            target_analytes = np.unique(np.concatenate([target_analytes, self.minimal_analytes]))
+
+        # set up data path
+        if path is None:
+            path = self.parent_folder + '/minimal_export/'
+        if not os.path.isdir(path):
+            os.mkdir(path)
+
+        # export data
+        self._minimal_export_traces(path + '/data', analytes=target_analytes)
+
+        # export analysis_log
+        log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      'data_folder :: ./data/',
+                      'srm_table :: ./srm.table',
+                      '# Analysis Log Start: \n']
+
+        with open(path + '/analysis.log', 'w') as f:
+            f.write('\n'.join(log_header))
+            f.write('\n'.join(self.log))
+
+        # export srm table
+        els = np.unique([re.sub('[0-9]', '', a) for a in target_analytes])
+        srmdat = []
+        for e in els:
+            srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
+        srmdat = pd.concat(srmdat)
+
+        with open(path + '/srm.table', 'w') as f:
+            f.write(srmdat.to_csv())
+
+def reproduce(log_file, plotting=False, data_dir=None, srm_table=None):
+    """
+    Reproduce a previous analysis exported with `latools.minimal_export`
+    """
+    dirname = os.path.dirname(log_file)
+
+    with open(log_file, 'r') as f:
+        rlog = f.read().splitlines()
+
+    getpath = re.compile('.* :: (.*)')
+    if data_dir is None:
+        data_dir = (dirname + '/' + getpath.match(rlog[1]).groups()[0]).replace('/./','/')
+    if srm_table is None:
+        srm_table = (dirname + '/' + getpath.match(rlog[2]).groups()[0]).replace('/./','/')
+
+    # reproduce analysis
+    logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
+
+    init_kwargs = eval(logread.match(rlog[4]).groups()[-1])
+    init_kwargs['config'] = 'REPRODUCE'
+    init_kwargs['data_folder'] = data_dir
+
+    dat = analyse(**init_kwargs)
+
+    dat.srmdat = pd.read_csv(srm_table).set_index('SRM')
+    print('SRM values loaded from: {}'.format(srm_table))
+
+    # rest of commands
+    log = rlog[5:]
+    for l in log:
+        fname, args, kwargs = logread.match(l).groups()
+        if 'plot' not in fname.lower():
+            getattr(dat,fname)(*eval(args),**eval(kwargs))
+        elif plotting:
+            getattr(dat,fname)(*eval(args),**eval(kwargs))
+        else:
+            pass
+
+    return dat
 
 
 analyze = analyse  # for the yanks
@@ -2657,6 +2839,7 @@ class D(object):
 
         self.file = data_file
         self.sample = os.path.basename(self.file).split('.')[0]
+        self.internal_standard = internal_standard
 
         with open(data_file) as f:
             lines = f.readlines()
@@ -4118,7 +4301,7 @@ class D(object):
         """
         if analytes is None:
             analytes = [a for a in self.analytes
-                        if a != self.ratio_params['denominator']]
+                        if a != self.ratio_denominator]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
