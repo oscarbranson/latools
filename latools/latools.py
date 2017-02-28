@@ -33,6 +33,8 @@ from tqdm import tqdm  # status bars!
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
+# deactivate numpy invalid comparison warnings
+np.seterr(invalid='ignore')
 
 
 class analyse(object):
@@ -664,7 +666,6 @@ class analyse(object):
                                                    self.bkg['raw'].loc[:, a],
                                                    self.bkg['calc']['uTime'],
                                                    weight_fwhm)
-
         return
 
     @_log
@@ -1179,18 +1180,22 @@ class analyse(object):
             samples = [samples]
 
         if not hasattr(self, 'subsets'):
-            self.subsets = dict(zip(self.samples, [0] * len(self.samples)))
-            self.subset_key = {}
+            self.subsets = {}
+            self.subsets['STDS'] = [s for s in self.samples if self.srm_identifier in s]
+            self.subsets['ALL'] = [s for s in self.samples if self.srm_identifier not in s]
+
+            # self.subsets = {s: 'ALL' for s in self.samples if self.srm_identifier not in s}
+            # self.subsets.update({s: 'STD' for s in self.samples if self.srm_identifier in s})
+            # self.subsets = {}
 
         if name is None:
-            name = max([x for x in self.subsets.values() if isinstance(x, int)]) + 1
+            name = max([-1] + [x for x in self.subsets.keys() if isinstance(x, int)]) + 1
 
         if samples is not None:
-            for s in samples:
-                self.subsets[s] = name
+            self.subsets[name] = samples
 
-        for subset in np.unique(list(self.subsets.values())):
-            self.subset_key[subset] = sorted([k for k, v in self.subsets.items() if v == subset])
+        # for subset in np.unique(list(self.subsets.values())):
+        #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
 
         return name
 
@@ -1235,7 +1240,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1291,7 +1296,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1417,10 +1422,10 @@ class analyse(object):
                 self.minimal_analytes.append(analyte)
 
         if subset is None:
-            samples = self.samplesobject, class_or_type_or_tuple
+            samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1484,7 +1489,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1528,7 +1533,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1568,7 +1573,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1577,18 +1582,21 @@ class analyse(object):
         for s in samples:
             self.data_dict[s].filt.off(analyte, filt)
 
-    def filter_status(self, sample=None, subset=None):
+    def filter_status(self, sample=None, subset=None, stds=False):
         if sample is None and subset is None:
             if not hasattr(self, 'subsets'):
                 self.make_subset(samples=None)
-            for k, v in self.subset_key.items():
-                print('Subset {:s}:'.format(str(k)))
-                if len(v) == len(self.samples):
-                    print('Samples: All')
+            for k, v in sorted(self.subsets.items()):
+                if (self.srm_identifier in k) and not stds:
+                    pass
                 else:
-                    print('Samples: ' + ', '.join(v))
-                print('\n' + self.data_dict[v[0]].filt.__repr__())
-                return
+                    print('Subset {:s}:'.format(str(k)))
+                    if len(v) == len(self.samples):
+                        print('Samples: All')
+                    else:
+                        print('Samples: ' + ', '.join(v))
+                    print('\n' + self.data_dict[v[0]].filt.__repr__())
+            return
 
         elif sample is not None:
             print('Sample: ' + sample)
@@ -1596,10 +1604,10 @@ class analyse(object):
             return
 
         elif subset is not None:
-            print('Subset {:s}:'.format(subset))
-            print('Samples: ' + ', '.join(self.subset_key[subset]))
+            print('Subset {:s}:'.format(str(subset)))
+            print('Samples: ' + ', '.join(self.subsets[subset]))
             print('\n' +
-                  self.data_dict[self.subset_key[subset][0]].filt.__repr__())
+                  self.data_dict[self.subsets[subset][0]].filt.__repr__())
             return
 
     @_log
@@ -1616,7 +1624,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1815,7 +1823,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -1853,7 +1861,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2047,7 +2055,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2093,7 +2101,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2199,7 +2207,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2241,7 +2249,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2321,7 +2329,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2498,7 +2506,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -2584,7 +2592,7 @@ class analyse(object):
             samples = self.samples
         else:
             try:
-                samples = self.subset_key[subset]
+                samples = self.subsets[subset]
             except:
                 raise ValueError(("Subset '{:s}' does not .".format(subset) +
                                   "exist.\nRun 'make_subset' to create a" +
@@ -3573,15 +3581,13 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        vals = nominal_values(self.focus[analyte])
-        if filt is not None:
+        vals = trace = nominal_values(self.focus[analyte])
+        if not isinstance(filt, bool):
             ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
         else:
             ind = ~np.isnan(vals)
 
         if any(ind):
-            trace = nominal_values(self.focus[analyte])
-
             self.filt.add(analyte + '_thresh_below',
                           trace <= threshold,
                           'Keep below {:.3e} '.format(threshold) + analyte,
@@ -4395,7 +4401,7 @@ class D(object):
             filts = np.array(sorted([f for f in self.filt.components.keys()
                                      if filt in f]))
 
-        regex = re.compile('^([A-Za-z0-9-]+)_'
+        regex = re.compile('^([ A-Za-z0-9-]+)_'
                            '([A-Za-z0-9-]+)[_$]?'
                            '([a-z0-9]+)?')
 
@@ -4405,110 +4411,114 @@ class D(object):
 
         ngrps = fgrps.size
 
-        if isinstance(analytes, str):
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
             analytes = [analytes]
 
         for analyte in analytes:
-            y = nominal_values(self.focus[analyte])
-            yh = y[~np.isnan(y)]
+            if analyte != self.internal_standard:
+                y = nominal_values(self.focus[analyte])
+                yh = y[~np.isnan(y)]
 
-            m, u = unitpicker(np.nanmax(y))
+                m, u = unitpicker(np.nanmax(y))
 
-            fig = plt.figure(figsize=(10, 3.5 * ngrps))
-            axes = []
+                fig = plt.figure(figsize=(10, 3.5 * ngrps))
+                axes = []
 
-            h = .8 / ngrps
+                h = .8 / ngrps
 
-            cm = plt.cm.get_cmap('Spectral')
+                cm = plt.cm.get_cmap('Spectral')
 
-            for i in np.arange(ngrps):
-                axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
-                                  fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
+                for i in np.arange(ngrps):
+                    axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
+                                      fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
 
-                # get variables
-                fg = filts[fgnames == fgrps[i]]
-                cs = cm(np.linspace(0, 1, len(fg)))
-                fn = nfilts[:, 2][fgnames == fgrps[i]]
-                an = nfilts[:, 0][fgnames == fgrps[i]]
-                bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
+                    # get variables
+                    fg = filts[fgnames == fgrps[i]]
+                    cs = cm(np.linspace(0, 1, len(fg)))
+                    fn = nfilts[:, 2][fgnames == fgrps[i]]
+                    an = nfilts[:, 0][fgnames == fgrps[i]]
+                    bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
 
-                if 'DBSCAN' in fgrps[i]:
-                    # determine data filters
-                    core_ind = self.filt.components[[f for f in fg
-                                                     if 'core' in f][0]]
-                    other = np.array([('noise' not in f) & ('core' not in f)
-                                      for f in fg])
-                    tfg = fg[other]
-                    tfn = fn[other]
-                    tcs = cm(np.linspace(0, 1, len(tfg)))
+                    if 'DBSCAN' in fgrps[i]:
+                        # determine data filters
+                        core_ind = self.filt.components[[f for f in fg
+                                                         if 'core' in f][0]]
+                        other = np.array([('noise' not in f) & ('core' not in f)
+                                          for f in fg])
+                        tfg = fg[other]
+                        tfn = fn[other]
+                        tcs = cm(np.linspace(0, 1, len(tfg)))
 
-                    # plot all data
-                    hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
-                             color='k', lw=0)
-                    # legend markers for core/member
-                    tax.scatter([], [], s=25, label='core', c='w')
-                    tax.scatter([], [], s=10, label='member', c='w')
-                    # plot noise
-                    try:
-                        noise_ind = self.filt.components[[f for f in fg
-                                                          if 'noise' in f][0]]
-                        tax.scatter(self.Time[noise_ind], m * y[noise_ind],
-                                    lw=1, c='k', s=15, marker='x',
-                                    label='noise')
-                    except:
-                        pass
+                        # plot all data
+                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
+                                 color='k', lw=0)
+                        # legend markers for core/member
+                        tax.scatter([], [], s=25, label='core', c='w')
+                        tax.scatter([], [], s=10, label='member', c='w')
+                        # plot noise
+                        try:
+                            noise_ind = self.filt.components[[f for f in fg
+                                                              if 'noise' in f][0]]
+                            tax.scatter(self.Time[noise_ind], m * y[noise_ind],
+                                        lw=1, c='k', s=15, marker='x',
+                                        label='noise')
+                        except:
+                            pass
 
-                    # plot filtered data
-                    for f, c, lab in zip(tfg, tcs, tfn):
-                        ind = self.filt.components[f]
-                        tax.scatter(self.Time[~core_ind & ind],
-                                    m * y[~core_ind & ind], lw=.1, c=c, s=10)
-                        tax.scatter(self.Time[core_ind & ind],
-                                    m * y[core_ind & ind], lw=.1, c=c, s=25,
-                                    label=lab)
-                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                 orientation='horizontal', alpha=0.6)
+                        # plot filtered data
+                        for f, c, lab in zip(tfg, tcs, tfn):
+                            ind = self.filt.components[f]
+                            tax.scatter(self.Time[~core_ind & ind],
+                                        m * y[~core_ind & ind], lw=.1, c=c, s=10)
+                            tax.scatter(self.Time[core_ind & ind],
+                                        m * y[core_ind & ind], lw=.1, c=c, s=25,
+                                        label=lab)
+                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+                                     orientation='horizontal', alpha=0.6)
 
-                else:
-                    # plot all data
-                    tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
-                                s=25, label='excl')
-                    hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
-                             color='k', lw=0)
+                    else:
+                        # plot all data
+                        tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
+                                    s=25, label='excl')
+                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
+                                 color='k', lw=0)
 
-                    # plot filtered data
-                    for f, c, lab in zip(fg, cs, fn):
-                        ind = self.filt.components[f]
-                        tax.scatter(self.Time[ind], m * y[ind], lw=.1,
-                                    c=c, s=25, label=lab)
-                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                 orientation='horizontal', alpha=0.6)
+                        # plot filtered data
+                        for f, c, lab in zip(fg, cs, fn):
+                            ind = self.filt.components[f]
+                            tax.scatter(self.Time[ind], m * y[ind], lw=.1,
+                                        c=c, s=25, label=lab)
+                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+                                     orientation='horizontal', alpha=0.6)
 
-                # formatting
-                for ax in axs:
-                    ax.set_ylim(np.nanmin(y) * m, np.nanmax(y) * m)
+                    # formatting
+                    for ax in axs:
+                        ax.set_ylim(np.nanmin(y) * m, np.nanmax(y) * m)
 
-                tax.legend(scatterpoints=1, framealpha=0.5)
-                tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12,
-                         weight='bold', ha='left', va='top',
-                         transform=tax.transAxes)
-                tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
-                tax.set_xticks(tax.get_xticks()[:-1])
-                hax.set_yticklabels([])
+                    tax.legend(scatterpoints=1, framealpha=0.5)
+                    tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12,
+                             weight='bold', ha='left', va='top',
+                             transform=tax.transAxes)
+                    tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
+                    tax.set_xticks(tax.get_xticks()[:-1])
+                    hax.set_yticklabels([])
 
-                if i < ngrps - 1:
-                    tax.set_xticklabels([])
-                    hax.set_xticklabels([])
-                else:
-                    tax.set_xlabel('Time (s)')
-                    hax.set_xlabel('n')
+                    if i < ngrps - 1:
+                        tax.set_xticklabels([])
+                        hax.set_xticklabels([])
+                    else:
+                        tax.set_xlabel('Time (s)')
+                        hax.set_xlabel('n')
 
-                axes.append(axs)
+                    axes.append(axs)
 
-            if isinstance(savedir, str):
-                fig.savefig(savedir + '/' + self.sample + '_' +
-                            analyte + '.pdf')
-            plt.close(fig)
+                if isinstance(savedir, str):
+                    fig.savefig(savedir + '/' + self.sample + '_' +
+                                analyte + '.pdf')
+                    plt.close(fig)
+
         return
         # return fig, axes
 
