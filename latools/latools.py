@@ -3696,7 +3696,7 @@ class D(object):
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
                           method='meanshift', include_time=False,
-                          sort=True, min_data=10, **kwargs):
+                          sort=None, min_data=10, **kwargs):
         """
         Applies an n - dimensional clustering filter to the data.
 
@@ -3741,10 +3741,13 @@ class D(object):
             analysis. Useful if you're looking for spatially continuous
             clusters in your data, i.e. this will identify each spot in your
             analysis as an individual cluster.
-        sort : bool
-            Whether or not you want the cluster labels to
-            be sorted by the mean magnitude of the signals
-            they are based on (0 = lowest)
+        sort : bool, str or array-like
+            Whether or not to label the resulting clusters according to their
+            contents. If used, the cluster with the lowest values will be
+            labelled from 0, in order of increasing cluster mean value.analytes
+                True: Sort by all analytes used to generate the cluster.
+                str: Sort by a single specified analyte
+                array-like: Sort by a number of specified analytes.
         min_data : int
             The minimum number of data points that should be considered by
             the filter. Default = 10.
@@ -3787,9 +3790,6 @@ class D(object):
         -------
         None
         """
-        params = locals()
-        del(params['self'])
-
         # convert string to list, if single analyte
         if isinstance(analytes, str):
             analytes = [analytes]
@@ -3826,15 +3826,51 @@ class D(object):
             if normalise | (len(analytes) > 1):
                 ds = preprocessing.scale(ds)
 
-            method_key = {'kmeans': self.cluster_kmeans,
-                          'DBSCAN': self.cluster_DBSCAN,
-                          'meanshift': self.cluster_meanshift}
+            method_key = {'kmeans': cluster_kmeans,
+                          'DBSCAN': cluster_DBSCAN,
+                          'meanshift': cluster_meanshift}
 
             cfun = method_key[method]
 
-            filts = cfun(ds, sort=sort, **kwargs)
-            # return dict of cluster_no: (filt, params)
+            labels, core_samples_mask = cfun(ds, **kwargs)
+            # return labels, and if DBSCAN core_sample_mask
+            
+            labels_unique = np.unique(labels)
+            
+            # label the clusters according to their contents
+            if (sort is not None) & (sort is not False):
+                if isinstance(sort, str):
+                    sort = [sort]
 
+                if len(analytes) == 1:
+                    sanalytes = analytes + [False]
+                else:
+                    sanalytes = analytes
+                
+                # make boolean filter to select analytes
+                if sort is True:
+                    sortk = np.array([True] * len(sanalytes))
+                else:
+                    sortk = np.array([s in sort for s in sanalytes])
+                
+                # create per-point mean based on selected analytes.
+                sd = np.apply_along_axis(sum, 1, ds[:,sortk])
+                # calculate per-cluster means
+                avs = [np.nanmean(sd[labels == lab]) for lab in labels_unique]
+                # re-order the cluster labels based on their means
+                order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
+                sdict = dict(zip(order, labels_unique))    
+            else:
+                sdict = dict(zip(labels_unique, labels_unique))
+
+            out = {}
+            for ind, lab in sdict.items():
+                out[lab] = labels == ind
+            
+            # only applies to DBSCAN results.
+            if not np.isnan(core_samples_mask):
+                out['core'] = core_samples_mask
+            
             resized = {}
             for k, v in filts.items():
                 resized[k] = np.zeros(self.Time.size, dtype=bool)
@@ -3866,8 +3902,7 @@ class D(object):
 
         return
 
-    def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False,
-                          sort=True):
+    def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False):
         """
         Identify clusters using Meanshift algorithm.
 
@@ -3881,11 +3916,7 @@ class D(object):
         bin_seeding : bool
             Setting this option to True will speed up the algorithm.
             See sklearn documentation for full description.
-        sort : bool
-            Whether or not you want the cluster labels to
-            be sorted by the mean magnitude of the signals
-            they are based on (0 = lowest)
-
+        
         Returns
         -------
         dict
@@ -3898,23 +3929,10 @@ class D(object):
         ms.fit(data)
 
         labels = ms.labels_
-        labels_unique = np.unique(labels)
 
-        if sort:
-            ds = np.apply_along_axis(sum, 1, data)
-            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
-            order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(order, labels_unique))
-        else:
-            sdict = dict(zip(labels_unique, labels_unique))
+        return labels, np.nan
 
-        out = {}
-        for ind, lab in sdict.items():
-            out[lab] = labels == ind
-
-        return out
-
-    def cluster_kmeans(self, data, n_clusters, sort=True):
+    def cluster_kmeans(self, data, n_clusters):
         """
         Identify clusters using K - Means algorithm.
 
@@ -3924,11 +3942,7 @@ class D(object):
             array of size [n_samples, n_features].
         n_clusters : int
             The number of clusters expected in the data.
-        sort : bool
-            Whether or not you want the cluster labels to
-            be sorted by the mean magnitude of the signals
-            they are based on (0 = lowest)
-
+        
         Returns
         -------
         dict
@@ -3938,24 +3952,11 @@ class D(object):
         kmf = km.fit(data)
 
         labels = kmf.labels_
-        labels_unique = np.unique(labels)
 
-        if sort:
-            ds = np.apply_along_axis(sum, 1, data)
-            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
-            order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(order, labels_unique))
-        else:
-            sdict = dict(zip(labels_unique, labels_unique))
-
-        out = {}
-        for ind, lab in sdict.items():
-            out[lab] = labels == ind
-
-        return out
+        return labels, np.nan
 
     def cluster_DBSCAN(self, data, eps=None, min_samples=None,
-                       n_clusters=None, maxiter=200, sort=True):
+                       n_clusters=None, maxiter=200):
         """
         Identify clusters using DBSCAN algorithm.
 
@@ -3977,10 +3978,6 @@ class D(object):
             found.
         maxiter : int
             The maximum number of iterations DBSCAN will run.
-        sort : bool
-            Whether or not you want the cluster labels to
-            be sorted by the mean magnitude of the signals
-            they are based on (0 = lowest)
 
         Returns
         -------
@@ -4023,26 +4020,11 @@ class D(object):
                     break
 
         labels = db.labels_
-        labels_unique = np.unique(labels)
-
-        if sort:
-            ds = np.apply_along_axis(sum, 1, data)
-            avs = [np.nanmean(ds[labels == lab]) for lab in labels_unique]
-            order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-            sdict = dict(zip(order, labels_unique))
-        else:
-            sdict = dict(zip(labels_unique, labels_unique))
 
         core_samples_mask = np.zeros_like(labels)
         core_samples_mask[db.core_sample_indices_] = True
 
-        out = {}
-        for ind, lab in sdict.items():
-            out[lab] = labels == ind
-
-        out['core'] = core_samples_mask
-
-        return out
+        return labels, core_samples_mask
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
