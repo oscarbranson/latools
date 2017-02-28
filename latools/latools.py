@@ -1181,10 +1181,11 @@ class analyse(object):
 
         if not hasattr(self, 'subsets'):
             self.subsets = {}
-            self.subsets['STDS'] = [s for s in self.samples if self.srm_identifier in s]
-            self.subsets['ALL'] = [s for s in self.samples if self.srm_identifier not in s]
+            self.subsets['All_Analyses'] = self.samples
+            self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
+            self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
 
-            # self.subsets = {s: 'ALL' for s in self.samples if self.srm_identifier not in s}
+            # self.subsets = {s: 'All_Analyses' for s in self.samples if self.srm_identifier not in s}
             # self.subsets.update({s: 'STD' for s in self.samples if self.srm_identifier in s})
             # self.subsets = {}
 
@@ -1237,7 +1238,7 @@ class analyse(object):
             self.minimal_analytes.append(analyte)
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1288,12 +1289,11 @@ class analyse(object):
         elif not hasattr(self, 'subsets'):
             self.make_subset()
 
-
         if analyte not in self.minimal_analytes:
             self.minimal_analytes.append(analyte)
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1422,7 +1422,7 @@ class analyse(object):
                 self.minimal_analytes.append(analyte)
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1486,7 +1486,7 @@ class analyse(object):
                 self.minimal_analytes.append(analyte)
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1530,7 +1530,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1570,7 +1570,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1588,6 +1588,8 @@ class analyse(object):
                 self.make_subset(samples=None)
             for k, v in sorted(self.subsets.items()):
                 if (self.srm_identifier in k) and not stds:
+                    pass
+                elif 'All_Analyses' in k:
                     pass
                 else:
                     print('Subset {:s}:'.format(str(k)))
@@ -1621,7 +1623,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1820,7 +1822,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subset['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1858,7 +1860,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subset['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2052,7 +2054,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subset['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2079,7 +2081,7 @@ class analyse(object):
 
     # filter reports
     @_log
-    def filter_reports(self, filt_str, analytes, samples=None,
+    def filter_reports(self, analytes, filt_str='all', samples=None,
                        outdir=None, subset=None):
         """
         Plot filter reports for all filters that contain ``filt_str``
@@ -2098,7 +2100,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2204,7 +2206,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2246,7 +2248,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2326,7 +2328,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2503,7 +2505,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2589,7 +2591,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.samples
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -3790,6 +3792,9 @@ class D(object):
         -------
         None
         """
+        params = locals()
+        del(params['self'])
+
         # convert string to list, if single analyte
         if isinstance(analytes, str):
             analytes = [analytes]
@@ -3826,9 +3831,9 @@ class D(object):
             if normalise | (len(analytes) > 1):
                 ds = preprocessing.scale(ds)
 
-            method_key = {'kmeans': cluster_kmeans,
-                          'DBSCAN': cluster_DBSCAN,
-                          'meanshift': cluster_meanshift}
+            method_key = {'kmeans': self.cluster_kmeans,
+                          'DBSCAN': self.cluster_DBSCAN,
+                          'meanshift': self.cluster_meanshift}
 
             cfun = method_key[method]
 
@@ -3863,21 +3868,21 @@ class D(object):
             else:
                 sdict = dict(zip(labels_unique, labels_unique))
 
-            out = {}
+            filts = {}
             for ind, lab in sdict.items():
-                out[lab] = labels == ind
+                filts[lab] = labels == ind
             
             # only applies to DBSCAN results.
-            if not np.isnan(core_samples_mask):
-                out['core'] = core_samples_mask
+            if not all(np.isnan(core_samples_mask)):
+                filts['core'] = core_samples_mask
             
             resized = {}
             for k, v in filts.items():
                 resized[k] = np.zeros(self.Time.size, dtype=bool)
                 resized[k][sampled] = v
 
-            namebase = ' - '.join(analytes) + '_cluster - ' + method
-            info = ' - '.join(analytes) + ' cluster filter.'
+            namebase = '-'.join(analytes) + '_cluster-' + method
+            info = '-'.join(analytes) + ' cluster filter.'
 
             if method == 'DBSCAN':
                 for k, v in resized.items():
@@ -3894,8 +3899,8 @@ class D(object):
                     self.filt.add(name, v, info=info, params=params)
         else:
             # if there are no data
-            name = ' - '.join(analytes) + '_cluster - ' + method + '_0'
-            info = ' - '.join(analytes) + ' cluster filter failed.'
+            name = '-'.join(analytes) + '_cluster-' + method + '_0'
+            info = '-'.join(analytes) + ' cluster filter failed.'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params)
@@ -3930,7 +3935,7 @@ class D(object):
 
         labels = ms.labels_
 
-        return labels, np.nan
+        return labels, [np.nan]
 
     def cluster_kmeans(self, data, n_clusters):
         """
@@ -3953,7 +3958,7 @@ class D(object):
 
         labels = kmf.labels_
 
-        return labels, np.nan
+        return labels, [np.nan]
 
     def cluster_DBSCAN(self, data, eps=None, min_samples=None,
                        n_clusters=None, maxiter=200):
@@ -4377,13 +4382,15 @@ class D(object):
         -------
         (fig, axes)
         """
-        if filt is None:
-            filts = list(self.filt.components.keys())
+        if filt is None or filt == 'all':
+            filts = np.array(list(self.filt.components.keys()))
         else:
             filts = np.array(sorted([f for f in self.filt.components.keys()
                                      if filt in f]))
 
-        regex = re.compile('^([ A-Za-z0-9-]+)_'
+        filts.sort()
+
+        regex = re.compile('^([A-Za-z0-9-]+)_'
                            '([A-Za-z0-9-]+)[_$]?'
                            '([a-z0-9]+)?')
 
@@ -4397,6 +4404,8 @@ class D(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        analyte = analytes[0]
 
         for analyte in analytes:
             if analyte != self.internal_standard:
@@ -4437,15 +4446,15 @@ class D(object):
                         hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
                                  color='k', lw=0)
                         # legend markers for core/member
-                        tax.scatter([], [], s=25, label='core', c='w')
-                        tax.scatter([], [], s=10, label='member', c='w')
+                        tax.scatter([], [], s=15, label='core', c='w', lw=0.5, edgecolor='k')
+                        tax.scatter([], [], s=5, label='member', c='w', lw=0.5, edgecolor='k')
                         # plot noise
                         try:
                             noise_ind = self.filt.components[[f for f in fg
                                                               if 'noise' in f][0]]
                             tax.scatter(self.Time[noise_ind], m * y[noise_ind],
-                                        lw=1, c='k', s=15, marker='x',
-                                        label='noise')
+                                        lw=1, c='k', s=10, marker='x',
+                                        label='noise', alpha=0.6)
                         except:
                             pass
 
@@ -4453,9 +4462,9 @@ class D(object):
                         for f, c, lab in zip(tfg, tcs, tfn):
                             ind = self.filt.components[f]
                             tax.scatter(self.Time[~core_ind & ind],
-                                        m * y[~core_ind & ind], lw=.1, c=c, s=10)
+                                        m * y[~core_ind & ind], lw=.5, c=c, s=5, edgecolor='k')
                             tax.scatter(self.Time[core_ind & ind],
-                                        m * y[core_ind & ind], lw=.1, c=c, s=25,
+                                        m * y[core_ind & ind], lw=.5, c=c, s=15, edgecolor='k',
                                         label=lab)
                             hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                      orientation='horizontal', alpha=0.6)
@@ -4463,23 +4472,35 @@ class D(object):
                     else:
                         # plot all data
                         tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
-                                    s=25, label='excl')
+                                    s=15, label='excl')
                         hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
                                  color='k', lw=0)
 
                         # plot filtered data
                         for f, c, lab in zip(fg, cs, fn):
                             ind = self.filt.components[f]
-                            tax.scatter(self.Time[ind], m * y[ind], lw=.1,
-                                        c=c, s=25, label=lab)
+                            tax.scatter(self.Time[ind], m * y[ind], lw=.5,
+                                        edgecolor='k', c=c, s=15, label=lab)
                             hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                      orientation='horizontal', alpha=0.6)
 
+                    if 'thresh' in fgrps[i] and analyte in fgrps[i]:
+                        tax.axhline(self.filt.params[fg[0]]['threshold'] * m,
+                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
+                        hax.axhline(self.filt.params[fg[0]]['threshold'] * m,
+                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
+
                     # formatting
                     for ax in axs:
-                        ax.set_ylim(np.nanmin(y) * m, np.nanmax(y) * m)
+                        mn = np.nanmin(y) * m
+                        mx = np.nanmax(y) * m
+                        rn = mx - mn
+                        ax.set_ylim(mn - .05 * rn, mx + 0.05 * rn)
 
-                    tax.legend(scatterpoints=1, framealpha=0.5)
+                    # legend
+                    hn, la = tax.get_legend_handles_labels()
+                    hax.legend(hn, la, loc='upper right', scatterpoints=1)
+
                     tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12,
                              weight='bold', ha='left', va='top',
                              transform=tax.transAxes)
@@ -4496,10 +4517,10 @@ class D(object):
 
                     axes.append(axs)
 
-                if isinstance(savedir, str):
-                    fig.savefig(savedir + '/' + self.sample + '_' +
-                                analyte + '.pdf')
-                    plt.close(fig)
+            if isinstance(savedir, str):
+                fig.savefig(savedir + '/' + self.sample + '_' +
+                            analyte + '.pdf')
+                plt.close(fig)
 
         return
         # return fig, axes
