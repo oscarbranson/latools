@@ -144,11 +144,6 @@ class analyse(object):
                                if extension in f])
 
         # make output directories
-        self.param_dir = re.sub('//', '/',
-                                self.parent_folder + '/params_' +
-                                os.path.basename(self.folder) + '/')
-        if not os.path.isdir(self.param_dir):
-            os.mkdir(self.param_dir)
         self.report_dir = re.sub('//', '/',
                                  self.parent_folder + '/reports_' +
                                  os.path.basename(self.folder) + '/')
@@ -258,6 +253,8 @@ class analyse(object):
         _ = [self.stds.append(s) for s in self.data
              if self.srm_identifier in s.sample]
         self.srms_ided = False
+
+        self.make_subset()
 
         # create universal time scale
         if 'date' in self.data[0].meta.keys():
@@ -748,7 +745,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None):
+    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None, err='stderr', save=True):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
                              "plot the background.")
@@ -758,7 +755,9 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        fig = plt.figure(figsize=figsize)
+
+        ax = fig.add_axes([.07, .1, .84, .8])
 
         for a in analytes:
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
@@ -768,51 +767,58 @@ class analyse(object):
             for i, r in self.bkg['summary'].iterrows():
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
-                yl = [r.loc[a, 'mean'] - r.loc[a, 'std']] * 2
-                yu = [r.loc[a, 'mean'] + r.loc[a, 'std']] * 2
+                yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
+                yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
 
-                ax.fill_between(x, yl, yu, alpha=0.5, lw=0.5, color=self.cmaps[a])
-
-                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 4,
-                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 4)
-                yl = [r.loc[a, 'mean'] - r.loc[a, 'stderr']] * 2
-                yu = [r.loc[a, 'mean'] + r.loc[a, 'stderr']] * 2
-
-                l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=1, color='k', label='SE')
+                l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=0.5, color=self.cmaps[a], zorder=1)
 
             ax.plot(self.bkg['calc']['uTime'],
                     self.bkg['calc'][a]['mean'],
-                    c=self.cmaps[a], zorder=2)
+                    c=self.cmaps[a], zorder=2, label=a)
             ax.fill_between(self.bkg['calc']['uTime'],
-                            self.bkg['calc'][a]['mean'] + self.bkg['calc'][a]['stderr'],
-                            self.bkg['calc'][a]['mean'] - self.bkg['calc'][a]['stderr'],
-                            color=self.cmaps[a], alpha=0.3, zorder=1)
+                            self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err],
+                            self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err],
+                            color=self.cmaps[a], alpha=0.3, zorder=-1)
 
         if yscale == 'log':
             ax.set_yscale('log')
         if ylim is not None:
             ax.set_ylim(ylim)
 
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Background Counts')
+
+        ax.set_title('Points = raw data; Bars = {:s}; Lines = Calculated Background; Envelope = Background {:s}'.format(err, err),
+                     fontsize=10)
+
+        ha, la = ax.get_legend_handles_labels()
+
+        ax.legend(labels=la[:len(analytes)], handles=ha[:len(analytes)], bbox_to_anchor=(1, 1))
+
         # scale x axis to range ± 2.5%
-        ax.set_xlim(self.bkg['raw']['uTime'].min() - 0.025 * self.bkg['raw']['uTime'].ptp(),
-                    self.bkg['raw']['uTime'].max() + 0.025 * self.bkg['raw']['uTime'].ptp())
+        ax.set_xlim(self.bkg['raw']['uTime'].min(),
+                    self.bkg['raw']['uTime'].max())
 
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
-            ax.axvline(x)
-            ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
+            ax.axvline(x, alpha=0.4, color='k')
+            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
 
-        return fig, ax
+        if save:
+            fig.savefig(self.report_dir + '/background.pdf')
+            return
+        else:
+            return fig, ax
 
     # functions for calculating ratios
     @_log
-    def ratio(self, denominator=None, focus='bkgsub'):
+    def ratio(self, internal_standard=None, focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
         Parameters
         ----------
-        denominator : str
+        internal_standard : str
             The name of the analyte to divide all other analytes
             by.
         focus : str
@@ -824,15 +830,13 @@ class analyse(object):
         None
         """
 
-        if denominator is None:
-            denominator = self.internal_standard
-        elif denominator not in self.minimal_analytes:
-                self.minimal_analytes.append(denominator)
-
-        self.ratio_denominator = denominator
+        if internal_standard is not None:
+            self.internal_standard = internal_standard
+            if internal_standard not in self.minimal_analytes:
+                self.minimal_analytes.append(internal_standard)
 
         for s in tqdm(self.data, desc='Ratio Calculation'):
-            s.ratio(denominator=denominator, focus=focus)
+            s.ratio(internal_standard=self.internal_standard, focus=focus)
         return
 
     # functions for identifying SRMs
@@ -1642,7 +1646,7 @@ class analyse(object):
 
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False):
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
         """
         Plot the calibration lines between measured and known SRM values.
 
@@ -1809,6 +1813,9 @@ class analyse(object):
                 axh.set_xticks([])
                 axh.set_yticklabels([])
 
+        if save:
+            fig.savefig(self.report_dir + '/calibration.pdf')
+
         return fig, axes
 
     # set the focus attribute for specified samples
@@ -1822,7 +1829,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.subset['All_Analyses']
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1860,7 +1867,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.subset['All_Analyses']
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1876,13 +1883,12 @@ class analyse(object):
 
         for sa in samples:
             s = self.data_dict[sa]
-            if self.srm_identifier not in s.sample:
-                self.focus['uTime'].append(s.uTime)
-                ind = s.filt.grab_filt(filt)
-                for a in self.analytes:
-                    tmp = s.focus[a].copy()
-                    tmp[~ind] = np.nan
-                    self.focus[a].append(tmp)
+            self.focus['uTime'].append(s.uTime)
+            ind = s.filt.grab_filt(filt)
+            for a in self.analytes:
+                tmp = s.focus[a].copy()
+                tmp[~ind] = np.nan
+                self.focus[a].append(tmp)
 
         for k, v in self.focus.items():
             self.focus[k] = np.concatenate(v)
@@ -1915,6 +1921,9 @@ class analyse(object):
         """
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
+
+        if subset is None:
+            subset = 'All_Samples'
 
         self.get_focus(filt, samples, subset)
 
@@ -2054,7 +2063,7 @@ class analyse(object):
             self.make_subset()
 
         if subset is None:
-            samples = self.subset['All_Analyses']
+            samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -2258,7 +2267,7 @@ class analyse(object):
                                   "subset."))
 
         analytes = [a for a in analytes if a !=
-                    self.data[0].ratio_denominator]
+                    self.data[0].internal_standard]
 
         if figsize is None:
             figsize = (1.5 * len(self.stats), 3 * len(analytes))
@@ -2286,7 +2295,7 @@ class analyse(object):
                                 lw=0, elinewidth=1)
 
                     ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
-                                                     pretty_element(self.data[0].ratio_denominator),
+                                                     pretty_element(self.data[0].internal_standard),
                                                      u))
 
                     # plot whole - sample mean
@@ -2612,7 +2621,7 @@ class analyse(object):
               'ratios': 'counts/count {:s}',
               'calibrated': 'mol/mol {:s}'}
         if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.ratio_denominator)
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -2672,7 +2681,7 @@ class analyse(object):
 
         # set up data path
         if path is None:
-            path = self.parent_folder + '/minimal_export/'
+            path = self.export_dir + '/minimal_export/'
         if not os.path.isdir(path):
             os.mkdir(path)
 
@@ -3375,14 +3384,14 @@ class D(object):
         return
 
     @_log
-    def ratio(self, denominator=None, focus='bkgsub'):
+    def ratio(self, internal_standard=None, focus='bkgsub'):
         """
-        Divide all analytes by a specified denominator analyte.
+        Divide all analytes by a specified internal_standard analyte.
 
         Parameters
         ----------
-        denominator : str
-            The analyte used as the denominator.
+        internal_standard : str
+            The analyte used as the internal_standard.
         focus : str
             The analysis stage to perform the ratio calculation on.
             Defaults to 'signal'.
@@ -3391,16 +3400,14 @@ class D(object):
         -------
         None
         """
-        if denominator is None:
-            denominator = self.internal_standard
-
-        self.ratio_denominator = denominator
-
+        if internal_standard is not None:
+            self.internal_standard = internal_standard
+        
         self.setfocus(focus)
         self.data['ratios'] = {}
         for a in self.analytes:
             self.data['ratios'][a] = \
-                self.focus[a] / self.focus[denominator]
+                self.focus[a] / self.focus[self.internal_standard]
         self.setfocus('ratios')
         return
 
@@ -4122,7 +4129,7 @@ class D(object):
     #     return fig, axes
 
     @_log
-    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
+    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               interactive=False, focus_stage=None, err_envelope=False):
         """
@@ -4172,7 +4179,7 @@ class D(object):
             focus_stage = self.focus_stage
 
         fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111)
+        ax = fig.add_axes([.1,.12,.77,.8])
 
         for a in analytes:
             x = self.Time
@@ -4240,22 +4247,41 @@ class D(object):
             for lims in self.sigrng:
                 ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-        if filt:
-            drawn = []
-            for k, v in self.filt.switches.items():
-                for f, s in v.items():
-                    if s & (f not in drawn):
-                        lims = bool_2_indices(~self.filt.components[f])
-                        for u, l in lims:
-                            ax.axvspan(self.Time[u], self.Time[l], color='k',
-                                       alpha=0.05, lw=0)
-                        drawn.append(f)
+        if filt is not None:
+            ind = self.filt.grab_filt(filt)
+            lims = bool_2_indices(~ind)
+            for l, u in lims:
+                if u >= len(self.Time):
+                    u = -1
+                ax.axvspan(self.Time[l], self.Time[u], color='k',
+                           alpha=0.05, lw=0)
+
+            # drawn = []
+            # for k, v in self.filt.switches.items():
+            #     for f, s in v.items():
+            #         if s & (f not in drawn):
+            #             lims = bool_2_indices(~self.filt.components[f])
+            #             for u, l in lims:
+            #                 ax.axvspan(self.Time[u-1], self.Time[l], color='k',
+            #                            alpha=0.05, lw=0)
+            #             drawn.append(f)
 
         ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage,
                 transform=ax.transAxes,
                 ha='left', va='top')
 
         ax.set_xlabel('Time (s)')
+        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+        
+        # y label
+        ud = {'rawdata': 'counts',
+              'despiked': 'counts',
+              'bkgsub': 'background corrected counts',
+              'ratios': 'counts/{:s} count',
+              'calibrated': 'mol/mol {:s}'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        ax.set_ylabel(ud[focus_stage])
 
         if interactive:
             ax.legend()
@@ -4265,7 +4291,7 @@ class D(object):
             input('Press [Return] when finished.')
             disable_notebook()  # stop the interactivity
         else:
-            ax.legend(bbox_to_anchor=(1.12, 1))
+            ax.legend(bbox_to_anchor=(1.15, 1))
 
         return fig, ax
 
@@ -4294,7 +4320,7 @@ class D(object):
         """
         if analytes is None:
             analytes = [a for a in self.analytes
-                        if a != self.ratio_denominator]
+                        if a != self.internal_standard]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -4554,7 +4580,7 @@ class D(object):
 
 class filt(object):
     """
-    Container for storing, selecting and creating data filters.
+    Container for creating, storing and selecting data filters.
 
     Parameters
     ----------
@@ -4622,17 +4648,22 @@ class filt(object):
             self.switches[a] = {}
 
     def __repr__(self):
+        apad = max([len(a) for a in self.analytes] + [7])
+        astr = '{:' + '{:.0f}'.format(apad) + 's}'
         leftpad = max([len(s) for s
                        in self.switches[self.analytes[0]].keys()] + [11]) + 2
-        out = '{string:{number}s}'.format(string='Filter Name', number=leftpad)
+        
+        out = '{string:{number}s}'.format(string='n', number=3)
+        out += '{string:{number}s}'.format(string='Filter Name', number=leftpad)
         for a in self.analytes:
-            out += '{:7s}'.format(a)
+            out += astr.format(a)
         out += '\n'
 
-        for t in sorted(self.switches[self.analytes[0]].keys()):
+        for n, t in self.sequence.items():
+            out += '{string:{number}s}'.format(string=str(n), number=3)
             out += '{string:{number}s}'.format(string=str(t), number=leftpad)
             for a in self.analytes:
-                out += '{:7s}'.format(str(self.switches[a][t]))
+                out += astr.format(str(self.switches[a][t]))
             out += '\n'
         return(out)
 
@@ -4728,16 +4759,18 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, str):
+        if isinstance(filt, (str, int)):
             filt = [filt]
 
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = self.switches[analyte[0]].keys()
+            filt = list(self.sequence.values())
 
         for a in analyte:
             for f in filt:
+                if isinstance(f, int):
+                    f = self.sequence[f]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = True
@@ -4761,16 +4794,18 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, str):
+        if isinstance(filt, (str, int)):
             filt = [filt]
 
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = self.switches[analyte[0]].keys()
+            filt = list(self.sequence.values())
 
         for a in analyte:
             for f in filt:
+                if isinstance(f, int):
+                    f = self.sequence[f]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = False
