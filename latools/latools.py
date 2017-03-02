@@ -4637,11 +4637,11 @@ class filt(object):
     def __init__(self, size, analytes):
         self.size = size
         self.analytes = analytes
+        self.index = {}
         self.components = {}
         self.info = {}
         self.params = {}
         self.keys = {}
-        self.sequence = {}
         self.n = 0
         self.switches = {}
         for a in self.analytes:
@@ -4659,9 +4659,11 @@ class filt(object):
             out += astr.format(a)
         out += '\n'
 
-        for n, t in self.sequence.items():
+        reg = re.compile('[0-9]+_(.*)')
+        for n, t in self.index.items():
             out += '{string:{number}s}'.format(string=str(n), number=3)
-            out += '{string:{number}s}'.format(string=str(t), number=leftpad)
+            tn = reg.match(t).groups()[0]
+            out += '{string:{number}s}'.format(string=str(tn), number=leftpad)
             for a in self.analytes:
                 out += astr.format(str(self.switches[a][t]))
             out += '\n'
@@ -4686,13 +4688,16 @@ class filt(object):
         -------
         None
         """
-        self.components[name] = filt
-        self.info[name] = info
-        self.params[name] = params
-        self.sequence[self.n] = name
-        self.n += 1
+
+        iname = '{:.0f}_'.format(self.n) + name
+        self.index[self.n] = iname
+
+        self.components[iname] = filt
+        self.info[iname] = info
+        self.params[iname] = params
         for a in self.analytes:
-            self.switches[a][name] = False
+            self.switches[a][iname] = False
+        self.n += 1
         return
 
     def remove(self, name):
@@ -4708,11 +4713,13 @@ class filt(object):
         -------
         None
         """
+        if isinstance(name, int):
+            name = self.index[name]
+
         del self.components[name]
         del self.info[name]
         del self.params[name]
         del self.keys[name]
-        del self.sequence[name]
         for a in self.analytes:
             del self.switches[a][name]
         return
@@ -4726,7 +4733,7 @@ class filt(object):
         self.params = {}
         self.switches = {}
         self.keys = {}
-        self.sequence = {}
+        self.index = {}
         self.n = 0
         for a in self.analytes:
             self.switches[a] = {}
@@ -4765,12 +4772,12 @@ class filt(object):
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = list(self.sequence.values())
+            filt = list(self.index.values())
 
         for a in analyte:
             for f in filt:
                 if isinstance(f, int):
-                    f = self.sequence[f]
+                    f = self.index[f]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = True
@@ -4800,12 +4807,12 @@ class filt(object):
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = list(self.sequence.values())
+            filt = list(self.index.values())
 
         for a in analyte:
             for f in filt:
                 if isinstance(f, int):
-                    f = self.sequence[f]
+                    f = self.index[f]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = False
