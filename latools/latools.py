@@ -3596,22 +3596,24 @@ class D(object):
         else:
             ind = ~np.isnan(vals)
 
+        setn = self.filt.maxset + 1
+
         if any(ind):
             self.filt.add(analyte + '_thresh_below',
                           trace <= threshold,
                           'Keep below {:.3e} '.format(threshold) + analyte,
-                          params)
+                          params, setn=setn)
             self.filt.add(analyte + '_thresh_above',
                           trace >= threshold,
                           'Keep above {:.3e} '.format(threshold) + analyte,
-                          params)
+                          params, setn=setn)
         else:
             # if there are no data
             name = analyte + '_thresh_nodata'
             info = analyte + ' threshold filter (no data)'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-                          info=info, params=params)
+                          info=info, params=params, setn=setn)
 
     @_log
     def filter_distribution(self, analytes, binwidth='scott', filt=False,
@@ -3659,6 +3661,7 @@ class D(object):
             if sum(ind) > min_data:
                 # isolate data
                 d = nominal_values(self.focus[analyte][ind])
+                setn = self.filt.maxset + 1
 
                 if transform == 'log':
                     d = np.log10(d)
@@ -3687,19 +3690,19 @@ class D(object):
                         self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
                                       filt=filt,
                                       info=info,
-                                      params=params)
+                                      params=params, setn=setn)
                 else:
                     self.filt.add(name=analyte + '_distribution_failed',
                                   filt=~np.isnan(nominal_values(self.focus[analyte])),
                                   info=analyte + ' is within a single distribution. No data removed.',
-                                  params=params)
+                                  params=params, setn=setn)
             else:
                 # if there are no data
                 name = analyte + '_distribution_0'
                 info = analyte + ' distribution filter (< {:.0f} data points)'.format(min_data)
 
                 self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-                              info=info, params=params)
+                              info=info, params=params, setn=setn)
         return
 
     @_log
@@ -3806,6 +3809,8 @@ class D(object):
         if isinstance(analytes, str):
             analytes = [analytes]
 
+        setn = self.filt.maxset + 1
+
         # generate filter
         vals = np.vstack(nominal_values(list(self.focus.values())))
         if filt is not None:
@@ -3899,18 +3904,18 @@ class D(object):
                         name = namebase + '_noise'
                     else:
                         name = namebase + '_{:.0f}'.format(k)
-                    self.filt.add(name, v, info=info, params=params)
+                    self.filt.add(name, v, info=info, params=params, setn=setn)
             else:
                 for k, v in resized.items():
                     name = namebase + '_{:.0f}'.format(k)
-                    self.filt.add(name, v, info=info, params=params)
+                    self.filt.add(name, v, info=info, params=params, setn=setn)
         else:
             # if there are no data
             name = '-'.join(analytes) + '_cluster-' + method + '_0'
             info = '-'.join(analytes) + ' cluster filter failed.'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-                          info=info, params=params)
+                          info=info, params=params, setn=setn)
 
         return
 
@@ -4077,6 +4082,8 @@ class D(object):
         params = locals()
         del(params['self'])
 
+        setn = self.filt.maxset + 1
+
         # get filter
         ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
 
@@ -4102,7 +4109,7 @@ class D(object):
                       filt=cfilt,
                       info=(x_analyte + ' vs. ' + y_analyte +
                             ' correlation filter.'),
-                      params=params)
+                      params=params, setn=setn)
         self.filt.off(filt=name)
         self.filt.on(analyte=y_analyte, filt=name)
 
@@ -4409,56 +4416,52 @@ class D(object):
         (fig, axes)
         """
         if filt is None or filt == 'all':
-            filts = np.array(list(self.filt.components.keys()))
+            sets = self.filt.sets
         else:
-            filts = np.array(sorted([f for f in self.filt.components.keys()
-                                     if filt in f]))
-
-        filts.sort()
-
-        regex = re.compile('^([A-Za-z0-9-]+)_'
+            sets = {k: v for k,v in self.filt.sets.items() if any(filt in f for f in self.filt.components.keys())}
+            
+        regex = re.compile('^([0-9]+)_([A-Za-z0-9-]+)_'
                            '([A-Za-z0-9-]+)[_$]?'
                            '([a-z0-9]+)?')
 
-        nfilts = np.array([re.match(regex, f).groups() for f in filts])
-        fgnames = np.array(['_'.join(a) for a in nfilts[:, :2]])
-        fgrps = np.unique(fgnames)  # np.unique(nfilts[:, 1])
-
-        ngrps = fgrps.size
-
+        cm = plt.cm.get_cmap('Spectral')
+        ngrps = len(sets)
+        
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        analyte = analytes[0]
-
         for analyte in analytes:
             if analyte != self.internal_standard:
-                y = nominal_values(self.focus[analyte])
-                yh = y[~np.isnan(y)]
+                fig = plt.figure()
 
-                m, u = unitpicker(np.nanmax(y))
+                for i in sorted(sets.keys()):
+                    filts = sets[i]
+                    nfilts = np.array([re.match(regex, f).groups() for f in filts])
+                    fgnames = np.array(['_'.join(a) for a in nfilts[:, 1:3]])
+                    fgrp = np.unique(fgnames)[0]
+                    
+                    fig.set_size_inches(10, 3.5 * ngrps)
+                    h = .8 / ngrps
+                    
 
-                fig = plt.figure(figsize=(10, 3.5 * ngrps))
-                axes = []
+                    y = nominal_values(self.focus[analyte])
+                    yh = y[~np.isnan(y)]
 
-                h = .8 / ngrps
+                    m, u = unitpicker(np.nanmax(y))
 
-                cm = plt.cm.get_cmap('Spectral')
-
-                for i in np.arange(ngrps):
                     axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
                                       fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
-
+                    
                     # get variables
-                    fg = filts[fgnames == fgrps[i]]
+                    fg = sets[i]
                     cs = cm(np.linspace(0, 1, len(fg)))
-                    fn = nfilts[:, 2][fgnames == fgrps[i]]
-                    an = nfilts[:, 0][fgnames == fgrps[i]]
+                    fn = ['_'.join(x) for x in nfilts[:,(0,3)]]
+                    an = nfilts[:, 0]
                     bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
-
-                    if 'DBSCAN' in fgrps[i]:
+                    
+                    if 'DBSCAN' in fgrp:
                         # determine data filters
                         core_ind = self.filt.components[[f for f in fg
                                                          if 'core' in f][0]]
@@ -4510,7 +4513,7 @@ class D(object):
                             hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                      orientation='horizontal', alpha=0.6)
 
-                    if 'thresh' in fgrps[i] and analyte in fgrps[i]:
+                    if 'thresh' in fgrp and analyte in fgrp:
                         tax.axhline(self.filt.params[fg[0]]['threshold'] * m,
                                     ls='dashed', zorder=-2, alpha=0.5, c='k')
                         hax.axhline(self.filt.params[fg[0]]['threshold'] * m,
@@ -4527,7 +4530,7 @@ class D(object):
                     hn, la = tax.get_legend_handles_labels()
                     hax.legend(hn, la, loc='upper right', scatterpoints=1)
 
-                    tax.text(.02, .98, self.sample + ': ' + fgrps[i], size=12,
+                    tax.text(.02, .98, self.sample + ': ' + fgrp, size=12,
                              weight='bold', ha='left', va='top',
                              transform=tax.transAxes)
                     tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
@@ -4540,8 +4543,6 @@ class D(object):
                     else:
                         tax.set_xlabel('Time (s)')
                         hax.set_xlabel('n')
-
-                    axes.append(axs)
 
             if isinstance(savedir, str):
                 fig.savefig(savedir + '/' + self.sample + '_' +
@@ -4638,6 +4639,8 @@ class filt(object):
         self.size = size
         self.analytes = analytes
         self.index = {}
+        self.sets = {}
+        self.maxset = -1
         self.components = {}
         self.info = {}
         self.params = {}
@@ -4669,7 +4672,7 @@ class filt(object):
             out += '\n'
         return(out)
 
-    def add(self, name, filt, info='', params=()):
+    def add(self, name, filt, info='', params=(), setn=None):
         """
         Add filter.
 
@@ -4692,6 +4695,15 @@ class filt(object):
         iname = '{:.0f}_'.format(self.n) + name
         self.index[self.n] = iname
 
+        if setn is None:
+            setn = self.maxset + 1
+        self.maxset = setn
+        
+        if setn not in self.sets.keys():
+            self.sets[setn] = [iname]
+        else:
+            self.sets[setn].append(iname)
+
         self.components[iname] = filt
         self.info[iname] = info
         self.params[iname] = params
@@ -4700,7 +4712,7 @@ class filt(object):
         self.n += 1
         return
 
-    def remove(self, name):
+    def remove(self, name=None, setn=None):
         """
         Remove filter.
 
@@ -4708,6 +4720,9 @@ class filt(object):
         ----------
         name : str
             name of the filter to remove
+        setn : int or True
+            int: number of set to remove
+            True: remove all filters in set that 'name' belongs to
 
         Returns
         -------
@@ -4716,13 +4731,29 @@ class filt(object):
         if isinstance(name, int):
             name = self.index[name]
 
-        del self.components[name]
-        del self.info[name]
-        del self.params[name]
-        del self.keys[name]
-        for a in self.analytes:
-            del self.switches[a][name]
-        return
+        if setn is not None:
+            name = self.sets[setn]
+            del self.sets[setn]
+        elif isinstance(name, (int, str)):
+            name = [name]
+
+        if setn is True:
+            for n in name:
+                for k,v in self.sets.items():
+                    if n in v:
+                        name.append([m for m in v if m != n])
+
+        for n in name:
+            for k,v in self.sets.items():
+                if n in v:
+                    self.sets[k] = [m for m in v if n != m]
+            del self.components[n]
+            del self.info[n]
+            del self.params[n]
+            del self.keys[n]
+            for a in self.analytes:
+                del self.switches[a][n]
+            return
 
     def clear(self):
         """
@@ -4734,6 +4765,8 @@ class filt(object):
         self.switches = {}
         self.keys = {}
         self.index = {}
+        self.sets = {}
+        self.maxset = -1
         self.n = 0
         for a in self.analytes:
             self.switches[a] = {}
@@ -4757,8 +4790,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional, str or array_like
-            Name or list of names of filters.
+        filt : optional. int, str or array_like
+            Name/number or iterable names/numbers of filters.
 
         Returns
         -------
@@ -4792,8 +4825,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional, str or array_like
-            Name or list of names of filters.
+        filt : optional. int, str or array_like
+            Name/number or iterable names/numbers of filters.
 
         Returns
         -------
