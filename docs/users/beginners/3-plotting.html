@@ -164,13 +164,13 @@
 <p class="first admonition-title">Danger</p>
 <p class="last">Because <code class="docutils literal"><span class="pre">latools</span></code> offers the possibility of high-throughput analyses, it will be tempting to use it as an analytical &#8216;black box&#8217;. <strong>DO NOT DO THIS</strong>. It is <em>vital</em> to keep track of your data, and make sure you understand the processing being applied to it. The best way of doing this is by <em>looking</em> at your data.</p>
 </div>
-<p>The main way to do this in <code class="docutils literal"><span class="pre">latools</span></code> is to <strong>Plot</strong> all your data, or subsets of samples and analytes, at any stage of analysis using <a class="reference internal" href="../../docs/index.html#latools.analyse.trace_plots" title="latools.analyse.trace_plots"><code class="xref py py-meth docutils literal"><span class="pre">trace_plots()</span></code></a>. The resulting plots are saved as pdfs in the <code class="docutils literal"><span class="pre">reports_data</span></code> folder created during import, in a subdirectory labelled as the analysis stage. For example, making plots now will create 5 plots in a subdirectory called <code class="docutils literal"><span class="pre">rawdata</span></code>:</p>
+<p>The main way to do this in <code class="docutils literal"><span class="pre">latools</span></code> is to <strong>Plot</strong> all your data, or subsets of samples and analytes, at any stage of analysis using <code class="xref py py-meth docutils literal"><span class="pre">trace_plots()</span></code>. The resulting plots are saved as pdfs in the <code class="docutils literal"><span class="pre">reports_data</span></code> folder created during import, in a subdirectory labelled as the analysis stage. For example, making plots now will create 5 plots in a subdirectory called <code class="docutils literal"><span class="pre">rawdata</span></code>:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">trace_plots</span><span class="p">()</span>
 </pre></div>
 </div>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p class="last">Plot appearance can be modified by specifying a range of parameters in this function. This will be used to some extent later in this tutorial, but see <a class="reference internal" href="../../docs/index.html#latools.analyse.trace_plots" title="latools.analyse.trace_plots"><code class="xref py py-meth docutils literal"><span class="pre">trace_plots()</span></code></a> documentation for more details.</p>
+<p class="last">Plot appearance can be modified by specifying a range of parameters in this function. This will be used to some extent later in this tutorial, but see <code class="xref py py-meth docutils literal"><span class="pre">trace_plots()</span></code> documentation for more details.</p>
 </div>
 <p>By default all analytes from the most recent stage of analysis are plotted on a log scale, and the plot should look something like this:</p>
 <img alt="../../_images/rawdata_Sample-3.png" src="../../_images/rawdata_Sample-3.png" />

@@ -4,49 +4,50 @@
 Latools Documentation
 #####################
 
-Classes
-=======
+.. currentmodule:: latools
 
-* :class:`latools.D` contains the data from a single analysis file, and all the processing fucntions that can be applied to it.
-* :class:`latools.analyse` combines numerous 'D' data objects into a single analysis session.
-* :class:`latools.filt` is for storing, choosing and applying data selection filters.
+.. autosummary::
+   analyse
+   D
+   filt
+
+:class:`latools.analyse`
+==================
+.. autoclass:: analyse
+   :members:
 
 :class:`latools.D`
 ==================
-
-.. autoclass:: latools.D
+.. autoclass:: D
    :members:
-   :undoc-members:
-   :show-inheritance:
-   :exclude-members: plotting, colormaps
-
-:class:`latools.analyse`
-========================
-
-.. autoclass:: latools.analyse
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :exclude-members: plotting, colormaps
 
 :class:`latools.filt`
-=====================
-
-.. autoclass:: latools.filt
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :exclude-members: plotting, colormaps
+==================
+.. autoclass:: filt
+   :members:   
 
 Other Functions
 ===============
 
-.. autofunction:: latools.collate_data
-.. autofunction:: latools.unitpicker
-.. autofunction:: latools.pretty_element
-.. autofunction:: latools.bool_2_indices
-.. autofunction:: latools.tuples_2_bool
-.. autofunction:: latools.config_locator
-.. autofunction:: latools.add_config
-.. autofunction:: latools.intial_configuration
-.. autofunction:: latools.get_example_data
+.. autofunction:: R2calc
+.. autofunction:: add_config
+.. autofunction:: bool_2_indices
+.. autofunction:: collate_data
+.. autofunction:: config_locator
+.. autofunction:: enumerate_bool
+.. autofunction:: fastgrad
+.. autofunction:: fastsmooth
+.. autofunction:: gauss
+.. autofunction:: get_example_data
+.. autofunction:: intial_configuration
+.. autofunction:: nominal_values
+.. autofunction:: pretty_element
+.. autofunction:: rangecalc
+.. autofunction:: reproduce
+.. autofunction:: rolling_window
+.. autofunction:: std_devs
+.. autofunction:: stderr
+.. autofunction:: tuples_2_bool
+.. autofunction:: unitpicker
+.. autofunction:: unpack_uncertainties
+.. autofunction:: weighted_average

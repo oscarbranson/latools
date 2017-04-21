@@ -43,6 +43,8 @@ extensions = [
 intersphinx_mapping = {'pandas': ('http://pandas.pydata.org/pandas-docs/stable', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy/', None)}
 
+autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance', 'inherited-members']
+autosummary_generate = True
 numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.

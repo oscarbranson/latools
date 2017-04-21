@@ -65,6 +65,17 @@ class analyse(object):
         A string used to separate samples and standards. srm_identifier
         must be present in all standard measurements. Defaults to
         'STD'.
+    cmap : dict
+        A dictionary of {analyte: colour} pairs. Colour can be any valid
+        matplotlib colour string, RGB or RGBA sequence, or hex string.
+    time_format : str
+        A regex string identifying the time format, used by pandas when
+        created a universal time scale. If unspecified (None), pandas
+        attempts to infer the time format, but in some cases this might
+        not work.
+    internal_standard : str
+        The name of the analyte used as an internal standard throughout
+        analysis.
 
     Attributes
     ----------
@@ -100,32 +111,40 @@ class analyse(object):
 
     Methods
     -------
+    ablation_times
     autorange
-    bkgcorrect
+    bkg_calc_interp1d
+    bkg_calc_weightedmean
+    bkg_plot
+    bkg_subtract
     calibrate
     calibration_plot
     crossplot
     despike
+    export_traces
     filter_clear
     filter_clustering
     filter_correlation
     filter_distribution
     filter_off
     filter_on
+    filter_reports
+    filter_status
     filter_threshold
     find_expcoef
+    get_background
     get_focus
+    get_starttimes
     getstats
-    load_calibration
-    load_params
-    load_ranges
+    make_subset
+    minimal_export
     ratio
-    save_params
-    save_ranges
-    srm_id
-    stat_boostrap
     sample_stats
+    set_focus
+    srm_id_auto
+    statplot
     trace_plots
+    zeroscreen
     """
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
@@ -1284,6 +1303,7 @@ class analyse(object):
         """
         Applies a distribution filter to the data.
 
+
         Parameters
         ----------
         analyte : str
@@ -2169,7 +2189,7 @@ class analyse(object):
             # plt.close(fig)
         return
 
-    def stat_boostrap(self, analytes=None, filt=True,
+    def _stat_boostrap(self, analytes=None, filt=True,
                       stat_fn=np.nanmean, ci=95):
         """
         Calculate sample statistics with bootstrapped confidence intervals.
@@ -2428,126 +2448,6 @@ class analyse(object):
         self.stats_df = out
 
         return out
-
-    # parameter input/output
-    def save_params(self, output_file=None, update=True):
-        """
-        Save analysis parameters.
-
-        TODO:
-            - must export configuration file and SRM file with parameters.
-            - implement 'subset' export.
-
-        Parameters
-        ----------
-        output_file : str
-            Where to save the output file. Defaults to
-            './params/YYMMDD - HHMM.param'.
-        update : bool
-            Whether or not to update the parameter file
-            before saving.
-
-        Returns
-        -------
-        None
-        """
-        # get all parameters from all samples as a dict
-        if (not hasattr(self, 'params')) | (update):
-            dparams = {}
-            plist = []
-            for d in self.data:
-                dparams[d.sample] = d.get_params()
-                plist.append(list(dparams[d.sample].keys()))
-            # get all parameter keys
-            plist = np.unique(plist)
-            plist = plist[plist != 'sample']
-
-            # convert dict into array
-            params = []
-            for s in self.samples:
-                row = []
-                for p in plist:
-                    row.append(dparams[s][p])
-                params.append(row)
-            params = np.array(params)
-
-            # calculate parameter 'sets'
-            sets = np.zeros(params.shape)
-            for c in np.arange(plist.size):
-                col = params[:, c]
-                i = 0
-                for r in np.arange(1, col.size):
-                    if isinstance(col[r], (str, float, dict, int)):
-                        if col[r] != col[r - 1]:
-                            i += 1
-                    else:
-                        if any(col[r] != col[r - 1]):
-                            i += 1
-
-                    sets[r, c] = i
-
-            ssets = np.apply_along_axis(sum, 1, sets)
-            nsets = np.unique(ssets, return_counts=True)
-            setorder = np.argsort(nsets[1])[::-1]
-
-            out = {}
-            out['exceptions'] = {}
-            first = True
-            for so in setorder:
-                setn = nsets[0][so]
-                setn_samples = self.samples[ssets == setn]
-                if first:
-                    out['general'] = dparams[setn_samples[0]]
-                    del out['general']['sample']
-                    general_key = \
-                        sets[self.samples == setn_samples[0], :][0, :]
-                    first = False
-                else:
-                    setn_key = \
-                        sets[self.samples == setn_samples[0], :][0, :]
-                    exception_param = plist[general_key != setn_key]
-                    for s in setn_samples:
-                        out['exceptions'][s] = {}
-                        for ep in exception_param:
-                            out['exceptions'][s][ep] = dparams[s][ep]
-
-            out['calib'] = {}
-            out['calib']['calib_dict'] = self.calib_dict
-            out['calib']['srm_rng'] = self.srm_rng
-            out['calib']['calibration_params'] = self.calibration_params
-
-            self.params = out
-
-        if output_file is None:
-            outputfile = './params/' + time.strftime('%y%m%d - %H%M') + '.dict'
-        f = open(output_file, 'w')
-        pprint.pprint(self.params, stream=f)
-        f.close()
-
-        return
-
-    def load_params(self, params):
-        """
-        Load analysis parameters.
-
-        Parameters
-        ----------
-        params : str or dict
-            str: path to latools .param file.
-            dict: param dict in .param format
-                  (refer to manual)
-
-        Returns
-        -------
-        None
-        """
-        if isinstance(params, str):
-            s = open(params, 'r').read()
-            # make it numpy - friendly for eval
-            s = re.sub('array', 'np.array', s)
-            params = eval(s)
-        self.params = params
-        return
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
@@ -2866,38 +2766,31 @@ class D(object):
 
     Methods
     -------
+    ablation_times
     autorange
-    bkg_correct
-    bkgrange
+    bkg_subtract
     calibrate
     cluster_DBSCAN
     cluster_kmeans
     cluster_meanshift
     crossplot
     despike
+    drift_params
     expdecay_despiker
-    fastgrad
     filt_report
     filter_clustering
     filter_correlation
     filter_distribution
     filter_threshold
-    findlower
     findmins
-    findupper
-    gauss
-    gauss_inv
     get_params
-    makerangebools
     mkrngs
-    ratio
-    rolling_window
-    sample_stats
-    separate
-    setfocus
-    sigrange
     noise_despiker
+    ratio
+    sample_stats
+    setfocus
     tplot
+
     """
     def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43'):
         if errorhunt:
@@ -3671,6 +3564,8 @@ class D(object):
     def filter_distribution(self, analytes, binwidth='scott', filt=False,
                             transform=None, min_data=10):
         """
+        Apply a Distribution Filter
+
         Parameters
         ----------
         analytes : str or list
@@ -4675,17 +4570,17 @@ class filt(object):
     Methods
     -------
     add
-    remove
-    clear
     clean
-    on
-    off
+    clear
+    get_components
+    get_info
+    grab_filt
     make
     make_fromkey
     make_keydict
-    grab_filt
-    get_components
-    get_info
+    off
+    on
+    remove
     """
     def __init__(self, size, analytes):
         self.size = size
@@ -5615,4 +5510,4 @@ def weighted_average(x, y, x_new, fwhm=300):
             'stderr': bin_se}
 
 def stderr(a):
-    return np.std(a) / np.sqrt(len(a))
+    return np.nanstd(a) / np.sqrt(len(a))
