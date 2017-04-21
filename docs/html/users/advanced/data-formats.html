@@ -1,0 +1,299 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Data Import &mdash; latools 0.2.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../genindex.html"/>
+        <link rel="search" title="Search" href="../../search.html"/>
+    <link rel="top" title="latools 0.2.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Advanced Topics" href="index.html"/>
+        <link rel="next" title="The .cfg file" href="cfg-file.html"/>
+        <link rel="prev" title="Plotting and Data Exploration" href="advanced-plotting.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installing.html">Installing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner&#8217;s Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Topics</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="structure.html">Package Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="advanced-filtering.html">Filtering &amp; Data Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="advanced-plotting.html">Plotting and Data Exploration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Data Import</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#file-names">File Names</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data-format">Data Format</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="cfg-file.html">The .cfg file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="autorange-fn.html">The <code class="docutils literal"><span class="pre">autorange()</span></code> Function</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">latools</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+ 
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">User Guide</a> &raquo;</li>
+      
+          <li><a href="index.html">Advanced Topics</a> &raquo;</li>
+      
+    <li>Data Import</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/users/advanced/data-formats.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="data-import">
+<span id="advanced-data-formats"></span><h1>Data Import<a class="headerlink" href="#data-import" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="file-names">
+<h2>File Names<a class="headerlink" href="#file-names" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">latools</span></code> makes some assumptions about how your data are named and organised, based on the &#8216;best practice&#8217; analytical procedure used at UC Davis.
+If your data do not conform to these standards, the data may not behave as expected.</p>
+<div class="section" id="samples">
+<h3>Samples<a class="headerlink" href="#samples" title="Permalink to this headline">¶</a></h3>
+<p>Each data file should contain a measurement of a single sample.
+Data files can contain multiple ablations of the same sample.
+The file names are used as data labels throughout analysis, so should be unique and meaningful.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If you have measured multiple samples in a single data file, all processing steps except data filtering should behave as expected. Some of the more advanced data filtering functions (e.g. clustering algorithms) require that all the data in a single file is from the same sample.</p>
+</div>
+</div>
+<div class="section" id="standards">
+<h3>Standards<a class="headerlink" href="#standards" title="Permalink to this headline">¶</a></h3>
+<p>Standard measurements should be stored in their own data file.
+All standards measured during analysis should have a string of characters in their file name, which is used to identify them as non-samples.
+The string used to identify standards may be specified using the <code class="docutils literal"><span class="pre">srm_identifier</span></code> parameter of <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> (default is &#8216;STD&#8217;).
+Each standard data file may contain measurements of multiple reference materials.</p>
+<div class="admonition tip">
+<p class="first admonition-title">Tip</p>
+<p class="last">Before calibration, you will need to identify all the standards you have measured. This is simpler if you always analyse your standards in the same order.</p>
+</div>
+</div>
+</div>
+<div class="section" id="data-format">
+<h2>Data Format<a class="headerlink" href="#data-format" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">latools</span></code> uses the <code class="xref py py-func docutils literal"><span class="pre">numpy.genfromtext()</span></code> function to read and parse raw data files.
+This allows the import of any raw text format, given a few basic parameters that describe the data format.</p>
+<p>These parameters must be provided as a dict, which contains three items:</p>
+<ul class="simple">
+<li>genfromtext_args: contains a dict of arguments (parameter: value) passed directly to <code class="xref py py-func docutils literal"><span class="pre">numpy.genfromtext()</span></code>. Typical parameters might be <code class="docutils literal"><span class="pre">delimeter</span></code>, <code class="docutils literal"><span class="pre">skip_header</span></code>, <code class="docutils literal"><span class="pre">skip_footer</span></code> and <code class="docutils literal"><span class="pre">comment</span></code>. Refer to <code class="xref py py-func docutils literal"><span class="pre">numpy.genfromtext()</span></code> documentation for a full list of possible parameters.</li>
+<li>column_id: contains information about which line the data column names are on, and which column contains the &#8216;time&#8217; variable.</li>
+<li>regex (<em>optional</em>): a dict with line numbers as keys, containing sets of parameter names and grouped regular expressions for each line, which allows metadata to be extracted from the header during import. If this is missing from the <cite>dataformat</cite> dict, the header will simply be ignored.</li>
+</ul>
+<p>Each time a <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> instance is created, the data format dict is loaded from a text file that contains the dataformat dict.</p>
+<div class="section" id="metadata-and-regex">
+<h3>Metadata and Regex<a class="headerlink" href="#metadata-and-regex" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>Data produced by the UC Davis Agilent 8800 looks like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Path</span>\<span class="n">To</span>\<span class="n">Data</span><span class="o">.</span><span class="n">D</span>
+<span class="n">Intensity</span> <span class="n">Vs</span> <span class="n">Time</span><span class="p">,</span><span class="n">CPS</span>
+<span class="n">Acquired</span>      <span class="p">:</span> <span class="n">Oct</span> <span class="mi">29</span> <span class="mi">2015</span>  <span class="mi">03</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">05</span> <span class="n">pm</span> <span class="n">using</span> <span class="n">AcqMethod</span> <span class="n">OB102915</span><span class="o">.</span><span class="n">m</span>
+<span class="n">Time</span> <span class="p">[</span><span class="n">Sec</span><span class="p">],</span><span class="n">Mg24</span><span class="p">,</span><span class="n">Mg25</span><span class="p">,</span><span class="n">Al27</span><span class="p">,</span><span class="n">Ca43</span><span class="p">,</span><span class="n">Ca44</span><span class="p">,</span><span class="n">Mn55</span><span class="p">,</span><span class="n">Sr88</span><span class="p">,</span><span class="n">Ba137</span><span class="p">,</span><span class="n">Ba138</span>
+<span class="mf">0.367</span><span class="p">,</span><span class="mf">666.68</span><span class="p">,</span><span class="mf">25.00</span><span class="p">,</span><span class="mf">3100.27</span><span class="p">,</span><span class="mf">300.00</span><span class="p">,</span><span class="mf">14205.75</span><span class="p">,</span><span class="mf">7901.80</span><span class="p">,</span><span class="mf">166.67</span><span class="p">,</span><span class="mf">37.50</span><span class="p">,</span><span class="mf">25.00</span>
+<span class="p">[</span><span class="n">etcetera</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>To read this, <code class="docutils literal"><span class="pre">latools</span></code> requires the following parameters:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;genfromtext_args&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;delimiter&#39;</span><span class="p">:</span> <span class="s1">&#39;,&#39;</span><span class="p">,</span>  <span class="c1"># specifies that data are separated by</span>
+                    <span class="s1">&#39;skip_header&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+<span class="s1">&#39;column_id&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;name_row&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+             <span class="s1">&#39;timekey&#39;</span><span class="p">:</span> <span class="s1">&#39;time&#39;</span><span class="p">},</span>
+<span class="s1">&#39;regex&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;path&#39;</span><span class="p">),</span> <span class="s1">&#39;(.*)&#39;</span><span class="p">],</span>
+         <span class="s1">&#39;1&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+         <span class="s1">&#39;2&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;date&#39;</span><span class="p">,</span> <span class="s1">&#39;method&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;.*([A-Z][a-z]+ [0-9]+ [0-9]</span><span class="si">{4}</span><span class="s1">[ ]+[0-9:]+) .*AcqMethod (.*)&#39;</span><span class="p">]}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="cfg-file.html" class="btn btn-neutral float-right" title="The .cfg file" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="advanced-plotting.html" class="btn btn-neutral" title="Plotting and Data Exploration" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'0.2.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
