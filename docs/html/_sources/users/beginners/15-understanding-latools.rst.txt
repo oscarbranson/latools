@@ -1,7 +1,0 @@
-.. _understanding_latools:
-
-#########################
-Understanding ``latools``
-#########################
-
-Why doesn't this appear?
