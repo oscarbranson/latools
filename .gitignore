@@ -25,3 +25,8 @@ test_data
 latools/__pycache__
 latools2.sublime-workspace
 latools2.sublime-project
+latools_demo
+latools/widgets
+__pycache__
+latools/controller
+demo_helpers.py
