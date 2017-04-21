@@ -1,228 +1,228 @@
-,Item,Value,Uncertainty,Uncertainty Type,Unit,Source,SRM
-0,CO2,2.24e-05,,,mol/molCa,GeoRem,NIST610
-1,H2O,0.003549649,,,mol/molCa,GeoRem,NIST610
-2,Na2O,1.063515129,0.015124855,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-3,Al2O3,0.09407676300000001,0.001269655,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-4,SiO2,5.7063024989999995,0.054078136,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-5,CaO,1.0,1.39e-18,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-6,H,0.007320480999999999,,,mol/molCa,GeoRem,NIST610
-7,Li,0.033167049,0.000898826,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-8,Be,0.025981248999999998,0.000876187,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-9,B,0.015925211,0.001281653,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-10,F,0.007871174,,,mol/molCa,GeoRem,NIST610
-11,Mg,0.00937,0.00014,approx SD (0.5 * 95% CI),mol/molCa,Internal Lab Reference,NIST610
-12,P,0.006559023000000001,0.000369776,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-13,S,0.008821035999999999,0.000257362,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-14,Cl,0.0038017240000000002,0.000466004,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-15,K,0.005837718,0.000141681,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-16,Sc,0.004978604,7e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-17,Ti,0.004644995,6.56e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-18,V,0.00434534,5.7799999999999995e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-19,Cr,0.003859868,5.8200000000000005e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-20,Mn,0.003975509,6.78e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-21,Fe,0.004034263,5.31e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-22,Co,0.003422212,5.14e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-23,Ni,0.003844346,3.77e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-24,Cu,0.0034137629999999998,6.53e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-25,Zn,0.00345942,7.42e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-26,Ga,0.003054885,5.31e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-27,Ge,0.0030270159999999996,0.000265434,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-28,As,0.002133828,6.2e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-29,Se,0.0008597160000000001,0.000131044,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-30,Br,0.000572529,,,mol/molCa,GeoRem,NIST610
-31,Rb,0.002450102,2.17e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-32,Sr,0.002894066,2.55e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-33,Y,0.002556199,3.78e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-34,Zr,0.00241575,3.2200000000000003e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-35,Nb,0.0024620139999999998,9.259999999999999e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-36,Mo,0.002138057,5.6999999999999996e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-37,Rh,6.17e-06,1.7600000000000001e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-38,Pd,5.59e-06,1.02e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-39,Ag,0.001144625,2.2800000000000002e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-40,Cd,0.001181512,3.65e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-41,In,0.001859357,4.3799999999999994e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-42,Sn,0.001781821,6.21e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-43,Sb,0.0015998289999999999,4.09e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-44,Te,0.0011642310000000002,,,mol/molCa,GeoRem,NIST610
-45,Cs,0.0013546320000000001,2.05e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-46,Ba,0.00161907,2.15e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-47,La,0.001558175,2.24e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-48,Ce,0.0015903529999999999,1.98e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-49,Pr,0.0015639629999999998,1.84e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-50,Nd,0.001466445,1.87e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-51,Sm,0.001482002,2.22e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-52,Eu,0.0014469379999999998,2.3199999999999998e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-53,Gd,0.001404555,2.25e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-54,Tb,0.0013526060000000001,1.83e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-55,Dy,0.001322851,2.0300000000000002e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-56,Ho,0.001339149,2.14e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-57,Er,0.00133815,2.37e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-58,Tm,0.001266644,1.83e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-59,Yb,0.001279231,1.7e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-60,Lu,0.001234217,1.56e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-61,Hf,0.001198832,1.9600000000000002e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-62,Ta,0.001212451,4.61e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-63,W,0.001188026,4.02e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-64,Re,0.000131822,5.02e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-65,Pt,7.87e-06,1.2199999999999998e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-66,Au,5.8899999999999995e-05,2.18e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-67,Tl,0.000143444,3.6e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-68,Pb,0.001011353,8.95e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-69,Bi,0.0009038760000000001,3.16e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-70,Th,0.000969237,8.57e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-71,U,0.000953729,8.43e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
-72,H2O,0.005493121,,,mol/molCa,GeoRem,NIST612
-73,Na2O,1.041639237,0.012215753000000001,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-74,Al2O3,0.093821351,0.001004898,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-75,SiO2,5.654772887000001,0.033438364,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-76,CaO,1.0,6.940000000000001e-19,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-77,Li,0.00272926,4.5600000000000004e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-78,Be,0.00196084,4.01e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-79,B,0.001495096,3.76e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-80,F,0.00198433,0.001103815,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-81,Mg,0.001318421,4.98e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-82,P,0.0007089780000000001,5.2600000000000005e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-83,S,0.005540526,0.000514899,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-84,Cl,0.001887454,0.000385547,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-85,K,0.000750881,1.4800000000000002e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-86,Sc,0.00041824099999999997,1.32e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-87,Ti,0.000433169,1.15e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-88,V,0.00035892300000000003,5.75e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-89,Cr,0.000329892,6.94e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-90,Mn,0.000331955,4.1e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-91,Fe,0.000430355,8.63e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-92,Co,0.000283863,4.17e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-93,Ni,0.000311518,1.54e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-94,Cu,0.00028031400000000004,5.69e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-95,Zn,0.000281696,6.24e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-96,Ga,0.000249397,5.18e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-97,Ge,0.000234192,1.24e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-98,As,0.00022454400000000002,1.73e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-99,Se,9.73e-05,5.68e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-100,Rb,0.00017312799999999999,1.32e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-101,Sr,0.00042165199999999995,1.85e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-102,Y,0.000203006,3.81e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-103,Zr,0.000195781,3.21e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-104,Nb,0.000197308,5.39e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-105,Mo,0.000183702,3.76e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-106,Rh,4.17e-06,4.9e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-107,Pd,4.65e-06,2.22e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-108,Ag,9.609999999999999e-05,7.7e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-109,Cd,0.000117798,2.36e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-110,In,0.00015965399999999999,4.36e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-111,Sn,0.000153229,2.66e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-112,Sb,0.00013429700000000002,3.53e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-113,Cs,0.0001514,3.25e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-114,Ba,0.000134858,1.64e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-115,La,0.00012213,1.29e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-116,Ce,0.000129147,1.3e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-117,Pr,0.000126749,1.75e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-118,Nd,0.00011598,1.24e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-119,Sm,0.000118154,1.35e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-120,Eu,0.000110395,1.32e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-121,Gd,0.000111779,1.43e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-122,Tb,0.00011149,1.7e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-123,Dy,0.00010294799999999999,1.1e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-124,Ho,0.000109431,1.23e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-125,Er,0.00010706200000000001,1.35e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-126,Tm,0.000102653,9.41e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-127,Yb,0.000106753,1.3e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-128,Lu,9.97e-05,1.28e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-129,Hf,9.690000000000001e-05,1.64e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-130,Ta,9.790000000000001e-05,2.51e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-131,W,9.740000000000001e-05,1.47e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-132,Re,1.6800000000000002e-05,7.75e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-133,Ir,1.1000000000000001e-08,,,mol/molCa,GeoRem,NIST612
-134,Pt,6.06e-06,1.23e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-135,Au,1.1400000000000001e-05,3.74e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-136,Tl,3.4399999999999996e-05,5.939999999999999e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-137,Pb,8.77e-05,4.3299999999999997e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-138,Bi,6.809999999999999e-05,2.61e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-139,Th,7.670000000000001e-05,3.33e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-140,U,7.4e-05,3.2100000000000003e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
-141,CO2,4.28e-05,,,mol/molCa,GeoRem,NIST614
-142,H2O,0.0049699670000000005,,,mol/molCa,GeoRem,NIST614
-143,Na2O,1.041639237,0.014376696999999999,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-144,Al2O3,0.09428352599999999,0.001400988,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-145,SiO2,5.654772887000001,0.059191914000000005,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-146,CaO,1.0,1.39e-18,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-147,Li,0.000114738,3.2e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-148,Be,3.9399999999999995e-05,1.37e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-149,B,6.49e-05,4.18e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-150,F,0.000153786,,,mol/molCa,GeoRem,NIST614
-151,Mg,0.000655333,1.92e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-152,P,0.00017344099999999998,2.97e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-153,S,0.00427664,0.00048630900000000004,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-154,Cl,0.0013557760000000002,0.000558377,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-155,K,0.00036158,6.75e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-157,Sc,7.76e-06,,,mol/molCa,GeoRem,NIST614
-158,Ti,3.5499999999999996e-05,1.27e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-159,V,9.34e-06,2.01e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-160,Cr,1.0800000000000002e-05,5.51e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-161,Mn,1.22e-05,3.17e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-162,Fe,0.000158641,2.54e-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-163,Co,6.32e-06,3.64e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-164,Ni,8.83e-06,4.0799999999999995e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-165,Cu,1.0199999999999999e-05,2.73e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-166,Zn,2.01e-05,1.38e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-167,Ga,8.85e-06,3.13e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-168,Ge,6.11e-06,3.16e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-169,As,4.65e-06,7.240000000000001e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-170,Se,2.39e-06,2.4e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-171,Rb,4.71e-06,4.1900000000000005e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-172,Sr,0.000246322,2.09e-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-173,Y,4.19e-06,9.18e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-174,Zr,4.38e-06,8.109999999999999e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-175,Nb,4.18e-06,8.380000000000001e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-176,Mo,3.93e-06,8.07e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-177,Rh,7.05e-06,4.16e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-178,Pd,9.08e-06,2.3399999999999998e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-179,Ag,1.83e-06,8.87e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-180,Cd,2.35e-06,1.0699999999999999e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-181,In,3.24e-06,1.06e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-182,Sn,6.67e-06,3.03e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-183,Sb,3.06e-06,1.26e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-184,Cs,2.35e-06,6.34e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-185,Ba,1.1e-05,1.8e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-186,La,2.44e-06,3.01e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-187,Ce,2.73e-06,4.79e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-188,Pr,2.57e-06,3.31e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-189,Nd,2.46e-06,3.08e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-190,Sm,2.36e-06,2.84e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-191,Eu,2.39e-06,3.19e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-192,Gd,2.29e-06,3.69e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-193,Tb,2.19e-06,3.49e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-194,Dy,2.16e-06,3.67e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-195,Ho,2.14e-06,2.8e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-196,Er,2.08e-06,2.97e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-197,Tm,2.04e-06,3.27e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-198,Yb,2.12e-06,3.3700000000000004e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-199,Lu,1.97e-06,2.94e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-200,Hf,1.88e-06,3.3e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-201,Ta,2.1e-06,3.82e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-202,W,2.07e-06,9.26e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-203,Re,4.3e-07,1.07e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-204,Ir,4.9e-09,,,mol/molCa,GeoRem,NIST614
-205,Pt,5.7e-06,1.53e-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-206,Au,1.15e-06,8.43e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-207,Tl,6.29e-07,2.37e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-208,Pb,5.28e-06,6.349999999999999e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-209,Bi,1.31e-06,4.9699999999999995e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-210,Th,1.52e-06,1.4099999999999999e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-211,U,1.63e-06,1.38e-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
-212,Sr,0.00884,4.2e-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-213,Mg,0.0042,6.500000000000001e-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-214,U,1.19e-06,4.5e-08,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-215,Ba,7.47e-06,6.55e-07,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-216,B,0.00045999999999999996,2.27e-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-217,Li,6.19e-06,1.0699999999999999e-07,SD,mol/molCa,"Hathorne et al, 2013",JCP1
-218,Al,7.49e-05,8.37e-06,SD,mol/molCa,UCD In House (approx),JCP1
-219,Ca,1.0,0.0,SD,mol/molCa,Placeholder,JCP1
-220,Sr,0.00168,2.6000000000000002e-05,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-221,Mg,0.0012900000000000001,4.5e-05,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-222,U,2.27e-08,2.4e-09,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-223,Ba,4.35e-06,2.8e-07,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-224,B,0.00019099999999999998,9.3e-06,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-225,Li,4.08e-06,5.03e-07,SD,mol/molCa,"Hathorne et al, 2013",JCT1
-226,Al,4.61e-05,7.45e-06,SD,mol/molCa,UCD In House (approx),JCT1
-227,Ca,1.0,0.0,SD,mol/molCa,Placeholder,JCT1
+Item,Value,Uncertainty,Uncertainty Type,Unit,Source,SRM
+CO2,2.24E-05,,,mol/molCa,GeoRem,NIST610
+H2O,0.003549649,,,mol/molCa,GeoRem,NIST610
+Na2O,1.063515129,0.015124855,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Al2O3,0.094076763,0.001269655,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+SiO2,5.706302499,0.054078136,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+CaO,1,1.39E-18,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+H,0.007320481,,,mol/molCa,GeoRem,NIST610
+Li,0.033167049,0.000898826,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Be,0.025981249,0.000876187,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+B,0.015925211,0.001281653,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+F,0.007871174,,,mol/molCa,GeoRem,NIST610
+Mg,0.00937,0.00014,approx SD (0.5 * 95% CI),mol/molCa,Internal Lab Reference,NIST610
+P,0.006559023,0.000369776,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+S,0.008821036,0.000257362,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Cl,0.003801724,0.000466004,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+K,0.005837718,0.000141681,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Sc,0.004978604,7.00E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ti,0.004644995,6.56E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+V,0.00434534,5.78E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Cr,0.003859868,5.82E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Mn,0.003975509,6.78E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Fe,0.004034263,5.31E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Co,0.003422212,5.14E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ni,0.003844346,3.77E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Cu,0.003413763,6.53E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Zn,0.00345942,7.42E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ga,0.003054885,5.31E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ge,0.003027016,0.000265434,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+As,0.002133828,6.20E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Se,0.000859716,0.000131044,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Br,0.000572529,,,mol/molCa,GeoRem,NIST610
+Rb,0.002450102,2.17E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Sr,0.002894066,2.55E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Y,0.002556199,3.78E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Zr,0.00241575,3.22E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Nb,0.002462014,9.26E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Mo,0.002138057,5.70E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Rh,6.17E-06,1.76E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Pd,5.59E-06,1.02E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ag,0.001144625,2.28E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Cd,0.001181512,3.65E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+In,0.001859357,4.38E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Sn,0.001781821,6.21E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Sb,0.001599829,4.09E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Te,0.001164231,,,mol/molCa,GeoRem,NIST610
+Cs,0.001354632,2.05E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ba,0.00161907,2.15E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+La,0.001558175,2.24E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ce,0.001590353,1.98E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Pr,0.001563963,1.84E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Nd,0.001466445,1.87E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Sm,0.001482002,2.22E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Eu,0.001446938,2.32E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Gd,0.001404555,2.25E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Tb,0.001352606,1.83E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Dy,0.001322851,2.03E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ho,0.001339149,2.14E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Er,0.00133815,2.37E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Tm,0.001266644,1.83E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Yb,0.001279231,1.70E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Lu,0.001234217,1.56E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Hf,0.001198832,1.96E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Ta,0.001212451,4.61E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+W,0.001188026,4.02E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Re,0.000131822,5.02E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Pt,7.87E-06,1.22E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Au,5.89E-05,2.18E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Tl,0.000143444,3.60E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Pb,0.001011353,8.95E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Bi,0.000903876,3.16E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+Th,0.000969237,8.57E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+U,0.000953729,8.43E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST610
+H2O,0.005493121,,,mol/molCa,GeoRem,NIST612
+Na2O,1.041639237,0.012215753,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Al2O3,0.093821351,0.001004898,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+SiO2,5.654772887,0.033438364,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+CaO,1,6.94E-19,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Li,0.00272926,4.56E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Be,0.00196084,4.01E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+B,0.001495096,3.76E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+F,0.00198433,0.001103815,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Mg,0.001318421,4.98E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+P,0.000708978,5.26E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+S,0.005540526,0.000514899,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Cl,0.001887454,0.000385547,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+K,0.000750881,1.48E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Sc,0.000418241,1.32E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ti,0.000433169,1.15E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+V,0.000358923,5.75E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Cr,0.000329892,6.94E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Mn,0.000331955,4.10E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Fe,0.000430355,8.63E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Co,0.000283863,4.17E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ni,0.000311518,1.54E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Cu,0.000280314,5.69E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Zn,0.000281696,6.24E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ga,0.000249397,5.18E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ge,0.000234192,1.24E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+As,0.000224544,1.73E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Se,9.73E-05,5.68E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Rb,0.000173128,1.32E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Sr,0.000421652,1.85E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Y,0.000203006,3.81E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Zr,0.000195781,3.21E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Nb,0.000197308,5.39E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Mo,0.000183702,3.76E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Rh,4.17E-06,4.90E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Pd,4.65E-06,2.22E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ag,9.61E-05,7.70E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Cd,0.000117798,2.36E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+In,0.000159654,4.36E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Sn,0.000153229,2.66E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Sb,0.000134297,3.53E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Cs,0.0001514,3.25E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ba,0.000134858,1.64E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+La,0.00012213,1.29E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ce,0.000129147,1.30E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Pr,0.000126749,1.75E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Nd,0.00011598,1.24E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Sm,0.000118154,1.35E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Eu,0.000110395,1.32E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Gd,0.000111779,1.43E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Tb,0.00011149,1.70E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Dy,0.000102948,1.10E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ho,0.000109431,1.23E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Er,0.000107062,1.35E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Tm,0.000102653,9.41E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Yb,0.000106753,1.30E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Lu,9.97E-05,1.28E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Hf,9.69E-05,1.64E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ta,9.79E-05,2.51E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+W,9.74E-05,1.47E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Re,1.68E-05,7.75E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Ir,1.10E-08,,,mol/molCa,GeoRem,NIST612
+Pt,6.06E-06,1.23E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Au,1.14E-05,3.74E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Tl,3.44E-05,5.94E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Pb,8.77E-05,4.33E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Bi,6.81E-05,2.61E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+Th,7.67E-05,3.33E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+U,7.40E-05,3.21E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST612
+CO2,4.28E-05,,,mol/molCa,GeoRem,NIST614
+H2O,0.004969967,,,mol/molCa,GeoRem,NIST614
+Na2O,1.041639237,0.014376697,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Al2O3,0.094283526,0.001400988,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+SiO2,5.654772887,0.059191914,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+CaO,1,1.39E-18,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Li,0.000114738,3.20E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Be,3.94E-05,1.37E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+B,6.49E-05,4.18E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+F,0.000153786,,,mol/molCa,GeoRem,NIST614
+Mg,0.000655333,1.92E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+P,0.000173441,2.97E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+S,0.00427664,0.000486309,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Cl,0.001355776,0.000558377,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+K,0.00036158,6.75E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sc,7.76E-06,,,mol/molCa,GeoRem,NIST614
+Ti,3.55E-05,1.27E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+V,9.34E-06,2.01E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Cr,1.08E-05,5.51E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Mn,1.22E-05,3.17E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Fe,0.000158641,2.54E-05,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Co,6.32E-06,3.64E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ni,8.83E-06,4.08E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Cu,1.02E-05,2.73E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Zn,2.01E-05,1.38E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ga,8.85E-06,3.13E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ge,6.11E-06,3.16E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+As,4.65E-06,7.24E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Se,2.39E-06,2.40E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Rb,4.71E-06,4.19E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sr,0.000246322,2.09E-06,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Y,4.19E-06,9.18E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Zr,4.38E-06,8.11E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Nb,4.18E-06,8.38E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Mo,3.93E-06,8.07E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Rh,7.05E-06,4.16E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Pd,9.08E-06,2.34E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ag,1.83E-06,8.87E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Cd,2.35E-06,1.07E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+In,3.24E-06,1.06E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sn,6.67E-06,3.03E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sb,3.06E-06,1.26E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Cs,2.35E-06,6.34E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ba,1.10E-05,1.80E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+La,2.44E-06,3.01E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ce,2.73E-06,4.79E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Pr,2.57E-06,3.31E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Nd,2.46E-06,3.08E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sm,2.36E-06,2.84E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Eu,2.39E-06,3.19E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Gd,2.29E-06,3.69E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Tb,2.19E-06,3.49E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Dy,2.16E-06,3.67E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ho,2.14E-06,2.80E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Er,2.08E-06,2.97E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Tm,2.04E-06,3.27E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Yb,2.12E-06,3.37E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Lu,1.97E-06,2.94E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Hf,1.88E-06,3.30E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ta,2.10E-06,3.82E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+W,2.07E-06,9.26E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Re,4.30E-07,1.07E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Ir,4.90E-09,,,mol/molCa,GeoRem,NIST614
+Pt,5.70E-06,1.53E-07,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Au,1.15E-06,8.43E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Tl,6.29E-07,2.37E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Pb,5.28E-06,6.35E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Bi,1.31E-06,4.97E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Th,1.52E-06,1.41E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+U,1.63E-06,1.38E-08,approx SD (0.5 * 95% CI),mol/molCa,GeoRem,NIST614
+Sr,0.00884,4.20E-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+Mg,0.0042,6.50E-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+U,1.19E-06,4.50E-08,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+Ba,7.47E-06,6.55E-07,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+B,0.00046,2.27E-05,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+Li,6.19E-06,1.07E-07,SD,mol/molCa,"Hathorne et al, 2013",JCP1
+Al,7.49E-05,8.37E-06,SD,mol/molCa,UCD In House (approx),JCP1
+Ca,1,0,SD,mol/molCa,Placeholder,JCP1
+Sr,0.00168,2.60E-05,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+Mg,0.00129,4.50E-05,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+U,2.27E-08,2.40E-09,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+Ba,4.35E-06,2.80E-07,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+B,0.000191,9.30E-06,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+Li,4.08E-06,5.03E-07,SD,mol/molCa,"Hathorne et al, 2013",JCT1
+Al,4.61E-05,7.45E-06,SD,mol/molCa,UCD In House (approx),JCT1
+Ca,1,0,SD,mol/molCa,Placeholder,JCT1

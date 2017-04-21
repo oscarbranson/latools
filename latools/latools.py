@@ -155,6 +155,8 @@ class analyse(object):
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
+        self.focus_stage = 'rawdata'
+
         # load configuration parameters
         # read in config file
         conf = configparser.ConfigParser()
@@ -327,7 +329,7 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.]):
+                  conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.], d_mult=1.2):
         """
         Automatically separates signal and background data regions.
 
@@ -400,7 +402,8 @@ class analyse(object):
 
         for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
-                        conf, on_mult, off_mult)
+                        conf, on_mult, off_mult,
+                        d_mult)
         return
 
     def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
@@ -492,15 +495,7 @@ class analyse(object):
 
         ep, ecov = curve_fit(expfit, ti, tr, p0=(-1.))
 
-        def R2calc(x, y, yp):
-            """
-            Calculate fit R2.
-            """
-            SStot = np.sum((y - np.nanmean(y))**2)
-            SSfit = np.sum((y - yp)**2)
-            return 1 - (SSfit / SStot)
-
-        eeR2 = R2calc(times, trans, expfit(times, ep))
+        eeR2 = R2calc(trans, expfit(times, ep))
 
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
@@ -574,6 +569,8 @@ class analyse(object):
         for d in tqdm(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
                       noise_despiker, win, nlim)
+
+        self.focus_stage = 'despiked'
         return
 
     # functions for background correction
@@ -601,11 +598,12 @@ class analyse(object):
 
         n0 = 0
         for s in self.data_dict.values():
-            allbkgs['uTime'].append(s.uTime[s.bkg])
-            allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
-            n0 = allbkgs['ns'][-1][-1]
-            for a in self.analytes:
-                allbkgs[a].append(s.data[focus_stage][a][s.bkg])
+            if sum(s.bkg) > 0:
+                allbkgs['uTime'].append(s.uTime[s.bkg])
+                allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
+                n0 = allbkgs['ns'][-1][-1]
+                for a in self.analytes:
+                    allbkgs[a].append(s.data[focus_stage][a][s.bkg])
 
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
         bkgs = pd.DataFrame(allbkgs)
@@ -742,6 +740,8 @@ class analyse(object):
                                       np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
                             ~d.sig) for a in self.analytes]
             d.setfocus('bkgsub')
+
+        self.focus_stage = 'bkgsub'
         return
 
     @_log
@@ -801,14 +801,13 @@ class analyse(object):
 
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
-            ax.axvline(x, alpha=0.4, color='k')
-            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left')
+            ax.axvline(x, alpha=0.2, color='k', zorder=-1)
+            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
 
         if save:
             fig.savefig(self.report_dir + '/background.pdf')
-            return
-        else:
-            return fig, ax
+
+        return fig, ax
 
     # functions for calculating ratios
     @_log
@@ -837,6 +836,8 @@ class analyse(object):
 
         for s in tqdm(self.data, desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
+
+        self.focus_stage = 'ratio'
         return
 
     # functions for identifying SRMs
@@ -1154,6 +1155,7 @@ class analyse(object):
             except:
                 print(d.sample + ' failed - probably first or last SRM\nwhich is outside interpolated time range.')
 
+        self.focus_stage = 'calibrated'
     #     # save calibration parameters
     #     # self.save_calibration()
         return
@@ -1203,6 +1205,27 @@ class analyse(object):
         #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
 
         return name
+
+    @_log
+    def zeroscreen(self, focus_stage=None):
+        """
+        Remove all points containing data below zero (impossible)
+        """
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        
+        
+        for s in self.data_dict.values():
+            ind = np.ones(len(s.Time), dtype=bool)
+            for v in s.data[focus_stage].values():
+                ind = ind & (nominal_values(v) > 0)
+
+            for k in s.data[focus_stage].keys():
+                s.data[focus_stage][k][~ind] = unc.ufloat(np.nan, np.nan)
+        
+        self.set_focus(focus_stage)
+        
+        return
 
     @_log
     def filter_threshold(self, analyte, threshold, filt=False,
@@ -1544,7 +1567,10 @@ class analyse(object):
                                   "subset."))
 
         for s in samples:
-            self.data_dict[s].filt.on(analyte, filt)
+            try:
+                self.data_dict[s].filt.on(analyte, filt)
+            except:
+                warnings.warn("filt.on failure in sample " + s)
 
     @_log
     def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
@@ -1584,16 +1610,19 @@ class analyse(object):
                                   "subset."))
 
         for s in samples:
-            self.data_dict[s].filt.off(analyte, filt)
+            try:
+                self.data_dict[s].filt.off(analyte, filt)
+            except:
+                warnings.warn("filt.off failure in sample " + s)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         if sample is None and subset is None:
             if not hasattr(self, 'subsets'):
                 self.make_subset(samples=None)
-            for k, v in sorted(self.subsets.items()):
-                if (self.srm_identifier in k) and not stds:
+            for k, v in sorted(self.subsets.items(), key=lambda x: str(x)):
+                if (self.srm_identifier in str(k)) and not stds:
                     pass
-                elif 'All_Analyses' in k:
+                elif 'All_Analyses' in str(k):
                     pass
                 else:
                     print('Subset {:s}:'.format(str(k)))
@@ -1610,10 +1639,13 @@ class analyse(object):
             return
 
         elif subset is not None:
-            print('Subset {:s}:'.format(str(subset)))
-            print('Samples: ' + ', '.join(self.subsets[subset]))
-            print('\n' +
-                  self.data_dict[self.subsets[subset][0]].filt.__repr__())
+            if isinstance(subset, str):
+                subset = [subset]
+            for s in subset:
+                print('Subset {:s}:'.format(str(s)))
+                print('Samples: ' + ', '.join(self.subsets[s]))
+                print('\n' +
+                      self.data_dict[self.subsets[s][0]].filt.__repr__())
             return
 
     @_log
@@ -1670,10 +1702,10 @@ class analyse(object):
         """
 
         if analytes is None:
-            analytes = [a for a in self.analytes if 'Ca' not in a]
+            analytes = [a for a in self.analytes if self.internal_standard not in a]
 
         n = len(analytes)
-        if n % 4 is 0:
+        if n % 3 is 0:
             nrow = n / 3
         else:
             nrow = n // 3 + 1
@@ -1720,7 +1752,8 @@ class analyse(object):
                 xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values),
                                        nominal_values(self.srmtabs.loc[a, 'srm_mean'].values),
                                        pad=0.1)
-                xlim[0] = ylim[0] = 0
+                xlim[0] = 0
+                ylim[0] = 0
             else:
                 xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
                 yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
@@ -1754,8 +1787,14 @@ class analyse(object):
             line = nominal_values(self.calib_fns[a](coefs, x))
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
+            if len(coefs) == 1:
+                force_zero = True
+            else:
+                force_zero = False
+
             R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'],
-                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])))
+                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])),
+                        force_zero=force_zero)
 
             # labels
             if len(coefs) == 1:
@@ -1777,8 +1816,8 @@ class analyse(object):
 
             ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                     weight='bold', va='top', ha='left', size=12)
-            ax.set_xlabel('counts/counts Ca')
-            ax.set_ylabel('mol/mol Ca')
+            ax.set_xlabel('counts/counts ' + self.internal_standard)
+            ax.set_ylabel('mol/mol ' + self.internal_standard)
             # write calibration equation on graph
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
                     va='bottom', ha='right')
@@ -1795,7 +1834,7 @@ class analyse(object):
                         mmeas = meas[meas > 0]
                         ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
                     else:
-                        ylim[0] = np.nanmin(meas)
+                        ylim[0] = 0
                     ax.set_ylim(ylim)
 
                 # hist
@@ -1820,7 +1859,7 @@ class analyse(object):
 
     # set the focus attribute for specified samples
     @_log
-    def set_focus(self, stage, samples=None, subset=None):
+    def set_focus(self, focus_stage=None, samples=None, subset=None):
         """
         """
         if samples is not None:
@@ -1838,8 +1877,13 @@ class analyse(object):
                                   "exist.\nRun 'make_subset' to create a" +
                                   "subset."))
 
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        else:
+            self.focus_stage = focus_stage
+
         for s in samples:
-            self.data_dict[s].setfocus(stage)
+            self.data_dict[s].setfocus(focus_stage)
 
     # fetch all the data from the data objects
     def get_focus(self, filt=False, samples=None, subset=None):
@@ -2007,7 +2051,7 @@ class analyse(object):
     # Plot traces
     @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
-                    focus=None, outdir=None, filt=False, scale='log',
+                    focus=None, outdir=None, filt=None, scale='log',
                     figsize=[10, 4], stats=True, stat='nanmean',
                     err='nanstd', subset=None):
         """
@@ -2277,12 +2321,12 @@ class analyse(object):
         for ax, an in zip(axs, analytes):
             i = 0
             stab = self.getstats()
-            m, u = unitpicker(np.nanmin(stab.loc[:, an].values))
+            m, u = unitpicker(np.percentile(stab.loc[:, an].dropna(), 25), 0.1)
             for s in samples:
                 if self.srm_identifier not in s:
                     d = self.stats[s]
-                    n = d[stat].shape[1]
-                    if n > 1:
+                    if d[stat].ndim == 2:
+                        n = d[stat].shape[-1]
                         x = np.linspace(i - .1 * n / 2, i + .1 * n / 2, n)
                     else:
                         x = [i]
@@ -2325,7 +2369,7 @@ class analyse(object):
         return fig, ax
 
     @_log
-    def getstats(self, path=None, samples=None, subset=None, ablation_time=False):
+    def getstats(self, filename=None, samples=None, subset=None, ablation_time=False):
         """
         Return pandas dataframe of all sample statistics.
         """
@@ -2349,16 +2393,24 @@ class analyse(object):
         for s in self.stats_calced:
             for nm in [n for n in samples if self.srm_identifier
                        not in n]:
-                # make multi - index
-                reps = np.arange(self.stats[nm][s].shape[1])
-                ss = np.array([s] * reps.size)
-                nms = np.array([nm] * reps.size)
-                # make sub - dataframe
-                stdf = pd.DataFrame(self.stats[nm][s].T,
-                                    columns=self.stats[nm]['analytes'],
-                                    index=[ss, nms, reps])
-                stdf.index.set_names(['statistic', 'sample', 'rep'],
-                                     inplace=True)
+                if len(self.stats[nm][s]) == 2:
+                    # make multi - index
+                    reps = np.arange(self.stats[nm][s].shape[-1])
+                    ss = np.array([s] * reps.size)
+                    nms = np.array([nm] * reps.size)
+                    # make sub - dataframe
+                    stdf = pd.DataFrame(self.stats[nm][s].T,
+                                        columns=self.stats[nm]['analytes'],
+                                        index=[ss, nms, reps])
+                    stdf.index.set_names(['statistic', 'sample', 'rep'],
+                                         inplace=True)
+                else:
+                    stdf = pd.DataFrame(self.stats[nm][s],
+                                        index=self.stats[nm]['analytes'],
+                                        columns=[[s],[nm]]).T
+                    
+                    stdf.index.set_names(['statistic', 'sample'],
+                                         inplace=True)
                 slst.append(stdf)
         out = pd.concat(slst)
 
@@ -2370,8 +2422,8 @@ class analyse(object):
 
             out = out.join(ats)
 
-        if path is not None:
-            out.to_csv(path)
+        if filename is not None:
+            out.to_csv(self.export_dir + '/' + filename)
 
         self.stats_df = out
 
@@ -3137,7 +3189,7 @@ class D(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.)):
+                  conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.), d_mult=1.2):
         """
                 Automatically separates signal and background data regions.
 
@@ -3219,7 +3271,7 @@ class D(object):
         mins = self.findmins(x, yd)  # find minima in kde
 
         vs = fastsmooth(v, gwin)
-        bkg = vs < 10**(1.2 * mins[0])  # set background as lowest distribution
+        bkg = vs < 10**(d_mult * mins[0])  # set background as lowest distribution
         if not bkg[0]:
             bkg[0] = True
 
@@ -4799,7 +4851,7 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, (str, int)):
+        if isinstance(filt, (str, int, float)):
             filt = [filt]
 
         if analyte is None:
@@ -4809,8 +4861,8 @@ class filt(object):
 
         for a in analyte:
             for f in filt:
-                if isinstance(f, int):
-                    f = self.index[f]
+                if isinstance(f, (int, float)):
+                    f = self.index[int(f)]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = True
@@ -5186,9 +5238,12 @@ def bool_2_indices(bool_array):
     if bool_array[-1]:
         bool_array[-1] = False
     lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
-    if lims[-1] == bool_array.size - 1:
-        lims[-1] = bool_array.size
-    return np.reshape(lims, (len(lims) // 2, 2))
+    if len(lims) > 0:
+        if lims[-1] == bool_array.size - 1:
+            lims[-1] = bool_array.size
+        return np.reshape(lims, (len(lims) // 2, 2))
+    else:
+        return [[np.nan, np.nan]]
 
 
 def enumerate_bool(bool_array, nstart=0):
@@ -5374,8 +5429,11 @@ def get_example_data(destination_dir):
     return
 
 
-def R2calc(meas, model):
-    SStot = np.sum((meas - np.nanmean(meas))**2)
+def R2calc(meas, model, force_zero=False):
+    if force_zero:
+        SStot = np.sum(meas**2)
+    else:
+        SStot = np.sum((meas - np.nanmean(meas))**2)
     SSres = np.sum((meas - model)**2)
     return 1 - (SSres / SStot)
 
