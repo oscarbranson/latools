@@ -30,3 +30,4 @@ latools/widgets
 __pycache__
 latools/controller
 demo_helpers.py
+build
