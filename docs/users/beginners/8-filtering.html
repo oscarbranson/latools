@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data Selection and Filtering &mdash; latools 0.2.0 documentation</title>
+  <title>Data Selection and Filtering &mdash; latools 0.2.2a documentation</title>
   
 
   
@@ -33,7 +33,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.0 documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Sample Statistics" href="9-statistics.html"/>
         <link rel="prev" title="Calibration" href="7-calibration.html"/> 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.2.0
+                0.2.2a
               </div>
             
           
@@ -189,10 +189,10 @@ This removes significant possibilities for &#8216;human error&#8217; from data a
 By their combined application, it should be possible to islate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):</p>
 <ul class="simple">
-<li><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
-<li><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
-<li><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code>: A more sophisticated version of <code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
-<li><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly covaries with an analyte that is a known contaminant indicator, the signal is likely contaminated, and shoule be discarded.</li>
+<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
+<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
+<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>: A more sophisticated version of <a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
+<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code></a>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly covaries with an analyte that is a known contaminant indicator, the signal is likely contaminated, and shoule be discarded.</li>
 </ul>
 <p>For a full account of these filters, how they work and how they can be used, see <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a>.</p>
 </div>
@@ -395,7 +395,7 @@ We can identify this as a subset by:</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.0',
+            VERSION:'0.2.2a',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,

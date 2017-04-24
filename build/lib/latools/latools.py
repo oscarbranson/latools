@@ -1,141 +1,388 @@
-import os
-import re
+import configparser
 import itertools
+import os
+import pprint
+import re
+import shutil
+import sys
+import time
 import warnings
-import numpy as np
-import pandas as pd
+
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import uncertainties.unumpy as un
+import multiprocessing as mp
+import numpy as np
+import pandas as pd
+import pkg_resources as pkgrs
 import sklearn.cluster as cl
-from sklearn import preprocessing
-from scipy.stats import gaussian_kde
-from scipy.stats import pearsonr
-from scipy.optimize import curve_fit
+import uncertainties as unc
+import uncertainties.unumpy as un
+
+from functools import wraps
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
+from scipy import odr
+from scipy.stats import gaussian_kde, pearsonr
+from scipy.optimize import curve_fit
+import scipy.interpolate as interp
+from sklearn import preprocessing
+
 from IPython import display
+from tqdm import tqdm  # status bars!
+
+# deactivate IPython deprecations warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+# deactivate numpy invalid comparison warnings
+np.seterr(invalid='ignore')
+
 
 class analyse(object):
     """
-    For processing and analysing whole LA-ICPMS datasets.
+    For processing and analysing whole LA - ICPMS datasets.
+
+    Parameters
+    ----------
+    data_folder : str
+        The path to a directory containing multiple data files.
+    errorhunt : bool
+        Whether or not to print each data file name before
+        import. This is useful for tracing which data file
+        is causing the import to fail.
+    config : str
+        The name of the configuration to use for the analysis.
+        This determines which configuration set from the
+        latools.cfg file is used, and overrides the default
+        configuration setup. You might sepcify this if your lab
+        routinely uses two different instruments.
+    dataformat : str or dict
+        Either a path to a data format file, or a
+        dataformat dict. See documentation for more details.
+    extension : str
+        The file extension of your data files. Defaults to
+        '.csv'.
+    srm_identifier : str
+        A string used to separate samples and standards. srm_identifier
+        must be present in all standard measurements. Defaults to
+        'STD'.
+    cmap : dict
+        A dictionary of {analyte: colour} pairs. Colour can be any valid
+        matplotlib colour string, RGB or RGBA sequence, or hex string.
+    time_format : str
+        A regex string identifying the time format, used by pandas when
+        created a universal time scale. If unspecified (None), pandas
+        attempts to infer the time format, but in some cases this might
+        not work.
+    internal_standard : str
+        The name of the analyte used as an internal standard throughout
+        analysis.
+
+    Attributes
+    ----------
+    folder : str
+        Path to the directory containing the data files, as
+        specified by `data_folder`.
+    dirname : str
+        The name of the directory containing the data files,
+        without the entire path.
+    files : array_like
+        A list of all files in `folder`.
+    param_dir : str
+        The directory where parameters are stored.
+    report_dir : str
+        The directory where plots are saved.
+    data : array_like
+        A list of `latools.D` data objects.
+    data_dict : dict
+        A dict of `latools.D` data objects, labelled by sample
+        name.
+    samples : array_like
+        A list of samples.
+    analytes : array_like
+        A list of analytes measured.
+    stds : array_like
+        A list of the `latools.D` objects containing hte SRM
+        data. These must contain srm_identifier in the file name.
+    srm_identifier : str
+        A string present in the file names of all standards.
+    cmaps : dict
+        An analyte - specific colour map, used for plotting.
+
+
+    Methods
+    -------
+    ablation_times
+    autorange
+    bkg_calc_interp1d
+    bkg_calc_weightedmean
+    bkg_plot
+    bkg_subtract
+    calibrate
+    calibration_plot
+    crossplot
+    despike
+    export_traces
+    filter_clear
+    filter_clustering
+    filter_correlation
+    filter_distribution
+    filter_off
+    filter_on
+    filter_reports
+    filter_status
+    filter_threshold
+    find_expcoef
+    get_background
+    get_focus
+    get_starttimes
+    getstats
+    make_subset
+    minimal_export
+    ratio
+    sample_stats
+    set_focus
+    srm_id_auto
+    statplot
+    trace_plots
+    zeroscreen
     """
-    def __init__(self, csv_folder, errorhunt=False):
+    def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
+                 dataformat=None, extension='.csv', srm_identifier='STD',
+                 cmap=None, time_format=None, internal_standard='Ca43'):
         """
-        For processing and analysing whole LA-ICPMS datasets.
-
-        Attributes
-        ----------
-        folder : str
-        dirname : str
-        files : array_like
-        param_dir : str
-        report_dir : str
-        data : array_like
-        samples : array_like
-        analytes : array_like
-        data_dict : dict
-        stds : array_like
-        srms_ided : bool
-        cmaps : dict
-
-        Methods
-        -------
-        autorange
-        bkgcorrect
-        calibrate
-        calibration_plot
-        crossplot
-        despike
-        filter_clear
-        filter_clustering
-        filter_correlation
-        filter_distribution
-        filter_off
-        filter_on
-        filter_threshold
-        find_expcoef
-        get_focus
-        getstats
-        load_calibration
-        load_params
-        load_ranges
-        ratio
-        save_params
-        save_ranges
-        srm_id
-        stat_boostrap
-        stat_samples
-        trace_plots
+        For processing and analysing whole LA - ICPMS datasets.
         """
-        self.folder = csv_folder
-        self.dirname = [n for n in self.folder.split('/') if n is not ''][-1]
-        self.files = np.array(os.listdir(self.folder))
+        # initialise log
+        params = locals()
+        del(params['self'])
+        self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
+
+        self.folder = os.path.realpath(data_folder)
+        self.parent_folder = os.path.dirname(self.folder)
+        self.files = np.array([f for f in os.listdir(self.folder)
+                               if extension in f])
 
         # make output directories
-        self.param_dir = self.folder + '/params/'
-        if not os.path.isdir(self.param_dir):
-            os.mkdir(self.param_dir)
-        self.report_dir = self.folder + '/reports/'
+        self.report_dir = re.sub('//', '/',
+                                 self.parent_folder + '/reports_' +
+                                 os.path.basename(self.folder) + '/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
+        self.export_dir = re.sub('//', '/',
+                                 self.parent_folder + '/export_' +
+                                 os.path.basename(self.folder) + '/')
+        if not os.path.isdir(self.export_dir):
+            os.mkdir(self.export_dir)
 
-        self.data = np.array([D(self.folder + '/' + f, errorhunt=errorhunt) for f in self.files if 'csv' in f])
+        self.focus_stage = 'rawdata'
+
+        # load configuration parameters
+        # read in config file
+        conf = configparser.ConfigParser()
+        conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
+        # load defaults into dict
+        pconf = dict(conf.defaults())
+        # if no config is given, check to see what the default setting is
+        # if (config is None) & (pconf['config'] != 'DEFAULT'):
+        #     config = pconf['config']
+        # else:
+        #     config = 'DEFAULT'
+
+        # if there are any non - default parameters, replace defaults in
+        # the pconf dict
+        if config != 'DEFAULT':
+            for o in conf.options(config):
+                pconf[o] = conf.get(config, o)
+        self.config = config
+        print('latools analysis using "' + self.config + '" configuration:')
+
+        # check srmfile exists, and store it in a class attribute.
+        if os.path.exists(pconf['srmfile']):
+            self.srmfile = pconf['srmfile']
+        elif os.path.exists(pkgrs.resource_filename('latools',
+                                                    pconf['srmfile'])):
+            self.srmfile = pkgrs.resource_filename('latools',
+                                                   pconf['srmfile'])
+        else:
+            raise ValueError(('The SRM file specified in the ' + config +
+                              ' configuration cannot be found.\n'
+                              'Please make sure the file exists, and that the '
+                              'path in the config file is correct.\n'
+                              'To locate the config file, run '
+                              '`latools.config_locator()`.\n\n'
+                              '' + config + ' file: ' + pconf['srmfile']))
+
+        # load in dataformat information.
+        # check dataformat file exists, and store it in a class attribute.
+        # if dataformat is not provided during initialisation, assign it
+        # from configuration file
+        if dataformat is None:
+            if os.path.exists(pconf['dataformat']):
+                dataformat = pconf['dataformat']
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        pconf['dataformat'])):
+                dataformat = pkgrs.resource_filename('latools',
+                                                     pconf['dataformat'])
+            else:
+                raise ValueError(('The dataformat file specified in the ' +
+                                  config + ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that '
+                                  'the path in the config file is correct.\n'
+                                  'To locate the config file, run '
+                                  '`latools.config_locator()`.\n\n' +
+                                  config + ' file: ' + dataformat))
+            self.dataformat_file = dataformat
+        else:
+            self.dataformat_file = 'None: dict provided'
+
+        # if it's a string, check the file exists and import it.
+        if isinstance(dataformat, str):
+            if os.path.exists(dataformat):
+                self.dataformat = eval(open(dataformat).read())
+                # self.dataformat = json.load(open(dataformat))
+            else:
+                warnings.warn(("The dataformat file (" + dataformat +
+                               ") cannot be found.\nPlease make sure the file "
+                               "exists, and that the path is correct.\n\nFile "
+                               "Path: " + dataformat))
+
+        # if it's a dict, just assign it straight away.
+        elif isinstance(dataformat, dict):
+            self.dataformat = dataformat
+
+        # load data (initialise D objects)
+        self.data = np.array([D(self.folder + '/' + f,
+                                dataformat=self.dataformat,
+                                errorhunt=errorhunt,
+                                cmap=cmap, internal_standard=internal_standard) for f in self.files])
+
         self.samples = np.array([s.sample for s in self.data])
-        self.analytes = np.array(self.data[0].cols[1:])
+        self.analytes = np.array(self.data[0].analytes)
+        if internal_standard in self.analytes:
+            self.internal_standard = internal_standard
+        else:
+            ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
+                       'analytes in\nyour data files. Please make sure it is specified correctly.')
+        self.minimal_analytes = [internal_standard]
 
         self.data_dict = {}
         for s, d in zip(self.samples, self.data):
             self.data_dict[s] = d
 
+        self.srm_identifier = srm_identifier
         self.stds = []
-        _ = [self.stds.append(s) for s in self.data if 'STD' in s.sample]
+        _ = [self.stds.append(s) for s in self.data
+             if self.srm_identifier in s.sample]
         self.srms_ided = False
 
+        self.make_subset()
+
+        # create universal time scale
+        if 'date' in self.data[0].meta.keys():
+            self.starttimes = self.get_starttimes(time_format)
+
+            for d in self.data_dict.values():
+                d.uTime = d.Time + self.starttimes.loc[d.sample, 'Dseconds']
+
+        else:
+            ts = 0
+            for d in self.data_dict.values():
+                d.uTime = d.Time + ts
+                ts += d.Time[-1]
+            warnings.warn("Time not found in data file. Universal time scale\n" +
+                          "approximated as continuously measured samples.\n" +
+                          "Background correction and calibration may not behave\n" +
+                          "as expected.")
+
+        # copy colour map to top level
         self.cmaps = self.data[0].cmap
 
-        f = open('errors.log', 'a')
-        f.write('Errors and warnings during LATOOLS analysis are stored here.\n\n')
-        f.close()
+        # f = open('errors.log', 'a')
+        # f.write(('Errors and warnings during LATOOLS analysis '
+        #          'are stored here.\n\n'))
+        # f.close()
 
-        print('{:.0f} Analysis Files Loaded:'.format(len(self.data)))
-        print('{:.0f} standards, {:.0f} samples'.format(len(self.stds),
-              len(self.data) - len(self.stds)))
-        print('Analytes: ' + ' '.join(self.analytes))
+        # report
+        print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
+               'samples').format(len(self.data),
+                                 len(self.stds),
+                                 len(self.data) - len(self.stds)))
+        print('  Analytes: ' + ' '.join(self.analytes))
+        print('  Internal Standard: {}'.format(self.internal_standard))
 
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,
-                  conf=0.01, trans_mult=[0., 0.]):
+    def _log(fn):
         """
-        Separates signal and background data regions.
+        Function for logging method calls and parameters
+        """
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            a = fn(self, *args, **kwargs)
+            self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+            return a
+        return wrapper
 
-        Function to automatically detect signal and background regions in the
-        laser data, based on the behaviour of a target analyte. An ideal target
-        analyte should be abundant and homogenous in the sample.
+    def get_starttimes(self, time_format=None):
+        try:
+            sd = {}
+            for k, v in self.data_dict.items():
+                sd[k] = v.meta['date']
+
+            sd = pd.DataFrame.from_dict(sd, orient='index')
+            sd.columns = ['date']
+
+            sd.loc[:, 'date'] = pd.to_datetime(sd['date'], format=time_format)
+
+            sd['Ddate'] = sd.date - sd.date.min()
+            sd['Dseconds'] = sd.Ddate / np.timedelta64(1, 's')
+            sd.sort_values(by='Dseconds', inplace=True)
+            sd['sequence'] = range(sd.shape[0])
+            return sd
+        except:
+            ValueError(("Cannot determine data file start times.\n" +
+                        "This could be because:\n  1) 'date' " +
+                        "not specified in 'regex' section of \n" +
+                        "     file format. Consult 'data format' documentation\n  " +
+                        "   and modify appropriately.\n  2) time_format cannot be" +
+                        " automatically determined.\n     Consult 'strptime'" +
+                        " documentation, and provide a\n     valid 'time_format'."))
+
+    @_log
+    def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
+                  conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.], d_mult=1.2):
+        """
+        Automatically separates signal and background data regions.
+
+        Automatically detect signal and background regions in the laser
+        data, based on the behaviour of a single analyte. The analyte used
+        should be abundant and homogenous in the sample.
 
         Step 1: Thresholding
-        The background is initially determined using a gaussian kernel density
-        estimator (kde) of all the data. The minima in the kde define the
-        boundaries between distinct data distributions. All data below than the
-        first (lowest) kde minima are labelled 'background', and all above this
-        limit are labelled 'signal'.
+        The background signal is determined using a gaussian kernel density
+        estimator (kde) of all the data. Under normal circumstances, this
+        kde should find two distinct data distributions, corresponding to
+        'signal' and 'background'. The minima between these two distributions
+        is taken as a rough threshold to identify signal and background
+        regions. Any point where the trace crosses this thrshold is identified
+        as a 'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
-        then determined, and the transitions are removed from both signal and
-        background. The width of the transitions is determined by fitting a
-        gaussian to the smoothed first derivative of the analyte trace, and
-        determining its width at a point where the gaussian intensity is at a
-        set limit. These gaussians are fit to subsets of the data that contain
-        the transitions, which are centered around the approximate transition
-        locations determined in Step 1, +/- win data points. The peak is isolated
-        by finding the minima and maxima of a second derivative, and the
-        gaussian is fit to the isolate peak.
+        then determined, and the transitions are excluded from analysis. The
+        width of the transitions is determined by fitting a gaussian to the
+        smoothed first derivative of the analyte trace, and determining its
+        width at a point where the gaussian intensity is at at `conf` time the
+        gaussian maximum. These gaussians are fit to subsets of the data
+        centered around the transitions regions determined in Step 1, +/- `win`
+        data points. The peak is further isolated by finding the minima and
+        maxima of a second derivative within this window, and the gaussian is
+        fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
-            Description of `analyte`.
+            The analyte that autorange should consider. For best results,
+            choose an analyte that is present homogeneously in high
+            concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -148,17 +395,17 @@ class analyse(object):
             The proportional intensity of the fitted gaussian tails that
             determines the transition width cutoff (lower = wider transition
             regions excluded).
-        trans_mult : array-like, len=2
-            Multiples of sigma to add to the transition cutoffs, e.g. if the
-            transitions consistently leave some bad data proceeding the
+        trans_mult : array_like, len=2
+            Multiples of the peak FWHM to add to the transition cutoffs, e.g.
+            if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
 
         Adds
         ----
         bkg, sig, trn : bool, array_like
-            Boolean arrays the same length as the data, identifying 'background',
-            'signal' and 'transition' data regions.
+            Boolean arrays the same length as the data, identifying
+            'background', 'signal' and 'transition' data regions.
         bkgrng, sigrng, trnrng: array_like
             Pairs of values specifying the edges of the 'background', 'signal'
             and 'transition' data regions in the same units as the Time axis.
@@ -167,36 +414,56 @@ class analyse(object):
         -------
         None
         """
-        for d in self.data:
-            d.autorange(analyte, gwin, win, smwin,
-                        conf, trans_mult)
+        if analyte is None:
+            analyte = self.internal_standard
+        elif analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
-    def find_expcoef(self, nsd_below=12., analytes='Ca43', plot=False, trimlim=None):
+        for d in tqdm(self.data, desc='AutoRange'):
+            d.autorange(analyte, gwin, win, smwin,
+                        conf, on_mult, off_mult,
+                        d_mult)
+        return
+
+    def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
+                     trimlim=None):
         """
         Determines exponential decay coefficient for despike filter.
 
-        Determines the exponential decay filter coefficient by
-        looking at the washout time at the end of standards measurements
+        Fits an exponential decay function to the washout phase of standards
+        to determine the washout time of your laser cell. The exponential
+        coefficient reported is `nsd_below` standard deviations below the
+        fitted exponent, to ensure that no real data is removed.
 
-        Parameters:
-            nsd_below (float): The number of standard deviations to subtract
-                from the fitted coefficient.
-            analytes (str)
-                The analytes to consider when determining the coefficient.
-                Use high-concentration analytes for best estimates
-            plot: bool or str
-                bool: Creates a plot of the fit if True.
-                str: Creates a plot, and saves it to the location
-                     specified in the str.
-            trimlim: float
-                A threshold limit used in determining the start of the
-                exponential decay region of the washout. If the data in
-                the plot don't fall on an exponential decay line, change
-                this number. Normally you'll need to increase it.
+        Parameters
+        ----------
+        nsd_below : float
+            The number of standard deviations to subtract from the fitted
+            coefficient when calculating the filter exponent.
+        analyte : str
+            The analyte to consider when determining the coefficient.
+            Use high - concentration analyte for best estimates.
+        plot : bool or str
+            bool: Creates a plot of the fit if True.
+            str: Creates a plot, and saves it to the location
+                 specified in the str.
+        trimlim : float
+            A threshold limit used in determining the start of the
+            exponential decay region of the washout. Defaults to half
+            the increase in signal over background. If the data in
+            the plot don't fall on an exponential decay line, change
+            this number. Normally you'll need to increase it.
+
+        Returns
+        -------
+        None
         """
+        if analyte is None:
+            analyte = self.internal_standard
+        elif analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        print('Calculating exponential decay coefficient\nfrom SRM {} washouts...'.format(analyte))
 
         def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
@@ -207,6 +474,9 @@ class analyse(object):
             return np.arange(len(ind))[ind ^ np.roll(ind, -1)][0]
 
         def normalise(a):
+            """
+            Returns array scaled between 0 and 1.
+            """
             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
 
         if not hasattr(self.stds[0], 'trnrng'):
@@ -215,15 +485,17 @@ class analyse(object):
 
         trans = []
         times = []
-        for analyte in analytes:
-            for v in self.stds:
-                for trnrng in v.trnrng[1::2]:
-                    tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
-                    sm = np.apply_along_axis(np.nanmean, 1, v.rolling_window(tr, 3, pad=0))
-                    sm[0] = sm[1]
-                    trim = findtrim(sm, trimlim) + 2
-                    trans.append(normalise(tr[trim:]))
-                    times.append(np.arange(tr[trim:].size) * np.diff(v.Time[:2]))
+        for v in self.stds:
+            for trnrng in v.trnrng[1::2]:
+                tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
+                               (v.Time < trnrng[1])])
+                sm = np.apply_along_axis(np.nanmean, 1,
+                                         rolling_window(tr, 3, pad=0))
+                sm[0] = sm[1]
+                trim = findtrim(sm, trimlim) + 2
+                trans.append(normalise(tr[trim:]))
+                times.append(np.arange(tr[trim:].size) *
+                             np.diff(v.Time[1:3]))
 
         times = np.concatenate(times)
         trans = np.concatenate(trans)
@@ -235,16 +507,14 @@ class analyse(object):
             tr.append(np.nanmin(trans[times == t]))
 
         def expfit(x, e):
+            """
+            Exponential decay function.
+            """
             return np.exp(e * x)
 
         ep, ecov = curve_fit(expfit, ti, tr, p0=(-1.))
 
-        def R2calc(x, y, yp):
-            SStot = np.sum((y - np.nanmean(y))**2)
-            SSfit = np.sum((y - yp)**2)
-            return 1 - (SSfit / SStot)
-
-        eeR2 = R2calc(times, trans, expfit(times, ep))
+        eeR2 = R2calc(trans, expfit(times, ep))
 
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
@@ -253,9 +523,14 @@ class analyse(object):
             ax.scatter(ti, tr, alpha=0.6, color='k', marker='o')
             fitx = np.linspace(0, max(ti))
             ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
-            ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5,),
+            ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5, ),
                     color='b', label='Used')
-            ax.text(0.95, 0.75, 'y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: %.2f' % (ep, np.diag(ecov)**.5, eeR2, ep - nsd_below * np.diag(ecov)**.5),
+            ax.text(0.95, 0.75,
+                    ('y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: '
+                     '%.2f') % (ep,
+                                np.diag(ecov)**.5,
+                                eeR2,
+                                ep - nsd_below * np.diag(ecov)**.5),
                     transform=ax.transAxes, ha='right', va='top', size=12)
             ax.set_xlim(0, ax.get_xlim()[-1])
             ax.set_xlabel('Time (s)')
@@ -267,549 +542,1154 @@ class analyse(object):
 
         self.expdecay_coef = ep - nsd_below * np.diag(ecov)**.5
 
-        print('-------------------------------------')
-        print('Exponential Decay Coefficient: {:0.2f}'.format(self.expdecay_coef[0]))
-        print('-------------------------------------')
+        print('  {:0.2f}'.format(self.expdecay_coef[0]))
 
         return
 
-    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12., exponentplot=False):
+    @_log
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+                noise_despiker=True, win=3, nlim=12., exponentplot=False):
         """
         Despikes data with exponential decay and noise filters.
 
         Parameters
         ----------
-        expdecay_filter : bool
-            Description of `expdecay_filter`.
+        expdecay_despiker : bool
+            Whether or not to apply the exponential decay filter.
         exponent : None or float
-            Description of `exponent`.
+            The exponent for the exponential decay filter. If None,
+            it is determined automatically using `find_expocoef`.
         tstep : None or float
-            Description of `tstep`.
-        spike_filter : bool
-            Description of `spike_filter`.
+            The timeinterval between measurements. If None, it is
+            determined automatically from the Time variable.
+        noise_despiker : bool
+            Whether or not to apply the standard deviation spike filter.
         win : int
-            Description of `win`.
+            The rolling window over which the spike filter calculates
+            the trace statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling mean
+            that data are excluded.
         exponentplot : bool
-            Description of `exponentplot`.
+            Whether or not to show a plot of the automatically determined
+            exponential decay exponent.
 
         Returns
         -------
         None
         """
         if exponent is None:
-            if ~hasattr(self, 'expdecay_coef'):
-                print('Exponential Decay Coefficient not provided.')
-                print('Coefficient will be determined from the washout\ntimes of the standards (takes a while...).')
+            if not hasattr(self, 'expdecay_coef'):
                 self.find_expcoef(plot=exponentplot)
             exponent = self.expdecay_coef
-        for d in self.data:
-            d.despike(expdecay_filter, exponent, tstep, spike_filter, win, nlim)
+            time.sleep(0.2)
+
+
+        for d in tqdm(self.data, desc='Despiking'):
+            d.despike(expdecay_despiker, exponent, tstep,
+                      noise_despiker, win, nlim)
+
+        self.focus_stage = 'despiked'
         return
 
-    def save_ranges(self):
+    # functions for background correction
+    def get_background(self, n_min=10, focus_stage='despiked'):
         """
-        Saves signal/background/transition data ranges for each sample.
-        """
-        if os.path.isfile(self.param_dir + 'bkg.rng'):
-            f = input('Range files already exist. Do you want to overwrite them (old files will be lost)? [Y/n]: ')
-            if 'n' in f or 'N' in f:
-                print('Ranges not saved. Run self.save_ranges() to try again.')
-                return
-        bkgrngs = []
-        sigrngs = []
-        for d in self.data:
-            bkgrngs.append(d.sample + ':' + str(d.bkgrng.tolist()))
-            sigrngs.append(d.sample + ':' + str(d.sigrng.tolist()))
-        bkgrngs = '\n'.join(bkgrngs)
-        sigrngs = '\n'.join(sigrngs)
-
-        fb = open(self.param_dir + 'bkg.rng', 'w')
-        fb.write(bkgrngs)
-        fb.close()
-        fs = open(self.param_dir + 'sig.rng', 'w')
-        fs.write(sigrngs)
-        fs.close()
-        return
-
-    def load_ranges(self, bkgrngs=None, sigrngs=None):
-        """
-        Loads signal/background/transition data ranges for each sample.
+        Extract all background data from all samples on universal time scale.
+        Used by both 'polynomial' and 'weightedmean' methods.
 
         Parameters
         ----------
-        bkgrngs : str or None
-            Description of `bkgrngs`.
-        sigrngs : str or None
-            Description of `sigrngs`.
+        n_min : int
+            The minimum number of points a background region must
+            have to be included in calculation.
 
         Returns
         -------
-        None
+        pandas.DataFrame object containing background data.
         """
-        if bkgrngs is None:
-            bkgrngs = self.param_dir + 'bkg.rng'
-        bkgs = open(bkgrngs).readlines()
-        samples = []
-        bkgrngs = []
-        for b in bkgs:
-            samples.append(re.match('(.*):{1}(.*)',
-                           b.strip()).groups()[0])
-            bkgrngs.append(eval(re.match('(.*):{1}(.*)',
-                           b.strip()).groups()[1]))
-        for s, rngs in zip(samples, bkgrngs):
-            self.data_dict[s].bkgrng = np.array(rngs)
 
-        if sigrngs is None:
-            sigrngs = self.param_dir + 'sig.rng'
-        sigs = open(sigrngs).readlines()
-        samples = []
-        sigrngs = []
-        for s in sigs:
-            samples.append(re.match('(.*):{1}(.*)',
-                           s.strip()).groups()[0])
-            sigrngs.append(eval(re.match('(.*):{1}(.*)',
-                           s.strip()).groups()[1]))
-        for s, rngs in zip(samples, sigrngs):
-            self.data_dict[s].sigrng = np.array(rngs)
+        allbkgs = {'uTime': [],
+                   'ns': []}
 
-        # number the signal regions (used for statistics and standard matching)
-        for s in self.data:
-            # re-create booleans
-            s.makerangebools()
+        for a in self.analytes:
+            allbkgs[a] = []
 
-            # make trnrng
-            s.trn[[0, -1]] = False
-            s.trnrng = s.Time[s.trn ^ np.roll(s.trn, 1)]
+        n0 = 0
+        for s in self.data_dict.values():
+            if sum(s.bkg) > 0:
+                allbkgs['uTime'].append(s.uTime[s.bkg])
+                allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
+                n0 = allbkgs['ns'][-1][-1]
+                for a in self.analytes:
+                    allbkgs[a].append(s.data[focus_stage][a][s.bkg])
 
-            # number traces
-            n = 1
-            for i in range(len(s.sig)-1):
-                if s.sig[i]:
-                    s.ns[i] = n
-                if s.sig[i] and ~s.sig[i+1]:
-                    n += 1
-            s.n = int(max(s.ns))  # record number of traces
+        allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
+        bkgs = pd.DataFrame(allbkgs)
+
+        self.bkg = {}
+        # extract background data from whole dataset
+        self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        # calculate per - background region stats
+        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
         return
 
-    # functions for background correction and ratios
-    def bkgcorrect(self, mode='constant'):
+    @_log
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
+                              n_min=20, cstep=None):
         """
-        Subtracts background from signal.
+        Background calculation using a gaussian weighted mean.
 
         Parameters
         ----------
-        mode : str
-            Description of `mode`.
+        analytes : str or array - like
+        weight_fwhm : float
+            The full - width - at - half - maximum of the gaussian used
+            to calculate the weighted average.
+        n_min : int
+            Background regions with fewer than n_min points
+            will not be included in the fit.
+        cstep : float or None
+            The interval between calculated background points.
 
-        Returns
-        -------
-        None
         """
-        for s in self.data:
-            s.bkg_correct(mode=mode)
+        print("Calculating moving weighted mean background (fwhm={}s)...".format(weight_fwhm))
+
+        if analytes is None:
+            analytes = self.analytes
+            self.bkg = {}
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        self.get_background(n_min)
+
+        # Gaussian - weighted average
+        if 'calc' not in self.bkg.keys():
+            # create time points to calculate background
+            if cstep is None:
+                cstep = self.bkg['raw']['uTime'].ptp() / 100
+            bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
+                              self.bkg['raw']['uTime'].max(),
+                              cstep)
+            self.bkg['calc'] = {}
+            self.bkg['calc']['uTime'] = bkg_t
+
+        for a in analytes:
+            self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
+                                                   self.bkg['raw'].loc[:, a],
+                                                   self.bkg['calc']['uTime'],
+                                                   weight_fwhm)
         return
 
-    def ratio(self,  denominator='Ca43', stage='signal'):
+    @_log
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, cstep=None):
+        """
+        Background calculation using a 1D interpolation.
+
+        scipy.interpolate.interp1D is used for interpolation.
+
+        Parameters
+        ----------
+        analytes : str or array - like
+        kind : str or int
+            Integer specifying the order of the spline interpolation
+            used, or string specifying a type of interpolation.
+            Passed to `scipy.interpolate.interp1D`
+        n_min : int
+            Background regions with fewer than n_min points
+            will not be included in the fit.
+        cstep : float or None
+            The interval between calculated background points.
+
+        """
+        print("Calculating polynomial background ({} order)...".format(kind))
+
+        if analytes is None:
+            analytes = self.analytes
+            self.bkg = {}
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        self.get_background(n_min)
+
+        if 'calc' not in self.bkg.keys():
+            # create time points to calculate background
+            if cstep is None:
+                cstep = self.bkg['raw']['uTime'].ptp() / 100
+            bkg_t = np.arange(self.bkg['summary']['uTime']['mean'].min(),
+                              self.bkg['summary']['uTime']['mean'].max(),
+                              cstep)
+
+            self.bkg['calc'] = {}
+            self.bkg['calc']['uTime'] = bkg_t
+
+        d = self.bkg['summary']
+        for a in analytes:
+            imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                    d.loc[:, (a, 'mean')],
+                                    kind=kind)
+            istd = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                   d.loc[:, (a, 'std')],
+                                   kind=kind)
+            ise = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+                                  d.loc[:, (a, 'stderr')],
+                                  kind=kind)
+            self.bkg['calc'][a] = {'mean': imean(self.bkg['calc']['uTime']),
+                                   'std': istd(self.bkg['calc']['uTime']),
+                                   'stderr': ise(self.bkg['calc']['uTime'])}
+        return
+
+    @_log
+    def bkg_subtract(self, analytes=None, errtype='stderr'):
+        """
+        Subtract calculated background from data.
+
+        Must run bkg_calc first!
+        """
+
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        for d in tqdm(self.data_dict.values(), desc='Background Subtraction'):
+            [d.bkg_subtract(a,
+                            un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
+                                      np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
+                            ~d.sig) for a in self.analytes]
+            d.setfocus('bkgsub')
+
+        self.focus_stage = 'bkgsub'
+        return
+
+    @_log
+    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None, err='stderr', save=True):
+        if not hasattr(self, 'bkg'):
+            raise ValueError("Please run bkg_calc before attempting to\n" +
+                             "plot the background.")
+
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        fig = plt.figure(figsize=figsize)
+
+        ax = fig.add_axes([.07, .1, .84, .8])
+
+        for a in analytes:
+            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
+                       alpha=0.2, s=3, c=self.cmaps[a],
+                       lw=0.5)
+
+            for i, r in self.bkg['summary'].iterrows():
+                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
+                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
+                yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
+                yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
+
+                l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=0.5, color=self.cmaps[a], zorder=1)
+
+            ax.plot(self.bkg['calc']['uTime'],
+                    self.bkg['calc'][a]['mean'],
+                    c=self.cmaps[a], zorder=2, label=a)
+            ax.fill_between(self.bkg['calc']['uTime'],
+                            self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err],
+                            self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err],
+                            color=self.cmaps[a], alpha=0.3, zorder=-1)
+
+        if yscale == 'log':
+            ax.set_yscale('log')
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Background Counts')
+
+        ax.set_title('Points = raw data; Bars = {:s}; Lines = Calculated Background; Envelope = Background {:s}'.format(err, err),
+                     fontsize=10)
+
+        ha, la = ax.get_legend_handles_labels()
+
+        ax.legend(labels=la[:len(analytes)], handles=ha[:len(analytes)], bbox_to_anchor=(1, 1))
+
+        # scale x axis to range ± 2.5%
+        ax.set_xlim(self.bkg['raw']['uTime'].min(),
+                    self.bkg['raw']['uTime'].max())
+
+        for s, r in self.starttimes.iterrows():
+            x = r.Dseconds
+            ax.axvline(x, alpha=0.2, color='k', zorder=-1)
+            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+
+        if save:
+            fig.savefig(self.report_dir + '/background.pdf')
+
+        return fig, ax
+
+    # functions for calculating ratios
+    @_log
+    def ratio(self, internal_standard=None, focus='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
         Parameters
         ----------
-        denominator : str
-            Description of `denominator`.
-        stage : str
-            Description of `stage`.
+        internal_standard : str
+            The name of the analyte to divide all other analytes
+            by.
+        focus : str
+            The `focus` stage of the data used to calculating the
+            ratios.
 
         Returns
         -------
         None
         """
-        for s in self.data:
-            s.ratio( denominator=denominator, stage=stage)
+
+        if internal_standard is not None:
+            self.internal_standard = internal_standard
+            if internal_standard not in self.minimal_analytes:
+                self.minimal_analytes.append(internal_standard)
+
+        for s in tqdm(self.data, desc='Ratio Calculation'):
+            s.ratio(internal_standard=self.internal_standard, focus=focus)
+
+        self.focus_stage = 'ratio'
         return
 
     # functions for identifying SRMs
-    def srm_id(self):
-        """
-        Asks the user to name the SRMs measured.
-        """
-        s = self.stds[0]
-        fig = s.tplot(scale='log')
-        display.clear_output(wait=True)
-        display.display(fig)
+    # def srm_id(self):
+    #     """
+    #     Asks the user to name the SRMs measured.
+    #     """
+    #     s = self.stds[0]
+    #     fig = s.tplot(scale='log')
+    #     display.clear_output(wait=True)
+    #     display.display(fig)
 
-        n0 = s.n
+    #     n0 = s.n
 
-        def id(self, s):
-            stdnms = []
-            s.srm_rngs = {}
-            for n in np.arange(s.n) + 1:
-                fig = s.tplot(scale='log')
-                lims = s.Time[s.ns == n][[0, -1]]
-                fig.axes[0].axvspan(lims[0], lims[1],
-                                    color='r', alpha=0.2, lw=0)
-                display.clear_output(wait=True)
-                display.display(fig)
-                stdnm = input('Name this standard: ')
-                stdnms.append(stdnm)
-                s.srm_rngs[stdnm] = lims
-                plt.close(fig)
-            return stdnms
+    #     def id(self, s):
+    #         stdnms = []
+    #         s.srm_rngs = {}
+    #         for n in np.arange(s.n) + 1:
+    #             fig, ax = s.tplot(scale='log')
+    #             lims = s.Time[s.ns == n][[0, -1]]
+    #             ax.axvspan(lims[0], lims[1],
+    #                        color='r', alpha=0.2, lw=0)
+    #             display.clear_output(wait=True)
+    #             display.display(fig)
+    #             stdnm = input('Name this standard: ')
+    #             stdnms.append(stdnm)
+    #             s.srm_rngs[stdnm] = lims
+    #             plt.close(fig)
+    #         return stdnms
 
-        nms0 = id(self, s)
+    #     nms0 = id(self, s)
 
-        if len(self.stds) > 1:
-            ans = input('Were all other SRMs measured in the same sequence? [Y/n]')
-            if ans.lower() == 'n':
-                for s in self.stds[1:]:
-                    id(self, s)
+    #     if len(self.stds) > 1:
+    #         ans = input(('Were all other SRMs measured in '
+    #                      'the same sequence? [Y/n]'))
+    #         if ans.lower() == 'n':
+    #             for s in self.stds[1:]:
+    #                 id(self, s)
+    #         else:
+    #             for s in self.stds[1:]:
+    #                 if s.n == n0:
+    #                     s.srm_rngs = {}
+    #                     for n in np.arange(s.n) + 1:
+    #                         s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
+    #                 else:
+    #                     _ = id(self, s)
+
+    #     display.clear_output()
+
+    #     # record srm_rng in self
+    #     self.srm_rng = {}
+    #     for s in self.stds:
+    #         self.srm_rng[s.sample] = s.srm_rngs
+
+    #     # make boolean identifiers in standard D
+    #     for sn, rs in self.srm_rng.items():
+    #         s = self.data_dict[sn]
+    #         s.std_labels = {}
+    #         for srm, rng in rs.items():
+    #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+
+    #     self.srms_ided = True
+
+    #     return
+
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
+        # compile mean and standard errors of samples
+        for s in self.stds:
+            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
+            stdtab.index.name = 'uTime'
+
+            for n in range(1, s.n + 1):
+                ind = s.ns == n
+                for a in s.analytes:
+                    aind = ind & ~np.isnan(nominal_values(s.focus[a]))
+                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                               (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                               (a, 'err')] = np.nanmean(s.focus[a][aind]) / np.sqrt(sum(aind))
+
+            # sort column multiindex
+            stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
+            # sort row index
+            stdtab.sort_index(inplace=True)
+
+            # create 'SRM' column for naming SRM
+            stdtab.loc[:, 'SRM'] = ''
+            stdtab.loc[:, 'STD'] = s.sample
+
+            s.stdtab = stdtab
+
+        stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+
+        if not hasattr(self, 'srmdat'):
+            # load SRM info
+            srmdat = pd.read_csv(self.srmfile)
+            srmdat.set_index('SRM', inplace=True)
+            srmdat = srmdat.loc[srms_used]
+
+            # isolate measured elements
+            elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
+            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+            # label elements
+            srmdat.loc[:, 'element'] = np.nan
+            for e in elements:
+                srmdat.loc[srmdat.Item.str.contains(e), 'element'] = e
+
+            # convert to table in same format as stdtab
+            self.srmdat = srmdat
+
+        srm_tab = self.srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+
+        # Auto - ID STDs
+        # 1. identify elements in measured SRMS with biggest range of values
+        meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
+        meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
+        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+        meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+
+        ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
+        # (used as weights later)
+
+        # 2. Work out which standard is which
+        # normalise all elements between 0-1
+        def normalise(a):
+            a = nominal_values(a)
+            if np.nanmin(a) < np.nanmax(a):
+                return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
             else:
-                for s in self.stds[1:]:
-                    if s.n == n0:
-                        s.srm_rngs = {}
-                        for n in np.arange(s.n) + 1:
-                            s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
-                    else:
-                        _ = id(self, s)
+                return np.ones(a.shape)
 
-        display.clear_output()
+        nmeas = meas_tab.apply(normalise, 0)
+        nmeas.replace(np.nan, 1, inplace=True)
+        nsrm_tab = srm_tab.apply(normalise, 0)
+        nsrm_tab.replace(np.nan, 1, inplace=True)
 
-        # record srm_rng in self
-        self.srm_rng = {}
-        for s in self.stds:
-            self.srm_rng[s.sample] = s.srm_rngs
+        for uT, r in nmeas.iterrows():  # for each standard...
+            idx = abs((nsrm_tab - r) * ranges).sum(1)
+            # calculate the absolute difference between the normalised elemental
+            # values for each measured SRM and the SRM table. Each element is
+            # multiplied by the relative range seen in that element (i.e. range / mean
+            # measuerd value), so that elements with a large difference are given
+            # more importance in identifying the SRM.
+            # This produces a table, where wach row contains the difference between
+            # a known vs. measured SRM. The measured SRM is identified as the SRM that
+            # has the smallest weighted sum value.
+            stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+        stdtab = stdtab.reset_index().set_index(['STD', 'SRM', 'uTime'])
 
-        # make boolean identifiers in standard D
-        for sn, rs in self.srm_rng.items():
-            s = self.data_dict[sn]
-            s.std_labels = {}
-            for srm, rng in rs.items():
-                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+        # combine to make SRM reference tables
+        srmtabs = {}
+        for a in self.analytes:
+            el = re.findall('[A-Za-z]+', a)[0]
 
-        self.srms_ided = True
+            sub = stdtab.loc[:, a]
 
+            srmsub = self.srmdat.loc[self.srmdat.element == el, ['Value', 'Uncertainty']]
+
+            srmtab = sub.join(srmsub)
+            srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
+
+            srmtabs[a] = srmtab
+
+        self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
         return
 
-    def load_calibration(self, params=None):
-        """
-        Loads calibration from global .calib file.
+    # def load_calibration(self, params=None):
+    #     """
+    #     Loads calibration from global .calib file.
 
-        Parameters
-        ----------
-        params : TYPE
-            Description of `params`.
+    #     Parameters
+    #     ----------
+    #     params : str
+    #         Specify the parameter file to load the calibration from.
+    #         If None, it assumes that the parameters are already loaded
+    #         (using `load_params`).
 
-        Returns
-        -------
-        None
-        """
-        if isinstance(params, str):
-            self.load_params(params)
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     if isinstance(params, str):
+    #         self.load_params(params)
 
-        # load srm_rng and expand to standards
-        self.srm_rng = self.params['calib']['srm_rng']
+    #     # load srm_rng and expand to standards
+    #     self.srm_rng = self.params['calib']['srm_rng']
 
-        # make boolean identifiers in standard D
-        for s in self.stds:
-            s.srm_rngs = self.srm_rng[s.sample]
-            s.std_labels = {}
-            for srm, rng in s.srm_rngs.items():
-                s.std_labels[srm] = tuples_2_bool(rng, s.Time)
-        self.srms_ided = True
+    #     # make boolean identifiers in standard D
+    #     for s in self.stds:
+    #         s.srm_rngs = self.srm_rng[s.sample]
+    #         s.std_labels = {}
+    #         for srm, rng in s.srm_rngs.items():
+    #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
+    #     self.srms_ided = True
 
-        # load calib dict
-        self.calib_dict = self.params['calib']['calib_dict']
+    #     # load calib dict
+    #     self.calib_dict = self.params['calib']['calib_dict']
 
-        return
+    #     return
 
     # apply calibration to data
-    def calibrate(self, poly_n=0, focus='ratios',
-                  srmfile='/Users/oscarbranson/UCDrive/Projects/latools/latools/resources/GeoRem_150105_ratios.csv'):
+    @_log
+    def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
+                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
         """
         Calibrates the data to measured SRM values.
 
         Parameters
         ----------
         poly_n : int
-            Description of `poly_n`.
+            Specifies the type of function used to map
+            known SRM values to SRM measurements.
+            0: A linear function, forced through 0.
+            1 or more: An nth order polynomial.
         focus : str
-            Description of `focus`.
-        srmfile : str
-            Description of `srmfile`.
+            The `focus` stage of the data used to calculating the
+            ratios.
+        srmfile : str or None
+            Path the the file containing the known SRM values.
+            If None, the default file specified in the `latools.cfg`
+            is used. Refer to the documentation for more information
+            on the srmfile format.
 
         Returns
         -------
         None
         """
-        # MAKE CALIBRATION CLEVERER!
-        #   USE ALL DATA, NOT AVERAGES?
-        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
+        # MAKE CALIBRATION CLEVERER!?
+        #   USE ALL DATA OR AVERAGES?
+        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
+        #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
         # can store calibration function in self and use *coefs?
         # check for identified srms
-        params = locals()
-        del(params['self'])
-        self.calibration_params = params
 
-        if not self.srms_ided:
-            self.srm_id()
-        # get SRM values
-        f = open(srmfile).readlines()
-        self.srm_vals = {}
-        for srm in self.stds[0].std_labels.keys():
-            self.srm_vals[srm] = {}
-            for a in self.analytes:
-                self.srm_vals[srm][a] = [l.split(',')[1] for l in f if re.match(re.sub("[^A-Za-z]", "", a) + '.*' + srm, l.strip()) is not None][0]
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
-        # make calibration
-        self.calib_dict = {}
-        self.calib_data = {}
-        for a in self.analytes:
-            self.calib_data[a] = {}
-            self.calib_data[a]['srm'] = []
-            self.calib_data[a]['counts'] = []
-            x = []
-            y = []
-            for s in self.stds:
-                s.setfocus(focus)
-                for srm in s.std_labels.keys():
-                    y = s.focus[a][s.std_labels[srm]]
-                    y = y[~np.isnan(y)]
-                    x = [float(self.srm_vals[srm][a])] * len(y)
+        if not hasattr(self, 'srmtabs'):
+            self.srm_id_auto(srms_used)
 
-                    self.calib_data[a]['counts'].append(y)
-                    self.calib_data[a]['srm'].append(x)
+        # calibration functions
+        def calib_0(P, x):
+            return x * P[0]
 
-            self.calib_data[a]['counts'] = np.concatenate(self.calib_data[a]['counts']).astype(float)
-            self.calib_data[a]['srm'] = np.concatenate(self.calib_data[a]['srm']).astype(float)
+        def calib_n(P, x):
+            # where p is a list of polynomial coefficients n items long,
+            # corresponding to [..., 2nd, 1st, 0th] order coefficients
+            return np.polyval(P, x)
 
+        # wrapper for ODR fitting
+        def odrfit(x, y, fn, coef0, sx=None, sy=None):
+            dat = odr.RealData(x=x, y=y,
+                               sx=sx, sy=sy)
+            m = odr.Model(fn)
+            mod = odr.ODR(dat, m, coef0)
+            mod.run()
+            return un.uarray(mod.output.beta, mod.output.sd_beta)
+
+        # make container for calibration params
+        if not hasattr(self, 'calib_params'):
+            self.calib_params = pd.DataFrame(columns=self.analytes)
+
+        # set up calibration functions
+        if not hasattr(self, 'calib_fns'):
+            self.calib_fns = {}
+
+        for a in analytes:
             if poly_n == 0:
-                self.calib_dict[a], _, _, _ = np.linalg.lstsq(self.calib_data[a]['counts'][:, np.newaxis],
-                                                              self.calib_data[a]['srm'])
+                self.calib_fns[a] = calib_0
+                p0 = [1]
             else:
-                self.calib_dict[a] = np.polyfit(self.calib_data[a]['counts'],
-                                                self.calib_data[a]['srm'],
-                                                poly_n)
+                self.calib_fns[a] = calib_n
+                p0 = [1] * (poly_n - 1) + [0]
+
+            # calculate calibrations
+            if drift_correct:
+                for n, g in self.srmtabs.loc[a, :].groupby(level=0):
+                    if srm_errors:
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
+                                   sy=self.srmtabs.loc[a, 'srm_err'].values,
+                                   fn=self.calib_fns[a],
+                                   coef0=p0)
+                    else:
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
+                                   fn=self.calib_fns[a],
+                                   coef0=p0)
+                    uTime = g.index.get_level_values('uTime').values.mean()
+                    self.calib_params.loc[uTime, a] = p
+            else:
+                if srm_errors:
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
+                               sy=self.srmtabs.loc[a, 'srm_err'].values,
+                               fn=self.calib_fns[a],
+                               coef0=p0)
+                else:
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
+                               fn=self.calib_fns[a],
+                               coef0=p0)
+                self.calib_params.loc[0, a] = p
 
         # apply calibration
-        for d in self.data:
-            d.calibrate(self.calib_dict)
+        for d in tqdm(self.data, desc='Calibration'):
+            try:
+                d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
+            except:
+                print(d.sample + ' failed - probably first or last SRM\nwhich is outside interpolated time range.')
 
-        # save calibration parameters
-        # self.save_calibration()
+        self.focus_stage = 'calibrated'
+    #     # save calibration parameters
+    #     # self.save_calibration()
         return
 
     # data filtering
+    # TODO:
+    #   - implement 'filter sets'. Subsets dicts of samples at the 'analyse'
+    #       level that are all filtered in the same way. Should be able to:
+    #           a) Name the set
+    #           b) Apply and on/off filters independently for each set.
+    #           c) Each set should have a 'filter_status' function, listing
+    #               the state of each filter for each analyte within the set.
 
-    def filter_threshold(self, analyte, threshold, filt=False, mode='above', samples=None):
+    @_log
+    def make_subset(self, samples=None, name=None):
+        """
+        Creates a subset of samples, which can be treated independently.
+
+        Parameters
+        ----------
+        samples : str or array - like
+            Name of sample, or list of sample names.
+        name : (optional) str or number
+            The name of the sample group. Defaults to n + 1, where n is
+            the highest existing group number
+        """
+        if isinstance(samples, str):
+            samples = [samples]
+
+        if not hasattr(self, 'subsets'):
+            self.subsets = {}
+            self.subsets['All_Analyses'] = self.samples
+            self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
+            self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
+
+            # self.subsets = {s: 'All_Analyses' for s in self.samples if self.srm_identifier not in s}
+            # self.subsets.update({s: 'STD' for s in self.samples if self.srm_identifier in s})
+            # self.subsets = {}
+
+        if name is None:
+            name = max([-1] + [x for x in self.subsets.keys() if isinstance(x, int)]) + 1
+
+        if samples is not None:
+            self.subsets[name] = samples
+
+        # for subset in np.unique(list(self.subsets.values())):
+        #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
+
+        return name
+
+    @_log
+    def zeroscreen(self, focus_stage=None):
+        """
+        Remove all points containing data below zero (impossible)
+        """
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        
+        
+        for s in self.data_dict.values():
+            ind = np.ones(len(s.Time), dtype=bool)
+            for v in s.data[focus_stage].values():
+                ind = ind & (nominal_values(v) > 0)
+
+            for k in s.data[focus_stage].keys():
+                s.data[focus_stage][k][~ind] = unc.ufloat(np.nan, np.nan)
+        
+        self.set_focus(focus_stage)
+        
+        return
+
+    @_log
+    def filter_threshold(self, analyte, threshold, filt=False,
+                         samples=None, subset=None):
         """
         Applies a threshold filter to the data.
 
-        Generates threshold filters for analytes, when provided with analyte,
-        threshold, and mode. Mode specifies whether data 'below'
-        or 'above' the threshold are kept.
+        Generates two filters above and below the threshold value for a
+        given analyte.
 
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        threshold : TYPE
-            Description of `threshold`.
-        filt : TYPE
-            Description of `filt`.
-        mode : TYPE
-            Description of `mode`.
-        samples : TYPE
-            Description of `samples`.
+        analyte : str
+            The analyte that the filter applies to.
+        threshold : float
+            The threshold value.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
 
         Returns
         -------
         None
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = []
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
 
-        for s in samples:
-            self.data_dict[s].filter_threshold(analyte, threshold, filt=False, mode='above')
+        if analyte not in self.minimal_analytes:
+            self.minimal_analytes.append(analyte)
 
-    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None,
-                            output=False, samples=None):
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
+
+    @_log
+    def filter_distribution(self, analyte, binwidth='scott', filt=False,
+                            transform=None, samples=None, subset=None,
+                            min_data=10):
         """
         Applies a distribution filter to the data.
+
+
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        binwidth : TYPE
-            Description of `binwidth`.
-        filt : TYPE
-            Description of `filt`.
-        transform : TYPE
-            Description of `transform`.
-        output : TYPE
-            Description of `output`.
-        samples : TYPE
-            Description of `samples`.
+        analyte : str
+            The analyte that the filter applies to.
+        binwidth : str of float
+            Specify the bin width of the kernel density estimator.
+            Passed to `scipy.stats.gaussian_kde`.
+            str: The method used to automatically estimate bin width.
+                 Can be 'scott' or 'silverman'.
+            float: Manually specify the binwidth of the data.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        transform : str
+            If 'log', applies a log transform to the data before calculating
+            the distribution.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
 
         Returns
         -------
         None
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = []
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
 
-        for s in samples:
-            self.data_dict[s].filter_distribution(analyte, binwidth='scott', filt=False, transform=None, output=False)
+        if analyte not in self.minimal_analytes:
+            self.minimal_analytes.append(analyte)
 
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Distribution Filter'):
+            self.data_dict[s].filter_distribution(analyte, binwidth='scott',
+                                                  filt=filt, transform=None,
+                                                  min_data=min_data)
+
+    @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
-                          method='meanshift', include_time=False, samples=None, **kwargs):
+                          method='meanshift', include_time=False, samples=None,
+                          sort=True, subset=None, min_data=10, **kwargs):
         """
-        Applies an n-dimensional clustering filter to the data.
+        Applies an n - dimensional clustering filter to the data.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : TYPE
-            Description of `filt`.
-        normalise : TYPE
-            Description of `normalise`.
-        method : TYPE
-            Description of `method`.
-        include_time : TYPE
-            Description of `include_time`.
-        samples : TYPE
-            Description of `samples`.
+        analytes : str
+            The analyte(s) that the filter applies to.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        normalise : bool
+            Whether or not to normalise the data to zero mean and unit
+            variance. Reccomended if clustering based on more than 1 analyte.
+            Uses `sklearn.preprocessing.scale`.
+        method : str
+            Which clustering algorithm to use. Can be:
+                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+                             Automatically determines number of clusters
+                             in data based on the `bandwidth` of expected
+                             variation.
+                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+                          the characteristics of a known number of clusters
+                          within the data. Must provide `n_clusters` to specify
+                          the expected number of clusters.
+                'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
+                          determines the number and characteristics of clusters
+                          within the data based on the 'connectivity' of the
+                          data (i.e. how far apart each data point is in a
+                          multi - dimensional parameter space). Requires you to
+                          set `eps`, the minimum distance point must be from
+                          another point to be considered in the same cluster,
+                          and `min_samples`, the minimum number of points that
+                          must be within the minimum distance for it to be
+                          considered a cluster. It may also be run in automatic
+                          mode by specifying `n_clusters` alongside
+                          `min_samples`, where eps is decreased until the
+                          desired number of clusters is obtained.
+                For more information on these algorithms, refer to the
+                documentation.
+        include_time : bool
+            Whether or not to include the Time variable in the clustering
+            analysis. Useful if you're looking for spatially continuous
+            clusters in your data, i.e. this will identify each spot in your
+            analysis as an individual cluster.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        sort : bool
+            Whether or not you want the cluster labels to
+            be sorted by the mean magnitude of the signals
+            they are based on (0 = lowest)
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
         **kwargs
-            Parameters passed to the clustering algorithm specified by `method`.
+            Parameters passed to the clustering algorithm specified by
+            `method`.
 
         Meanshift Parameters
         --------------------
         bandwidth : str or float
-            Description of `bandwidth`.
+            The bandwith (float) or bandwidth method ('scott' or 'silverman')
+            used to estimate the data bandwidth.
         bin_seeding : bool
-            Description of `bin_seeding`.
+            Modifies the behaviour of the meanshift algorithm. Refer to
+            sklearn.cluster.meanshift documentation.
 
-        K-Means Parameters
+        K - Means Parameters
         ------------------
         n_clusters : int
-            Description of `n_clusters`.
+            The number of clusters expected in the data.
 
         DBSCAN Parameters
         -----------------
-        eps : TYPE
-            Description of `eps`.
-        min_samples : TYPE
-            Description of `min_samples`.
-        n_clusters : TYPE
-            Description of `n_clusters`.
-        maxiter : TYPE
-            Description of `maxiter`.
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample
+            variance. Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is
+            found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
         None
+
+
+        TODO
+        ----
+        Make cluster sorting element specific.
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = []
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
 
-        for s in samples:
-            self.data_dict[s].filter_clustering(analytes, filt=False, normalise=True, method='meanshift', include_time=False, samples=None, **kwargs)
+        if isinstance(analytes, str):
+            analytes = [analytes]
 
-    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9,
-                           p_threshold=0.05, filt=True):
+        for analyte in analytes:
+            if analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
+
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Clustering Filter'):
+            self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
+                                                normalise=normalise,
+                                                method=method,
+                                                include_time=include_time,
+                                                min_data=min_data,
+                                                **kwargs)
+
+    @_log
+    def filter_correlation(self, x_analyte, y_analyte, window=None,
+                           r_threshold=0.9, p_threshold=0.05, filt=True,
+                           samples=None, subset=None):
         """
         Applies a correlation filter to the data.
+
+        Calculates a rolling correlation between every `window` points of
+        two analytes, and excludes data where their Pearson's R value is
+        above `r_threshold` and statistically significant.
+
+        Data will be excluded where their absolute R value is greater than
+        `r_threshold` AND the p - value associated with the correlation is
+        less than `p_threshold`. i.e. only correlations that are statistically
+        significant are considered.
 
         Parameters
         ----------
         x_analyte, y_analyte : str
-            Description of `x_analyte`.
+            The names of the x and y analytes to correlate.
         window : int, None
-            Description of `window`.
+            The rolling window used when calculating the correlation.
         r_threshold : float
-            Description of `r_threshold`.
+            The correlation index above which to exclude data.
+            Note: the absolute pearson R value is considered, so
+            negative correlations below -`r_threshold` will also
+            be excluded.
         p_threshold : float
-            Description of `p_threshold`.
+            The significant level below which data are excluded.
         filt : bool
-            Description of `filt`.
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
 
         Returns
         -------
         None
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = []
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
 
-        for s in samples:
-            self.data_dict[s].filter_correlation(x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True)
+        for analyte in [x_analyte, y_analyte]:
+            if analyte not in self.minimal_analytes:
+                self.minimal_analytes.append(analyte)
 
-    def filter_on(self, filt=None, analyte=None, samples=None):
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Correlation Filter'):
+            self.data_dict[s].filter_correlation(x_analyte, y_analyte,
+                                                 window=window,
+                                                 r_threshold=r_threshold,
+                                                 p_threshold=p_threshold,
+                                                 filt=filt)
+
+    @_log
+    def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters on for particular analytes and samples.
 
         Parameters
         ----------
-        filt : TYPE
-            Description of `filt`.
-        analyte : TYPE
-            Description of `analyte`.
-        samples : TYPE
-            Description of `samples`.
+        filt : optional, str or array_like
+            Name, partial name or list of names of filters. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name are activated.
+            Defaults to all filters.
+        analyte : optional, str or array_like
+            Name or list of names of analytes. Defaults to all analytes.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
         None
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
-            self.data_dict[s].filt.on(analyte, filt)
+            try:
+                self.data_dict[s].filt.on(analyte, filt)
+            except:
+                warnings.warn("filt.on failure in sample " + s)
 
-    def filter_off(self, filt=None, analyte=None, samples=None):
+    @_log
+    def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
         """
         Turns data filters off for particular analytes and samples.
 
         Parameters
         ----------
-        filt : TYPE
-            Description of `filt`.
-        analyte : TYPE
-            Description of `analyte`.
-        samples : TYPE
-            Description of `samples`.
+        filt : optional, str or array_like
+            Name, partial name or list of names of filters. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name are activated.
+            Defaults to all filters.
+        analyte : optional, str or array_like
+            Name or list of names of analytes. Defaults to all analytes.
+        samples : optional, array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
 
         Returns
         -------
         None
         """
-        if samples is None:
-            samples = self.samples
-        if isinstance(samples, str):
-            samples = [samples]
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
 
         for s in samples:
-            self.data_dict[s].filt.off(analyte, filt)
+            try:
+                self.data_dict[s].filt.off(analyte, filt)
+            except:
+                warnings.warn("filt.off failure in sample " + s)
 
-    def filter_clear(self):
+    def filter_status(self, sample=None, subset=None, stds=False):
+        if sample is None and subset is None:
+            if not hasattr(self, 'subsets'):
+                self.make_subset(samples=None)
+            for k, v in sorted(self.subsets.items(), key=lambda x: str(x)):
+                if (self.srm_identifier in str(k)) and not stds:
+                    pass
+                elif 'All_Analyses' in str(k):
+                    pass
+                else:
+                    print('Subset {:s}:'.format(str(k)))
+                    if len(v) == len(self.samples):
+                        print('Samples: All')
+                    else:
+                        print('Samples: ' + ', '.join(v))
+                    print('\n' + self.data_dict[v[0]].filt.__repr__())
+            return
+
+        elif sample is not None:
+            print('Sample: ' + sample)
+            print(self.data_dict[sample].filt.__repr__())
+            return
+
+        elif subset is not None:
+            if isinstance(subset, str):
+                subset = [subset]
+            for s in subset:
+                print('Subset {:s}:'.format(str(s)))
+                print('Samples: ' + ', '.join(self.subsets[s]))
+                print('\n' +
+                      self.data_dict[self.subsets[s][0]].filt.__repr__())
+            return
+
+    @_log
+    def filter_clear(self, samples=None, subset=None):
         """
         Clears (deletes) all data filters.
         """
-        for d in self.data:
-            d.filt.clear()
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in samples:
+            self.data_dict[s].filt.clear()
 
     # def filter_status(self, sample=None):
     #     if sample is not None:
@@ -817,138 +1697,287 @@ class analyse(object):
     #     else:
 
     # plot calibrations
-    def calibration_plot(self, analytes=None, plot='errbar'):
+    @_log
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
         """
         Plot the calibration lines between measured and known SRM values.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        plot : str
-            Description of `plot`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+        datarange : boolean
+            Whether or not to show the distribution of the measured data
+            alongside the calibration curve.
+        loglog : boolean
+            Whether or not to plot the data on a log - log scale. This is
+            useful if you have two low standards very close together,
+            and want to check whether your data are between them, or
+            below them.
 
         Returns
         -------
-        None
+        (fig, axes)
+            matplotlib objects
         """
-        if analytes is None:
-            analytes = [a for a in self.analytes if 'Ca' not in a]
 
-        def rangecalc(xs, ys, pad=0.05):
-            xd = max(xs)
-            yd = max(ys)
-            return ([0 - pad * xd, max(xs) + pad * xd],
-                    [0 - pad * yd, max(ys) + pad * yd])
+        if analytes is None:
+            analytes = [a for a in self.analytes if self.internal_standard not in a]
 
         n = len(analytes)
-        if n % 4 is 0:
-            nrow = n/4
+        if n % 3 is 0:
+            nrow = n / 3
         else:
-            nrow = n//4 + 1
+            nrow = n // 3 + 1
 
-        fig, axes = plt.subplots(int(nrow), 4, figsize=[12, 3 * nrow], tight_layout=True)
+        axes = []
 
-        for ax, a in zip(axes.flat, analytes):
-            if plot is 'errbar':
-                srms = []
-                means = []
-                stds = []
-                for s in np.unique(self.calib_data[a]['srm']):
-                    srms.append(s)
-                    means.append(np.nanmean(self.calib_data[a]
-                                 ['counts'][self.calib_data[a]
-                                 ['srm'] == s]))
-                    stds.append(np.nanstd(self.calib_data[a]
-                                ['counts'][self.calib_data[a]
-                                ['srm'] == s]))
-                ax.errorbar(means, srms, xerr=stds, lw=0, elinewidth=2,
-                            ecolor=self.cmaps[a])
-            if plot is 'scatter':
-                ax.scatter(self.calib_data[a]['counts'],
-                           self.calib_data[a]['srm'],
-                           color=self.cmaps[a], alpha=0.2)
-            xlim, ylim = rangecalc(self.calib_data[a]['counts'],
-                                   self.calib_data[a]['srm'])
-            xlim[0] = ylim[0] = 0
+        if not datarange:
+            fig = plt.figure(figsize=[12, 3 * nrow])
+        else:
+            fig = plt.figure(figsize=[14, 3 * nrow])
+            if not hasattr(self, 'focus'):
+                self.get_focus()
+
+        gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
+                                   hspace=0.3, wspace=0.3)
+
+        i = 0
+        for a in analytes:
+            if not datarange:
+                ax = fig.add_axes(gs[i].get_position(fig))
+                axes.append(ax)
+                i += 1
+            else:
+                f = 0.8
+                p0 = gs[i].get_position(fig)
+                p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
+                p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
+                ax = fig.add_axes(p1)
+                axh = fig.add_axes(p2)
+                axes.append((ax, axh))
+                i += 1
+
+            # plot calibration data
+            ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
+                        self.srmtabs.loc[a, 'srm_mean'].values,
+                        xerr=self.srmtabs.loc[a, 'meas_err'].values,
+                        yerr=self.srmtabs.loc[a, 'srm_err'].values,
+                        color=self.cmaps[a], alpha=0.6,
+                        lw=0, elinewidth=1, marker='o',
+                        capsize=0, markersize=5)
+
+            # work out axis scaling
+            if not loglog:
+                xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values),
+                                       nominal_values(self.srmtabs.loc[a, 'srm_mean'].values),
+                                       pad=0.1)
+                xlim[0] = 0
+                ylim[0] = 0
+            else:
+                xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
+                yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
+
+                xlim = [10**np.floor(np.log10(np.nanmin(xd))),
+                        10**np.ceil(np.log10(np.nanmax(xd)))]
+                ylim = [10**np.floor(np.log10(np.nanmin(yd))),
+                        10**np.ceil(np.log10(np.nanmax(yd)))]
+
+                # scale sanity checks
+                if xlim[0] == xlim[1]:
+                    xlim[0] = ylim[0]
+                if ylim[0] == ylim[1]:
+                    ylim[0] = xlim[0]
+
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
 
-            # calculate line
-            x = np.array(xlim)
-            coefs = self.calib_dict[a]
-            if len(coefs) == 1:
-                line = x * coefs[0]
-                label = 'y = {:0.3e}x'.format(coefs[0])
+            # calculate line and R2
+            if loglog:
+                x = np.logspace(*np.log10(xlim), 100)
             else:
-                line = x * coefs[0] + coefs[1]
-                label = 'y = {:0.3e}x + {:0.3e}'.format(coefs[0], coefs[1])
-            ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
-            ax.text(.05, .95, a, transform=ax.transAxes,
-                    weight='bold', va='top', ha='left', size=12)
-            ax.set_xlabel('counts/counts Ca')
-            ax.set_ylabel('mol/mol Ca')
+                x = np.array(xlim)
 
+            coefs = self.calib_params[a][0]
+
+            # plot line of best fit
+            line = nominal_values(self.calib_fns[a](coefs, x))
+            ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
+
+            if len(coefs) == 1:
+                force_zero = True
+            else:
+                force_zero = False
+
+            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'],
+                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])),
+                        force_zero=force_zero)
+
+            # labels
+            if len(coefs) == 1:
+                label = 'y = {:.2e} x'.format(coefs[0])
+            else:
+                label = r''
+                for n, p in enumerate(coefs):
+                    if len(coefs) - n - 1 == 0:
+                        label += '{:.1e}'.format(p)
+                    elif len(coefs) - n - 1 == 1:
+                        label += '{:.1e} x\n+ '.format(p)
+                    else:
+                        label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs) - n - 1) + '}$\n+ '
+
+            if '{:.3f}'.format(R2) == '1.000':
+                label += '\n$R^2$: >0.999'
+            else:
+                label += '\n$R^2$: {:.3f}'.format(R2)
+
+            ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+                    weight='bold', va='top', ha='left', size=12)
+            ax.set_xlabel('counts/counts ' + self.internal_standard)
+            ax.set_ylabel('mol/mol ' + self.internal_standard)
             # write calibration equation on graph
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
                     va='bottom', ha='right')
 
-        for ax in axes.flat[n:]:
-            fig.delaxes(ax)
+            # plot data distribution historgram alongside calibration plot
+            if datarange:
+                # isolate data
+                meas = nominal_values(self.focus[a])
+                meas = meas[~np.isnan(meas)]
+
+                # check and set y scale
+                if np.nanmin(meas) < ylim[0]:
+                    if loglog:
+                        mmeas = meas[meas > 0]
+                        ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
+                    else:
+                        ylim[0] = 0
+                    ax.set_ylim(ylim)
+
+                # hist
+                if loglog:
+                    bins = np.logspace(*np.log10(ylim), 30)
+                else:
+                    bins = np.linspace(*ylim, 30)
+
+                axh.hist(meas, bins=bins, orientation='horizontal',
+                         color=self.cmaps[a], lw=0.5, alpha=0.5)
+
+                if loglog:
+                    axh.set_yscale('log')
+                axh.set_ylim(ylim)
+                axh.set_xticks([])
+                axh.set_yticklabels([])
+
+        if save:
+            fig.savefig(self.report_dir + '/calibration.pdf')
 
         return fig, axes
 
+    # set the focus attribute for specified samples
+    @_log
+    def set_focus(self, focus_stage=None, samples=None, subset=None):
+        """
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        else:
+            self.focus_stage = focus_stage
+
+        for s in samples:
+            self.data_dict[s].setfocus(focus_stage)
+
     # fetch all the data from the data objects
-    def get_focus(self, filt=False):
+    def get_focus(self, filt=False, samples=None, subset=None):
         """
         Collect all data from all samples into a single array.
+        Data from standards is not collected.
 
         Parameters
         ----------
-        filt : bool
-            Description of `filt`.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        samples : str or list
+        subset : str or int
 
         Returns
         -------
         None
         """
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
         t = 0
-        self.focus = {'Time': []}
+        self.focus = {'uTime': []}
         for a in self.analytes:
             self.focus[a] = []
 
-        for s in self.data:
-            if 'STD' not in s.sample:
-                self.focus['Time'].append(s.Time + t)
-                t += max(s.Time)
-                if isinstance(filt, str):
-                    ind = ~s.filt[filt]
-                else:
-                    ind = np.array([False] * len(s.Time))
-                for a in self.analytes:
-                    tmp = s.focus[a].copy()
-                    tmp[ind] = np.nan
-                    self.focus[a].append(tmp)
+        for sa in samples:
+            s = self.data_dict[sa]
+            self.focus['uTime'].append(s.uTime)
+            ind = s.filt.grab_filt(filt)
+            for a in self.analytes:
+                tmp = s.focus[a].copy()
+                tmp[~ind] = np.nan
+                self.focus[a].append(tmp)
 
         for k, v in self.focus.items():
             self.focus[k] = np.concatenate(v)
+        return
 
     # crossplot of all data
+    @_log
     def crossplot(self, analytes=None, lognorm=True,
-                  bins=25, filt=False, **kwargs):
+                  bins=25, filt=False, samples=None, subset=None, **kwargs):
         """
-        Plot analytes against each other.
+        Plot analytes against each other as 2D histograms.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         lognorm : bool
-            Description of `lognorm`.
+            Whether or not to log normalise the colour scale
+            of the 2D histogram.
         bins : int
-            Description of `bins`.
-        filt : bool
-            Description of `filt`.
+            The number of bins in the 2D histogram.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
 
         Returns
         -------
@@ -956,8 +1985,11 @@ class analyse(object):
         """
         if analytes is None:
             analytes = [a for a in self.analytes if 'Ca' not in a]
-        if not hasattr(self, 'focus'):
-            self.get_focus()
+
+        if subset is None:
+            subset = 'All_Samples'
+
+        self.get_focus(filt, samples, subset)
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -981,31 +2013,52 @@ class analyse(object):
                   'Greens', 'Greys', 'Oranges', 'OrRd',
                   'PuBu', 'PuBuGn', 'PuRd', 'Purples',
                   'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
-        udict = {}
-        for i, j in zip(*np.triu_indices_from(axes, k=1)):
-            for x, y in [(i, j), (j, i)]:
-                # set unit multipliers
-                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]))
-                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]))
-                udict[analytes[x]] = (x, ux)
 
-                # make plot
-                px = self.focus[analytes[x]][~np.isnan(self.focus[analytes[x]])] * mx
-                py = self.focus[analytes[y]][~np.isnan(self.focus[analytes[y]])] * my
-                if lognorm:
-                    axes[x, y].hist2d(py, px, bins,
-                                      norm=mpl.colors.LogNorm(),
-                                      cmap=plt.get_cmap(cmlist[x]))
-                else:
-                    axes[x, y].hist2d(py, px, bins,
-                                      cmap=plt.get_cmap(cmlist[x]))
-                axes[x, y].set_ylim([px.min(), px.max()])
-                axes[x, y].set_xlim([py.min(), py.max()])
+        # isolate nominal_values for all analytes
+        focus = {k: nominal_values(v) for k, v in self.focus.items()}
+        # determine units for all analytes
+        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        # determine ranges for all analytes
+        rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
+                     np.nanmax(focus[a] * udict[a][0])) for a in analytes}
+
+        for i, j in zip(*np.triu_indices_from(axes, k=1)):
+            # get analytes
+            ai = analytes[i]
+            aj = analytes[j]
+
+            # remove nan, apply multipliers
+            pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
+            pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
+
+            # make plot
+            if lognorm:
+                axes[i, j].hist2d(pj, pi, bins,
+                                  norm=mpl.colors.LogNorm(),
+                                  cmap=plt.get_cmap(cmlist[i]))
+                axes[j, i].hist2d(pi, pj, bins,
+                                  norm=mpl.colors.LogNorm(),
+                                  cmap=plt.get_cmap(cmlist[j]))
+            else:
+                axes[i, j].hist2d(pj, pi, bins,
+                                  cmap=plt.get_cmap(cmlist[i]))
+                axes[j, i].hist2d(pi, pj, bins,
+                                  cmap=plt.get_cmap(cmlist[j]))
+
+            axes[i, j].set_ylim(*rdict[ai])
+            axes[i, j].set_xlim(*rdict[aj])
+
+            axes[j, i].set_ylim(*rdict[aj])
+            axes[j, i].set_xlim(*rdict[ai])
+
         # diagonal labels
-        for a, (i, u) in udict.items():
-            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
+        for a, n in zip(analytes, np.arange(len(analytes))):
+            axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
+            axes[n, n].set_xlim(*rdict[a])
+            axes[n, n].set_ylim(*rdict[a])
+
         # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
             axes[j, i].xaxis.set_visible(True)
@@ -1016,60 +2069,146 @@ class analyse(object):
         return fig, axes
 
     # Plot traces
-    def trace_plots(self, analytes=None, dirpath=None, ranges=False, focus='despiked', plot_filt=None):
+    @_log
+    def trace_plots(self, analytes=None, samples=None, ranges=False,
+                    focus=None, outdir=None, filt=None, scale='log',
+                    figsize=[10, 4], stats=True, stat='nanmean',
+                    err='nanstd', subset=None):
         """
         Plot analytes as a function of time.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        dirpath : TYPE
-            Description of `dirpath`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+        samples: optional, array_like or str
+            The sample(s) to plot. Defaults to all samples.
         ranges : bool
-            Description of `ranges`.
+            Whether or not to show the signal/backgroudn regions
+            identified by 'autorange'.
         focus : str
-            Description of `focus`.
-        plot_filt : TYPE
-            Description of `plot_filt`.
+            The focus 'stage' of the analysis to plot. Can be
+            'rawdata', 'despiked':, 'signal', 'background',
+            'bkgsub', 'ratios' or 'calibrated'.
+        outdir : str
+            Path to a directory where you'd like the plots to be
+            saved. Defaults to 'reports/[focus]' in your data directory.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        scale : str
+            If 'log', plots the data on a log scale.
+        figsize : array_like
+            Array of length 2 specifying figure [width, height] in
+            inches.
+        stats : bool
+            Whether or not to overlay the mean and standard deviations
+            for each trace.
+        stat, err: str
+            The names of the statistic and error components to plot.
+            Deafaults to 'nanmean' and 'nanstd'.
+
 
         Returns
         -------
         None
         """
-        if dirpath is None:
-            dirpath = self.report_dir
-        if not os.path.isdir(dirpath):
-            os.mkdir(dirpath)
-        for s in self.data:
-            stg = s.focus_stage
-            s.setfocus(focus)
-            fig = s.tplot(scale='log', ranges=ranges, plot_filt=plot_filt)
+        if focus is None:
+            focus = self.data[0].focus_stage
+        if outdir is None:
+            outdir = self.report_dir + '/' + focus
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Drawing Plots'):
+            f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
+                                           scale=scale, filt=filt,
+                                           ranges=ranges, stats=stats,
+                                           stat=stat, err=err, focus_stage=focus)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
             # for l, u in s.bkgrng:
             #     ax.axvspan(l, u, color='k', alpha=0.1)
-            fig.savefig(dirpath + '/' + s.sample + '_traces.pdf')
-            plt.close(fig)
-            s.setfocus(stg)
+            f.savefig(outdir + '/' + s + '_traces.pdf')
+            # TODO: on older(?) computers raises
+            # 'OSError: [Errno 24] Too many open files'
+            plt.close(f)
+        return
 
+    # filter reports
+    @_log
+    def filter_reports(self, analytes, filt_str='all', samples=None,
+                       outdir=None, subset=None):
+        """
+        Plot filter reports for all filters that contain ``filt_str``
+        in the name.
+        """
+        if outdir is None:
+            outdir = self.report_dir + '/filters/' + filt_str
+            if not os.path.isdir(self.report_dir + '/filters'):
+                os.mkdir(self.report_dir + '/filters')
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
 
-    def stat_boostrap(self, analytes=None, filt=True,
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        for s in tqdm(samples, desc='Drawing Plots'):
+            self.data_dict[s].filt_report(filt=filt_str,
+                                          analytes=analytes,
+                                          savedir=outdir)
+            # plt.close(fig)
+        return
+
+    def _stat_boostrap(self, analytes=None, filt=True,
                       stat_fn=np.nanmean, ci=95):
         """
         Calculate sample statistics with bootstrapped confidence intervals.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : bool
-            Description of `filt`.
-        stat_fn : function
-            Description of `stat_fn`.
-        ci : int
-            Description of `ci`.
+        analytes : optional, array_like or str
+            The analyte(s) to calculate statistics for. Defaults to
+            all analytes.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        stat_fns : array_like
+            list of functions that take a single array_like input,
+            and return a single statistic. Function should be able
+            to cope with numpy NaN values.
+        ci : float
+            Confidence interval to calculate.
 
         Returns
         -------
@@ -1078,7 +2217,8 @@ class analyse(object):
 
         return
 
-    def stat_samples(self, analytes=None, filt=True,
+    @_log
+    def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
         """
@@ -1091,288 +2231,624 @@ class analyse(object):
 
         Parameters
         ----------
-        analytes : array_like
-            list of analytes to calculate the statistic on
-        filt : bool, str
-            Should the means take any active filters into account
-            (in self.filt)?
+        analytes : optional, array_like or str
+            The analyte(s) to calculate statistics for. Defaults to
+            all analytes.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
-            list of functions that take a single array-like input,
+            list of functions that take a single array_like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
-            Description of `eachtrace`.
+            Whether to calculate the statistics for each analysis
+            spot individually, or to produce per - sample means.
+            Default is True.
 
         Returns
         -------
         None
-
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
         if analytes is None:
             analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
         self.stats = {}
         self.stats_calced = [f.__name__ for f in stat_fns]
 
         # calculate stats for each sample
-        for s in self.data:
-            if 'STD' not in s.sample:
-                s.sample_stats(analytes, filt=filt, stat_fns=stat_fns,
-                               eachtrace=eachtrace)
+        for s in self.samples:
+            if self.srm_identifier not in s:
+                self.data_dict[s].sample_stats(analytes, filt=filt,
+                                               stat_fns=stat_fns,
+                                               eachtrace=eachtrace)
 
-                self.stats[s.sample] = s.stats
+                self.stats[s] = self.data_dict[s].stats
 
-        # for f in stat_fns:
-        #     setattr(self, f.__name__, [])
-        #     for s in self.data:
-        #         setattr(s, f.__name__, [])
-        #         if analytes is None:
-        #             analytes = self.analytes
-        #         for a in analytes:
-        #             if filt and hasattr(s, filts):
-        #                 if a in s.filts.keys():
-        #                     ind = s.filts[a]
-        #             else:
-        #                 ind = np.array([True] * s.focus[a].size)
+    @_log
+    def ablation_times(self, samples=None, subset=None):
 
-        #             getattr(s, f.__name__).append(f(s.focus[a][ind]))
-        #         getattr(self, f.__name__).append(getattr(s, f.__name__))
-        #     setattr(self, f.__name__, np.array(getattr(self, f.__name__)))
-        # return (np.array([f.__name__ for f in stat_fns]), np.array(self.samples), np.array(analytes)), np.array([getattr(self, f.__name__) for f in stat_fns])
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
 
-    def getstats(self):
+        if subset is None:
+            samples = self.subsets['All']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        ats = {}
+
+        for s in samples:
+            ats[s] = self.data_dict[s].ablation_times()
+
+        frames = []
+        for s in samples:
+            d = ats[s]
+            td = pd.DataFrame.from_dict(d, orient='index')
+            td.columns = ['Time']
+            frames.append(td)
+        out = pd.concat(frames, keys=samples)
+        out.index.names = ['sample', 'rep']
+        return out
+
+    # function for visualising sample statistics
+    @_log
+    def statplot(self, analytes=None, samples=None, figsize=None,
+                 stat='nanmean', err='nanstd', subset=None):
+        if not hasattr(self, 'stats'):
+            self.sample_stats()
+
+        if analytes is None:
+                analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Samples']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        analytes = [a for a in analytes if a !=
+                    self.data[0].internal_standard]
+
+        if figsize is None:
+            figsize = (1.5 * len(self.stats), 3 * len(analytes))
+
+        fig, axs = plt.subplots(len(analytes), 1, figsize=figsize)
+
+        for ax, an in zip(axs, analytes):
+            i = 0
+            stab = self.getstats()
+            m, u = unitpicker(np.percentile(stab.loc[:, an].dropna(), 25), 0.1)
+            for s in samples:
+                if self.srm_identifier not in s:
+                    d = self.stats[s]
+                    if d[stat].ndim == 2:
+                        n = d[stat].shape[-1]
+                        x = np.linspace(i - .1 * n / 2, i + .1 * n / 2, n)
+                    else:
+                        x = [i]
+                    a_ind = d['analytes'] == an
+
+                    # plot individual ablations with error bars
+                    ax.errorbar(x, d[stat][a_ind][0] * m,
+                                yerr=d[err][a_ind][0] * m,
+                                marker='o', color=self.cmaps[an],
+                                lw=0, elinewidth=1)
+
+                    ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
+                                                     pretty_element(self.data[0].internal_standard),
+                                                     u))
+
+                    # plot whole - sample mean
+                    if len(x) > 1:
+                        # mean calculation with error propagation?
+                        # umean = un.uarray(d[stat][a_ind][0] * m, d[err][a_ind][0] * m).mean()
+                        # std = un.std_devs(umean)
+                        # mean = un.nominal_values(umean)
+                        mean = np.nanmean(d[stat][a_ind][0] * m)
+                        std = np.nanstd(d[stat][a_ind][0] * m)
+                        ax.plot(x, [mean] * len(x), c=self.cmaps[an], lw=2)
+                        ax.fill_between(x, [mean + std] * len(x),
+                                        [mean - std] * len(x),
+                                        lw=0, alpha=0.2, color=self.cmaps[an])
+
+                    # highlight each sample
+                    if i % 2 == 1:
+                        ax.axvspan(i - .5, i + .5, color=(0, 0, 0, 0.05), lw=0)
+
+                    i += 1
+
+            ax.set_xticks(np.arange(0, len(self.stats)))
+            ax.set_xlim(-0.5, len(self.stats) - .5)
+
+            ax.set_xticklabels(samples)
+
+        return fig, ax
+
+    @_log
+    def getstats(self, filename=None, samples=None, subset=None, ablation_time=False):
         """
-        Return pandas dataframe of sample statistics.
+        Return pandas dataframe of all sample statistics.
         """
         slst = []
 
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
         for s in self.stats_calced:
-            for nm in [n for n in self.samples if 'STD' not in n.upper()]:
-                # make multi-index
-                reps = np.arange(self.stats[nm][s].shape[1])
-                ss = np.array([s] * reps.size)
-                nms = np.array([nm] * reps.size)
-                # make sub-dataframe
-                stdf = pd.DataFrame(self.stats[nm][s].T,
-                                    columns=self.stats[nm]['analytes'],
-                                    index=[ss, nms, reps])
-                stdf.index.set_names(['statistic', 'sample', 'rep'], inplace=True)
-                slst.append(stdf)
-
-        return pd.concat(slst)
-
-    # parameter input/output
-    def save_params(self, output_file=None):
-        """
-        Save analysis parameters.
-
-        Parameters
-        ----------
-        output_file : TYPE
-            Description of `output_file`.
-
-        Returns
-        -------
-        None
-        """
-        # get all parameters from all samples as a dict
-        dparams = {}
-        plist = []
-        for d in self.data:
-            dparams[d.sample] = d.get_params()
-            plist.append(list(dparams[d.sample].keys()))
-        # get all parameter keys
-        plist = np.unique(plist)
-        plist = plist[plist != 'sample']
-
-        # convert dict into array
-        params = []
-        for s in self.samples:
-            row = []
-            for p in plist:
-                row.append(dparams[s][p])
-            params.append(row)
-        params = np.array(params)
-
-        # calculate parameter 'sets'
-        sets = np.zeros(params.shape)
-        for c in np.arange(plist.size):
-            col = params[:,c]
-            i = 0
-            for r in np.arange(1, col.size):
-                if isinstance(col[r], (str, float, dict, int)):
-                    if col[r] != col[r-1]:
-                        i += 1
+            for nm in [n for n in samples if self.srm_identifier
+                       not in n]:
+                if len(self.stats[nm][s]) == 2:
+                    # make multi - index
+                    reps = np.arange(self.stats[nm][s].shape[-1])
+                    ss = np.array([s] * reps.size)
+                    nms = np.array([nm] * reps.size)
+                    # make sub - dataframe
+                    stdf = pd.DataFrame(self.stats[nm][s].T,
+                                        columns=self.stats[nm]['analytes'],
+                                        index=[ss, nms, reps])
+                    stdf.index.set_names(['statistic', 'sample', 'rep'],
+                                         inplace=True)
                 else:
-                    if any(col[r] != col[r-1]):
-                        i += 1
+                    stdf = pd.DataFrame(self.stats[nm][s],
+                                        index=self.stats[nm]['analytes'],
+                                        columns=[[s],[nm]]).T
+                    
+                    stdf.index.set_names(['statistic', 'sample'],
+                                         inplace=True)
+                slst.append(stdf)
+        out = pd.concat(slst)
 
-                sets[r,c] = i
+        if ablation_time:
+            ats = self.ablation_times(samples=samples, subset=subset)
+            ats['statistic'] = 'nanmean'
+            ats.set_index('statistic', append=True, inplace=True)
+            ats = ats.reorder_levels(['statistic', 'sample', 'rep'])
 
-        ssets = np.apply_along_axis(sum,1,sets)
-        nsets = np.unique(ssets, return_counts=True)
-        setorder = np.argsort(nsets[1])[::-1]
+            out = out.join(ats)
 
-        out = {}
-        out['exceptions'] = {}
-        first = True
-        for so in setorder:
-            setn = nsets[0][so]
-            setn_samples = self.samples[ssets == setn]
-            if first:
-                out['general'] = dparams[setn_samples[0]]
-                del out['general']['sample']
-                general_key = sets[self.samples == setn_samples[0],:][0,:]
-                first = False
-            else:
-                setn_key = sets[self.samples == setn_samples[0],:][0,:]
-                exception_param = plist[general_key != setn_key]
-                for s in setn_samples:
-                    out['exceptions'][s] = {}
-                    for ep in exception_param:
-                        out['exceptions'][s][ep] = dparams[s][ep]
+        if filename is not None:
+            out.to_csv(self.export_dir + '/' + filename)
 
-        out['calib'] = {}
-        out['calib']['calib_dict'] = self.calib_dict
-        out['calib']['srm_rng'] = self.srm_rng
-        out['calib']['calibration_params'] = self.calibration_params
+        self.stats_df = out
 
-        self.params = out
+        return out
 
-        if isinstance(output_file, str):
-            f = open(output_file, 'w')
-            f.write(str(self.params))
-            f.close()
+    # raw data export function
+    def _minimal_export_traces(self, outdir=None, analytes=None,
+                              samples=None, subset=None):
+        """
+        Used for exporting minimal dataset. DON'T USE.
+        """
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        focus_stage = 'rawdata'
+        ud = 'counts'
+
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        for s in samples:
+            d = self.data_dict[s].data[focus_stage]
+            out = {}
+
+            for a in analytes:
+                out[a] = d[a]
+
+            out = pd.DataFrame(out, index=self.data_dict[s].Time)
+            out.index.name = 'Time'
+
+            header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      "# Analysis described in '../analysis.log'",
+                      '# Run latools.reproduce to import analysis.',
+                      '#',
+                      '# Sample: %s' % (s),
+                      '# Analysis Time: ' + self.data_dict[s].meta['date']]
+
+            header = '\n'.join(header) + '\n'
+
+            csv = out.to_csv()
+
+            with open('%s/%s.csv' % (outdir, s), 'w') as f:
+                f.write(header)
+                f.write(csv)
         return
 
-    def load_params(self, params):
+    @_log
+    def export_traces(self, outdir=None, focus_stage=None, analytes=None,
+                      samples=None, subset=None, filt=False):
         """
-        Load analysis parameters.
+        Function to export raw data.
 
         Parameters
         ----------
-        params : str or dict
-            Description of `output_file`.
-
-        Returns
-        -------
-        None
+        outdir : str
+        focus_stage : str
+            The name of the analysis stage desired:
+                'rawdata': raw data, loaded from csv file.
+                'despiked': despiked data.
+                'signal'/'background': isolated signal and background data.
+                    Created by self.separate, after signal and background
+                    regions have been identified by self.autorange.
+                'bkgsub': background subtracted data, created by
+                    self.bkg_correct
+                'ratios': element ratio data, created by self.ratio.
+                'calibrated': ratio data calibrated to standards, created by
+                    self.calibrate.
+            Defaults to the most recent stage of analysis.
+        analytes : str or array - like
+            Either a single analyte, or list of analytes to export.
+            Defaults to all analytes.
+        samples : str or array - like
+            Either a single sample name, or list of samples to export.
+            Defaults to all samples.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
         """
-        if isinstance(params, str):
-            s = open(params, 'r').read()
-            # make it numpy-friendly for eval
-            s = re.sub('array', 'np.array', s)
-            params = eval(s)
-        self.params = params
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+        elif not hasattr(self, 'subsets'):
+            self.make_subset()
+
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not .".format(subset) +
+                                  "exist.\nRun 'make_subset' to create a" +
+                                  "subset."))
+
+        if focus_stage is None:
+            focus_stage = self.data[0].focus_stage
+
+        if outdir is None:
+            outdir = self.export_dir
+
+        ud = {'rawdata': 'counts',
+              'despiked': 'counts',
+              'bkgsub': 'background corrected counts',
+              'ratios': 'counts/count {:s}',
+              'calibrated': 'mol/mol {:s}'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        for s in samples:
+            d = self.data_dict[s].data[focus_stage]
+            ind = self.data_dict[s].filt.grab_filt(filt)
+            out = {}
+
+            for a in analytes:
+                out[a] = nominal_values(d[a][ind])
+                if focus_stage not in ['rawdata', 'despiked']:
+                    out[a + '_std'] = std_devs(d[a][ind])
+                    out[a + '_std'][out[a + '_std'] == 0] = np.nan
+
+            out = pd.DataFrame(out, index=self.data_dict[s].Time[ind])
+            out.index.name = 'Time'
+
+            header = ['# Sample: %s' % (s),
+                      '# Data Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      '# Processed using %s configuration' % (self.config),
+                      '# Analysis Stage: %s' % (focus_stage),
+                      '# Unit: %s' % ud[focus_stage]]
+
+            header = '\n'.join(header) + '\n'
+
+            csv = out.to_csv()
+
+            with open('%s/%s_%s.csv' % (outdir, s, focus_stage), 'w') as f:
+                f.write(header)
+                f.write(csv)
         return
+
+    def minimal_export(self, target_analytes, override=False, path=None):
+        """
+        Exports a analysis parameters, standard info and a minimal dataset,
+        which can be imported by another user.
+        """
+        if isinstance(target_analytes, str):
+            target_analytes = [target_analytes]
+
+        if any([a not in target_analytes for a in self.minimal_analytes]) and override:
+            excluded = [a for a in self.minimal_analytes if a not in target_analytes]
+            warnings.warn('\n\nYou have chosen to specify particular analytes,\n' +
+                          'and override the default minimal_export function.\n' +
+                          'The following analytes are used in data\n' +
+                          'processing, but not included in this export:\n' +
+                          '  {}\n'.format(excluded) +
+                          'Export will continue, but we cannot guarantee\n' +
+                          'that the analysis will be reproducible. You MUST\n' +
+                          'check to make sure the analysis can be duplicated\n' +
+                          "by the `latools.reproduce` function before\n" +
+                          'distributing this dataset.')
+        else:
+            target_analytes = np.unique(np.concatenate([target_analytes, self.minimal_analytes]))
+
+        # set up data path
+        if path is None:
+            path = self.export_dir + '/minimal_export/'
+        if not os.path.isdir(path):
+            os.mkdir(path)
+
+        # export data
+        self._minimal_export_traces(path + '/data', analytes=target_analytes)
+
+        # export analysis_log
+        log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
+                      (time.strftime('%Y:%m:%d %H:%M:%S')),
+                      'data_folder :: ./data/',
+                      'srm_table :: ./srm.table',
+                      '# Analysis Log Start: \n']
+
+        with open(path + '/analysis.log', 'w') as f:
+            f.write('\n'.join(log_header))
+            f.write('\n'.join(self.log))
+
+        # export srm table
+        els = np.unique([re.sub('[0-9]', '', a) for a in target_analytes])
+        srmdat = []
+        for e in els:
+            srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
+        srmdat = pd.concat(srmdat)
+
+        with open(path + '/srm.table', 'w') as f:
+            f.write(srmdat.to_csv())
+
+def reproduce(log_file, plotting=False, data_dir=None, srm_table=None):
+    """
+    Reproduce a previous analysis exported with `latools.minimal_export`
+    """
+    dirname = os.path.dirname(log_file)
+
+    with open(log_file, 'r') as f:
+        rlog = f.read().splitlines()
+
+    getpath = re.compile('.* :: (.*)')
+    if data_dir is None:
+        data_dir = (dirname + '/' + getpath.match(rlog[1]).groups()[0]).replace('/./','/')
+    if srm_table is None:
+        srm_table = (dirname + '/' + getpath.match(rlog[2]).groups()[0]).replace('/./','/')
+
+    # reproduce analysis
+    logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
+
+    init_kwargs = eval(logread.match(rlog[4]).groups()[-1])
+    init_kwargs['config'] = 'REPRODUCE'
+    init_kwargs['data_folder'] = data_dir
+
+    dat = analyse(**init_kwargs)
+
+    dat.srmdat = pd.read_csv(srm_table).set_index('SRM')
+    print('SRM values loaded from: {}'.format(srm_table))
+
+    # rest of commands
+    log = rlog[5:]
+    for l in log:
+        fname, args, kwargs = logread.match(l).groups()
+        if 'plot' not in fname.lower():
+            getattr(dat,fname)(*eval(args),**eval(kwargs))
+        elif plotting:
+            getattr(dat,fname)(*eval(args),**eval(kwargs))
+        else:
+            pass
+
+    return dat
 
 
 analyze = analyse  # for the yanks
+
 
 class D(object):
     """
     Container for data from a single laser ablation analysis.
 
+    Parameters
+    ----------
+    data_file : str
+        The path to a data file.
+    errorhunt : bool
+        Whether or not to print each data file name before
+        import. This is useful for tracing which data file
+        is causing the import to fail.
+    dataformat : str or dict
+        Either a path to a data format file, or a
+        dataformat dict. See documentation for more details.
+
     Attributes
     ----------
-    filt : str
     sample : str
-    Dfile : str
-    date : str
-    method : str
-    despiked : bool
-    cols : array_like
+        Sample name.
+    meta : dict
+        Metadata extracted from the csv header. Contents varies,
+        depending on your `dataformat`.
     analytes : array_like
-    rawdata, despiked, signal, background, bkgsub, ratios, calibrated : dict
+        A list of analytes measured.
+    data : dict
+        A dictionary containing the raw data, and modified data
+        from each processing stage. Entries can be:
+            rawdata: created during initialisation.
+            despiked: created by `despike`
+            signal: created by `autorange`
+            background: created by `autorange`
+            bkgsub: created by `bkg_correct`
+            ratios: created by `ratio`
+            calibrated: created by `calibrate`
     focus : dict
+        A dictionary containing one item from `data`. This is the
+        currently 'active' data that processing functions will
+        work on. This data is also directly available as class
+        attributes with the same names as the items in `focus`.
+    focus_stage : str
+        Identifies which item in `data` is currently assigned to `focus`.
     cmap : dict
+        A dictionary containing hex colour strings corresponding
+        to each measured analyte.
     bkg, sig, trn : array_like, bool
+        Boolean arrays identifying signal, background and transition
+        regions. Created by `autorange`.
     bkgrng, sigrng, trnrng : array_like
+        An array of shape (n, 2) containing pairs of values that
+        describe the Time limits of background, signal and transition
+        regions.
     ns : array_like
+        An integer array the same length as the data, where each analysis
+        spot is labelled with a unique number. Used for separating
+        analysys spots when calculating sample statistics.
     filt : filt object
+        An object for storing, selecting and creating data filters.
 
     Methods
     -------
+    ablation_times
     autorange
-    bkg_correct
-    bkgrange
+    bkg_subtract
     calibrate
     cluster_DBSCAN
     cluster_kmeans
     cluster_meanshift
     crossplot
     despike
-    expdecay_filter
-    fastgrad
+    drift_params
+    expdecay_despiker
     filt_report
     filter_clustering
     filter_correlation
     filter_distribution
     filter_threshold
-    findlower
     findmins
-    findupper
-    gauss
-    gauss_inv
     get_params
-    makerangebools
     mkrngs
+    noise_despiker
     ratio
-    rolling_window
     sample_stats
-    separate
     setfocus
-    sigrange
-    spike_filter
     tplot
+
     """
-    def __init__(self, csv_file, errorhunt=False):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43'):
         if errorhunt:
-            print(csv_file)  # errorhunt prints each csv file name before it tries to load it, so you can tell which file is failing to load.
-        self.file = csv_file
+            # errorhunt prints each csv file name before it tries to load it,
+            # so you can tell which file is failing to load.
+            print(data_file)
+        params = locals()
+        del(params['self'])
+        self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
+
+        self.file = data_file
         self.sample = os.path.basename(self.file).split('.')[0]
+        self.internal_standard = internal_standard
 
-        # open file
-        f = open(self.file)
-        lines = f.readlines()
+        with open(data_file) as f:
+            lines = f.readlines()
+            # read the metadata, using key, regex pairs in the line - numbered
+            # dataformat['regex'] dict.
+            if 'regex' in dataformat.keys():
+                self.meta = {}
+                for k, v in dataformat['regex'].items():
+                    if v is not None:
+                        out = re.search(v[-1], lines[int(k)]).groups()
+                        for i in np.arange(len(v[0])):
+                            self.meta[v[0][i]] = out[i]
+            # identify column names
+            if dataformat['column_id']['name_row'] is not None:
+                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(','))
+                timecol = np.array([dataformat['column_id']['timekey'] in c.lower() for c in columns])
+                columns[timecol] = 'Time'
+                self.analytes = columns[~timecol]
 
-        # determine header size
-        def nskip(lines):
-            for i, s in enumerate(lines):
-                if 'time [sec]' in s.lower():
-                    return i
-            return -1
-        dstart = nskip(lines) + 1
+        read_data = np.genfromtxt(data_file,
+                                  **dataformat['genfromtext_args']).T
 
-        # this section is agilent-specific... make it more adaptable?
-        # get run info
-        try:
-            self.Dfile = lines[0]
-            info = re.search('.*([A-Z][a-z]{2} [0-9]+ [0-9]{4}[ ]+[0-9:]+) .*AcqMethod (.*)',lines[2]).groups()
-            self.date = info[0]
-            self.method = info[1]
-            self.despiked = lines[3][:8] == 'Despiked'
-        except:
-            pass
+        # create data dict
+        self.data = {}
+        self.data['rawdata'] = dict(zip(columns, read_data))
 
-        self.cols = np.array([l for l in lines[:dstart] if l.startswith('Time')][0].strip().split(','))
-        self.cols[0] = 'Time'
-        self.analytes = self.cols[1:]
-        f.close()
-
-        # load data
-        raw = np.loadtxt(csv_file, delimiter=',', skiprows=dstart, comments='     ').T
-        self.rawdata = {}
-        for i in range(len(self.cols)):
-            self.rawdata[self.cols[i]] = raw[i]
-
-        # most recently worked on data step
+        # set focus to rawdata
         self.setfocus('rawdata')
-        self.cmap = dict(zip(self.analytes,
-                             cb.get_map('Paired', 'qualitative',
-                                        len(self.cols)).hex_colors))
+
+        # make a colourmap for plotting
+        try:
+            self.cmap = dict(zip(self.analytes,
+                                 cb.get_map('Paired', 'qualitative',
+                                            len(columns)).hex_colors))
+        except:
+            self.cmap = \
+                dict(zip(self.analytes,
+                         [mpl.colors.rgb2hex(c) for c
+                          in plt.cm.Dark2(np.linspace(0, 1,
+                                                      len(self.analytes)))]))
+        # update colourmap with provided values
+        if isinstance(cmap, dict):
+            for k, v in cmap.items():
+                if k in self.cmap.keys():
+                    self.cmap[k] = v
 
         # set up flags
         self.sig = np.array([False] * self.Time.size)
@@ -1385,10 +2861,22 @@ class D(object):
         # set up filtering environment
         self.filt = filt(self.Time.size, self.analytes)
 
-        # set up corrections dict
-        # self.corrections = {}
+        if errorhunt:
+            print('   -> OK')
 
-    def setfocus(self, stage):
+        return
+
+    def _log(fn):
+        """
+        Function for logging method calls and parameters
+        """
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+            return fn(self, *args, **kwargs)
+        return wrapper
+
+    def setfocus(self, focus):
         """
         Set the 'focus' attribute of the data file.
 
@@ -1399,8 +2887,8 @@ class D(object):
 
         Parameters
         ----------
-        stage : str
-            the name of the analysis stage desired:
+        focus : str
+            The name of the analysis stage desired:
                 'rawdata': raw data, loaded from csv file when object
                     is initialised.
                 'despiked': despiked data.
@@ -1408,7 +2896,8 @@ class D(object):
                     padded with np.nan. Created by self.separate, after
                     signal and background regions have been identified by
                     self.autorange.
-                'bkgsub': background subtracted data, created by self.bkg_correct
+                'bkgsub': background subtracted data, created by
+                    self.bkg_correct
                 'ratios': element ratio data, created by self.ratio.
                 'calibrated': ratio data calibrated to standards, created by
                     self.calibrate.
@@ -1417,62 +2906,36 @@ class D(object):
         -------
         None
         """
-        self.focus = getattr(self, stage)
-        self.focus_stage = stage
+        self.focus = self.data[focus]
+        self.focus_stage = focus
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    def rolling_window(self, a, window, pad=None):
-        """
-        Returns (win, len(a)) rolling-window array of data.
-
-        Parameters
-        ----------
-        a : TYPE
-            Description of `a`.
-        window : TYPE
-            Description of `window`.
-        pad : TYPE
-            Description of `pad`.
-
-        Returns
-        -------
-        None
-        """
-        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-        strides = a.strides + (a.strides[-1],)
-        out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-        if pad is not None:
-            blankpad = np.empty((window//2, window, ))
-            blankpad[:] = pad
-            return np.concatenate([blankpad, out, blankpad])
-        else:
-            return out
-
-    def expdecay_filter(self, exponent=None, tstep=None):
+    def expdecay_despiker(self, exponent=None, tstep=None):
         """
         Apply exponential decay filter to remove unrealistically low values.
 
         Parameters
         ----------
-        exponent : TYPE
-            Description of `exponent`.
-        tstep : TYPE
-            Description of `tstep`.
+        exponent : float
+            Expinent used in filter
+        tstep : float
+            The time increment between data points.
+            Calculated from Time variable if None.
 
         Returns
         -------
         None
         """
         # if exponent is None:
-        #     if ~hasattr(self, 'expdecay_coef'):
+        #     if not hasattr(self, 'expdecay_coef'):
         #         self.find_expcoef()
         #     exponent = self.expdecay_coef
         if tstep is None:
             tstep = np.diff(self.Time[:2])
-        if ~hasattr(self, 'despiked'):
-            self.despiked = {}
+        if not hasattr(self, 'despiked'):
+            self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
@@ -1480,28 +2943,43 @@ class D(object):
                 over = np.roll(lowlim > v, -1)
 
                 if sum(over) > 0:
-                    # get adjacent values to over-limit values
-                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                            v[np.roll(over, 1)][:, np.newaxis]])
-                    # calculate the mean of the neighbours
+                    # get adjacent values to over - limit values
+                    # calculate replacement values
+                    neighbours = []
+                    fixend = False
+                    oover = over.copy()
+                    if oover[0]:
+                        neighbours.append([v[1], np.nan])
+                        oover[0] = False
+                    if oover[-1]:
+                        oover[-1] = False
+                        fixend = True
+                    neighbours.append(np.hstack([v[np.roll(oover, -1)][:, np.newaxis],
+                                                 v[np.roll(oover, 1)][:, np.newaxis]]))
+                    if fixend:
+                        neighbours.append([v[-2], np.nan])
+
+                    neighbours = np.vstack(neighbours)
+
                     replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
                     # and subsitite them in
                     v[over] = replacements
-                self.despiked[a] = v
+                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
     # spike filter
-    def spike_filter(self, win=3, nlim=12.):
+    def noise_despiker(self, win=3, nlim=12.):
         """
         Apply standard deviation filter to remove anomalous high values.
 
         Parameters
         ----------
         win : int
-            Description of `win`.
+            The window used to calculate rolling statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling
+            mean above which data are considered outliers.
 
         Returns
         -------
@@ -1509,64 +2987,81 @@ class D(object):
         """
         if ~isinstance(win, int):
             win = int(win)
-        if ~hasattr(self, 'despiked'):
-            self.despiked = {}
+        if not hasattr(self, 'despiked'):
+            self.data['despiked'] = {}
         for a, vo in self.focus.items():
             v = vo.copy()
             if 'time' not in a.lower():
-                # calculate rolling mean
-                with warnings.catch_warnings():  # to catch 'empty slice' warnings
-                    warnings.simplefilter("ignore", category=RuntimeWarning)
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
-                    rmean = np.apply_along_axis(np.nanmean, 1, self.rolling_window(v, win, pad=np.nan))
-                # calculate rolling standard deviation (count statistics, so **0.5)
+                # calculate rolling mean using convolution
+                kernel = np.ones(win) / win
+                rmean = np.convolve(v, kernel, 'same')
+
+            # with warnings.catch_warnings():
+                # to catch 'empty slice' warnings
+                # warnings.simplefilter("ignore", category=RuntimeWarning)
+                # rmean = \
+                #     np.apply_along_axis(np.nanmean, 1,
+                #                         rolling_window(v, win,
+                #                                             pad=np.nan))
+                # rmean = \
+                #     np.apply_along_axis(np.nanmean, 1,
+                #                         rolling_window(v, win,
+                #                                             pad=np.nan))
+                # calculate rolling standard deviation
+                # (count statistics, so **0.5)
                 rstd = rmean**0.5
 
-                # find which values are over the threshold (v > rmean + nlim * rstd)
+                # find which values are over the threshold
+                # (v > rmean + nlim * rstd)
                 over = v > rmean + nlim * rstd
                 if sum(over) > 0:
-                    # get adjacent values to over-limit values
-                    neighbours = np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                            v[np.roll(over, 1)][:, np.newaxis]])
+                    # get adjacent values to over - limit values
+                    neighbours = \
+                        np.hstack([v[np.roll(over, -1)][:, np.newaxis],
+                                   v[np.roll(over, 1)][:, np.newaxis]])
                     # calculate the mean of the neighbours
-                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
+                    replacements = np.apply_along_axis(np.nanmean, 1,
+                                                       neighbours)
                     # and subsitite them in
                     v[over] = replacements
-                self.despiked[a] = v
+                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
-    def despike(self, expdecay_filter=True, exponent=None, tstep=None, spike_filter=True, win=3, nlim=12.):
+    @_log
+    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+                noise_despiker=True, win=3, nlim=12.):
         """
-        Applies expdecay_filter and spike_filter to data.
+        Applies expdecay_despiker and noise_despiker to data.
 
         Parameters
         ----------
-        expdecay_filter : bool
-            Description of `expdecay_filter`.
-        exponent : TYPE
-            Description of `exponent`.
-        tstep : TYPE
-            Description of `tstep`.
-        spike_filter : bool
-            Description of `spike_filter`.
+        expdecay_despiker : bool
+            Whether or not to apply the exponential decay filter.
+        exponent : None or float
+            The exponent for the exponential decay filter. If None,
+            it is determined automatically using `find_expocoef`.
+        tstep : None or float
+            The timeinterval between measurements. If None, it is
+            determined automatically from the Time variable.
+        noise_despiker : bool
+            Whether or not to apply the standard deviation spike filter.
         win : int
-            Description of `win`.
+            The rolling window over which the spike filter calculates
+            the trace statistics.
         nlim : float
-            Description of `nlim`.
+            The number of standard deviations above the rolling mean
+            that data are excluded.
 
         Returns
         -------
         None
         """
-        if spike_filter:
-            self.spike_filter(win, nlim)
-        if expdecay_filter:
-            self.expdecay_filter(exponent, tstep)
+        if noise_despiker:
+            self.noise_despiker(win, nlim)
+        if expdecay_despiker:
+            self.expdecay_despiker(exponent, tstep)
 
-        params = locals()
-        del(params['self'])
-        self.despike_params = params
         return
 
     # helper functions for data selection
@@ -1576,6 +3071,7 @@ class D(object):
         Parameters
         ----------
         x, y : array_like
+            1D arrays of the independent (x) and dependent (y) variables.
 
         Returns
         -------
@@ -1584,163 +3080,43 @@ class D(object):
         """
         return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
 
-    def gauss(self, x, *p):
-        """ Gaussian function.
-
-        Parameters
-        ----------
-        x : array-like
-        *p : parameters unpacked to A, mu, sigma
-            A: area
-            mu: centre
-            sigma: width
-
-        Return
-        ------
-        array_like
-            gaussian descriped by *p.
+    @_log
+    def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
+                  conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.), d_mult=1.2):
         """
-        A, mu, sigma = p
-        return A * np.exp(-0.5*(-mu + x)**2/sigma**2)
+                Automatically separates signal and background data regions.
 
-    def gauss_inv(self, y, *p):
-        """
-        Inverse Gaussian function.
-
-        For determining the x coordinates
-        for a given y intensity (i.e. width at a given height).
-
-        Parameters:
-            y:  float
-                The height at which to calculate peak width.
-            *p: parameters unpacked to mu, sigma
-                mu: peak center
-                sigma: peak width
-        Return
-        ------
-        array_like
-            x positions either side of mu where gauss(x) == y.
-        """
-        mu, sigma = p
-        return np.array([mu - 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y)),
-                         mu + 1.4142135623731 * np.sqrt(sigma**2*np.log(1/y))])
-
-    def findlower(self, x, y, c, win=3):
-        """
-        Returns the first local minima in y below c.
-
-        Finds the first local minima below a specified point. Used for
-        defining the lower limit of the data window used for transition
-        fitting.
-
-        Parameters
-        ----------
-        x, y : array_like
-        c : float
-            Description of `c`.
-        win : int
-            Description of `win`.
-
-        Returns
-        -------
-        float
-            x position of minima
-
-        """
-        yd = self.fastgrad(y[::-1], win)
-        mins = self.findmins(x[::-1], yd)
-        clos = abs(mins - c)
-        return mins[clos == min(clos)] - min(clos)
-
-    def findupper(self, x, y, c, win=3):
-        """
-        Returns the first local minima in y above c.
-
-        Finds the first local minima above a specified point. Used for
-        defining the lower limit of the data window used for transition
-        fitting.
-
-        Parameters
-        ----------
-        x, y : array_like
-        c : float
-            Description of `c`.
-        win : int
-            Description of `win`.
-
-        Returns
-        -------
-        float
-            x position of minima
-        """
-        yd = self.fastgrad(y, win)
-        mins = self.findmins(x, yd)
-        clos = abs(mins - c)
-        return mins[clos == min(abs(clos))] + min(clos)
-
-    def fastgrad(self, a, win=11):
-        """
-        Returns rolling-window gradient of a.
-
-        Function to efficiently calculate the rolling gradient of a numpy
-        array using 'stride_tricks' to split up a 1D array into an ndarray of
-        sub-sections of the original array, of dimensions [len(a)-win, win].
-
-        Parameters
-        ----------
-        a : array-like
-        win : int
-            The width of the rolling window.
-
-        Returns
-        -------
-        None
-        """
-        # check to see if 'window' is odd (even does not work)
-        if win % 2 == 0:
-            win -= 1  # subtract 1 from window if it is even.
-        # trick for efficient 'rolling' computation in numpy
-        # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-        # strides = a.strides + (a.strides[-1],)
-        # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-        wins = self.rolling_window(a, win)
-        # apply rolling gradient to data
-        a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
-
-        return np.concatenate([np.zeros(int(win/2)), list(a),
-                              np.zeros(int(win / 2))])
-
-    def autorange(self, analyte='Ca43', gwin=11, win=40, smwin=5,conf=0.01, trans_mult=[0., 0.]):
-        """
-        Separates signal, background and transition regions.
-
-        Function to automatically detect signal and background regions in the
-        laser data, based on the behaviour of a target analyte. An ideal target
-        analyte should be abundant and homogenous in the sample.
+        Automatically detect signal and background regions in the laser
+        data, based on the behaviour of a single analyte. The analyte used
+        should be abundant and homogenous in the sample.
 
         Step 1: Thresholding
-        The background is initially determined using a gaussian kernel density
-        estimator (kde) of all the data. The minima in the kde define the
-        boundaries between distinct data distributions. All data below than the
-        first (lowest) kde minima are labelled 'background', and all above this
-        limit are labelled 'signal'.
+        The background signal is determined using a gaussian kernel density
+        estimator (kde) of all the data. Under normal circumstances, this
+        kde should find two distinct data distributions, corresponding to
+        'signal' and 'background'. The minima between these two distributions
+        is taken as a rough threshold to identify signal and background
+        regions. Any point where the trace crosses this thrshold is identified
+        as a 'transition'.
 
         Step 2: Transition Removal
         The width of the transition regions between signal and background are
-        then determined, and the transitions are removed from both signal and
-        background. The width of the transitions is determined by fitting a
-        gaussian to the smoothed first derivative of the analyte trace, and
-        determining its width at a point where the gaussian intensity is at a
-        set limit. These gaussians are fit to subsets of the data that contain
-        the transitions, which are centered around the approximate transition
-        locations determined in Step 1, +/- win data points. The peak is isolated
-        by finding the minima and maxima of a second derivative, and the
-        gaussian is fit to the isolate peak.
+        then determined, and the transitions are excluded from analysis. The
+        width of the transitions is determined by fitting a gaussian to the
+        smoothed first derivative of the analyte trace, and determining its
+        width at a point where the gaussian intensity is at at `conf` time the
+        gaussian maximum. These gaussians are fit to subsets of the data
+        centered around the transitions regions determined in Step 1, +/- `win`
+        data points. The peak is further isolated by finding the minima and
+        maxima of a second derivative within this window, and the gaussian is
+        fit to the isolated peak.
 
         Parameters
         ----------
         analyte : str
-            Description of `analyte`.
+            The analyte that autorange should consider. For best results,
+            choose an analyte that is present homogeneously in high
+            concentrations.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -1749,21 +3125,20 @@ class D(object):
         smwin : int
             The smoothing window used for calculating the second derivative.
             Must be odd.
-        conf : float
-            The proportional intensity of the fitted gaussian tails that
-            determines the transition width cutoff (lower = wider transition
-            regions excluded).
-        trans_mult : array-like, len=2
-            Multiples of sigma to add to the transition cutoffs, e.g. if the
-            transitions consistently leave some bad data proceeding the
-            transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
-            right hand side of the limit.
+        on_mult and off_mult : tuple, len=2
+            Factors to control the width of the excluded transition regions.
+            A region n times the full - width - half - maximum of the transition
+            gradient will be removed either side of the transition center.
+            `on_mult` and `off_mult` refer to the laser - on and laser - off
+            transitions, respectively. See manual for full explanation.
+            Defaults to (1.5, 1) and (1, 1.5).
+
 
         Adds
         ----
         bkg, sig, trn : bool, array_like
-            Boolean arrays the same length as the data, identifying 'background',
-            'signal' and 'transition' data regions.
+            Boolean arrays the same length as the data, identifying
+            'background', 'signal' and 'transition' data regions.
         bkgrng, sigrng, trnrng: array_like
             Pairs of values specifying the edges of the 'background', 'signal'
             and 'transition' data regions in the same units as the Time axis.
@@ -1772,12 +3147,11 @@ class D(object):
         -------
         None
         """
-        params = locals()
-        del(params['self'])
-        self.autorange_params = params
+
+        if analyte is None:
+            analyte = self.internal_standard
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
-        # bkg = np.array([True] * self.Time.size)  # initialise background array
 
         v = self.focus[analyte]  # get trace data
         vl = np.log10(v[v > 1])  # remove zeros from value
@@ -1789,7 +3163,10 @@ class D(object):
 
         mins = self.findmins(x, yd)  # find minima in kde
 
-        bkg = v < 1.2 * 10**mins[0]  # set background as lowest distribution
+        vs = fastsmooth(v, gwin)
+        bkg = vs < 10**(d_mult * mins[0])  # set background as lowest distribution
+        if not bkg[0]:
+            bkg[0] = True
 
         # assign rough background and signal regions based on kde minima
         self.bkg = bkg
@@ -1798,48 +3175,77 @@ class D(object):
         # remove transitions by fitting a gaussian to the gradients of
         # each transition
         # 1. calculate the absolute gradient of the target trace.
-        g = abs(self.fastgrad(v, gwin))
+        g = abs(fastgrad(v, gwin))
         # 2. determine the approximate index of each transition
-        zeros = np.arange(len(self.bkg))[self.bkg ^ np.roll(self.bkg, 1)] - 1
+        zeros = bool_2_indices(bkg).flatten()
+        if zeros[0] == 0:
+            zeros = zeros[1:]
+        if zeros[-1] == bkg.size:
+            zeros = zeros[:-1]
         tran = []  # initialise empty list for transition pairs
+
         for z in zeros:  # for each approximate transition
             # isolate the data around the transition
             if z - win > 0:
-                xs = self.Time[z-win:z+win]
-                ys = g[z-win:z+win]
+                xs = self.Time[z - win:z + win]
+                ys = g[z - win:z + win]
+                # determine type of transition (on/off)
+                # checkes whether first - last value in window is
+                # positive ('on') or negative ('off')
+                tp = np.diff(v[z - win:z + win][[0, -1]]) > 0
+
             else:
-                xs = self.Time[:z+win]
-                ys = g[:z+win]
+                xs = self.Time[:z + win]
+                ys = g[:z + win]
+                # determine type of transition (on/off)
+                tp = np.diff(v[:z + win][[0, -1]]) > 0
             # determine location of maximum gradient
-            c = xs[ys == np.nanmax(ys)]
+            c = self.Time[z]  # xs[ys == np.nanmax(ys)]
             try:  # in case some of them don't work...
-                # locate the limits of the main peak (find turning point either side of
-                # peak centre using a second derivative)
-                lower = self.findlower(xs, ys, c, smwin)
-                upper = self.findupper(xs, ys, c, smwin)
-                # isolate transition peak for fit
-                x = self.Time[(self.Time >= lower) & (self.Time <= upper)]
-                y = g[(self.Time >= lower) & (self.Time <= upper)]
-                # fit a gaussian to the transition gradient
-                pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
-                                                        x[y == np.nanmax(y)],
-                                                        (upper - lower) / 2))
+                # fit a gaussian to the first derivative of each
+                # transition. Initial guess parameters are determined
+                # by:
+                #   - A: maximum gradient in data
+                #   - mu: c
+                #   - sigma: half the exponential decay coefficient used
+                #       for despiking OR 1., if there is no exponent.
+                try:
+                    width = 0.5 * abs(self.despike_params['exponent'])
+                except:
+                    width = 1.
+                # The 'sigma' parameter of curve_fit:
+                # This weights the fit by distance from c - i.e. data closer
+                # to c are more important in the fit than data further away
+                # from c. This allows the function to fit the correct curve,
+                # even if the data window has captured two independent
+                # transitions (i.e. end of one ablation and start of next)
+                # ablation are < win time steps apart).
+                pg, _ = curve_fit(gauss, xs, ys,
+                                  p0=(np.nanmax(ys),
+                                      c,
+                                      width),
+                                  sigma=abs(xs - c) + .1)
                 # get the x positions when the fitted gaussian is at 'conf' of
                 # maximum
-                tran.append(self.gauss_inv(conf, *pg[1:]) +
-                            pg[-1] * np.array(trans_mult))
+                # determine transition FWHM
+                fwhm = 2 * pg[-1] * np.sqrt(2 * np.log(2))
+                # apply on_mult or off_mult, as appropriate.
+                if tp:
+                    lim = np.array([-fwhm, fwhm]) * np.array(on_mult) + pg[1]
+                else:
+                    lim = np.array([-fwhm, fwhm]) * np.array(off_mult) + pg[1]
+
+                tran.append(lim)
             except:
-                try:
-                    # fit a gaussian to the transition gradient
-                    pg, _ = curve_fit(self.gauss, x, y, p0=(np.nanmax(y),
-                                                            x[y == np.nanmax(y)],
-                                                            (upper - lower) / 2))
-                    # get the x positions when the fitted gaussian is at 'conf' of
-                    # maximum
-                    tran.append(self.gauss_inv(conf, *pg[1:]) +
-                                pg[-1] * np.array(trans_mult))
-                except:
-                    pass
+                warnings.warn(("\nSample {:s}: ".format(self.sample) +
+                               "Transition identification at " +
+                               "{:.1f} failed.".format(self.Time[z]) +
+                               "\nPlease check the data plots and make sure " +
+                               "everything is OK.\n(Run " +
+                               "'trace_plots(ranges=True)'"),
+                              UserWarning)
+                pass  # if it fails for any reason, warn and skip it!
+
         # remove the transition regions from the signal and background ids.
         for t in tran:
             self.bkg[(self.Time > t[0]) & (self.Time < t[1])] = False
@@ -1852,15 +3258,17 @@ class D(object):
         # final check to catch missed transitions
         # calculate average transition width
         tr = self.Time[self.trn ^ np.roll(self.trn, 1)]
-        tr = np.reshape(tr, [tr.size//2, 2])
+        tr = np.reshape(tr, [tr.size // 2, 2])
         self.trnrng = tr
         trw = np.mean(np.diff(tr, axis=1))
 
         corr = False
         for b in self.bkgrng.flat:
             if (self.sigrng - b < 0.3 * trw).any():
-                self.bkg[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
-                self.sig[(self.Time >= b - trw/2) & (self.Time <= b + trw/2)] = False
+                self.bkg[(self.Time >= b - trw / 2) &
+                         (self.Time <= b + trw / 2)] = False
+                self.sig[(self.Time >= b - trw / 2) &
+                         (self.Time <= b + trw / 2)] = False
                 corr = True
 
         if corr:
@@ -1868,10 +3276,10 @@ class D(object):
 
         # number the signal regions (used for statistics and standard matching)
         n = 1
-        for i in range(len(self.sig)-1):
+        for i in range(len(self.sig) - 1):
             if self.sig[i]:
                 self.ns[i] = n
-            if self.sig[i] and ~self.sig[i+1]:
+            if self.sig[i] and ~self.sig[i + 1]:
                 n += 1
         self.n = int(max(self.ns))  # record number of traces
 
@@ -1885,195 +3293,93 @@ class D(object):
         sigrng and bkgrng arrays. These arrays can be saved by 'save_ranges' in
         the analyse object.
         """
-        self.bkg[[0,-1]] = False
+        self.bkg[[0, -1]] = False
         bkgr = self.Time[self.bkg ^ np.roll(self.bkg, -1)]
-        self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
+        self.bkgrng = np.reshape(bkgr, [bkgr.size // 2, 2])
 
         self.sig[[0, -1]] = False
         sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
-        self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
+        self.sigrng = np.reshape(sigr, [sigr.size // 2, 2])
 
         self.trn[[0, -1]] = False
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
-        self.trnrng = np.reshape(trnr, [trnr.size//2, 2])
+        self.trnrng = np.reshape(trnr, [trnr.size // 2, 2])
 
-        # bkgr = np.concatenate([[0],
-        #                       self.Time[self.bkg ^ np.roll(self.bkg, -1)],
-        #                       [self.Time[-1]]])
-        # self.bkgrng = np.reshape(bkgr, [bkgr.size//2, 2])
-
-        # if self.sig[-1]:
-        #     self.sig[-1] = False
-        # sigr = self.Time[self.sig ^ np.roll(self.sig, 1)]
-        # self.sigrng = np.reshape(sigr, [sigr.size//2, 2])
-
-    def bkgrange(self, rng=None):
+    @_log
+    def bkg_subtract(self, analyte, bkg, ind=None):
         """
-        Calculate background boolean array from list of limit pairs.
+        Subtract provided background from signal (focus stage).
 
-        Generate a background boolean string based on a list of [min,max] value
-        pairs stored in self.bkgrng.
+        Results is saved in new 'bkgsub' focus stage
 
-        Parameters
-        ----------
-        rng : array_like
-            [min,max] pairs defining the upper and lowe limits of background regions.
 
         Returns
         -------
         None
         """
-        if rng is not None:
-            if np.array(rng).ndim is 1:
-                self.bkgrng = np.append(self.bkgrng, np.array([rng]), 0)
-            else:
-                self.bkgrng = np.append(self.bkgrng, np.array(rng), 0)
 
-        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
-        # self.bkg = np.array([False] * self.Time.size)
-        # for lb, ub in self.bkgrng:
-        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
+        if 'bkgsub' not in self.data.keys():
+            self.data['bkgsub'] = {}
 
-        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
+        self.data['bkgsub'][analyte] = self.focus[analyte] - bkg
+
+        if ind is not None:
+            self.data['bkgsub'][analyte][ind] = np.nan
+
         return
 
-    def sigrange(self, rng=None):
+    @_log
+    def ratio(self, internal_standard=None, focus='bkgsub'):
         """
-        Calculate signal boolean array from list of limit pairs.
-
-        Generate a background boolean string based on a list of [min,max] value
-        pairs stored in self.bkgrng.
+        Divide all analytes by a specified internal_standard analyte.
 
         Parameters
         ----------
-        rng : array_like
-            [min,max] pairs defining the upper and lowe limits of signal regions.
-
-        Returns
-        -------
-        None
-        """
-        if rng is not None:
-            if np.array(rng).ndim is 1:
-                self.sigrng = np.append(self.sigrng, np.array([rng]), 0)
-            else:
-                self.sigrng = np.append(self.sigrng, np.array(rng), 0)
-
-        self.sig = tuples_2_bool(self.sigrng, self.Time)
-        # self.sig = np.array([False] * self.Time.size)
-        # for ls, us in self.sigrng:
-        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
-
-        self.trn = ~self.bkg & ~self.sig  # redefine transition regions
-        return
-
-    def makerangebools(self):
-        """
-        Calculate signal and background boolean arrays from lists of limit pairs.
-        """
-        self.sig = tuples_2_bool(self.sigrng, self.Time)
-        # self.sig = np.array([False] * self.Time.size)
-        # for ls, us in self.sigrng:
-        #     self.sig[(self.Time > ls) & (self.Time < us)] = True
-        self.bkg = tuples_2_bool(self.bkgrng, self.Time)
-        # self.bkg = np.array([False] * self.Time.size)
-        # for lb, ub in self.bkgrng:
-        #     self.bkg[(self.Time > lb) & (self.Time < ub)] = True
-        self.trn = ~self.bkg & ~self.sig
-        return
-
-    def separate(self, analytes=None):
-        """
-        Extract signal and backround data into separate arrays.
-
-        Isolates signal and background signals from raw data for specified
-        elements.
-
-        Parameters
-        ----------
-        analytes : array_like
-            list of analyte names (default = all analytes)
-
-        Returns
-        -------
-        None
-        """
-        if analytes is None:
-            analytes = self.analytes
-        self.background = {}
-        self.signal = {}
-        for v in analytes:
-            self.background[v] = self.focus[v].copy()
-            self.background[v][~self.bkg] = np.nan
-            self.signal[v] = self.focus[v].copy()
-            self.signal[v][~self.sig] = np.nan
-
-    def bkg_correct(self, mode='constant'):
-        """
-        Subtract background from signal.
-
-        Subtract constant or polynomial background from all analytes.
-
-        Parameters
-        ----------
-        mode : str or int
-            'constant' or an int describing the degree of polynomial background.
-
-        Returns
-        -------
-        None
-        """
-        params = locals()
-        del(params['self'])
-        self.bkgcorrect_params = params
-
-        self.bkgrange()
-        self.sigrange()
-        self.separate()
-
-        self.bkgsub = {}
-        if mode == 'constant':
-            for c in self.analytes:
-                self.bkgsub[c] = self.signal[c] - np.nanmean(self.background[c])
-        if (mode != 'constant'):
-            for c in self.analytes:
-                p = np.polyfit(self.Time[self.bkg], self.focus[c][self.bkg], mode)
-                self.bkgsub[c] = self.signal[c] - np.polyval(p, self.Time)
-        self.setfocus('bkgsub')
-        return
-
-    def ratio(self, denominator='Ca43', stage='signal'):
-        """
-        Divide all analytes by a specified denominator analyte.
-
-        Parameters
-        ----------
-        denominator : str
-            The analyte used as the denominator.
-        stage : str
+        internal_standard : str
+            The analyte used as the internal_standard.
+        focus : str
             The analysis stage to perform the ratio calculation on.
-            Defaults to 'signal', the isolates, background-corrected
-            regions identified as good data.
+            Defaults to 'signal'.
 
         Returns
         -------
         None
         """
-        params = locals()
-        del(params['self'])
-        self.ratio_params = params
-
-        self.setfocus(stage)
-        self.ratios = {}
+        if internal_standard is not None:
+            self.internal_standard = internal_standard
+        
+        self.setfocus(focus)
+        self.data['ratios'] = {}
         for a in self.analytes:
-            self.ratios[a] = \
-                self.focus[a] / self.focus[denominator]
+            self.data['ratios'][a] = \
+                self.focus[a] / self.focus[self.internal_standard]
         self.setfocus('ratios')
         return
 
-    def calibrate(self, calib_dict):
+    def drift_params(self, pout, a):
+        p_nom = list(zip(*pout.loc[:, a].apply(nominal_values)))
+        p_err = list(zip(*pout.loc[:, a].apply(std_devs)))
+
+        if len(p_nom) > 1:
+            npar = len(p_nom)
+
+            ps = []
+            for i in range(npar):
+                p_est = interp.interp1d(pout.index.values, p_nom[i])
+                e_est = interp.interp1d(pout.index.values, p_err[i])
+                ps.append(un.uarray(p_est(self.uTime), e_est(self.uTime)))
+
+            return ps
+        else:
+            return pout[a]
+
+    @_log
+    def calibrate(self, calib_fns, calib_params, analytes=None, drift_correct=False):
         """
         Apply calibration to data.
+
+        The `calib_dict` must be calculated at the `analyse` level,
+        and passed to this calibrate function.
 
         Parameters
         ----------
@@ -2085,24 +3391,41 @@ class D(object):
         None
         """
         # can have calibration function stored in self and pass *coefs?
-        self.calibrated = {}
-        for a in self.analytes:
-            coefs = calib_dict[a]
-            if len(coefs) == 1:
-                self.calibrated[a] = \
-                    self.ratios[a] * coefs
+        if analytes is None:
+            analytes = self.analytes
+
+        if 'calibrated' not in self.data.keys():
+            self.data['calibrated'] = {}
+
+        for a in analytes:
+            if drift_correct:
+                P = self.drift_params(calib_params, a)
             else:
-                self.calibrated[a] = \
-                    np.polyval(coefs, self.ratios[a])
-                    # self.ratios[a] * coefs[0] + coefs[1]
+                P = calib_params[a].values[0]
+
+            self.data['calibrated'][a] = \
+                calib_fns[a](P,
+                             self.data['ratios'][a])
+
+            # coefs = calib_params[a]
+            # if len(coefs) == 1:
+            #     self.data['calibrated'][a] = \
+            #         self.data['ratios'][a] * coefs
+            # else:
+            #     self.data['calibrated'][a] = \
+            #         np.polyval(coefs, self.data['ratios'][a])
+            #         self.data['ratios'][a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
     # Function for calculating sample statistics
+    @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
         """
+        TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!
+
         Calculate sample statistics
 
         Returns samples, analytes, and arrays of statistics
@@ -2119,11 +3442,11 @@ class D(object):
                 bool: True applies filter specified in filt.switches.
                 str: logical string specifying a partucular filter
         stat_fns : array_like
-            List of functions that take a single array-like input,
+            List of functions that take a single array_like input,
             and return a single statistic. Function should be able
             to cope with numpy NaN values.
         eachtrace : bool
-            True: per-ablation statistics
+            True: per - ablation statistics
             False: whole sample statistics
 
         Returns
@@ -2132,6 +3455,8 @@ class D(object):
         """
         if analytes is None:
                 analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
         self.stats = {}
         self.stats['analytes'] = analytes
@@ -2142,32 +3467,56 @@ class D(object):
                 self.stats[f.__name__] = []
                 for a in analytes:
                     ind = self.filt.grab_filt(filt, a)
+                    dat = nominal_values(self.focus[a])
                     if eachtrace:
                         sts = []
                         for t in np.arange(self.n) + 1:
-                            sts.append(f(self.focus[a][ind & (self.ns==t)]))
+                            sts.append(f(dat[ind & (self.ns == t)]))
                         self.stats[f.__name__].append(sts)
                     else:
-                        self.stats[f.__name__].append(f(self.focus[a][ind]))
+                        self.stats[f.__name__].append(f(dat[ind]))
                 self.stats[f.__name__] = np.array(self.stats[f.__name__])
 
         try:
-            self.unstats = un.uarray(self.stats['nanmean'], self.stats['nanstd'])
+            self.unstats = un.uarray(self.stats['nanmean'],
+                                     self.stats['nanstd'])
         except:
             pass
 
         return
 
+    @_log
+    def ablation_times(self):
+        """
+        Function for calculating the ablation time for each
+        ablation.
+
+        Returns
+        -------
+            dict of times for each ablation.
+
+        """
+        ats = {}
+        for n in np.arange(self.n) + 1:
+            t = self.Time[self.ns == n]
+            ats[n - 1] = t.max() - t.min()
+        return ats
 
     # Data Selections Tools
-
-    def filter_threshold(self, analyte, threshold, filt=False, mode='above'):
+    @_log
+    def filter_threshold(self, analyte, threshold, filt=False):
         """
         Apply threshold filter.
 
-        Generates threshold filters for analytes, when provided with analyte,
-        threshold, and mode. Mode specifies whether data 'below'
-        or 'above' the threshold are kept.
+        Generates threshold filters for the given analytes above and below
+        the specified threshold.
+
+        Two filters are created with prefixes '_above' and '_below'.
+            '_above' keeps all the data above the threshold.
+            '_below' keeps all the data below the threshold.
+
+        i.e. to select data below the threshold value, you should turn the
+        '_above' filter off.
 
         Parameters
         ----------
@@ -2177,8 +3526,6 @@ class D(object):
             Description of `threshold`.
         filt : TYPE
             Description of `filt`.
-        mode : TYPE
-            Description of `mode`.
 
         Returns
         -------
@@ -2188,36 +3535,56 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+        vals = trace = nominal_values(self.focus[analyte])
+        if not isinstance(filt, bool):
+            ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
+        else:
+            ind = ~np.isnan(vals)
 
-        if mode == 'below':
+        setn = self.filt.maxset + 1
+
+        if any(ind):
             self.filt.add(analyte + '_thresh_below',
-                               self.focus[analyte] <= threshold,
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
-                               params)
-        if mode == 'above':
+                          trace <= threshold,
+                          'Keep below {:.3e} '.format(threshold) + analyte,
+                          params, setn=setn)
             self.filt.add(analyte + '_thresh_above',
-                               self.focus[analyte] >= threshold,
-                               'Keep ' + mode + ' {:.3e} '.format(threshold) + analyte,
-                               params)
+                          trace >= threshold,
+                          'Keep above {:.3e} '.format(threshold) + analyte,
+                          params, setn=setn)
+        else:
+            # if there are no data
+            name = analyte + '_thresh_nodata'
+            info = analyte + ' threshold filter (no data)'
 
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params, setn=setn)
 
-    def filter_distribution(self, analyte, binwidth='scott', filt=False, transform=None, output=False):
+    @_log
+    def filter_distribution(self, analytes, binwidth='scott', filt=False,
+                            transform=None, min_data=10):
         """
-        Apply distribution filter.
+        Apply a Distribution Filter
 
         Parameters
         ----------
-        analyte : TYPE
-            Description of `analyte`.
-        binwidth : TYPE
-            Description of `binwidth`.
-        filt : TYPE
-            Description of `filt`.
-        transform : TYPE
-            Description of `transform`.
-        output : TYPE
-            Description of `output`.
+        analytes : str or list
+            The analyte that the filter applies to.
+        binwidth : str of float
+            Specify the bin width of the kernel density estimator.
+            Passed to `scipy.stats.gaussian_kde`.
+            str: The method used to automatically estimate bin width.
+                 Can be 'scott' or 'silverman'.
+            float: Manually specify the binwidth of the data.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        transform : str
+            If 'log', applies a log transform to the data before calculating
+            the distribution.
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
 
         Returns
         -------
@@ -2226,66 +3593,157 @@ class D(object):
         params = locals()
         del(params['self'])
 
-        # generate filter
-        ind = self.filt.grab_filt(filt, analyte) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
+        if isinstance(analytes, str):
+            analytes = [analytes]
 
-        # isolate data
-        d = self.focus[analyte][ind]
+        for analyte in analytes:
+            # generate filter
+            vals = np.vstack(nominal_values(list(self.focus.values())))
+            if filt is not None:
+                ind = (self.filt.grab_filt(filt, analyte) &
+                       np.apply_along_axis(all, 0, ~np.isnan(vals)))
+            else:
+                ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        if transform == 'log':
-            d = np.log10(d)
+            if sum(ind) > min_data:
+                # isolate data
+                d = nominal_values(self.focus[analyte][ind])
+                setn = self.filt.maxset + 1
 
-        # gaussian kde of data
-        kde = gaussian_kde(d, bw_method=binwidth)
-        x = np.linspace(np.nanmin(d), np.nanmax(d),
-                        kde.dataset.size // 3)
-        yd = kde.pdf(x)
-        limits = np.concatenate([self.findmins(x, yd), [x.max()]])
+                if transform == 'log':
+                    d = np.log10(d)
 
-        if transform == 'log':
-            limits = 10**limits
+                # gaussian kde of data
+                kde = gaussian_kde(d, bw_method=binwidth)
+                x = np.linspace(np.nanmin(d), np.nanmax(d),
+                                kde.dataset.size // 3)
+                yd = kde.pdf(x)
+                limits = np.concatenate([self.findmins(x, yd), [x.max()]])
 
-        if limits.size > 1:
-            first = True
-            for i in np.arange(limits.size):
-                if first:
-                    filt = self.focus[analyte] < limits[i]
-                    info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
-                    first = False
+                if transform == 'log':
+                    limits = 10**limits
+
+                if limits.size > 1:
+                    first = True
+                    for i in np.arange(limits.size):
+                        if first:
+                            filt = self.focus[analyte] < limits[i]
+                            info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
+                            first = False
+                        else:
+                            filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
+                            info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
+
+                        self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
+                                      filt=filt,
+                                      info=info,
+                                      params=params, setn=setn)
                 else:
-                    filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
-                    info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
+                    self.filt.add(name=analyte + '_distribution_failed',
+                                  filt=~np.isnan(nominal_values(self.focus[analyte])),
+                                  info=analyte + ' is within a single distribution. No data removed.',
+                                  params=params, setn=setn)
+            else:
+                # if there are no data
+                name = analyte + '_distribution_0'
+                info = analyte + ' distribution filter (< {:.0f} data points)'.format(min_data)
 
-                self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
-                                   filt=filt,
-                                   info=info,
-                                   params=params)
-        else:
-            self.filt.add(name=analyte + '_distribution_failed',
-                               filt=~np.isnan(self.focus[analyte]),
-                               info=analyte + ' is within a single distribution. No data removed.',
-                               params=params)
-        if output:
-            return x, yd, limits
-        else:
-            return
+                self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                              info=info, params=params, setn=setn)
+        return
 
-    def filter_clustering(self, analytes, filt=False, normalise=True, method='meanshift', include_time=False, **kwargs):
+    @_log
+    def filter_clustering(self, analytes, filt=False, normalise=True,
+                          method='meanshift', include_time=False,
+                          sort=None, min_data=10, **kwargs):
         """
-        Apply clustering filter.
+        Applies an n - dimensional clustering filter to the data.
 
         Parameters
         ----------
-        analytes : TYPE
-            Description of `analytes`.
-        filt : TYPE
-            Description of `filt`.
-        normalise : TYPE
-            Description of `normalise`.
-        method : TYPE
-            Description of `method`.
-        include_time : TYPE
-            Description of `include_time`.
+        analytes : str
+            The analyte(s) that the filter applies to.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        normalise : bool
+            Whether or not to normalise the data to zero mean and unit
+            variance. Reccomended if clustering based on more than 1 analyte.
+            Uses `sklearn.preprocessing.scale`.
+        method : str
+            Which clustering algorithm to use. Can be:
+                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+                             Automatically determines number of clusters
+                             in data based on the `bandwidth` of expected
+                             variation.
+                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+                          the characteristics of a known number of clusters
+                          within the data. Must provide `n_clusters` to specify
+                          the expected number of clusters.
+                'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
+                          determines the number and characteristics of clusters
+                          within the data based on the 'connectivity' of the
+                          data (i.e. how far apart each data point is in a
+                          multi - dimensional parameter space). Requires you to
+                          set `eps`, the minimum distance point must be from
+                          another point to be considered in the same cluster,
+                          and `min_samples`, the minimum number of points that
+                          must be within the minimum distance for it to be
+                          considered a cluster. It may also be run in automatic
+                          mode by specifying `n_clusters` alongside
+                          `min_samples`, where eps is decreased until the
+                          desired number of clusters is obtained.
+                For more information on these algorithms, refer to the
+                documentation.
+        include_time : bool
+            Whether or not to include the Time variable in the clustering
+            analysis. Useful if you're looking for spatially continuous
+            clusters in your data, i.e. this will identify each spot in your
+            analysis as an individual cluster.
+        sort : bool, str or array-like
+            Whether or not to label the resulting clusters according to their
+            contents. If used, the cluster with the lowest values will be
+            labelled from 0, in order of increasing cluster mean value.analytes
+                True: Sort by all analytes used to generate the cluster.
+                str: Sort by a single specified analyte
+                array-like: Sort by a number of specified analytes.
+        min_data : int
+            The minimum number of data points that should be considered by
+            the filter. Default = 10.
+        **kwargs
+            Parameters passed to the clustering algorithm specified by
+            `method`.
+
+        Meanshift Parameters
+        --------------------
+        bandwidth : str or float
+            The bandwith (float) or bandwidth method ('scott' or 'silverman')
+            used to estimate the data bandwidth.
+        bin_seeding : bool
+            Modifies the behaviour of the meanshift algorithm. Refer to
+            sklearn.cluster.meanshift documentation.
+
+        K - Means Parameters
+        ------------------
+        n_clusters : int
+            The number of clusters expected in the data.
+
+        DBSCAN Parameters
+        -----------------
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample
+            variance. Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is
+            found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -2298,75 +3756,131 @@ class D(object):
         if isinstance(analytes, str):
             analytes = [analytes]
 
+        setn = self.filt.maxset + 1
+
         # generate filter
-        ind = self.filt.grab_filt(filt, analytes) & np.apply_along_axis(all, 0,~np.isnan(np.vstack(self.focus.values())))
-
-        # get indices for data passed to clustering
-        sampled = np.arange(self.Time.size)[ind]
-
-        # generate data for clustering
-        if len(analytes) == 1:
-            # if single analyte
-            d = self.focus[analytes[0]][ind]
-            if include_time:
-                t = self.Time[ind]
-                ds = np.vstack([d,t]).T
-            else:
-                ds = np.array(list(zip(d,np.zeros(len(d)))))
+        vals = np.vstack(nominal_values(list(self.focus.values())))
+        if filt is not None:
+            ind = (self.filt.grab_filt(filt, analytes) &
+                   np.apply_along_axis(all, 0, ~np.isnan(vals)))
         else:
-            # package multiple analytes
-            d = [self.focus[a][ind] for a in analytes]
-            if include_time:
-                d.append(self.Time[ind])
-            ds = np.vstack(d).T
+            ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
 
-        if normalise | (len(analytes) > 1):
-            ds = preprocessing.scale(ds)
+        if sum(ind) > min_data:
 
-        method_key = {'kmeans': self.cluster_kmeans,
-                      'DBSCAN': self.cluster_DBSCAN,
-                      'meanshift': self.cluster_meanshift}
+            # get indices for data passed to clustering
+            sampled = np.arange(self.Time.size)[ind]
 
-        cfun = method_key[method]
-
-        filts = cfun(ds, **kwargs)  # return dict of cluster_no: (filt, params)
-
-        resized = {}
-        for k, v in filts.items():
-            resized[k] = np.zeros(self.Time.size, dtype=bool)
-            resized[k][sampled] = v
-
-        namebase = '-'.join(analytes) + '_cluster-' + method
-        info = '-'.join(analytes) + ' cluster filter.'
-
-        if method == 'DBSCAN':
-            for k,v in resized.items():
-                if isinstance(k, str):
-                    name = namebase + '_core'
-                elif k < 0:
-                    name = namebase + '_noise'
+            # generate data for clustering
+            if len(analytes) == 1:
+                # if single analyte
+                d = nominal_values(self.focus[analytes[0]][ind])
+                if include_time:
+                    t = self.Time[ind]
+                    ds = np.vstack([d, t]).T
                 else:
-                    name = namebase + '_{:.0f}'.format(k)
-                self.filt.add(name, v, info=info, params=params)
-        else:
-            for k,v in resized.items():
-                name = namebase + '_{:.0f}'.format(k)
-                self.filt.add(name, v, info=info, params=params)
+                    ds = np.array(list(zip(d, np.zeros(len(d)))))
+            else:
+                # package multiple analytes
+                d = [nominal_values(self.focus[a][ind]) for a in analytes]
+                if include_time:
+                    d.append(self.Time[ind])
+                ds = np.vstack(d).T
 
+            if normalise | (len(analytes) > 1):
+                ds = preprocessing.scale(ds)
+
+            method_key = {'kmeans': self.cluster_kmeans,
+                          'DBSCAN': self.cluster_DBSCAN,
+                          'meanshift': self.cluster_meanshift}
+
+            cfun = method_key[method]
+
+            labels, core_samples_mask = cfun(ds, **kwargs)
+            # return labels, and if DBSCAN core_sample_mask
+            
+            labels_unique = np.unique(labels)
+            
+            # label the clusters according to their contents
+            if (sort is not None) & (sort is not False):
+                if isinstance(sort, str):
+                    sort = [sort]
+
+                if len(analytes) == 1:
+                    sanalytes = analytes + [False]
+                else:
+                    sanalytes = analytes
+                
+                # make boolean filter to select analytes
+                if sort is True:
+                    sortk = np.array([True] * len(sanalytes))
+                else:
+                    sortk = np.array([s in sort for s in sanalytes])
+                
+                # create per-point mean based on selected analytes.
+                sd = np.apply_along_axis(sum, 1, ds[:,sortk])
+                # calculate per-cluster means
+                avs = [np.nanmean(sd[labels == lab]) for lab in labels_unique]
+                # re-order the cluster labels based on their means
+                order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
+                sdict = dict(zip(order, labels_unique))    
+            else:
+                sdict = dict(zip(labels_unique, labels_unique))
+
+            filts = {}
+            for ind, lab in sdict.items():
+                filts[lab] = labels == ind
+            
+            # only applies to DBSCAN results.
+            if not all(np.isnan(core_samples_mask)):
+                filts['core'] = core_samples_mask
+            
+            resized = {}
+            for k, v in filts.items():
+                resized[k] = np.zeros(self.Time.size, dtype=bool)
+                resized[k][sampled] = v
+
+            namebase = '-'.join(analytes) + '_cluster-' + method
+            info = '-'.join(analytes) + ' cluster filter.'
+
+            if method == 'DBSCAN':
+                for k, v in resized.items():
+                    if isinstance(k, str):
+                        name = namebase + '_core'
+                    elif k < 0:
+                        name = namebase + '_noise'
+                    else:
+                        name = namebase + '_{:.0f}'.format(k)
+                    self.filt.add(name, v, info=info, params=params, setn=setn)
+            else:
+                for k, v in resized.items():
+                    name = namebase + '_{:.0f}'.format(k)
+                    self.filt.add(name, v, info=info, params=params, setn=setn)
+        else:
+            # if there are no data
+            name = '-'.join(analytes) + '_cluster-' + method + '_0'
+            info = '-'.join(analytes) + ' cluster filter failed.'
+
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params, setn=setn)
+
+        return
 
     def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False):
         """
-        Identify clusters using Meanshift algorythm.
+        Identify clusters using Meanshift algorithm.
 
         Parameters
         ----------
         data : array_like
-            array of size [n_features, n_samples].
+            array of size [n_samples, n_features].
         bandwidth : float or None
             If None, bandwidth is estimated automatically using
             sklean.cluster.estimate_bandwidth
         bin_seeding : bool
-
+            Setting this option to True will speed up the algorithm.
+            See sklearn documentation for full description.
+        
         Returns
         -------
         dict
@@ -2379,23 +3893,20 @@ class D(object):
         ms.fit(data)
 
         labels = ms.labels_
-        labels_unique = np.unique(labels)
 
-        out = {}
-        for lab in labels_unique:
-            out[lab] = labels == lab
-
-        return out
+        return labels, [np.nan]
 
     def cluster_kmeans(self, data, n_clusters):
         """
-        Identify clusters using K-Means algorythm.
+        Identify clusters using K - Means algorithm.
 
         Parameters
         ----------
+        data : array_like
+            array of size [n_samples, n_features].
         n_clusters : int
-            Description of `data`.
-
+            The number of clusters expected in the data.
+        
         Returns
         -------
         dict
@@ -2405,30 +3916,32 @@ class D(object):
         kmf = km.fit(data)
 
         labels = kmf.labels_
-        labels_unique = np.unique(labels)
 
-        out = {}
-        for lab in labels_unique:
-            out[lab] = labels == lab
+        return labels, [np.nan]
 
-        return out
-
-    def cluster_DBSCAN(self, data, eps=None, min_samples=None, n_clusters=None, maxiter=200):
+    def cluster_DBSCAN(self, data, eps=None, min_samples=None,
+                       n_clusters=None, maxiter=200):
         """
-        Identify clusters using DBSCAN algorythm.
+        Identify clusters using DBSCAN algorithm.
 
         Parameters
         ----------
         data : array_like
-            Description of `data`.
-        eps : optional, float
-            Description of `eps`.
-        min_samples : optional, int
-            Description of `min_samples`.
-        n_clusters : optional, int
-            Description of `n_clusters`.
-        maxiter : optional, int
-            Description of `maxiter`.
+            array of size [n_samples, n_features].
+        eps : float
+            The minimum 'distance' points must be apart for them to be in the
+            same cluster. Defaults to 0.3. Note: If the data are normalised
+            (they should be for DBSCAN) this is in terms of total sample
+            variance.  Normalised data have a mean of 0 and a variance of 1.
+        min_samples : int
+            The minimum number of samples within distance `eps` required
+            to be considered as an independent cluster.
+        n_clusters : int
+            The number of clusters expected. If specified, `eps` will be
+            incrementally reduced until the expected number of clusters is
+            found.
+        maxiter : int
+            The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -2451,48 +3964,54 @@ class D(object):
                 clusters_last = clusters
                 eps_temp *= 0.95
                 db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-                clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
+                clusters = (len(set(db.labels_)) -
+                            (1 if -1 in db.labels_ else 0))
                 if clusters < clusters_last:
-                    eps_temp *= 1/0.95
+                    eps_temp *= 1 / 0.95
                     db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-                    clusters = len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)
-                    warnings.warn('\n\n***Unable to find {:.0f} clusters in data. Found {:.0f} with an eps of {:.2e}'.format(n_clusters, clusters, eps_temp))
+                    clusters = (len(set(db.labels_)) -
+                                (1 if -1 in db.labels_ else 0))
+                    warnings.warn(('\n\n***Unable to find {:.0f} clusters in '
+                                   'data. Found {:.0f} with an eps of {:.2e}'
+                                   '').format(n_clusters, clusters, eps_temp))
                     break
                 niter += 1
                 if niter == maxiter:
-                    warnings.warn('\n\n***Maximum iterations ({:.0f}) reached, {:.0f} clusters not found.\nDeacrease min_samples or n_clusters (or increase maxiter).'.format(maxiter, n_clusters))
+                    warnings.warn(('\n\n***Maximum iterations ({:.0f}) reached'
+                                   ', {:.0f} clusters not found.\nDeacrease '
+                                   'min_samples or n_clusters (or increase '
+                                   'maxiter).').format(maxiter, n_clusters))
                     break
 
         labels = db.labels_
-        labels_unique = np.unique(labels)
 
         core_samples_mask = np.zeros_like(labels)
         core_samples_mask[db.core_sample_indices_] = True
 
-        out = {}
-        for lab in labels_unique:
-            out[lab] = labels == lab
+        return labels, core_samples_mask
 
-        out['core'] = core_samples_mask
-
-        return out
-
-    def filter_correlation(self, x_analyte, y_analyte, window=None, r_threshold=0.9, p_threshold=0.05, filt=True):
+    @_log
+    def filter_correlation(self, x_analyte, y_analyte, window=None,
+                           r_threshold=0.9, p_threshold=0.05, filt=True):
         """
         Apply correlation filter.
 
         Parameters
         ----------
         x_analyte, y_analyte : str
-            Description of `x_analyte`.
-        window : int
-            Description of `window`.
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
         r_threshold : float
-            Description of `r_threshold`.
+            The correlation index above which to exclude data.
+            Note: the absolute pearson R value is considered, so
+            negative correlations below -`r_threshold` will also
+            be excluded.
         p_threshold : float
-            Description of `p_threshold`.
+            The significant level below which data are excluded.
         filt : bool
-            Description of `filt`.
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
 
         Returns
         -------
@@ -2502,24 +4021,28 @@ class D(object):
         # automatically determine appripriate window?
 
         # make window odd
-        if window % 2 != 1:
+        if window is None:
+            window = 11
+        elif window % 2 != 1:
             window += 1
 
         params = locals()
         del(params['self'])
 
+        setn = self.filt.maxset + 1
+
         # get filter
         ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
 
-        x = self.focus[x_analyte]
+        x = nominal_values(self.focus[x_analyte])
         x[~ind] = np.nan
-        xr = self.rolling_window(x, window, pad=np.nan)
+        xr = rolling_window(x, window, pad=np.nan)
 
-        y = self.focus[y_analyte]
+        y = nominal_values(self.focus[y_analyte])
         y[~ind] = np.nan
-        yr = self.rolling_window(y, window, pad=np.nan)
+        yr = rolling_window(y, window, pad=np.nan)
 
-        r, p = zip(*map(pearsonr, xr,yr))
+        r, p = zip(*map(pearsonr, xr, yr))
 
         r = np.array(r)
         p = np.array(p)
@@ -2527,17 +4050,17 @@ class D(object):
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
 
-        name = x_analyte + '-' + y_analyte + '_corr'
+        name = x_analyte + ' - ' + y_analyte + '_corr'
 
         self.filt.add(name=name,
-                           filt=cfilt,
-                           info=x_analyte + ' vs. ' + y_analyte + ' correlation filter.',
-                           params=params)
+                      filt=cfilt,
+                      info=(x_analyte + ' vs. ' + y_analyte +
+                            ' correlation filter.'),
+                      params=params, setn=setn)
         self.filt.off(filt=name)
         self.filt.on(analyte=y_analyte, filt=name)
 
-        return #r, p
-
+        return
 
     # Plotting Functions
     # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
@@ -2559,8 +4082,10 @@ class D(object):
 
     #     return fig, axes
 
-    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=False,
-          ranges=False, stats=True, stat='nanmean', err='nanstd', interactive=False):
+    @_log
+    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=None,
+              ranges=False, stats=False, stat='nanmean', err='nanstd',
+              interactive=False, focus_stage=None, err_envelope=False):
         """
         Plot analytes as a function of Time.
 
@@ -2582,7 +4107,8 @@ class D(object):
         ranges : bool
             show signal/background regions.
         stats : bool
-            plot average and error of each trace, as specified by `stat` and `err`.
+            plot average and error of each trace, as specified by `stat` and
+            `err`.
         stat : str
             average statistic to plot.
         err : str
@@ -2603,51 +4129,71 @@ class D(object):
         if analytes is None:
             analytes = self.analytes
 
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+
         fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111)
+        ax = fig.add_axes([.1,.12,.77,.8])
 
         for a in analytes:
             x = self.Time
-            y = self.focus[a]
+            y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
             if scale is 'log':
                 ax.set_yscale('log')
-                y[y == 0] = 1
+                y[y == 0] = np.nan
 
-            ind = self.filt.grab_filt(filt, a)
-            xf = x.copy()
-            yf = y.copy()
-            if any(~ind):
-                xf[~ind] = np.nan
-                yf[~ind] = np.nan
-
-            if any(~ind):
-                ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
-            ax.plot(xf, yf, color=self.cmap[a], label=a)
+            if filt:
+                ind = self.filt.grab_filt(filt, a)
+                xf = x.copy()
+                yf = y.copy()
+                yerrf = yerr.copy()
+                if any(~ind):
+                    xf[~ind] = np.nan
+                    yf[~ind] = np.nan
+                    yerrf[~ind] = np.nan
+                if any(~ind):
+                    ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
+                ax.plot(xf, yf, color=self.cmap[a], label=a)
+                if err_envelope:
+                    ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
+                                    alpha=0.2, zorder=-1)
+            else:
+                ax.plot(x, y, color=self.cmap[a], label=a)
+                if err_envelope:
+                    ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
+                                    alpha=0.2, zorder=-1)
 
             # Plot averages and error envelopes
             if stats and hasattr(self, 'stats'):
                 sts = self.stats[sig][0].size
                 if sts > 1:
                     for n in np.arange(self.n):
-                        n_ind = ind & (self.ns==n+1)
+                        n_ind = ind & (self.ns == n + 1)
                         if sum(n_ind) > 2:
                             x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
-                            y = [self.stats[sig][self.stats['analytes']==a][0][n]] * 2
+                            y = [self.stats[sig][self.stats['analytes'] == a][0][n]] * 2
 
-                            yp = [self.stats[sig][self.stats['analytes']==a][0][n] + self.stats[err][self.stats['analytes']==a][0][n]] * 2
-                            yn = [self.stats[sig][self.stats['analytes']==a][0][n] - self.stats[err][self.stats['analytes']==a][0][n]] * 2
+                            yp = ([self.stats[sig][self.stats['analytes'] == a][0][n] +
+                                  self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
+                            yn = ([self.stats[sig][self.stats['analytes'] == a][0][n] -
+                                  self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
 
                             ax.plot(x, y, color=self.cmap[a], lw=2)
-                            ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
+                            ax.fill_between(x + x[::-1], yp + yn,
+                                            color=self.cmap[a], alpha=0.4,
+                                            linewidth=0)
                 else:
                     x = [self.Time[0], self.Time[-1]]
-                    y = [self.stats[sig][self.stats['analytes']==a][0]] * 2
-                    yp = [self.stats[sig][self.stats['analytes']==a][0] + self.stats[err][self.stats['analytes']==a][0]] * 2
-                    yn = [self.stats[sig][self.stats['analytes']==a][0] - self.stats[err][self.stats['analytes']==a][0]] * 2
+                    y = [self.stats[sig][self.stats['analytes'] == a][0]] * 2
+                    yp = ([self.stats[sig][self.stats['analytes'] == a][0] +
+                          self.stats[err][self.stats['analytes'] == a][0]] * 2)
+                    yn = ([self.stats[sig][self.stats['analytes'] == a][0] -
+                          self.stats[err][self.stats['analytes'] == a][0]] * 2)
 
                     ax.plot(x, y, color=self.cmap[a], lw=2)
-                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a], alpha=0.4, linewidth=0)
+                    ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a],
+                                    alpha=0.4, linewidth=0)
 
         if ranges:
             for lims in self.bkgrng:
@@ -2655,10 +4201,41 @@ class D(object):
             for lims in self.sigrng:
                 ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-        ax.text(0.01, 0.99, self.sample, transform=ax.transAxes,
+        if filt is not None:
+            ind = self.filt.grab_filt(filt)
+            lims = bool_2_indices(~ind)
+            for l, u in lims:
+                if u >= len(self.Time):
+                    u = -1
+                ax.axvspan(self.Time[l], self.Time[u], color='k',
+                           alpha=0.05, lw=0)
+
+            # drawn = []
+            # for k, v in self.filt.switches.items():
+            #     for f, s in v.items():
+            #         if s & (f not in drawn):
+            #             lims = bool_2_indices(~self.filt.components[f])
+            #             for u, l in lims:
+            #                 ax.axvspan(self.Time[u-1], self.Time[l], color='k',
+            #                            alpha=0.05, lw=0)
+            #             drawn.append(f)
+
+        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage,
+                transform=ax.transAxes,
                 ha='left', va='top')
 
         ax.set_xlabel('Time (s)')
+        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+        
+        # y label
+        ud = {'rawdata': 'counts',
+              'despiked': 'counts',
+              'bkgsub': 'background corrected counts',
+              'ratios': 'counts/{:s} count',
+              'calibrated': 'mol/mol {:s}'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        ax.set_ylabel(ud[focus_stage])
 
         if interactive:
             ax.legend()
@@ -2668,31 +4245,36 @@ class D(object):
             input('Press [Return] when finished.')
             disable_notebook()  # stop the interactivity
         else:
-            ax.legend(bbox_to_anchor=(1.12, 1))
+            ax.legend(bbox_to_anchor=(1.15, 1))
 
-        return fig
+        return fig, ax
 
+    @_log
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True):
         """
         Plot analytes against each other.
 
         Parameters
         ----------
-        analytes : array_like
-            Description of `analytes`.
-        bins : int
-            Description of `bins`.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
         lognorm : bool
-            Description of `lognorm`.
-        filt : bool
-            Description of `filt`.
+            Whether or not to log normalise the colour scale
+            of the 2D histogram.
+        bins : int
+            The number of bins in the 2D histogram.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
 
         Returns
         -------
         (fig, axes)
         """
         if analytes is None:
-            analytes = [a for a in self.analytes if a != self.ratio_params['denominator']]
+            analytes = [a for a in self.analytes
+                        if a != self.internal_standard]
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -2745,7 +4327,7 @@ class D(object):
                 axes[x, y].set_xlim([py.min(), py.max()])
         # diagonal labels
         for a, (i, u) in udict.items():
-            axes[i, i].annotate(a+'\n'+u, (0.5, 0.5),
+            axes[i, i].annotate(a + '\n' + u, (0.5, 0.5),
                                 xycoords='axes fraction',
                                 ha='center', va='center')
         # switch on alternating axes
@@ -2755,108 +4337,167 @@ class D(object):
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
 
-        axes[0,0].set_title(self.sample, weight='bold', x=0.05, ha='left')
+        axes[0, 0].set_title(self.sample, weight='bold', x=0.05, ha='left')
 
         return fig, axes
 
-    def filt_report(self, analyte=None, save=None):
+    @_log
+    def filt_report(self, filt=None, analytes=None, savedir=None):
         """
         Visualise effect of data filters.
 
         Parameters
         ----------
+        filt : str
+            Exact or partial name of filter to plot. Supports
+            partial matching. i.e. if 'cluster' is specified, all
+            filters with 'cluster' in the name will be plotted.
+            Defaults to all filters.
         analyte : str
-            Which analyte to plot.
+            Name of analyte to plot.
         save : str
-            Location to save plot.
+            file path to save the plot
 
         Returns
         -------
         (fig, axes)
         """
-        filts = np.array(sorted([f for f in self.filt.components.keys() if filt in f]))
-        nfilts = np.array([re.match('^([A-Za-z0-9-]+)_([A-Za-z0-9-]+)[_$]?([a-z0-9]+)?', f).groups() for f in filts])
-        fgnames = np.array(['_'.join(a) for a in nfilts[:,:2]])
-        fgrps = np.unique(fgnames) #np.unique(nfilts[:,1])
-
-        ngrps = fgrps.size
-
-        plots = {}
-
-        m, u = unitpicker(np.nanmax(self.focus[analyte]))
-
-        fig = plt.figure(figsize=(10, 3.5 * ngrps))
-        axes = []
-
-        h = .8 / ngrps
+        if filt is None or filt == 'all':
+            sets = self.filt.sets
+        else:
+            sets = {k: v for k,v in self.filt.sets.items() if any(filt in f for f in self.filt.components.keys())}
+            
+        regex = re.compile('^([0-9]+)_([A-Za-z0-9-]+)_'
+                           '([A-Za-z0-9-]+)[_$]?'
+                           '([a-z0-9]+)?')
 
         cm = plt.cm.get_cmap('Spectral')
+        ngrps = len(sets)
+        
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
-        for i in np.arange(ngrps):
-            axs = tax, hax = fig.add_axes([.1,.9-(i+1)*h,.6,h*.98]), fig.add_axes([.7,.9-(i+1)*h,.2,h*.98])
+        for analyte in analytes:
+            if analyte != self.internal_standard:
+                fig = plt.figure()
 
-            # get variables
-            fg = filts[fgnames == fgrps[i]]
-            cs = cm(np.linspace(0,1,len(fg)))
-            fn = nfilts[:,2][fgnames == fgrps[i]]
-            an = nfilts[:,0][fgnames == fgrps[i]]
-            bins = np.linspace(np.nanmin(self.focus[analyte]), np.nanmax(self.focus[analyte]), 50) * m
+                for i in sorted(sets.keys()):
+                    filts = sets[i]
+                    nfilts = np.array([re.match(regex, f).groups() for f in filts])
+                    fgnames = np.array(['_'.join(a) for a in nfilts[:, 1:3]])
+                    fgrp = np.unique(fgnames)[0]
+                    
+                    fig.set_size_inches(10, 3.5 * ngrps)
+                    h = .8 / ngrps
+                    
 
-            if 'DBSCAN' in fgrps[i]:
-                # determine data filters
-                core_ind = self.filt.components[[f for f in fg if 'core' in f][0]]
-                noise_ind = self.filt.components[[f for f in fg if 'noise' in f][0]]
-                other = np.array([('noise' not in f) & ('core' not in f) for f in fg])
-                tfg = fg[other]
-                tfn = fn[other]
-                tcs = cm(np.linspace(0,1,len(tfg)))
+                    y = nominal_values(self.focus[analyte])
+                    yh = y[~np.isnan(y)]
 
-                # plot all data
-                hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
-                # legend markers for core/member
-                tax.scatter([],[],s=25,label='core',c='w')
-                tax.scatter([],[],s=10,label='member',c='w')
-                # plot noise
-                tax.scatter(self.Time[noise_ind], m * self.focus[analyte][noise_ind], lw=1, c='k', s=15, marker='x', label='noise')
+                    m, u = unitpicker(np.nanmax(y))
 
-                # plot filtered data
-                for f, c, lab in zip(tfg, tcs, tfn):
-                    ind = self.filt.components[f]
-                    tax.scatter(self.Time[~core_ind & ind], m * self.focus[analyte][~core_ind & ind], lw=.1, c=c, s=10)
-                    tax.scatter(self.Time[core_ind & ind], m * self.focus[analyte][core_ind & ind], lw=.1, c=c, s=25, label=lab)
-                    hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                    axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
+                                      fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
+                    
+                    # get variables
+                    fg = sets[i]
+                    cs = cm(np.linspace(0, 1, len(fg)))
+                    fn = ['_'.join(x) for x in nfilts[:,(0,3)]]
+                    an = nfilts[:, 0]
+                    bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
+                    
+                    if 'DBSCAN' in fgrp:
+                        # determine data filters
+                        core_ind = self.filt.components[[f for f in fg
+                                                         if 'core' in f][0]]
+                        other = np.array([('noise' not in f) & ('core' not in f)
+                                          for f in fg])
+                        tfg = fg[other]
+                        tfn = fn[other]
+                        tcs = cm(np.linspace(0, 1, len(tfg)))
 
-            else:
-                # plot all data
-                tax.scatter(self.Time, m * self.focus[analyte], c='k', alpha=0.5, lw=0.1, s=25, label='excl')
-                hax.hist(m * self.focus[analyte], bins, alpha=0.5, orientation='horizontal', color='k', lw=0)
+                        # plot all data
+                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
+                                 color='k', lw=0)
+                        # legend markers for core/member
+                        tax.scatter([], [], s=15, label='core', c='w', lw=0.5, edgecolor='k')
+                        tax.scatter([], [], s=5, label='member', c='w', lw=0.5, edgecolor='k')
+                        # plot noise
+                        try:
+                            noise_ind = self.filt.components[[f for f in fg
+                                                              if 'noise' in f][0]]
+                            tax.scatter(self.Time[noise_ind], m * y[noise_ind],
+                                        lw=1, c='k', s=10, marker='x',
+                                        label='noise', alpha=0.6)
+                        except:
+                            pass
 
-                # plot filtered data
-                for f, c, lab in zip(fg, cs, fn):
-                    ind = self.filt.components[f]
-                    tax.scatter(self.Time[ind], m * self.focus[analyte][ind], lw=.1, c=c, s=25, label=lab)
-                    hax.hist(m * self.focus[analyte][ind], bins, color=c, lw=0.1, orientation='horizontal', alpha=0.6)
+                        # plot filtered data
+                        for f, c, lab in zip(tfg, tcs, tfn):
+                            ind = self.filt.components[f]
+                            tax.scatter(self.Time[~core_ind & ind],
+                                        m * y[~core_ind & ind], lw=.5, c=c, s=5, edgecolor='k')
+                            tax.scatter(self.Time[core_ind & ind],
+                                        m * y[core_ind & ind], lw=.5, c=c, s=15, edgecolor='k',
+                                        label=lab)
+                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+                                     orientation='horizontal', alpha=0.6)
 
-            # formatting
-            for ax in axs:
-                ax.set_ylim(np.nanmin(self.focus[analyte]) * m, np.nanmax(self.focus[analyte]) * m)
+                    else:
+                        # plot all data
+                        tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
+                                    s=15, label='excl')
+                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
+                                 color='k', lw=0)
 
-            tax.legend(scatterpoints=1, framealpha=0.5)
-            tax.text(.02, .98, fgrps[i], size=12, weight='bold', ha='left', va='top', transform=tax.transAxes)
-            tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
-            tax.set_xticks(tax.get_xticks()[:-1])
-            hax.set_yticklabels([])
+                        # plot filtered data
+                        for f, c, lab in zip(fg, cs, fn):
+                            ind = self.filt.components[f]
+                            tax.scatter(self.Time[ind], m * y[ind], lw=.5,
+                                        edgecolor='k', c=c, s=15, label=lab)
+                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+                                     orientation='horizontal', alpha=0.6)
 
-            if i < ngrps - 1:
-                tax.set_xticklabels([])
-                hax.set_xticklabels([])
-            else:
-                tax.set_xlabel('Time (s)')
-                hax.set_xlabel('n')
+                    if 'thresh' in fgrp and analyte in fgrp:
+                        tax.axhline(self.filt.params[fg[0]]['threshold'] * m,
+                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
+                        hax.axhline(self.filt.params[fg[0]]['threshold'] * m,
+                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
 
-            axes.append(axs)
+                    # formatting
+                    for ax in axs:
+                        mn = np.nanmin(y) * m
+                        mx = np.nanmax(y) * m
+                        rn = mx - mn
+                        ax.set_ylim(mn - .05 * rn, mx + 0.05 * rn)
 
-        return fig, axes
+                    # legend
+                    hn, la = tax.get_legend_handles_labels()
+                    hax.legend(hn, la, loc='upper right', scatterpoints=1)
+
+                    tax.text(.02, .98, self.sample + ': ' + fgrp, size=12,
+                             weight='bold', ha='left', va='top',
+                             transform=tax.transAxes)
+                    tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
+                    tax.set_xticks(tax.get_xticks()[:-1])
+                    hax.set_yticklabels([])
+
+                    if i < ngrps - 1:
+                        tax.set_xticklabels([])
+                        hax.set_xticklabels([])
+                    else:
+                        tax.set_xlabel('Time (s)')
+                        hax.set_xlabel('n')
+
+            if isinstance(savedir, str):
+                fig.savefig(savedir + '/' + self.sample + '_' +
+                            analyte + '.pdf')
+                plt.close(fig)
+
+        return
+        # return fig, axes
 
     # reporting
     def get_params(self):
@@ -2868,7 +4509,7 @@ class D(object):
         dict
             dict of analysis parameters
         """
-        outputs = ['sample', 'method',
+        outputs = ['sample',
                    'ratio_params',
                    'despike_params',
                    'autorange_params',
@@ -2884,65 +4525,101 @@ class D(object):
 
         return out
 
+
 class filt(object):
     """
-    Container for storing, selecting and creating data filters.
+    Container for creating, storing and selecting data filters.
+
+    Parameters
+    ----------
+    size : int
+        The length that the filters need to be (should be
+        the same as your data).
+    analytes : array_like
+        A list of the analytes measured in your data.
 
     Attributes
     ----------
     size : int
+        The length that the filters need to be (should be
+        the same as your data).
     analytes : array_like
+        A list of the analytes measured in your data.
     components : dict
+        A dict containing each individual filter that has been
+        created.
     info : dict
+        A dict containing descriptive information about each
+        filter in `components`.
     params : dict
+        A dict containing the parameters used to create
+        each filter, which can be passed directly to the
+        corresponding filter function to recreate the filter.
     switches : dict
+        A dict of boolean switches specifying which filters
+        are active for each analyte.
     keys : dict
+        A dict of logical strings specifying which filters are
+        applied to each analyte.
     sequence : dict
+        A numbered dict specifying what order the filters were
+        applied in (for some filters, order matters).
     n : int
+        The number of filters applied to the data.
 
     Methods
     -------
     add
-    remove
-    clear
     clean
-    on
-    off
+    clear
+    get_components
+    get_info
+    grab_filt
     make
     make_fromkey
     make_keydict
-    grab_filt
-    get_components
-    get_info
+    off
+    on
+    remove
     """
     def __init__(self, size, analytes):
         self.size = size
         self.analytes = analytes
+        self.index = {}
+        self.sets = {}
+        self.maxset = -1
         self.components = {}
         self.info = {}
         self.params = {}
         self.keys = {}
-        self.sequence = {}
         self.n = 0
         self.switches = {}
         for a in self.analytes:
             self.switches[a] = {}
 
     def __repr__(self):
-        leftpad = max([len(s) for s in self.switches[self.analytes[0]].keys()] + [11]) + 2
-        out = '{string:{number}s}'.format(string='Filter Name', number=leftpad)
+        apad = max([len(a) for a in self.analytes] + [7])
+        astr = '{:' + '{:.0f}'.format(apad) + 's}'
+        leftpad = max([len(s) for s
+                       in self.switches[self.analytes[0]].keys()] + [11]) + 2
+        
+        out = '{string:{number}s}'.format(string='n', number=3)
+        out += '{string:{number}s}'.format(string='Filter Name', number=leftpad)
         for a in self.analytes:
-            out += '{:7s}'.format(a)
+            out += astr.format(a)
         out += '\n'
 
-        for t in sorted(self.switches[self.analytes[0]].keys()):
-            out += '{string:{number}s}'.format(string=str(t), number=leftpad)
+        reg = re.compile('[0-9]+_(.*)')
+        for n, t in self.index.items():
+            out += '{string:{number}s}'.format(string=str(n), number=3)
+            tn = reg.match(t).groups()[0]
+            out += '{string:{number}s}'.format(string=str(tn), number=leftpad)
             for a in self.analytes:
-                out += '{:7s}'.format(str(self.switches[a][t]))
+                out += astr.format(str(self.switches[a][t]))
             out += '\n'
         return(out)
 
-    def add(self, name, filt, info='', params=()):
+    def add(self, name, filt, info='', params=(), setn=None):
         """
         Add filter.
 
@@ -2961,16 +4638,28 @@ class filt(object):
         -------
         None
         """
-        self.components[name] = filt
-        self.info[name] = info
-        self.params[name] = params
-        self.sequence[self.n] = name
-        self.n += 1
+
+        iname = '{:.0f}_'.format(self.n) + name
+        self.index[self.n] = iname
+
+        if setn is None:
+            setn = self.maxset + 1
+        self.maxset = setn
+        
+        if setn not in self.sets.keys():
+            self.sets[setn] = [iname]
+        else:
+            self.sets[setn].append(iname)
+
+        self.components[iname] = filt
+        self.info[iname] = info
+        self.params[iname] = params
         for a in self.analytes:
-            self.switches[a][name] = True
+            self.switches[a][iname] = False
+        self.n += 1
         return
 
-    def remove(self, name):
+    def remove(self, name=None, setn=None):
         """
         Remove filter.
 
@@ -2978,19 +4667,40 @@ class filt(object):
         ----------
         name : str
             name of the filter to remove
+        setn : int or True
+            int: number of set to remove
+            True: remove all filters in set that 'name' belongs to
 
         Returns
         -------
         None
         """
-        del self.components[name]
-        del self.info[name]
-        del self.params[name]
-        del self.keys[name]
-        del self.sequence[name]
-        for a in self.analytes:
-            del self.switches[a][name]
-        return
+        if isinstance(name, int):
+            name = self.index[name]
+
+        if setn is not None:
+            name = self.sets[setn]
+            del self.sets[setn]
+        elif isinstance(name, (int, str)):
+            name = [name]
+
+        if setn is True:
+            for n in name:
+                for k,v in self.sets.items():
+                    if n in v:
+                        name.append([m for m in v if m != n])
+
+        for n in name:
+            for k,v in self.sets.items():
+                if n in v:
+                    self.sets[k] = [m for m in v if n != m]
+            del self.components[n]
+            del self.info[n]
+            del self.params[n]
+            del self.keys[n]
+            for a in self.analytes:
+                del self.switches[a][n]
+            return
 
     def clear(self):
         """
@@ -3001,7 +4711,9 @@ class filt(object):
         self.params = {}
         self.switches = {}
         self.keys = {}
-        self.sequence = {}
+        self.index = {}
+        self.sets = {}
+        self.maxset = -1
         self.n = 0
         for a in self.analytes:
             self.switches[a] = {}
@@ -3025,8 +4737,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional, str or array_like
-            Name or list of names of filters.
+        filt : optional. int, str or array_like
+            Name/number or iterable names/numbers of filters.
 
         Returns
         -------
@@ -3034,16 +4746,18 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, str):
+        if isinstance(filt, (str, int, float)):
             filt = [filt]
 
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = self.switches[analyte[0]].keys()
+            filt = list(self.index.values())
 
         for a in analyte:
             for f in filt:
+                if isinstance(f, (int, float)):
+                    f = self.index[int(f)]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = True
@@ -3058,8 +4772,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional, str or array_like
-            Name or list of names of filters.
+        filt : optional. int, str or array_like
+            Name/number or iterable names/numbers of filters.
 
         Returns
         -------
@@ -3067,16 +4781,18 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, str):
+        if isinstance(filt, (str, int)):
             filt = [filt]
 
         if analyte is None:
             analyte = self.analytes
         if filt is None:
-            filt = self.switches[analyte[0]].keys()
+            filt = list(self.index.values())
 
         for a in analyte:
             for f in filt:
+                if isinstance(f, int):
+                    f = self.index[f]
                 for k in self.switches[a].keys():
                     if f in k:
                         self.switches[a][k] = False
@@ -3098,7 +4814,9 @@ class filt(object):
         array_like
             boolean filter
         """
-        if isinstance(analyte, str):
+        if analyte is None:
+            analyte = self.analytes
+        elif isinstance(analyte, str):
             analyte = [analyte]
 
         out = []
@@ -3175,7 +4893,7 @@ class filt(object):
         self.keydict = out
         return out
 
-    def grab_filt(self,filt,analyte=None):
+    def grab_filt(self, filt, analyte=None):
         """
         Flexible access to specific filter using any key format.
 
@@ -3196,14 +4914,17 @@ class filt(object):
             try:
                 ind = self.make_fromkey(filt)
             except ValueError:
-                print("\n\n***Filter key invalid. Please consult manual and try again.")
+                print(("\n\n***Filter key invalid. Please consult "
+                       "manual and try again."))
         elif isinstance(filt, dict):
             try:
                 ind = self.make_fromkey(filt[analyte])
             except ValueError:
-                print("\n\n***Filter key invalid. Please consult manual and try again.\nOR\nAnalyte missing from filter key dict.")
+                print(("\n\n***Filter key invalid. Please consult manual "
+                       "and try again.\nOR\nAnalyte missing from filter "
+                       "key dict."))
         elif filt:
-            ind = self.make(a)
+            ind = self.make(analyte)
         else:
             ind = ~np.zeros(self.size, dtype=bool)
         return ind
@@ -3246,7 +4967,7 @@ class filt(object):
 
     # def plot(self, ax=None, analyte=None):
     #     if ax is None:
-    #         fig, ax = plt.subplots(1,1)
+    #         fig, ax = plt.subplots(1, 1)
     #     else:
     #         ax = ax.twinx()
     #         ax.set_yscale('linear')
@@ -3279,7 +5000,7 @@ class filt(object):
     #             xu /= self.size
     #             ax.axhspan(yl, yu, xl, xu, color='k', alpha=0.3)
 
-    #         ym = np.mean([yu,yl])
+    #         ym = np.mean([yu, yl])
 
     #         ax.text(ax.get_xlim()[1] * 1.01, ym, f, ha='left')
 
@@ -3289,6 +5010,26 @@ class filt(object):
 
 
 # other useful functions
+def gauss(x, *p):
+    """ Gaussian function.
+
+    Parameters
+    ----------
+    x : array_like
+        Independent variable.
+    *p : parameters unpacked to A, mu, sigma
+        A: area
+        mu: centre
+        sigma: width
+
+    Return
+    ------
+    array_like
+        gaussian descriped by *p.
+    """
+    A, mu, sigma = p
+    return A * np.exp(-0.5 * (-mu + x)**2 / sigma**2)
+
 def unitpicker(a, llim=0.1):
     """
     Determines the most appropriate plotting unit for data.
@@ -3319,6 +5060,7 @@ def unitpicker(a, llim=0.1):
             n += 1
     return float(1000**n), udict[n]
 
+
 def pretty_element(s):
     """
     Returns formatted element name.
@@ -3337,7 +5079,7 @@ def pretty_element(s):
     return '$^{' + g[1] + '}$' + g[0]
 
 
-def collate_csvs(in_dir,out_dir='./csvs'):
+def collate_data(in_dir, extension='.csv', out_dir=None):
     """
     Copy all csvs in nested directroy to single directory.
 
@@ -3347,25 +5089,29 @@ def collate_csvs(in_dir,out_dir='./csvs'):
     Parameters
     ----------
     in_dir : str
-        input directory containing csv files in subfolders
+        Input directory containing csv files in subfolders
+    extension : str
+        The extension that identifies your data files.
+        Defaults to '.csv'.
     out_dir : str
-        destination directory
+        Destination directory
 
     Returns
     -------
     None
     """
-    import os
-    import shutil
+    if out_dir is None:
+        out_dir = './' + re.search('^\.(.*)', extension).groups(0)[0]
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
 
     for p, d, fs in os.walk(in_dir):
         for f in fs:
-            if '.csv' in f:
+            if extension in f:
                 shutil.copy(p + '/' + f, out_dir + '/' + f)
     return
+
 
 def bool_2_indices(bool_array):
     """
@@ -3379,12 +5125,45 @@ def bool_2_indices(bool_array):
     Returns
     -------
     array_like
-        [2,n] array of (start, end) values describing True parts
+        [2, n] array of (start, end) values describing True parts
         of bool_array
     """
     if ~isinstance(bool_array, np.ndarray):
         bool_array = np.array(bool_array)
-    return np.arange(len(bool_array))[bool_array ^ np.roll(bool_array, 1)]
+    if bool_array[-1]:
+        bool_array[-1] = False
+    lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
+    if len(lims) > 0:
+        if lims[-1] == bool_array.size - 1:
+            lims[-1] = bool_array.size
+        return np.reshape(lims, (len(lims) // 2, 2))
+    else:
+        return [[np.nan, np.nan]]
+
+
+def enumerate_bool(bool_array, nstart=0):
+    """
+    Consecutively numbers contiguous booleans in array.
+
+    i.e. a boolean sequence, and resulting numbering
+    T F T T T F T F F F T T F
+    0-1 1 1 - 2 ---3 3 -
+
+    where ' - '
+
+    Parameters
+    ----------
+    bool_array : array_like
+        Array of booleans.
+    nstart : int
+        The number of the first boolean group.
+    """
+    ind = bool_2_indices(bool_array)
+    ns = np.full(bool_array.size, nstart, dtype=int)
+    for n, lims in enumerate(ind):
+        ns[lims[0]:lims[-1]] = nstart + n + 1
+    return ns
+
 
 def tuples_2_bool(tuples, x):
     """
@@ -3393,7 +5172,7 @@ def tuples_2_bool(tuples, x):
     Parameters
     ----------
     tuples : array_like
-        [2,n] array of (start, end) values
+        [2, n] array of (start, end) values
     x : array_like
         x scale the tuples are mapped to
 
@@ -3409,3 +5188,326 @@ def tuples_2_bool(tuples, x):
     for l, u in tuples:
         out[(x > l) & (x < u)] = True
     return out
+
+
+def config_locator():
+    """
+    Prints the location of the latools.cfg file.
+    """
+    print(pkgrs.resource_filename('latools', 'latools.cfg'))
+    return
+
+
+def add_config(config_name, params, config_file=None, make_default=True):
+    """
+    Adds a new configuration to latools.cfg.
+
+    Parameters
+    ----------
+    config_name : str
+        The name of the new configuration. This should be descriptive
+        (e.g. UC Davis Foram Group)
+    params : dict
+        A (parameter, value) dict defining non - default parameters
+        associated with the new configuration.
+        Possible parameters include:
+        srmfile : str
+            Path to srm file used in calibration. Defaults to GeoRem
+            values for NIST610, NIST612 and NIST614 provided with latools.
+        dataformat : dict (as str)
+            See dataformat documentation.
+    config_file : str
+        Path to the configuration file that will be modified. Defaults to
+        latools.cfg in package install location.
+    make_default : bool
+        Whether or not to make the new configuration the default
+        for future analyses. Default = True.
+
+    Returns
+    -------
+    None
+    """
+
+    if config_file is None:
+        config_file = pkgrs.resource_filename('latools', 'latools.cfg')
+    cf = configparser.ConfigParser()
+    cf.read(config_file)
+
+    # if config doesn't already exist, create it.
+    if config_name not in cf.sections():
+        cf.add_section(config_name)
+    # iterate through parameter dict and set values
+    for k, v in params.items():
+        cf.set(config_name, k, v)
+    # make the parameter set default, if requested
+    if make_default:
+        cf.set('DEFAULT', 'default_config', config_name)
+
+    cf.write(open(config_file, 'w'))
+
+    return
+
+
+def intial_configuration():
+    """
+    Convenience function for configuring latools.
+
+    Run this function when you first use `latools` to specify the
+    location of you SRM data file and your data format file.
+
+    See documentation for full details.
+    """
+    print(('You will be asked a few questions to configure latools\n'
+           'for your specific laboratory needs.'))
+    lab_name = input('What is the name of your lab? : ')
+
+    params = {}
+    OK = False
+    while ~OK:
+        srmfile = input('Where is your SRM.csv file? [blank = default] : ')
+        if srmfile != '':
+            if os.path.exists(srmfile):
+                params['srmfile'] = srmfile
+                OK = True
+            else:
+                print(("You told us the SRM data file was at: " + semfile +
+                       "\nlatools can't find that file. Please check it "
+                       "exists, and \ncheck that the path was correct. "
+                       "The file path must be complete, not relative."))
+        else:
+            print(("No path provided. Using default GeoRem values for "
+                   "NIST610, NIST612 and NIST614."))
+            OK = True
+
+        OK = False
+
+    while ~OK:
+        dataformatfile = input(('Where is your dataformat.dict file? '
+                                '[blank = default] : '))
+        if dataformatfile != '':
+            if os.path.exists(dataformatfile):
+                params['srmfile'] = dataformatfile
+                OK = True
+            else:
+                print(("You told us the dataformat file was at: " +
+                       dataformatfile + "\nlatools can't find that file. "
+                       "Please check it exists, and \ncheck that the path "
+                       "was correct. The file path must be complete, not "
+                       "relative."))
+        else:
+            print(("No path provided. Using default dataformat "
+                   "for the UC Davis Agilent 7700."))
+            OK = True
+
+    make_default = input(('Do you want to use these files as your '
+                          'default? [Y/n] : ')).lower() != 'n'
+
+    add_config(lab_name, params, make_default=make_default)
+
+    print("\nConfiguration set. You're good to go!")
+
+    return
+
+
+def get_example_data(destination_dir):
+    if os.path.isdir(destination_dir):
+        overwrite = input(destination_dir +
+                          ' already exists. Overwrite? [N/y]: ').lower() == 'y'
+        if overwrite:
+            shutil.rmtree(destination_dir)
+        else:
+            print(destination_dir + ' was not overwritten.')
+
+    shutil.copytree(pkgrs.resource_filename('latools', 'resources/test_data'),
+                    destination_dir)
+
+    return
+
+
+def R2calc(meas, model, force_zero=False):
+    if force_zero:
+        SStot = np.sum(meas**2)
+    else:
+        SStot = np.sum((meas - np.nanmean(meas))**2)
+    SSres = np.sum((meas - model)**2)
+    return 1 - (SSres / SStot)
+
+
+def rangecalc(xs, ys, pad=0.05):
+    xd = max(xs)
+    yd = max(ys)
+    return ([0 - pad * xd, max(xs) + pad * xd],
+            [0 - pad * yd, max(ys) + pad * yd])
+
+
+# uncertainties unpackers
+def unpack_uncertainties(uarray):
+    """
+    Convenience function to unpack nominal values and uncertainties from an
+    ``uncertainties.uarray``.
+
+    Returns:
+        (nominal_values, std_devs)
+    """
+    try:
+        return un.nominal_values(uarray), un.std_devs(uarray)
+    except:
+        return uarray
+
+
+def nominal_values(a):
+    try:
+        return un.nominal_values(a)
+    except:
+        return a
+
+
+def std_devs(a):
+    try:
+        return un.std_devs(a)
+    except:
+        return a
+
+
+def rolling_window(a, window, pad=None):
+    """
+    Returns (win, len(a)) rolling - window array of data.
+
+    Parameters
+    ----------
+    a : array_like
+        Array to calculate the rolling window of
+    window : int
+        Description of `window`.
+    pad : same as dtype(a)
+        Description of `pad`.
+
+    Returns
+    -------
+    array_like
+        An array of shape (n, window), where n is either len(a) - window
+        if pad is None, or len(a) if pad is not None.
+    """
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1], )
+    out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    if pad is not None:
+        blankpad = np.empty((window // 2, window))
+        blankpad[:] = pad
+        return np.concatenate([blankpad, out, blankpad])
+    else:
+        return out
+
+
+def fastsmooth(a, win=11):
+    """
+    Returns rolling - window smooth of a.
+
+    Function to efficiently calculate the rolling mean of a numpy
+    array using 'stride_tricks' to split up a 1D array into an ndarray of
+    sub - sections of the original array, of dimensions [len(a) - win, win].
+
+    Parameters
+    ----------
+    a : array_like
+        The 1D array to calculate the rolling gradient of.
+    win : int
+        The width of the rolling window.
+
+    Returns
+    -------
+    array_like
+        Gradient of a, assuming as constant integer x - scale.
+    """
+    # check to see if 'window' is odd (even does not work)
+    if win % 2 == 0:
+        win -= 1  # subtract 1 from window if it is even.
+    # trick for efficient 'rolling' computation in numpy
+    # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+    # strides = a.strides + (a.strides[-1], )
+    # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    wins = rolling_window(a, win)
+    # apply rolling gradient to data
+    a = map(np.nanmean, wins)
+
+    return np.concatenate([np.zeros(int(win / 2)), list(a),
+                          np.zeros(int(win / 2))])
+
+
+def fastgrad(a, win=11):
+    """
+    Returns rolling - window gradient of a.
+
+    Function to efficiently calculate the rolling gradient of a numpy
+    array using 'stride_tricks' to split up a 1D array into an ndarray of
+    sub - sections of the original array, of dimensions [len(a) - win, win].
+
+    Parameters
+    ----------
+    a : array_like
+        The 1D array to calculate the rolling gradient of.
+    win : int
+        The width of the rolling window.
+
+    Returns
+    -------
+    array_like
+        Gradient of a, assuming as constant integer x - scale.
+    """
+    # check to see if 'window' is odd (even does not work)
+    if win % 2 == 0:
+        win -= 1  # subtract 1 from window if it is even.
+    # trick for efficient 'rolling' computation in numpy
+    # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+    # strides = a.strides + (a.strides[-1], )
+    # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    wins = rolling_window(a, win)
+    # apply rolling gradient to data
+    a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
+
+    return np.concatenate([np.zeros(int(win / 2)), list(a),
+                          np.zeros(int(win / 2))])
+
+
+# def gaus_deriv(x, *p):
+#     A, mu, sigma = p
+#     return A * ((np.exp((-(x - mu)**2)/(2*sigma**2)) * (x - mu)) /
+#                 (np.sqrt(2 * np.pi) * sigma**3))
+
+def weighted_average(x, y, x_new, fwhm=300):
+    """
+    Calculate gaussian weigted moving mean, SD and SE.
+
+    Parameters
+    ----------
+    x, y : array - like
+        The x and y data to smooth
+    x_new : array - like
+        The new x - scale to interpolate the data
+
+    """
+    bin_avg = np.zeros(len(x_new))
+    bin_std = np.zeros(len(x_new))
+    bin_se = np.zeros(len(x_new))
+
+    # Gaussian function as weights
+    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+
+    for index in range(0, len(x_new)):
+        xn = x_new[index]
+        weights = gauss(x, 1, xn, sigma)
+        weights /= sum(weights)
+        # weighted mean
+        bin_avg[index] = np.average(y, weights=weights)
+        # weighted standard deviation
+        bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))
+        # weighted standard error (mean / sqrt(n_points_in_gaussian))
+        bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \
+            np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
+
+    return {'mean': bin_avg,
+            'std': bin_std,
+            'stderr': bin_se}
+
+def stderr(a):
+    return np.nanstd(a) / np.sqrt(len(a))

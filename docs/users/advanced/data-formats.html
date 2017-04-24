@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data Import &mdash; latools 0.2.0 documentation</title>
+  <title>Data Import &mdash; latools 0.2.2a documentation</title>
   
 
   
@@ -33,7 +33,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.0 documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
         <link rel="up" title="Advanced Topics" href="index.html"/>
         <link rel="next" title="The .cfg file" href="cfg-file.html"/>
         <link rel="prev" title="Plotting and Data Exploration" href="advanced-plotting.html"/> 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.2.0
+                0.2.2a
               </div>
             
           
@@ -179,7 +179,7 @@ The file names are used as data labels throughout analysis, so should be unique 
 <h3>Standards<a class="headerlink" href="#standards" title="Permalink to this headline">¶</a></h3>
 <p>Standard measurements should be stored in their own data file.
 All standards measured during analysis should have a string of characters in their file name, which is used to identify them as non-samples.
-The string used to identify standards may be specified using the <code class="docutils literal"><span class="pre">srm_identifier</span></code> parameter of <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> (default is &#8216;STD&#8217;).
+The string used to identify standards may be specified using the <code class="docutils literal"><span class="pre">srm_identifier</span></code> parameter of <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> (default is &#8216;STD&#8217;).
 Each standard data file may contain measurements of multiple reference materials.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
@@ -197,7 +197,7 @@ This allows the import of any raw text format, given a few basic parameters that
 <li>column_id: contains information about which line the data column names are on, and which column contains the &#8216;time&#8217; variable.</li>
 <li>regex (<em>optional</em>): a dict with line numbers as keys, containing sets of parameter names and grouped regular expressions for each line, which allows metadata to be extracted from the header during import. If this is missing from the <cite>dataformat</cite> dict, the header will simply be ignored.</li>
 </ul>
-<p>Each time a <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> instance is created, the data format dict is loaded from a text file that contains the dataformat dict.</p>
+<p>Each time a <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> instance is created, the data format dict is loaded from a text file that contains the dataformat dict.</p>
 <div class="section" id="metadata-and-regex">
 <h3>Metadata and Regex<a class="headerlink" href="#metadata-and-regex" title="Permalink to this headline">¶</a></h3>
 </div>
@@ -269,7 +269,7 @@ This allows the import of any raw text format, given a few basic parameters that
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.0',
+            VERSION:'0.2.2a',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
