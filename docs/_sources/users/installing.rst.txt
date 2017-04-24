@@ -24,6 +24,6 @@ The simplest (and recommended) way to install the latest version of ``latools`` 
 
 3. Wait a moment...
 
-This will download and install the latest version of ``latools`` from Github. In the future if you'd like to update ``latools`` to the latest version it's as adding `` --upgrade`` to the end of the code above.
+This will download and install the latest version of ``latools`` from Github. In the future if you'd like to update ``latools`` to the latest version it's as adding ``--upgrade`` to the end of the code above.
 
 If this is your first time, read through the :ref:`getting_started` guide. Otherwise, you're good to go!
