@@ -164,13 +164,13 @@ class analyse(object):
 
         # make output directories
         self.report_dir = re.sub('//', '/',
-                                 self.parent_folder + '/reports_' +
-                                 os.path.basename(self.folder) + '/')
+                                 self.parent_folder + '/' +
+                                 os.path.basename(self.folder) + '_reports/')
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
-                                 self.parent_folder + '/export_' +
-                                 os.path.basename(self.folder) + '/')
+                                 self.parent_folder + '/' +
+                                 os.path.basename(self.folder) + '_export/')
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -275,7 +275,14 @@ class analyse(object):
              if self.srm_identifier in s.sample]
         self.srms_ided = False
 
-        self.make_subset()
+        # set up subsets
+        self._has_subsets = False
+        self._subset_names = []
+        self.subsets = {}
+        self.subsets['All_Analyses'] = self.samples
+        self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
+        self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
+        self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
         # create universal time scale
         if 'date' in self.data[0].meta.keys():
@@ -348,7 +355,7 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=[1., 1.], d_mult=1.2):
+                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2):
         """
         Automatically separates signal and background data regions.
 
@@ -1204,21 +1211,17 @@ class analyse(object):
         if isinstance(samples, str):
             samples = [samples]
 
-        if not hasattr(self, 'subsets'):
-            self.subsets = {}
-            self.subsets['All_Analyses'] = self.samples
-            self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
-            self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
-
-            # self.subsets = {s: 'All_Analyses' for s in self.samples if self.srm_identifier not in s}
-            # self.subsets.update({s: 'STD' for s in self.samples if self.srm_identifier in s})
-            # self.subsets = {}
-
         if name is None:
             name = max([-1] + [x for x in self.subsets.keys() if isinstance(x, int)]) + 1
 
+        self._subset_names.append(name)
+
         if samples is not None:
             self.subsets[name] = samples
+            for s in samples:
+                self.subsets['not_in_set'].remove(s)
+
+        self._has_subsets = True
 
         # for subset in np.unique(list(self.subsets.values())):
         #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
@@ -1636,36 +1639,37 @@ class analyse(object):
                 warnings.warn("filt.off failure in sample " + s)
 
     def filter_status(self, sample=None, subset=None, stds=False):
+        s = ''
         if sample is None and subset is None:
-            if not hasattr(self, 'subsets'):
-                self.make_subset(samples=None)
-            for k, v in sorted(self.subsets.items(), key=lambda x: str(x)):
-                if (self.srm_identifier in str(k)) and not stds:
-                    pass
-                elif 'All_Analyses' in str(k):
-                    pass
-                else:
-                    print('Subset {:s}:'.format(str(k)))
-                    if len(v) == len(self.samples):
-                        print('Samples: All')
-                    else:
-                        print('Samples: ' + ', '.join(v))
-                    print('\n' + self.data_dict[v[0]].filt.__repr__())
+            if not self._has_subsets:
+                s += 'Subset: All Samples\n\n'
+                s += self.data_dict[self.samples[0]].filt.__repr__()
+            else:
+                for n in sorted(self._subset_names):
+                    s += 'Subset: ' + str(n) + '\n'
+                    s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
+                    s += self.data_dict[self.subsets[n][0]].filt.__repr__()
+                
+                s += '\nNot in Subset:\n'
+                s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
+                s += self.data_dict[self.subsets['not_in_set'][0]].filt.__repr__()
+            print(s)
             return
 
         elif sample is not None:
-            print('Sample: ' + sample)
-            print(self.data_dict[sample].filt.__repr__())
+            s += 'Sample: ' + sample + '\n'
+            s += self.data_dict[sample].filt.__repr__()
+            print(s)
             return
 
         elif subset is not None:
             if isinstance(subset, str):
                 subset = [subset]
-            for s in subset:
-                print('Subset {:s}:'.format(str(s)))
-                print('Samples: ' + ', '.join(self.subsets[s]))
-                print('\n' +
-                      self.data_dict[self.subsets[s][0]].filt.__repr__())
+            for n in subset:
+                s += 'Subset: ' + str(n) + '\n'
+                s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
+                s += self.data_dict[self.subsets[n][0]].filt.__repr__()
+            print(s)
             return
 
     @_log
@@ -3082,7 +3086,7 @@ class D(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=(1., 1.), off_mult=(1., 1.), d_mult=1.2):
+                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2):
         """
                 Automatically separates signal and background data regions.
 
@@ -3150,6 +3154,9 @@ class D(object):
 
         if analyte is None:
             analyte = self.internal_standard
+
+        if off_mult is None:
+            off_mult = on_mult[::-1]
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
