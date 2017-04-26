@@ -328,6 +328,30 @@ class analyse(object):
             return a
         return wrapper
 
+    def _get_samples(self, subset=None):
+        """
+        Helper function to get sample names from subset.
+        
+        Parameters
+        ----------
+        subset : str
+            Subset name. If None, returns all samples.
+
+        Returns
+        -------
+        List of sample names
+        """
+        if subset is None:
+            samples = self.subsets['All_Analyses']
+        else:
+            try:
+                samples = self.subsets[subset]
+            except:
+                raise ValueError(("Subset '{:s}' does not ".format(subset) +
+                                  "exist.\nUse 'make_subset' to create a" +
+                                  "subset."))
+        return samples
+
     def get_starttimes(self, time_format=None):
         try:
             sd = {}
@@ -1235,8 +1259,7 @@ class analyse(object):
         """
         if focus_stage is None:
             focus_stage = self.focus_stage
-        
-        
+
         for s in self.data_dict.values():
             ind = np.ones(len(s.Time), dtype=bool)
             for v in s.data[focus_stage].values():
@@ -1244,9 +1267,9 @@ class analyse(object):
 
             for k in s.data[focus_stage].keys():
                 s.data[focus_stage][k][~ind] = unc.ufloat(np.nan, np.nan)
-        
+
         self.set_focus(focus_stage)
-        
+
         return
 
     @_log
@@ -1280,21 +1303,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if analyte not in self.minimal_analytes:
-            self.minimal_analytes.append(analyte)
-
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
@@ -1336,21 +1346,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if analyte not in self.minimal_analytes:
-            self.minimal_analytes.append(analyte)
-
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
@@ -1461,25 +1458,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if isinstance(analytes, str):
-            analytes = [analytes]
-
-        for analyte in analytes:
-            if analyte not in self.minimal_analytes:
-                self.minimal_analytes.append(analyte)
-
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Clustering Filter'):
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
@@ -1528,22 +1508,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        for analyte in [x_analyte, y_analyte]:
-            if analyte not in self.minimal_analytes:
-                self.minimal_analytes.append(analyte)
-
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
@@ -1576,18 +1542,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in samples:
             try:
@@ -1619,18 +1575,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in samples:
             try:
@@ -1679,18 +1625,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in samples:
             self.data_dict[s].filt.clear()
@@ -1888,18 +1824,8 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         if focus_stage is None:
             focus_stage = self.focus_stage
@@ -1931,18 +1857,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         t = 0
         self.focus = {'uTime': []}
@@ -2127,18 +2043,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
@@ -2173,18 +2079,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Drawing Plots'):
             self.data_dict[s].filt_report(filt=filt_str,
@@ -2279,18 +2175,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         ats = {}
 
@@ -2321,18 +2207,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Samples']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         analytes = [a for a in analytes if a !=
                     self.data[0].internal_standard]
@@ -2401,23 +2277,13 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         for s in self.stats_calced:
             for nm in [n for n in samples if self.srm_identifier
                        not in n]:
-                if len(self.stats[nm][s]) == 2:
+                if self.stats[nm][s].ndim == 2:
                     # make multi - index
                     reps = np.arange(self.stats[nm][s].shape[-1])
                     ss = np.array([s] * reps.size)
@@ -2466,18 +2332,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         focus_stage = 'rawdata'
         ud = 'counts'
@@ -2552,18 +2408,8 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-        elif not hasattr(self, 'subsets'):
-            self.make_subset()
 
-        if subset is None:
-            samples = self.subsets['All_Analyses']
-        else:
-            try:
-                samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not .".format(subset) +
-                                  "exist.\nRun 'make_subset' to create a" +
-                                  "subset."))
+        samples = self._get_samples(subset)
 
         if focus_stage is None:
             focus_stage = self.data[0].focus_stage
