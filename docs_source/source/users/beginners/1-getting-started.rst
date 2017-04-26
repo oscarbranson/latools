@@ -9,13 +9,22 @@ We recommend working through these examples to understand the mechanics of the s
 
 The Fundamentals: Python
 ========================
-``latools`` has been primarily developed and tested in Python 3.5. 
+`Python <https://www.python.org/>`_ is an open-source (free) general purpose programming language, with growing application in science.
+``latools`` is a python `module` - a package of code containing a number of Python `objects` and functions, which run within Python.
+That means that you need to have a working copy of Python to use ``latools``.
+
+If you don't already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
+Both of these provide a complete working installation of Python, and all the pre-requisites you need to run latools.
+
+``latools`` has been developed and tested in Python 3.5. 
 It *should* also run on 2.7, but we can't guarantee that it will behave.
+
 ''latools'' should work in any python interpreter, but we recommend either `Jupyter Notebook <http://jupyter.org/>`_ or `iPython <https://ipython.org/>`_.
 Jupyter is a browser-based interface for ipython, which provides a nice clean interactive front-end for writing code, taking notes and viewing plots.
-Both come pre-installed with packaged installations of python, like `Anaconda <https://www.continuum.io/downloads>`_ or `Canopy <https://www.enthought.com/products/canopy/>`_.
 
 For simplicity, the rest of this guide will assume you're using Jupyter notebook, although it should translate directly to other Python interpreters.
+
+For a full walkthrough of getting ``latools`` set up on your system, head on over to the :ref:`install` guide.
 
 Preparation
 ===========

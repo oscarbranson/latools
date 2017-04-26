@@ -13,6 +13,8 @@
 
   
   
+  
+  
 
   
 
@@ -45,6 +47,7 @@
 
 <body class="wy-body-for-nav" role="document">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -85,7 +88,10 @@
           
             
             
-                <ul class="current">
+              
+            
+            
+              <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
@@ -128,8 +134,10 @@
 
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../../index.html">latools</a>
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">latools</a>
+        
       </nav>
 
 
@@ -138,27 +146,44 @@
         <div class="rst-content">
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../index.html">User Guide</a> &raquo;</li>
-      
+        
           <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
-      
-    <li>Getting Started</li>
+        
+      <li>Getting Started</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../../_sources/users/beginners/1-getting-started.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -170,12 +195,17 @@
 We recommend working through these examples to understand the mechanics of the software before setting up your <a class="reference internal" href="../config/customising.html#configuration"><span class="std std-ref">Lab-Specific Configuration</span></a>, and working on your own data.</p>
 <div class="section" id="the-fundamentals-python">
 <h2>The Fundamentals: Python<a class="headerlink" href="#the-fundamentals-python" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal"><span class="pre">latools</span></code> has been primarily developed and tested in Python 3.5.
-It <em>should</em> also run on 2.7, but we can&#8217;t guarantee that it will behave.
-&#8216;&#8217;latools&#8217;&#8217; should work in any python interpreter, but we recommend either <a class="reference external" href="http://jupyter.org/">Jupyter Notebook</a> or <a class="reference external" href="https://ipython.org/">iPython</a>.
-Jupyter is a browser-based interface for ipython, which provides a nice clean interactive front-end for writing code, taking notes and viewing plots.
-Both come pre-installed with packaged installations of python, like <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> or <a class="reference external" href="https://www.enthought.com/products/canopy/">Canopy</a>.</p>
+<p><a class="reference external" href="https://www.python.org/">Python</a> is an open-source (free) general purpose programming language, with growing application in science.
+<code class="docutils literal"><span class="pre">latools</span></code> is a python <cite>module</cite> - a package of code containing a number of Python <cite>objects</cite> and functions, which run within Python.
+That means that you need to have a working copy of Python to use <code class="docutils literal"><span class="pre">latools</span></code>.</p>
+<p>If you don&#8217;t already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum&#8217;s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> or Enthought&#8217;s <a class="reference external" href="https://www.enthought.com/products/canopy/">Canopy</a>.
+Both of these provide a complete working installation of Python, and all the pre-requisites you need to run latools.</p>
+<p><code class="docutils literal"><span class="pre">latools</span></code> has been developed and tested in Python 3.5.
+It <em>should</em> also run on 2.7, but we can&#8217;t guarantee that it will behave.</p>
+<p>&#8216;&#8217;latools&#8217;&#8217; should work in any python interpreter, but we recommend either <a class="reference external" href="http://jupyter.org/">Jupyter Notebook</a> or <a class="reference external" href="https://ipython.org/">iPython</a>.
+Jupyter is a browser-based interface for ipython, which provides a nice clean interactive front-end for writing code, taking notes and viewing plots.</p>
 <p>For simplicity, the rest of this guide will assume you&#8217;re using Jupyter notebook, although it should translate directly to other Python interpreters.</p>
+<p>For a full walkthrough of getting <code class="docutils literal"><span class="pre">latools</span></code> set up on your system, head on over to the <a class="reference internal" href="../installing.html#install"><span class="std std-ref">Installation</span></a> guide.</p>
 </div>
 <div class="section" id="preparation">
 <h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
@@ -231,15 +261,18 @@ Notice that each .csv file either has a sample name, or is called &#8216;STD&#82
 
 
            </div>
+           <div class="articleComments">
+            
+           </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="2-data-import.html" class="btn btn-neutral float-right" title="Importing Data" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="2-data-import.html" class="btn btn-neutral float-right" title="Importing Data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="index.html" class="btn btn-neutral" title="Beginner’s Guide" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral" title="Beginner’s Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
