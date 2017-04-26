@@ -211,9 +211,11 @@
 <span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
 <span class="c1"># calculate sample statistics.</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">stat_samples</span><span class="p">()</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">sample_stats</span><span class="p">()</span>
+<span class="c1"># get statistics into a dataframe</span>
 <span class="n">stats</span> <span class="o">=</span> <span class="n">eg</span><span class="o">.</span><span class="n">getstats</span><span class="p">()</span>
-<span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span>
+<span class="c1"># save statistics to a csv file</span>
+<span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;data_export/stats.csv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Here we processed just 3 files, but the same procedure can be applied to an entire day of analyses, and takes just a little longer.</p>

@@ -28,9 +28,11 @@ If we put all the preceding steps together::
 	eg.filter_on(filt=0)
 
 	# calculate sample statistics.
-	eg.stat_samples()
+	eg.sample_stats()
+	# get statistics into a dataframe
 	stats =	eg.getstats()
-	stats.to_csv('reports/stats.csv')
+	# save statistics to a csv file
+	stats.to_csv('data_export/stats.csv')
 
 Here we processed just 3 files, but the same procedure can be applied to an entire day of analyses, and takes just a little longer.
 
