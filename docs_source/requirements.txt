@@ -1,7 +1,6 @@
 brewer2mpl==1.4.1
 matplotlib==2.0.0
 mpld3==0.2
-multiprocessing
 numpy==1.11.3
 numpydoc==0.6.0
 pandas==0.19.2

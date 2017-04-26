@@ -11,7 +11,7 @@ import warnings
 import brewer2mpl as cb  # for colours
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import multiprocessing as mp
+# import multiprocessing as mp
 import numpy as np
 import pandas as pd
 import pkg_resources as pkgrs
