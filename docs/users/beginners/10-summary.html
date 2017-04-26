@@ -13,6 +13,8 @@
 
   
   
+  
+  
 
   
 
@@ -45,6 +47,7 @@
 
 <body class="wy-body-for-nav" role="document">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -85,7 +88,10 @@
           
             
             
-                <ul class="current">
+              
+            
+            
+              <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
@@ -125,8 +131,10 @@
 
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../../index.html">latools</a>
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">latools</a>
+        
       </nav>
 
 
@@ -135,27 +143,44 @@
         <div class="rst-content">
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../index.html">User Guide</a> &raquo;</li>
-      
+        
           <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
-      
-    <li>Summary</li>
+        
+      <li>Summary</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../../_sources/users/beginners/10-summary.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -164,25 +189,34 @@
   <div class="section" id="summary">
 <span id="beginner-summary"></span><h1>Summary<a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h1>
 <p>If we put all the preceding steps together:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="s1">&#39;./&#39;</span><span class="p">)</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">despike</span><span class="p">()</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">autorange</span><span class="p">()</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">bkg_correct</span><span class="p">()</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">ratio</span><span class="p">()</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">()</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span>    <span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="s1">&#39;./data/&#39;</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">=</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span>
+                <span class="n">internal_standard</span><span class="o">=</span><span class="s1">&#39;Ca43&#39;</span><span class="p">,</span>
+                <span class="n">srm_identifier</span><span class="o">=</span><span class="s1">&#39;STD&#39;</span><span class="p">)</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">despike</span><span class="p">(</span><span class="n">expdecay_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+           <span class="n">noise_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">autorange</span><span class="p">(</span><span class="n">on_mult</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">],</span>
+             <span class="n">off_mult</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">bkg_calc_weightedmean</span><span class="p">(</span><span class="n">weight_fwhm</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+                         <span class="n">n_min</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">eg</span><span class="o">.</span><span class="n">bkg_subtract</span><span class="p">()</span>
+    <span class="n">eg</span><span class="o">.</span><span class="n">ratio</span><span class="p">()</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">drift_correct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+             <span class="n">poly_n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+             <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
 
-<span class="c1"># create a threshold filter at 0.5 mmol/mol Al/Ca</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="mf">0.5E-3</span><span class="p">)</span>
-<span class="c1"># turn off the &#39;above&#39; filter, so only data below the threshold is kept.</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="s1">&#39;Al27_thresh_above&#39;</span><span class="p">)</span>
+    <span class="c1"># create a threshold filter at 0.1 mmol/mol Al/Ca</span>
+    <span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.1e-3</span><span class="p">)</span>
+    <span class="c1"># turn off the &#39;above&#39; filter, so only data below the threshold is kept.</span>
+    <span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-<span class="c1"># calculate sample statistics.</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">stat_samples</span><span class="p">()</span>
-<span class="n">stats</span> <span class="o">=</span> <span class="n">eg</span><span class="o">.</span><span class="n">getstats</span><span class="p">()</span>
-<span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span>
+    <span class="c1"># calculate sample statistics.</span>
+    <span class="n">eg</span><span class="o">.</span><span class="n">stat_samples</span><span class="p">()</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">eg</span><span class="o">.</span><span class="n">getstats</span><span class="p">()</span>
+    <span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Here we processed just 4 files, but the same procedure can be applied to an entire day of analyses, and takes just a few seconds longer.</p>
+<p>Here we processed just 3 files, but the same procedure can be applied to an entire day of analyses, and takes just a little longer.</p>
 <p>The processing stage most likely to modify your results is filtering.
 There are a number of filters available, ranging from simple concentration thresholds (<a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>, as above) to advanced multi-dimensional clustering algorithms (<a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>).
 We reccommend you read and understand the section on <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a> before applying filters to your data.</p>
@@ -196,15 +230,18 @@ To do this, follow the <a class="reference internal" href="../config/customising
 
 
            </div>
+           <div class="articleComments">
+            
+           </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="11-FAQ.html" class="btn btn-neutral float-right" title="FAQs" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="11-FAQ.html" class="btn btn-neutral float-right" title="FAQs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="9-statistics.html" class="btn btn-neutral" title="Sample Statistics" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="9-statistics.html" class="btn btn-neutral" title="Sample Statistics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

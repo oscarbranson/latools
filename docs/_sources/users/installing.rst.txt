@@ -46,7 +46,7 @@ Once git is installed, you can install ``latools`` directly from the online proj
 
 This will download and install the latest version of ``latools`` from Github. In the future if you'd like to update ``latools`` to the latest version it's as adding ``--upgrade`` to the end of the code above.
 
-.. Tip:: The ``@master`` at the end of the command installs the most up-to-date version of the software. If you want to install a specific version of ``latools``, replace ``master`` with the version number (e.g. ``v0.2.2a`` will get you the very first release of ``latools``).
+.. Tip:: The ``@master`` at the end of the command installs the most up-to-date version of the software. If you want to install a specific version of ``latools``, replace ``@master`` with the version number (e.g. ``@v0.2.2a`` will get you the very first release of ``latools``).
 
 -------------------
 2. Pre-built Binary
