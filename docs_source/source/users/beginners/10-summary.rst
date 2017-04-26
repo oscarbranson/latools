@@ -10,15 +10,15 @@ If we put all the preceding steps together::
                     config='DEFAULT', 
                     internal_standard='Ca43', 
                     srm_identifier='STD')
-    eg.despike(expdecay_despiker=True, 
+	eg.despike(expdecay_despiker=True, 
                noise_despiker=True)
-    eg.autorange(on_mult=[1.5, 0.8], 
+	eg.autorange(on_mult=[1.5, 0.8], 
                  off_mult=[0.8, 1.5])
-    eg.bkg_calc_weightedmean(weight_fwhm=300, 
+	eg.bkg_calc_weightedmean(weight_fwhm=300, 
                              n_min=10)
 	eg.bkg_subtract()
 	eg.ratio()
-    eg.calibrate(drift_correct=False, 
+	eg.calibrate(drift_correct=False, 
                  poly_n=0,
                  srms_used=['NIST610', 'NIST612', 'NIST614'])
 	
