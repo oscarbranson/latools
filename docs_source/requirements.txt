@@ -1,7 +1,6 @@
 alabaster==0.7.10
 appnope==0.1.0
 Babel==2.4.0
-basemap==1.0.7
 bibtexparser==0.6.2
 bleach==1.5.0
 brewer2mpl==1.4.1
