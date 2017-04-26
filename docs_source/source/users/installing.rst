@@ -48,6 +48,8 @@ This will download and install the latest version of ``latools`` from Github. In
 
 .. Tip:: The ``@master`` at the end of the command installs the most up-to-date version of the software. If you want to install a specific version of ``latools``, replace ``@master`` with the version number (e.g. ``@v0.2.2-alpha`` will get you the very first release of ``latools``).
 
+.. Important:: If you're one of my lucky pre-release testers, please use ``@v0.2.2-alpha`` instead of ``@master``.
+
 -------------------
 2. Pre-built Binary
 -------------------

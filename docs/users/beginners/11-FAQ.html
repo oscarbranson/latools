@@ -13,6 +13,8 @@
 
   
   
+  
+  
 
   
 
@@ -45,6 +47,7 @@
 
 <body class="wy-body-for-nav" role="document">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -85,7 +88,10 @@
           
             
             
-                <ul class="current">
+              
+            
+            
+              <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
@@ -100,7 +106,12 @@
 <li class="toctree-l3"><a class="reference internal" href="8-filtering.html">Data Selection and Filtering</a></li>
 <li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
 <li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">FAQs</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">FAQs</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#i-can-t-get-my-data-to-import">I can&#8217;t get my data to import...</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#your-software-is-broken-it-doesn-t-work">Your software is broken. It doesn&#8217;t work!</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#i-want-to-do-x-can-you-add-this-feature">I want to do X, can you add this feature?</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
@@ -122,8 +133,10 @@
 
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../../index.html">latools</a>
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">latools</a>
+        
       </nav>
 
 
@@ -132,27 +145,44 @@
         <div class="rst-content">
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../index.html">User Guide</a> &raquo;</li>
-      
+        
           <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
-      
-    <li>FAQs</li>
+        
+      <li>FAQs</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../../_sources/users/beginners/11-FAQ.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -160,20 +190,34 @@
             
   <div class="section" id="faqs">
 <span id="beginner-faq"></span><h1>FAQs<a class="headerlink" href="#faqs" title="Permalink to this headline">¶</a></h1>
-<p>Help! How does this work?</p>
+<div class="section" id="i-can-t-get-my-data-to-import">
+<h2>I can&#8217;t get my data to import...<a class="headerlink" href="#i-can-t-get-my-data-to-import" title="Permalink to this headline">¶</a></h2>
+<p>The most likely candidate is the description of your data format. We tried to make this mechanism as simple as possible, but because of the diversity and complexity of formats from different instruments, it can still be a bit tricky to understand. If you&#8217;re really stuck on this, head on over to the GitHub pages and create an <a class="reference external" href="https://github.com/oscarbranson/latools/issues/new">issue</a> describing your problem. Give us as much information as you can about your instrument, and attach an example data file to your comment. Finally, please label it as &#8216;help wanted&#8217; (in the menu on the right). We&#8217;ll get back to you as soon as we can with a correct data format description for you to use.</p>
+</div>
+<div class="section" id="your-software-is-broken-it-doesn-t-work">
+<h2>Your software is broken. It doesn&#8217;t work!<a class="headerlink" href="#your-software-is-broken-it-doesn-t-work" title="Permalink to this headline">¶</a></h2>
+<p>If you think you&#8217;ve found a bug in <code class="docutils literal"><span class="pre">latools</span></code> (i.e. not specific to your computer / Python installation), or that <code class="docutils literal"><span class="pre">latools</span></code> is doing something peculiar, we&#8217;re keen to know about it. You can tell us about it by creating an <a class="reference external" href="https://github.com/oscarbranson/latools/issues/new">issue</a> on the project GitHub page. Describe the problem as best you can, preferably with some examples, and we&#8217;ll get to it as soon as we can.</p>
+</div>
+<div class="section" id="i-want-to-do-x-can-you-add-this-feature">
+<h2>I want to do X, can you add this feature?<a class="headerlink" href="#i-want-to-do-x-can-you-add-this-feature" title="Permalink to this headline">¶</a></h2>
+<p>Probably! Head on over to the GitHub project page, and create an <a class="reference external" href="https://github.com/oscarbranson/latools/issues/new">issue</a>. Write us a detailed description of what you&#8217;re trying to do, and label the issue as an &#8216;Enhancement&#8217; (on the right hand side), and we&#8217;ll get to it as soon as we can.</p>
+</div>
 </div>
 
 
+           </div>
+           <div class="articleComments">
+            
            </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../config/index.html" class="btn btn-neutral float-right" title="Configuration Guide" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../config/index.html" class="btn btn-neutral float-right" title="Configuration Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="10-summary.html" class="btn btn-neutral" title="Summary" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="10-summary.html" class="btn btn-neutral" title="Summary" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

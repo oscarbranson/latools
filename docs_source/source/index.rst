@@ -3,6 +3,8 @@
 Laser Ablation Tools (latools)
 ==============================
 
+``latools``: a Python toolbox for processing Laser Ablations Mass Spectrometry (LA-MS) data.
+
 Overview
 ========
 
