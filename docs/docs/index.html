@@ -13,6 +13,8 @@
 
   
   
+  
+  
 
   
 
@@ -43,6 +45,7 @@
 
 <body class="wy-body-for-nav" role="document">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -83,7 +86,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../users/index.html">User Guide</a></li>
 </ul>
 <ul class="current">
@@ -112,8 +118,10 @@
 
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../index.html">latools</a>
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">latools</a>
+        
       </nav>
 
 
@@ -122,23 +130,40 @@
         <div class="rst-content">
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../index.html">Docs</a> &raquo;</li>
-      
-    <li>Latools Documentation</li>
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Latools Documentation</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../_sources/docs/index.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -400,7 +425,7 @@ analysis.</p>
 
 <dl class="method">
 <dt id="latools.analyse.autorange">
-<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=[1.0, 1.0], d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.autorange" title="Permalink to this definition">¶</a></dt>
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.autorange" title="Permalink to this definition">¶</a></dt>
 <dd><p>Automatically separates signal and background data regions.</p>
 <p>Automatically detect signal and background regions in the laser
 data, based on the behaviour of a single analyte. The analyte used
@@ -1556,7 +1581,7 @@ ablation.</p>
 
 <dl class="method">
 <dt id="latools.D.autorange">
-<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None</em>, <em>gwin=11</em>, <em>win=40</em>, <em>smwin=5</em>, <em>conf=0.01</em>, <em>on_mult=(1.0</em>, <em>1.0)</em>, <em>off_mult=(1.0</em>, <em>1.0)</em>, <em>d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.autorange" title="Permalink to this definition">¶</a></dt>
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.autorange" title="Permalink to this definition">¶</a></dt>
 <dd><blockquote>
 <div>Automatically separates signal and background data regions.</div></blockquote>
 <p>Automatically detect signal and background regions in the laser
@@ -3195,13 +3220,16 @@ if pad is None, or len(a) if pad is not None.</p>
 
 
            </div>
+           <div class="articleComments">
+            
+           </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
       
-        <a href="../users/advanced/srm-id.html" class="btn btn-neutral" title="Automatic SRM Identification" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="../users/advanced/srm-id.html" class="btn btn-neutral" title="Automatic SRM Identification" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

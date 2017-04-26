@@ -17,7 +17,7 @@ Before you install ``latools``, you'll need to make sure you have a working inst
 If you don't already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
 These provide a working copy of Python, and most of the modules that ``latools`` relies on.
 
-If you already have Python, and don't want to install a complete distribution, the steps below `should` work.
+If you already have a working Python installation or don't want to install one of the pre-packaged Python distributions, everything below `should` work.
 
 ======================
 Installing ``latools``
@@ -45,6 +45,8 @@ Once git is installed, you can install ``latools`` directly from the online proj
 3. Press [Return]
 
 This will download and install the latest version of ``latools`` from Github. In the future if you'd like to update ``latools`` to the latest version it's as adding ``--upgrade`` to the end of the code above.
+
+.. Tip:: The ``@master`` at the end of the command installs the most up-to-date version of the software. If you want to install a specific version of ``latools``, replace ``master`` with the version number (e.g. ``v0.2.2a`` will get you the very first release of ``latools``).
 
 -------------------
 2. Pre-built Binary
