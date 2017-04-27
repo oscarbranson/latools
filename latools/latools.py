@@ -4914,7 +4914,7 @@ class classifier(object):
         # identify all nan values
         finite = np.isfinite(ds).sum(1) == ds.shape[1]
         # remember which values are sampled
-        sampled = np.arange(data['uTime'].size)[finite]
+        sampled = np.arange(data[self.analytes[0]].size)[finite]
         # remove all nan values
         ds = ds[finite]
 
@@ -5027,14 +5027,23 @@ class classifier(object):
         list
         """
         self.method = method
-        ds_fit = self.fiting_data(data)
+        ds_fit = self.fitting_data(data)
         mdict = {'kmeans': self.fit_kmeans,
                  'meanshift': self.fit_meanshift}
         clust = mdict[method]
 
         self.classifier = clust(data=ds_fit, **kwargs)
 
-    def predict(self, data, sort_by=None):
+        # sort cluster centers by value of first column, to avoid random variation.
+        c0 = self.classifier.cluster_centers_.T[0]
+        self.classifier.cluster_centers_ = self.classifier.cluster_centers_[np.argsort(c0)]
+
+        # recalculate the labels, so it's consistent with cluster centers
+        self.classifier.labels_ = self.classifier.predict(ds_fit)
+
+        return
+
+    def predict(self, data):
         """
         Label new data with cluster identities.
         
@@ -5046,24 +5055,19 @@ class classifier(object):
         sort_by : str
             The name of an analyte used to sort the resulting
             clusters. If None, defaults to the first analyte
-            used in fiting.
+            used in fitting.
         
         Returns
         -------
         array of clusters the same length as the data.
         """
-        size = data['uTime'].size
+        size = data[self.analytes[0]].size
         ds, sampled = self.format_data(data)
 
         # predict clusters
         cs = self.classifier.predict(ds)
         # map clusters to original index
-        clusters = map_clusters(size, sampled, cs)
-
-        # sorting always necessary for consistency
-        if sort_by is None:
-            sort_by = self.analytes[0]
-        clusters = self.sort_clusters(data, clusters, sort_by)
+        clusters = self.map_clusters(size, sampled, cs)
 
         return clusters
 
