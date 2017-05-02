@@ -68,7 +68,7 @@ We'll do this with a threshold filter::
 
     eg.filter_threshold(analyte='Al27', threshold=100e-6)  # remember that all units are in mol/mol!
 
-This goes through *all* the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 200 µmol/mol.
+This goes through *all* the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol.
 This function calculates the filters, but does not apply them - that happens later.
 You can check which filters have been calculated, and which are active for individual analytes by typing::
 
