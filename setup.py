@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='latools',
-      version='0.2.2a',
+      version='0.2.3-dev',
       description='Tools for LA-ICPMS data analysis.',
       url='https://github.com/oscarbranson/latools',
       author='Oscar Branson',
@@ -29,6 +29,7 @@ setup(name='latools',
       package_data={
         'latools': ['latools.cfg',
                     'resources/*',
-                    'resources/test_data/*'],
+                    'resources/test_data/*',
+                    'resources/data_formats/*'],
       },
       zip_safe=False)
