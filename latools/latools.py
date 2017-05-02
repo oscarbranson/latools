@@ -19,6 +19,7 @@ import sklearn.cluster as cl
 import uncertainties as unc
 import uncertainties.unumpy as un
 
+from io import BytesIO
 from functools import wraps
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
@@ -286,6 +287,9 @@ class analyse(object):
 
         # create universal time scale
         if 'date' in self.data[0].meta.keys():
+            if (time_format is None) and ('time_format' in self.dataformat.keys()):
+                time_format = self.dataformat['time_format']
+
             self.starttimes = self.get_starttimes(time_format)
 
             for d in self.data_dict.values():
@@ -371,7 +375,7 @@ class analyse(object):
         except:
             ValueError(("Cannot determine data file start times.\n" +
                         "This could be because:\n  1) 'date' " +
-                        "not specified in 'regex' section of \n" +
+                        "not specified in 'meta_regex' section of \n" +
                         "     file format. Consult 'data format' documentation\n  " +
                         "   and modify appropriately.\n  2) time_format cannot be" +
                         " automatically determined.\n     Consult 'strptime'" +
@@ -2659,24 +2663,40 @@ class D(object):
 
         with open(data_file) as f:
             lines = f.readlines()
-            # read the metadata, using key, regex pairs in the line - numbered
-            # dataformat['regex'] dict.
-            if 'regex' in dataformat.keys():
-                self.meta = {}
-                for k, v in dataformat['regex'].items():
-                    if v is not None:
-                        out = re.search(v[-1], lines[int(k)]).groups()
-                        for i in np.arange(len(v[0])):
-                            self.meta[v[0][i]] = out[i]
-            # identify column names
-            if dataformat['column_id']['name_row'] is not None:
-                columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(','))
-                timecol = np.array([dataformat['column_id']['timekey'] in c.lower() for c in columns])
-                columns[timecol] = 'Time'
-                self.analytes = columns[~timecol]
 
-        read_data = np.genfromtxt(data_file,
-                                  **dataformat['genfromtext_args']).T
+        # read the metadata, using key, regex pairs in the line - numbered
+        # dataformat['meta_regex'] dict.
+        # metadata
+        if 'meta_regex' in dataformat.keys():
+            self.meta = {}
+            for k, v in dataformat['meta_regex'].items():
+                out = re.search(v[-1], lines[int(k)]).groups()
+                for i in np.arange(len(v[0])):
+                    self.meta[v[0][i]] = out[i]
+
+        # column names
+        columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimeter']))
+        if 'pattern' in dataformat['column_id'].keys():
+            pr = re.compile(dataformat['column_id']['pattern'])
+            columns = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
+        self.analytes = np.array(columns)
+        
+        columns.insert(dataformat['column_id']['timecolumn'], 'Time')
+        
+        # do any required pre-formatting
+        if 'preformat_replace' in dataformat.keys():
+            clean = True
+            with open(data_file) as f:
+                    fbuffer = f.read()
+            for k, v in dataformat['preformat_replace'].items():
+                fbuffer = re.sub(k, v, fbuffer)
+            
+            read_data = np.genfromtxt(BytesIO(fbuffer.encode()), 
+                                      **dataformat['genfromtext_args']).T
+
+        else:
+            read_data = np.genfromtxt(data_file, 
+                                      **dataformat['genfromtext_args']).T
 
         # create data dict
         self.data = {}
