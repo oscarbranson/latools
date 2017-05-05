@@ -383,7 +383,8 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2):
+                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
+                  transform='log', autorange_kwargs={}):
         """
         Automatically separates signal and background data regions.
 
@@ -457,11 +458,11 @@ class analyse(object):
         for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
                         conf, on_mult, off_mult,
-                        d_mult)
+                        d_mult, transform)
         return
 
     def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
-                     trimlim=None):
+                     trimlim=None, autorange_kwargs={}):
         """
         Determines exponential decay coefficient for despike filter.
 
@@ -516,7 +517,7 @@ class analyse(object):
 
         if not hasattr(self.stds[0], 'trnrng'):
             for s in self.stds:
-                s.autorange()
+                s.autorange(**autorange_kwargs)
 
         trans = []
         times = []
@@ -583,7 +584,8 @@ class analyse(object):
 
     @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
-                noise_despiker=True, win=3, nlim=12., exponentplot=False):
+                noise_despiker=True, win=3, nlim=12., exponentplot=False,
+                autorange_kwargs={}):
         """
         Despikes data with exponential decay and noise filters.
 
@@ -615,7 +617,8 @@ class analyse(object):
         """
         if exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                self.find_expcoef(plot=exponentplot)
+                self.find_expcoef(plot=exponentplot, 
+                                  autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
             time.sleep(0.2)
 
@@ -2954,7 +2957,8 @@ class D(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2):
+                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
+                  transform='log'):
         """
                 Automatically separates signal and background data regions.
 
@@ -3026,10 +3030,18 @@ class D(object):
         if off_mult is None:
             off_mult = on_mult[::-1]
 
+        # define transformation and back-transformation functions
+        if transform is None:
+            trans = btrans = lambda x: x
+        elif transform == 'log':
+            trans = lambda x: np.log10(x[x > 0])
+            btrans = lambda x: 10**x
+        # add more transformation functions here, if required
+
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
         v = self.focus[analyte]  # get trace data
-        vl = np.log10(v[v > 1])  # remove zeros from value
+        vl = trans(v)  # remove zeros from value
         x = np.linspace(vl.min(), vl.max(), bins)  # define bin limits
 
         n, _ = np.histogram(vl, x)  # make histogram of sample
@@ -3039,7 +3051,7 @@ class D(object):
         mins = self.findmins(x, yd)  # find minima in kde
 
         vs = fastsmooth(v, gwin)
-        bkg = vs < 10**(d_mult * mins[0])  # set background as lowest distribution
+        bkg = vs < btrans(d_mult * mins[0])  # set background as lowest distribution
         if not bkg[0]:
             bkg[0] = True
 
