@@ -2684,7 +2684,7 @@ class D(object):
             columns = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
         self.analytes = np.array(columns)
         
-        columns.insert(dataformat['column_id']['timecolumn'], 'Time')
+        columns = np.insert(columns, dataformat['column_id']['timecolumn'], 'Time')
         
         # do any required pre-formatting
         if 'preformat_replace' in dataformat.keys():
@@ -3034,14 +3034,14 @@ class D(object):
         if transform is None:
             trans = btrans = lambda x: x
         elif transform == 'log':
-            trans = lambda x: np.log10(x[x > 0])
-            btrans = lambda x: 10**x
+            trans = lambda x: np.log10(x[x > 1])  # forward transform
+            btrans = lambda x: 10**x  # back transform
         # add more transformation functions here, if required
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
         v = self.focus[analyte]  # get trace data
-        vl = trans(v)  # remove zeros from value
+        vl = trans(v)  # apply transformation
         x = np.linspace(vl.min(), vl.max(), bins)  # define bin limits
 
         n, _ = np.histogram(vl, x)  # make histogram of sample
