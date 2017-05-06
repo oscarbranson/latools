@@ -384,7 +384,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
-                  transform='log', autorange_kwargs={}):
+                  transform='log'):
         """
         Automatically separates signal and background data regions.
 
