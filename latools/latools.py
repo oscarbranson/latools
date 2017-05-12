@@ -973,7 +973,7 @@ class analyse(object):
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                (a, 'mean')] = np.nanmean(s.focus[a][aind])
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'err')] = np.nanmean(s.focus[a][aind]) / np.sqrt(sum(aind))
+                               (a, 'err')] = np.nanstd(s.focus[a][aind]) / np.sqrt(sum(aind))
 
             # sort column multiindex
             stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
@@ -1000,7 +1000,7 @@ class analyse(object):
             # label elements
             srmdat.loc[:, 'element'] = np.nan
             for e in elements:
-                srmdat.loc[srmdat.Item.str.contains(e), 'element'] = e
+                srmdat.loc[srmdat.Item.str.contains(e), 'element'] = str(e)
 
             # convert to table in same format as stdtab
             self.srmdat = srmdat
