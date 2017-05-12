@@ -1254,6 +1254,10 @@ class analyse(object):
         if isinstance(samples, str):
             samples = [samples]
 
+        not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
+        if len(not_exists) > 0:
+            raise ValueError(', '.join(not_exists) + ' not in the list of sample names.\nPlease check your sample names.\nNote: Sample names are stored in the .samples attribute of your analysis.')
+
         if name is None:
             name = max([-1] + [x for x in self.subsets.keys() if isinstance(x, int)]) + 1
 
@@ -1262,7 +1266,10 @@ class analyse(object):
         if samples is not None:
             self.subsets[name] = samples
             for s in samples:
-                self.subsets['not_in_set'].remove(s)
+                try:
+                    self.subsets['not_in_set'].remove(s)
+                except ValueError:
+                    pass
 
         self._has_subsets = True
 
