@@ -1629,10 +1629,10 @@ class analyse(object):
                     s += 'Subset: ' + str(n) + '\n'
                     s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
                     s += self.data_dict[self.subsets[n][0]].filt.__repr__()
-                
-                s += '\nNot in Subset:\n'
-                s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
-                s += self.data_dict[self.subsets['not_in_set'][0]].filt.__repr__()
+                if len(self.subsets['not_in_set']) > 0:
+                    s += '\nNot in Subset:\n'
+                    s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
+                    s += self.data_dict[self.subsets['not_in_set'][0]].filt.__repr__()
             print(s)
             return
 
