@@ -321,6 +321,7 @@ class analyse(object):
         print('  Analytes: ' + ' '.join(self.analytes))
         print('  Internal Standard: {}'.format(self.internal_standard))
 
+    # Helper Functions
     def _log(fn):
         """
         Function for logging method calls and parameters
@@ -356,6 +357,17 @@ class analyse(object):
                                   "subset."))
         return samples
 
+    def _add_minimal_analte(self, analyte):
+        """
+        Check for existence of analyte(s) in minimal_list, add if not present.
+        """
+        if isinstance(analyte, str):
+            analyte = [analyte]
+        for a in analyte:
+            if a not in self.minimal_analytes:
+                self.minimal_analytes.append(a)
+
+    # Work functions
     def get_starttimes(self, time_format=None):
         try:
             sd = {}
@@ -973,7 +985,7 @@ class analyse(object):
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                (a, 'mean')] = np.nanmean(s.focus[a][aind])
                     stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'err')] = np.nanstd(s.focus[a][aind]) / np.sqrt(sum(aind))
+                               (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
 
             # sort column multiindex
             stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
@@ -1313,6 +1325,8 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        self._add_minimal_analte(analyte)
+
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
 
@@ -1355,6 +1369,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
+
+        self._add_minimal_analte(analyte)
 
         for s in tqdm(samples, desc='Distribution Filter'):
             self.data_dict[s].filter_distribution(analyte, binwidth='scott',
@@ -1468,6 +1484,8 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        self._add_minimal_analte(analytes)
+
         for s in tqdm(samples, desc='Clustering Filter'):
             self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
                                                 normalise=normalise,
@@ -1517,6 +1535,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
+
+        self._add_minimal_analte([x_analyte, y_analyte])
 
         for s in tqdm(samples, desc='Correlation Filter'):
             self.data_dict[s].filter_correlation(x_analyte, y_analyte,
@@ -2124,7 +2144,7 @@ class analyse(object):
 
         return
 
-    @_log
+    # @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
@@ -3306,7 +3326,7 @@ class D(object):
         return
 
     # Function for calculating sample statistics
-    @_log
+    # @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns=[np.nanmean, np.nanstd],
                      eachtrace=True):
