@@ -1,0 +1,1218 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"autor",
+				"autorange_kwargs"
+			],
+			[
+				"class",
+				"classifier\tstatement"
+			],
+			[
+				"Main",
+				"MainWidget"
+			],
+			[
+				"lbl_",
+				"lbl_srmdat\tstatement"
+			],
+			[
+				"add",
+				"addItem\tfunction"
+			],
+			[
+				"lbl",
+				"lbl_ided\tstatement"
+			],
+			[
+				"inser",
+				"insertLayout\tfunction"
+			],
+			[
+				"object",
+				"objects\tmodule"
+			],
+			[
+				"itemC",
+				"itemClicked\tfunction"
+			],
+			[
+				"QLis",
+				"QListWidgetItem\tclass"
+			],
+			[
+				"cl",
+				"clicked\tfunction"
+			],
+			[
+				"list",
+				"listWidget\tstatement"
+			],
+			[
+				"s",
+				"samples\tstatement"
+			],
+			[
+				"analyte",
+				"analytes\tstatement"
+			],
+			[
+				"setMa",
+				"setMaximumWidth\tfunction"
+			],
+			[
+				"Qt",
+				"QtGui"
+			],
+			[
+				"Q",
+				"Qt\tmodule"
+			],
+			[
+				"cur",
+				"curve_fit"
+			],
+			[
+				"prog",
+				"ProgressBar\tclass"
+			],
+			[
+				"fw",
+				"fwhm_a_mod\tstatement"
+			],
+			[
+				"fwh",
+				"fwhm_a_dat\tstatement"
+			],
+			[
+				"Data",
+				"DataFrame"
+			],
+			[
+				"fwhm_a",
+				"fwhm_a_dat"
+			],
+			[
+				"fwhm",
+				"fwhm_a_mod"
+			],
+			[
+				"er",
+				"errenv\tfunction"
+			],
+			[
+				"r",
+				"rsquared"
+			],
+			[
+				"set_",
+				"set_xlabel"
+			],
+			[
+				"in",
+				"independent_var"
+			],
+			[
+				"pk",
+				"pkID\tfunction"
+			],
+			[
+				"P",
+				"Pool\tfunction"
+			],
+			[
+				"peak",
+				"peakFinder\tfunction"
+			],
+			[
+				"p",
+				"peakFinder\tfunction"
+			],
+			[
+				"ha",
+				"hanning\tfunction"
+			],
+			[
+				"lin",
+				"linspace\tfunction"
+			],
+			[
+				"mat",
+				"matplotlib\tmodule"
+			],
+			[
+				"iso",
+				"isoScrape\tfunction"
+			],
+			[
+				"inter",
+				"interpolate\tmodule"
+			],
+			[
+				"py",
+				"pyplot\tmodule"
+			],
+			[
+				"sub",
+				"subsoup\tstatement"
+			],
+			[
+				"ur",
+				"urlopen\tfunction"
+			],
+			[
+				"pre",
+				"prettify"
+			],
+			[
+				"url",
+				"urllib2\tmodule"
+			],
+			[
+				"pv",
+				"pvoigt_asym"
+			],
+			[
+				"fill",
+				"fill_between\tfunction"
+			],
+			[
+				"read_c",
+				"read_csv\tfunction"
+			],
+			[
+				"fit",
+				"fit_setup\tstatement"
+			],
+			[
+				"re",
+				"results"
+			],
+			[
+				"mult",
+				"multiprocessing\tmodule"
+			],
+			[
+				"C",
+				"Count"
+			],
+			[
+				"Co",
+				"Corrected"
+			],
+			[
+				"R",
+				"Ratio"
+			],
+			[
+				"M",
+				"Mass-to-Charge-State"
+			],
+			[
+				"lor",
+				"lormod\tstatement"
+			],
+			[
+				"init",
+				"init_h"
+			],
+			[
+				"ind",
+				"index_col\tparam"
+			],
+			[
+				"a",
+				"add_axes"
+			],
+			[
+				"pl",
+				"plot"
+			],
+			[
+				"subpl",
+				"subplots\tfunction"
+			],
+			[
+				"f",
+				"figure"
+			],
+			[
+				"read_",
+				"read_csv\tfunction"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "source/users/installing.rst",
+			"settings":
+			{
+				"buffer_size": 3853,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/advanced/data-formats.rst",
+			"settings":
+			{
+				"buffer_size": 3391,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/advanced/cfg-file.rst",
+			"settings":
+			{
+				"buffer_size": 183,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/beginners/10-summary.rst",
+			"settings":
+			{
+				"buffer_size": 1936,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/index.rst",
+			"settings":
+			{
+				"buffer_size": 454,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/beginners/1-getting-started.rst",
+			"settings":
+			{
+				"buffer_size": 4456,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/beginners/11-FAQ.rst",
+			"settings":
+			{
+				"buffer_size": 1795,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/users/intro.rst",
+			"settings":
+			{
+				"buffer_size": 7331,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "source/conf.py",
+			"settings":
+			{
+				"buffer_size": 9884,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Anaconda Python Builder",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				]
+			],
+			[
+				"Packages/Python/Python.sublime-build",
+				""
+			]
+		],
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/C++/C++ Single File.sublime-build",
+				""
+			]
+		],
+		[
+			[
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				]
+			],
+			[
+				"Packages/Python/Python.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"last_filter": "package",
+		"selected_items":
+		[
+			[
+				"package",
+				"Package Control: Remove Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"packa",
+				"Package Control: Install Package"
+			],
+			[
+				"pane",
+				"Origami: Create Pane on the Right"
+			],
+			[
+				"bash",
+				"Set Syntax: Shell Script (Bash)"
+			],
+			[
+				"yth",
+				"Set Syntax: Python"
+			],
+			[
+				"gs",
+				"Git: Status"
+			],
+			[
+				"git",
+				"Git: Commit"
+			],
+			[
+				"gitini",
+				"Git: Init"
+			],
+			[
+				"git ",
+				"Git: Commit"
+			],
+			[
+				"instal",
+				"Package Control: Install Package"
+			],
+			[
+				"py",
+				"Set Syntax: Python"
+			],
+			[
+				"disale",
+				"Package Control: Disable Package"
+			],
+			[
+				"remo",
+				"Package Control: Remove Package"
+			],
+			[
+				"disable",
+				"Package Control: Disable Package"
+			],
+			[
+				"pep",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"html",
+				"Set Syntax: HTML"
+			],
+			[
+				"python",
+				"Set Syntax: Python"
+			],
+			[
+				"",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"remove",
+				"Package Control: Remove Package"
+			],
+			[
+				"packages",
+				"Preferences: Browse Packages"
+			],
+			[
+				"install ",
+				"Package Control: Install Package"
+			],
+			[
+				"remov",
+				"Package Control: Remove Package"
+			],
+			[
+				"upda",
+				"Package Control: Upgrade/Overwrite All Packages"
+			],
+			[
+				"auto",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"format",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"anaconda",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"sublime",
+				"SublimeGit: Add License"
+			],
+			[
+				"migrate",
+				"LaTeXTools: Reconfigure and migrate settings"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			],
+			[
+				"insta",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 494.0
+	},
+	"console":
+	{
+		"height": 126.0,
+		"history":
+		[
+			"import urllib.request,os,hashlib; h = '7183a2d3e96f11eeadd761d777e62404' + 'e330c659d4bb41d3bdf022e94cab3cd0'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/source",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/source/users",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/source/users/advanced",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/source/users/config"
+	],
+	"file_history":
+	[
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/B_Models/bmodels/cbmodel.py",
+		"/Users/oscarbranson/Desktop/kate_config.txt",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/latools.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/dataformats/KateDavis/tree_structure.txt",
+		"/Users/oscarbranson/Desktop/test.txt",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/latools.cfg",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/source/users/beginners/10-summary.rst",
+		"/Users/oscarbranson/Downloads/GameData 4/KIS/README.md",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/docs_source/Makefile",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/B_Book/Drafts/Figures/B_Data - Inorganic.csv",
+		"/Volumes/Plot Digitizer 2.6.8/README.txt",
+		"/Users/oscarbranson/GoogleDrive/MyPapers/_InProgres/Ostracod_PEEM/Ostracod_PEEM_Brief.txt",
+		"/Users/oscarbranson/Downloads/CSVData.csv",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Python3.sublime-build",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/widgets/MainWidget.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/__init__.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/latools_graveyard.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/To Do",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/latools_revamp.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/resources/UCD_dataformat.dict",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/test.xml",
+		"/Users/oscarbranson/GoogleDrive/ANU/Admin/Housing/Broadband/NetSpeed Login",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/B_Book/Drafts/Figures/Data_Plots/uchikawa.csv",
+		"/Users/oscarbranson/Downloads/destinyWeapons.csv",
+		"/Users/oscarbranson/.bash/.aliases",
+		"/Users/oscarbranson/.bash/.path",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/qt_lagui.py",
+		"/Users/oscarbranson/GoogleDrive/ANU/Projects/latools/latools/objects_gui.py",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/STXM_helper_fns.py",
+		"/Users/oscarbranson/Desktop/tmp/phreeqc/test.out",
+		"/Users/oscarbranson/UCDrive/Notes/PNNL Remote Access.txt",
+		"/private/etc/hosts",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/objects.py",
+		"/Users/oscarbranson/UCDrive/Projects/latools/despiking_gui.pyw",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/Users/oscarbranson/Desktop/settings_bkp",
+		"/Users/oscarbranson/.bash_profile",
+		"/Users/oscarbranson/.aliases",
+		"/Users/oscarbranson/.bash_pro",
+		"/Users/oscarbranson/UCDrive/Projects/latools2/To Do",
+		"/Users/oscarbranson/UCDrive/Tools/Laser/spotsize_app.py",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models2.tex",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/3-Posted/swim-with-a-viking",
+		"/Users/oscarbranson/.path",
+		"/Users/oscarbranson/UCDrive/Projects/latools/despike_only.py",
+		"/Users/oscarbranson/.matplotlib/matplotlibrc",
+		"/Users/oscarbranson/.ipython/profile_default/startup/loadup.py",
+		"/Users/oscarbranson/UCDrive/Projects/B_Book/B_Chapter_Info",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/bmodel_fns.py",
+		"/Users/oscarbranson/UCDrive/Projects/Reviews/2015_GeoBio_CoccoXRF/Round2/review_2",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/gaussian.tex",
+		"/Users/oscarbranson/UCDrive/Projects/B_Models/Box Model Description/B_Models.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_concs.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_discussion.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_results.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_methods.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Submitted/Diagenesis_Tomography/Tomog_LaTeX/Tomog_intro.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/manuscript.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/PaperFigs/c5_keelcrust.eps",
+		"/Users/oscarbranson/Desktop/tmp/play.cpp",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/darwinbeast",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/IonIdentifier_ver7.pyw",
+		"/Users/oscarbranson/Downloads/MEGAPLOT/PlottingScripts/Megaplot_FFT.py",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/InProgress/moonformation",
+		"/Users/oscarbranson/Dropbox/Communications/Earth Story/moonformation",
+		"/Users/oscarbranson/Documents/Library.papers3/Bé/Bé_1964_Science.pdf",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Tomog_LaTeX/Tomog_abstract.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/_Revisions/Diagenesis_Tomography/Probe/Quanti/disk1.qtiDat",
+		"/Users/oscarbranson/Desktop/time.csv",
+		"/Volumes/OB_APT1/NetBeans/R31_04588_DEP_V3-05_M-3/recons/recon-interface_only/RangeFiles/interface_bkg_corr_checked.RRNG",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/manuscript.synctex.gz",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/AGUTeX.cls",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/agutmpl.tex",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/BibTeX/refs.bib",
+		"/Users/oscarbranson/UCDrive/MyPapers/2014/Diagenesis_Tomography/Tomog_LaTeX/manuscript.tex",
+		"/Users/oscarbranson/UCDrive/Projects/APT/SampleLocation/NanoSIMS/NanoSIMS_raw/LiMgCa_F2_6_311A_1_m1.csv",
+		"/Users/oscarbranson/UCDrive/Projects/APT/APT_Data/V3-05-M03_Interface_Data/Exported/Proxygrams/R31_04588-v02-artefactGone_interface40Ca32_full-bkg-proxygram_12nm_0.01bin_ioncounts.csv",
+		"/Users/oscarbranson/Website/oscarbranson.github.io/_posts/blog/2014-09-22-trial-post.md",
+		"/Users/oscarbranson/UCDrive/Projects/APT/Interface_Data/Range_File/FWHM.RRNG",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/sample_composition.csv",
+		"/Users/oscarbranson/Website/oscarbranson.github.io/index.md",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pkID.py",
+		"/Library/Python/2.7/site-packages/matplotlib-1.4.x-py2.7-macosx-10.9-intel.egg/matplotlib/pyplot.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementFns.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/generic.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/frame.py",
+		"/usr/local/Cellar/python/2.7.8/Frameworks/Python.framework/Versions/2.7/lib/python2.7/multiprocessing/pool.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdetect.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakFinder.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Pk_Processing.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdet.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/detect_peaks.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/internals.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/peakdet2.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/index.py",
+		"/Library/Python/2.7/site-packages/pandas-0.13.1_213_gc174c3d-py2.7-macosx-10.9-intel.egg/pandas/core/series.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementDaCalc.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementScrape.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elementMasses.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/scrape.txt",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/elements.pkl",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit_raw.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit.py",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pks.csv",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Pk_Bgk_Correction",
+		"/Users/oscarbranson/UCDrive/Projects/APT/Data/R31_03953_default.rrng",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Anaconda.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/pks",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Default/Preferences.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/SublimeCodeIntel.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Anaconda/Anaconda.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Total_Spectral_Fit",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/Anaconda/README.md",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Python.sublime-settings",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/User/Plain text.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/pvoigt.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/lorentzian.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/exp_gauss.tex",
+		"/Users/oscarbranson/Downloads/IonIdentifier_ver7.pyw",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/build.tex",
+		"/Users/oscarbranson/UCDrive/Tools/Peakshape_Library/assym_pvoigt.tex",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/Spectral_Fit.ipynb",
+		"/Users/oscarbranson/.codeintel/config",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/APT_MS_autorange.py",
+		"/Users/oscarbranson/.codeintel/codeintel.log",
+		"/Users/oscarbranson/Library/Application Support/Sublime Text 3/Packages/SublimeCodeIntel/SublimeCodeIntel.sublime-settings",
+		"/Users/oscarbranson/UCDrive/Projects/APT/MassSpectrum/APT_MS_autorange"
+	],
+	"find":
+	{
+		"height": 35.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": true,
+		"find_history":
+		[
+			"autorange(",
+			"dataformat",
+			"autorange_kw",
+			"test.",
+			"..",
+			"fiting",
+			"sort",
+			"get_",
+			"wraps",
+			"tqdm_no",
+			"tnrang",
+			"tnrange",
+			"locals()",
+			"make_subset",
+			"params",
+			"log",
+			"std_labels",
+			"uTime",
+			"['raw']",
+			"~hasatt",
+			"self.stdtab",
+			"(dat.",
+			"dat.",
+			" dat.",
+			"dat.",
+			"ratios",
+			"hasattr",
+			"bkg",
+			"gauss_inv",
+			"mkrngs",
+			"makerangebools",
+			"bkgrange",
+			"sigrange",
+			"signal",
+			"PROJ",
+			"ill_between",
+			"calibrate",
+			"gauss",
+			"kmeans",
+			"focus",
+			"subset",
+			"getpars",
+			"time",
+			"cb",
+			"brewer2m",
+			"inan",
+			"distribution",
+			"^",
+			"bimodality_fix",
+			"distribution",
+			"sample_stats",
+			"stat",
+			"split(', ",
+			"srm_id",
+			"load",
+			"tplot",
+			"shutil",
+			"copy",
+			"cp",
+			"lbl_ided",
+			"d",
+			"auto",
+			"autoR",
+			"tab_\t",
+			"tab_",
+			"lbl",
+			"optionsPane",
+			"setLayout",
+			"btn",
+			"btn_impor",
+			"setObject",
+			"setObjectName",
+			"analyte_sw",
+			"live_sample",
+			"self.live",
+			"check",
+			"checkbo",
+			"plotPane",
+			"plot",
+			"plotPane",
+			"QtCore",
+			"qt",
+			"QtGui",
+			"laguilatools",
+			"lagui",
+			"autorange",
+			"self.cols[1:]",
+			"background",
+			"bkgrange",
+			"d.",
+			"fastgrad",
+			"fast",
+			"auto",
+			"cmap",
+			"bkgrng",
+			"backgroun",
+			"save",
+			"self.sig",
+			"bkg_correct",
+			"gauss",
+			"min",
+			"distri",
+			":,:,0,0,0,0,0,0,0,0,0",
+			"0,0,:,:,0,0,0,0,0,0,0",
+			"self.filt",
+			"ind = self.filt[a]",
+			"self.filt",
+			"distribution",
+			"csv",
+			"save",
+			"=', '",
+			"', '",
+			"open",
+			"bmF",
+			"pDF",
+			"pPF",
+			"pcolor",
+			"\\ce{",
+			"np.m",
+			"np.min",
+			"axs[1][:,:,0,0,0,0,0,0,0,0,0]",
+			"axs[0][:,:,0,0,0,0,0,0,0,0,0]",
+			"axs",
+			"[0,0,:,:,0,0,0,0,0,0,0]",
+			"Bsyst",
+			",0,0]",
+			"PKB",
+			", "
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "source/users/installing.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3853,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1086,
+								1086
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"git_gutter_is_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 17.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "source/users/advanced/data-formats.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3391,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								77,
+								77
+							]
+						],
+						"settings":
+						{
+							"git_gutter_is_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "source/users/advanced/cfg-file.rst",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 183,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "source/users/beginners/10-summary.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1936,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								700,
+								700
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "source/index.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 454,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								195,
+								195
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 7,
+					"type": "text"
+				},
+				{
+					"buffer": 5,
+					"file": "source/users/beginners/1-getting-started.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4456,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1922,
+								1922
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "source/users/beginners/11-FAQ.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1795,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								823,
+								823
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 5,
+					"type": "text"
+				},
+				{
+					"buffer": 7,
+					"file": "source/users/intro.rst",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 7331,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1418,
+								1418
+							]
+						],
+						"settings":
+						{
+							"git_gutter_enabled": true,
+							"syntax": "Packages/RestructuredText/reStructuredText.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 432.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 6,
+					"type": "text"
+				},
+				{
+					"buffer": 8,
+					"file": "source/conf.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 9884,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2669,
+								2671
+							]
+						],
+						"settings":
+						{
+							"auto_complete_triggers":
+							[
+								{
+									"characters": ".",
+									"selector": "source.python - string - comment - constant.numeric"
+								},
+								{
+									"characters": ".",
+									"selector": "source.python - string - constant.numeric"
+								}
+							],
+							"git_gutter_enabled": true,
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 8,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 23.0
+	},
+	"input":
+	{
+		"height": 31.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.anaconda_documentation":
+	{
+		"height": 100.0
+	},
+	"output.exec":
+	{
+		"height": 213.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.git-commit":
+	{
+		"height": 25.0
+	},
+	"pinned_build_system": "Packages/User/Python3.sublime-build",
+	"project": "latools-docs.sublime-project",
+	"replace":
+	{
+		"height": 42.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"f",
+				"PaperFigs/c5_keelcrust.eps"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 248.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

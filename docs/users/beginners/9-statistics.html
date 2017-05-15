@@ -13,6 +13,8 @@
 
   
   
+  
+  
 
   
 
@@ -45,6 +47,7 @@
 
 <body class="wy-body-for-nav" role="document">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -85,7 +88,10 @@
           
             
             
-                <ul class="current">
+              
+            
+            
+              <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
@@ -122,8 +128,10 @@
 
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../../index.html">latools</a>
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">latools</a>
+        
       </nav>
 
 
@@ -132,27 +140,44 @@
         <div class="rst-content">
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../index.html">User Guide</a> &raquo;</li>
-      
+        
           <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
-      
-    <li>Sample Statistics</li>
+        
+      <li>Sample Statistics</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../../_sources/users/beginners/9-statistics.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -173,30 +198,33 @@ To get them out into a more useful form:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">eg</span><span class="o">.</span><span class="n">getstats</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>This returns a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v0.19.2)"><code class="xref py py-class docutils literal"><span class="pre">pandas.DataFrame</span></code></a> containing all the statistics we just calculated.
+<p>This returns a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v0.20.1)"><code class="xref py py-class docutils literal"><span class="pre">pandas.DataFrame</span></code></a> containing all the statistics we just calculated.
 You can either keep this data in python and continue your analysis, or export the integrated values to an external file for analysis and plotting in <em>your_favourite_program</em>.</p>
-<p>To export the data, you can either specifing the <code class="docutils literal"><span class="pre">filename</span></code> variable in <a class="reference internal" href="../../docs/index.html#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code></a>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.19.2)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.19.2)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
+<p>To export the data, you can either specifing the <code class="docutils literal"><span class="pre">filename</span></code> variable in <a class="reference internal" href="../../docs/index.html#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code></a>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># .csv format</span>
 <span class="n">stats</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># excel format</span>
 </pre></div>
 </div>
 <div class="admonition hint">
 <p class="first admonition-title">Hint</p>
-<p class="last">To use pandas <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.19.2)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> method, you must have <a class="reference external" href="http://xlsxwriter.readthedocs.io/">xlsxwriter</a> installed in python.</p>
+<p class="last">To use pandas <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> method, you must have <a class="reference external" href="http://xlsxwriter.readthedocs.io/">xlsxwriter</a> installed in python.</p>
 </div>
 </div>
 
 
+           </div>
+           <div class="articleComments">
+            
            </div>
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="10-summary.html" class="btn btn-neutral float-right" title="Summary" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="10-summary.html" class="btn btn-neutral float-right" title="Summary" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="8-filtering.html" class="btn btn-neutral" title="Data Selection and Filtering" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="8-filtering.html" class="btn btn-neutral" title="Data Selection and Filtering" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
