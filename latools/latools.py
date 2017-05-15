@@ -2151,10 +2151,10 @@ class analyse(object):
 
         return
 
-    # @_log
+    @_log
     def sample_stats(self, analytes=None, filt=True,
-                     stat_fns=[np.nanmean, np.nanstd],
-                     eachtrace=True):
+                     stats=['mean', 'std'],
+                     eachtrace=True, csf_dict={}):
         """
         Calculate sample statistics.
 
@@ -2192,8 +2192,34 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
+
+
         self.stats = {}
-        self.stats_calced = [f.__name__ for f in stat_fns]
+
+        self.stats_calced = []
+        stat_fns = {}
+
+        stat_dict = {'mean': np.nanmean,
+                     'std': np.nanstd,
+                     'nanmean': np.nanmean,
+                     'nanstd': np.nanstd,
+                     'se': stderr}
+
+        for s in stats:
+            if isinstance(s, str):
+                if s in stat_dict.keys():
+                    self.stats_calced.append(s)
+                    stat_fns[s] = stat_dict[s]
+                if s in csf_dict.keys():
+                    self.stats_calced.append(s)
+                    exec(csf_dict[s])
+                    stat_fns[s] = eval(s)
+            elif callable(s):
+                self.stats_calced.append(s.__name__)
+                stat_fns[s.__name__] = s
+                if not hasattr(self, 'custom_stat_functions'):
+                    self.custom_stat_functions = ''
+                self.custom_stat_functions += inspect.getsource(s) + '\n\n\n\n'
 
         # calculate stats for each sample
         for s in self.samples:
@@ -2494,11 +2520,13 @@ class analyse(object):
                 f.write(csv)
         return
 
-    def minimal_export(self, target_analytes, override=False, path=None):
+    def minimal_export(self, target_analytes=None, override=False, path=None):
         """
         Exports a analysis parameters, standard info and a minimal dataset,
         which can be imported by another user.
         """
+        if target_analytes is None:
+            target_analytes = self.analytes
         if isinstance(target_analytes, str):
             target_analytes = [target_analytes]
 
@@ -2526,13 +2554,28 @@ class analyse(object):
         # export data
         self._minimal_export_traces(path + '/data', analytes=target_analytes)
 
-        # export analysis_log
+        # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
                       'data_folder :: ./data/',
                       'srm_table :: ./srm.table',
-                      '# Analysis Log Start: \n']
+                      ]
 
+        # save custom functions (of defined)
+        if hasattr(self, 'custom_stat_functions'):
+            with open(path + '/custom_stat_fns.py', 'w') as f:
+                f.write(self.custom_stat_functions)
+            log_header.append('custom_stat_functions :: ./custom_stat_fns.py')
+
+        log_header.append('# Analysis Log Start: \n')
+
+        # format sample_stats correctly
+        lss = [(i, l) for i, l in enumerate(self.log) if 'sample_stats' in l]
+        rep = re.compile("(.*'stats': )(\[.*?\])(.*)")
+        for i, l in lss:
+            self.log[i] = rep.sub(r'\1' + str(self.stats_calced) + r'\3', l)
+
+        # save log
         with open(path + '/analysis.log', 'w') as f:
             f.write('\n'.join(log_header))
             f.write('\n'.join(self.log))
@@ -2547,27 +2590,42 @@ class analyse(object):
         with open(path + '/srm.table', 'w') as f:
             f.write(srmdat.to_csv())
 
-def reproduce(log_file, plotting=False, data_dir=None, srm_table=None):
+def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with `latools.minimal_export`
     """
-    dirname = os.path.dirname(log_file)
+    dirname = os.path.dirname(log_file) + '/'
 
     with open(log_file, 'r') as f:
-        rlog = f.read().splitlines()
+        rlog = f.readlines()
 
-    getpath = re.compile('.* :: (.*)')
-    if data_dir is None:
-        data_dir = (dirname + '/' + getpath.match(rlog[1]).groups()[0]).replace('/./','/')
+    hashind = [i for i, n in enumerate(rlog) if '#' in n]
+
+    pathread = re.compile('(.*) :: (.*)\n')
+    paths = dict([pathread.match(l).groups() for l in rlog[hashind[0]+1:hashind[-1]] if pathread.match(l)])
+
+    if data_folder is None:
+        data_folder = dirname + paths['data_folder']
     if srm_table is None:
-        srm_table = (dirname + '/' + getpath.match(rlog[2]).groups()[0]).replace('/./','/')
+        srm_table = dirname + paths['srm_table']
+    if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
+        # load custom functions as a dict
+        with open(dirname + paths['custom_stat_functions'], 'r') as f:
+            csf = f.read()
 
+        fname = re.compile('def (.*)\(.*')
+
+        csfs = {}
+        for c in csf.split('\n\n\n\n'):
+            if fname.match(c):
+                csfs[fname.match(c).groups()[0]] = c
+    
     # reproduce analysis
     logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
 
-    init_kwargs = eval(logread.match(rlog[4]).groups()[-1])
+    init_kwargs = eval(logread.match(rlog[hashind[1]+1]).groups()[-1])
     init_kwargs['config'] = 'REPRODUCE'
-    init_kwargs['data_folder'] = data_dir
+    init_kwargs['data_folder'] = data_folder
 
     dat = analyse(**init_kwargs)
 
@@ -2575,10 +2633,11 @@ def reproduce(log_file, plotting=False, data_dir=None, srm_table=None):
     print('SRM values loaded from: {}'.format(srm_table))
 
     # rest of commands
-    log = rlog[5:]
-    for l in log:
+    for l in rlog[hashind[1]+2:]:
         fname, args, kwargs = logread.match(l).groups()
-        if 'plot' not in fname.lower():
+        if 'sample_stats' in fname:
+            dat.sample_stats(*eval(args), **eval(kwargs), csf_dict=csfs)
+        elif 'plot' not in fname.lower():
             getattr(dat,fname)(*eval(args),**eval(kwargs))
         elif plotting:
             getattr(dat,fname)(*eval(args),**eval(kwargs))
@@ -3333,9 +3392,9 @@ class D(object):
         return
 
     # Function for calculating sample statistics
-    # @_log
+    @_log
     def sample_stats(self, analytes=None, filt=True,
-                     stat_fns=[np.nanmean, np.nanstd],
+                     stat_fns={},
                      eachtrace=True):
         """
         TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!
@@ -3355,10 +3414,10 @@ class D(object):
             The filter to apply to the data when calculating sample statistics.
                 bool: True applies filter specified in filt.switches.
                 str: logical string specifying a partucular filter
-        stat_fns : array_like
-            List of functions that take a single array_like input,
-            and return a single statistic. Function should be able
-            to cope with numpy NaN values.
+        stat_fns : dict
+            Dict of {name: function} pairs. Functions that take a single 
+            array_like input, and return a single statistic. Function should 
+            be able to cope with NaN values.
         eachtrace : bool
             True: per - ablation statistics
             False: whole sample statistics
@@ -3377,8 +3436,8 @@ class D(object):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            for f in stat_fns:
-                self.stats[f.__name__] = []
+            for n, f in stat_fns.items():
+                self.stats[n] = []
                 for a in analytes:
                     ind = self.filt.grab_filt(filt, a)
                     dat = nominal_values(self.focus[a])
@@ -3386,16 +3445,16 @@ class D(object):
                         sts = []
                         for t in np.arange(self.n) + 1:
                             sts.append(f(dat[ind & (self.ns == t)]))
-                        self.stats[f.__name__].append(sts)
+                        self.stats[n].append(sts)
                     else:
-                        self.stats[f.__name__].append(f(dat[ind]))
-                self.stats[f.__name__] = np.array(self.stats[f.__name__])
+                        self.stats[n].append(f(dat[ind]))
+                self.stats[n] = np.array(self.stats[n])
 
-        try:
-            self.unstats = un.uarray(self.stats['nanmean'],
-                                     self.stats['nanstd'])
-        except:
-            pass
+        # try:
+            # self.unstats = un.uarray(self.stats['nanmean'],
+            #                          self.stats['nanstd'])
+        # except:
+            # pass
 
         return
 
@@ -5692,6 +5751,7 @@ def weighted_average(x, y, x_new, fwhm=300):
     return {'mean': bin_avg,
             'std': bin_std,
             'stderr': bin_se}
+
 
 def stderr(a):
     return np.nanstd(a) / np.sqrt(len(a))
