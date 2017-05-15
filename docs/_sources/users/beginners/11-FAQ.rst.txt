@@ -7,7 +7,7 @@ FAQs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 I can't get my data to import...
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The most likely candidate is the description of your data format. We tried to make this mechanism as simple as possible, but because of the diversity and complexity of formats from different instruments, it can still be a bit tricky to understand. If you're really stuck on this, head on over to the GitHub pages and create an `issue <https://github.com/oscarbranson/latools/issues/new>`_ describing your problem. Give us as much information as you can about your instrument, and attach an example data file to your comment. Finally, please label it as 'help wanted' (in the menu on the right). We'll get back to you as soon as we can with a correct data format description for you to use.
+Follow the instructions :ref:`here <advanced_data_formats>`. If you're really stuck, 
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Your software is broken. It doesn't work!

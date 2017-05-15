@@ -357,7 +357,7 @@ analysis.</p>
 <tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-obj docutils literal"><span class="pre">filter_threshold</span></code></a>(analyte,&nbsp;threshold[,&nbsp;filt,&nbsp;...])</td>
 <td>Applies a threshold filter to the data.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.find_expcoef" title="latools.analyse.find_expcoef"><code class="xref py py-obj docutils literal"><span class="pre">find_expcoef</span></code></a>([nsd_below,&nbsp;analyte,&nbsp;plot,&nbsp;trimlim])</td>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.find_expcoef" title="latools.analyse.find_expcoef"><code class="xref py py-obj docutils literal"><span class="pre">find_expcoef</span></code></a>([nsd_below,&nbsp;analyte,&nbsp;plot,&nbsp;...])</td>
 <td>Determines exponential decay coefficient for despike filter.</td>
 </tr>
 <tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.get_background" title="latools.analyse.get_background"><code class="xref py py-obj docutils literal"><span class="pre">get_background</span></code></a>([n_min,&nbsp;focus_stage])</td>
@@ -366,25 +366,28 @@ analysis.</p>
 <tr class="row-even"><td><a class="reference internal" href="#latools.analyse.get_focus" title="latools.analyse.get_focus"><code class="xref py py-obj docutils literal"><span class="pre">get_focus</span></code></a>([filt,&nbsp;samples,&nbsp;subset])</td>
 <td>Collect all data from all samples into a single array.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-obj docutils literal"><span class="pre">getstats</span></code></a>([save,&nbsp;filename,&nbsp;samples,&nbsp;subset,&nbsp;...])</td>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.get_starttimes" title="latools.analyse.get_starttimes"><code class="xref py py-obj docutils literal"><span class="pre">get_starttimes</span></code></a>([time_format])</td>
+<td></td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-obj docutils literal"><span class="pre">getstats</span></code></a>([save,&nbsp;filename,&nbsp;samples,&nbsp;subset,&nbsp;...])</td>
 <td>Return pandas dataframe of all sample statistics.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.make_subset" title="latools.analyse.make_subset"><code class="xref py py-obj docutils literal"><span class="pre">make_subset</span></code></a>([samples,&nbsp;name])</td>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.make_subset" title="latools.analyse.make_subset"><code class="xref py py-obj docutils literal"><span class="pre">make_subset</span></code></a>([samples,&nbsp;name])</td>
 <td>Creates a subset of samples, which can be treated independently.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.minimal_export" title="latools.analyse.minimal_export"><code class="xref py py-obj docutils literal"><span class="pre">minimal_export</span></code></a>(target_analytes[,&nbsp;override,&nbsp;path])</td>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.minimal_export" title="latools.analyse.minimal_export"><code class="xref py py-obj docutils literal"><span class="pre">minimal_export</span></code></a>([target_analytes,&nbsp;override,&nbsp;path])</td>
 <td>Exports a analysis parameters, standard info and a minimal dataset, which can be imported by another user.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.ratio" title="latools.analyse.ratio"><code class="xref py py-obj docutils literal"><span class="pre">ratio</span></code></a>([internal_standard,&nbsp;focus])</td>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.ratio" title="latools.analyse.ratio"><code class="xref py py-obj docutils literal"><span class="pre">ratio</span></code></a>([internal_standard,&nbsp;focus])</td>
 <td>Calculates the ratio of all analytes to a single analyte.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.sample_stats" title="latools.analyse.sample_stats"><code class="xref py py-obj docutils literal"><span class="pre">sample_stats</span></code></a>([analytes,&nbsp;filt,&nbsp;stat_fns,&nbsp;...])</td>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.sample_stats" title="latools.analyse.sample_stats"><code class="xref py py-obj docutils literal"><span class="pre">sample_stats</span></code></a>([analytes,&nbsp;filt,&nbsp;stats,&nbsp;...])</td>
 <td>Calculate sample statistics.</td>
 </tr>
-<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.trace_plots" title="latools.analyse.trace_plots"><code class="xref py py-obj docutils literal"><span class="pre">trace_plots</span></code></a>([analytes,&nbsp;samples,&nbsp;ranges,&nbsp;...])</td>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.trace_plots" title="latools.analyse.trace_plots"><code class="xref py py-obj docutils literal"><span class="pre">trace_plots</span></code></a>([analytes,&nbsp;samples,&nbsp;ranges,&nbsp;...])</td>
 <td>Plot analytes as a function of time.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.zeroscreen" title="latools.analyse.zeroscreen"><code class="xref py py-obj docutils literal"><span class="pre">zeroscreen</span></code></a>([focus_stage])</td>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.zeroscreen" title="latools.analyse.zeroscreen"><code class="xref py py-obj docutils literal"><span class="pre">zeroscreen</span></code></a>([focus_stage])</td>
 <td>Remove all points containing data below zero (impossible)</td>
 </tr>
 </tbody>
@@ -404,16 +407,13 @@ analysis.</p>
 <tr class="row-odd"><td>filter_status</td>
 <td>&#160;</td>
 </tr>
-<tr class="row-even"><td>get_starttimes</td>
+<tr class="row-even"><td>set_focus</td>
 <td>&#160;</td>
 </tr>
-<tr class="row-odd"><td>set_focus</td>
+<tr class="row-odd"><td>srm_id_auto</td>
 <td>&#160;</td>
 </tr>
-<tr class="row-even"><td>srm_id_auto</td>
-<td>&#160;</td>
-</tr>
-<tr class="row-odd"><td>statplot</td>
+<tr class="row-even"><td>statplot</td>
 <td>&#160;</td>
 </tr>
 </tbody>
@@ -425,7 +425,7 @@ analysis.</p>
 
 <dl class="method">
 <dt id="latools.analyse.autorange">
-<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.autorange" title="Permalink to this definition">¶</a></dt>
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2, transform='log'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.autorange" title="Permalink to this definition">¶</a></dt>
 <dd><p>Automatically separates signal and background data regions.</p>
 <p>Automatically detect signal and background regions in the laser
 data, based on the behaviour of a single analyte. The analyte used
@@ -677,7 +677,7 @@ use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
 
 <dl class="method">
 <dt id="latools.analyse.despike">
-<code class="descname">despike</code><span class="sig-paren">(</span><em>expdecay_despiker=True</em>, <em>exponent=None</em>, <em>tstep=None</em>, <em>noise_despiker=True</em>, <em>win=3</em>, <em>nlim=12.0</em>, <em>exponentplot=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.despike" title="Permalink to this definition">¶</a></dt>
+<code class="descname">despike</code><span class="sig-paren">(</span><em>expdecay_despiker=True</em>, <em>exponent=None</em>, <em>tstep=None</em>, <em>noise_despiker=True</em>, <em>win=3</em>, <em>nlim=12.0</em>, <em>exponentplot=False</em>, <em>autorange_kwargs={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.despike" title="Permalink to this definition">¶</a></dt>
 <dd><p>Despikes data with exponential decay and noise filters.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -1103,7 +1103,7 @@ the filter to.</p>
 
 <dl class="method">
 <dt id="latools.analyse.find_expcoef">
-<code class="descname">find_expcoef</code><span class="sig-paren">(</span><em>nsd_below=0.0</em>, <em>analyte=None</em>, <em>plot=False</em>, <em>trimlim=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.find_expcoef" title="Permalink to this definition">¶</a></dt>
+<code class="descname">find_expcoef</code><span class="sig-paren">(</span><em>nsd_below=0.0</em>, <em>analyte=None</em>, <em>plot=False</em>, <em>trimlim=None</em>, <em>autorange_kwargs={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.find_expcoef" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determines exponential decay coefficient for despike filter.</p>
 <p>Fits an exponential decay function to the washout phase of standards
 to determine the washout time of your laser cell. The exponential
@@ -1233,7 +1233,7 @@ the highest existing group number</p>
 
 <dl class="method">
 <dt id="latools.analyse.minimal_export">
-<code class="descname">minimal_export</code><span class="sig-paren">(</span><em>target_analytes</em>, <em>override=False</em>, <em>path=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.minimal_export" title="Permalink to this definition">¶</a></dt>
+<code class="descname">minimal_export</code><span class="sig-paren">(</span><em>target_analytes=None</em>, <em>override=False</em>, <em>path=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.minimal_export" title="Permalink to this definition">¶</a></dt>
 <dd><p>Exports a analysis parameters, standard info and a minimal dataset,
 which can be imported by another user.</p>
 </dd></dl>
@@ -1267,7 +1267,7 @@ ratios.</p>
 
 <dl class="method">
 <dt id="latools.analyse.sample_stats">
-<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None, filt=True, stat_fns=[&lt;function nanmean&gt;, &lt;function nanstd&gt;], eachtrace=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.sample_stats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None, filt=True, stats=['mean', 'std'], eachtrace=True, csf_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.sample_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate sample statistics.</p>
 <p>Returns samples, analytes, and arrays of statistics
 of shape (samples, analytes). Statistics are calculated
@@ -1581,7 +1581,7 @@ ablation.</p>
 
 <dl class="method">
 <dt id="latools.D.autorange">
-<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.autorange" title="Permalink to this definition">¶</a></dt>
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2, transform='log'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.autorange" title="Permalink to this definition">¶</a></dt>
 <dd><blockquote>
 <div>Automatically separates signal and background data regions.</div></blockquote>
 <p>Automatically detect signal and background regions in the laser
@@ -2263,7 +2263,7 @@ Defaults to &#8216;signal&#8217;.</p>
 
 <dl class="method">
 <dt id="latools.D.sample_stats">
-<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None, filt=True, stat_fns=[&lt;function nanmean&gt;, &lt;function nanstd&gt;], eachtrace=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.sample_stats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>filt=True</em>, <em>stat_fns={}</em>, <em>eachtrace=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.sample_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!</p>
 <p>Calculate sample statistics</p>
 <p>Returns samples, analytes, and arrays of statistics
@@ -2287,11 +2287,11 @@ str: logical string specifying a partucular filter</p>
 </dd>
 </dl>
 </div></blockquote>
-<p><strong>stat_fns</strong> : array_like</p>
+<p><strong>stat_fns</strong> : dict</p>
 <blockquote>
-<div><p>List of functions that take a single array_like input,
-and return a single statistic. Function should be able
-to cope with numpy NaN values.</p>
+<div><p>Dict of {name: function} pairs. Functions that take a single 
+array_like input, and return a single statistic. Function should 
+be able to cope with NaN values.</p>
 </div></blockquote>
 <p><strong>eachtrace</strong> : bool</p>
 <blockquote>
@@ -3079,7 +3079,7 @@ location of you SRM data file and your data format file.</p>
 
 <dl class="function">
 <dt id="latools.reproduce">
-<code class="descclassname">latools.</code><code class="descname">reproduce</code><span class="sig-paren">(</span><em>log_file</em>, <em>plotting=False</em>, <em>data_dir=None</em>, <em>srm_table=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.reproduce" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">latools.</code><code class="descname">reproduce</code><span class="sig-paren">(</span><em>log_file</em>, <em>plotting=False</em>, <em>data_folder=None</em>, <em>srm_table=None</em>, <em>custom_stat_functions=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.reproduce" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reproduce a previous analysis exported with <cite>latools.minimal_export</cite></p>
 </dd></dl>
 
