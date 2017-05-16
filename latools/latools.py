@@ -337,7 +337,7 @@ class analyse(object):
     def _get_samples(self, subset=None):
         """
         Helper function to get sample names from subset.
-        
+
         Parameters
         ----------
         subset : str
@@ -630,11 +630,10 @@ class analyse(object):
         """
         if exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                self.find_expcoef(plot=exponentplot, 
+                self.find_expcoef(plot=exponentplot,
                                   autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
             time.sleep(0.2)
-
 
         for d in tqdm(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
@@ -2125,7 +2124,7 @@ class analyse(object):
         return
 
     def _stat_boostrap(self, analytes=None, filt=True,
-                      stat_fn=np.nanmean, ci=95):
+                       stat_fn=np.nanmean, ci=95):
         """
         Calculate sample statistics with bootstrapped confidence intervals.
 
@@ -2192,8 +2191,6 @@ class analyse(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
-
-
 
         self.stats = {}
 
@@ -2360,8 +2357,8 @@ class analyse(object):
                 else:
                     stdf = pd.DataFrame(self.stats[nm][s],
                                         index=self.stats[nm]['analytes'],
-                                        columns=[[s],[nm]]).T
-                    
+                                        columns=[[s], [nm]]).T
+
                     stdf.index.set_names(['statistic', 'sample'],
                                          inplace=True)
                 slst.append(stdf)
@@ -2386,7 +2383,7 @@ class analyse(object):
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
-                              samples=None, subset=None):
+                               samples=None, subset=None):
         """
         Used for exporting minimal dataset. DON'T USE.
         """
@@ -2593,6 +2590,7 @@ class analyse(object):
         with open(path + '/srm.table', 'w') as f:
             f.write(srmdat.to_csv())
 
+
 def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with `latools.minimal_export`
@@ -2605,7 +2603,7 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
     hashind = [i for i, n in enumerate(rlog) if '#' in n]
 
     pathread = re.compile('(.*) :: (.*)\n')
-    paths = dict([pathread.match(l).groups() for l in rlog[hashind[0]+1:hashind[-1]] if pathread.match(l)])
+    paths = dict([pathread.match(l).groups() for l in rlog[hashind[0] + 1:hashind[-1]] if pathread.match(l)])
 
     if data_folder is None:
         data_folder = dirname + paths['data_folder']
@@ -2622,11 +2620,11 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
-    
+
     # reproduce analysis
     logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
 
-    init_kwargs = eval(logread.match(rlog[hashind[1]+1]).groups()[-1])
+    init_kwargs = eval(logread.match(rlog[hashind[1] + 1]).groups()[-1])
     init_kwargs['config'] = 'REPRODUCE'
     init_kwargs['data_folder'] = data_folder
 
@@ -2636,14 +2634,14 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
     print('SRM values loaded from: {}'.format(srm_table))
 
     # rest of commands
-    for l in rlog[hashind[1]+2:]:
+    for l in rlog[hashind[1] + 2:]:
         fname, args, kwargs = logread.match(l).groups()
         if 'sample_stats' in fname:
-            dat.sample_stats(*eval(args), **eval(kwargs), csf_dict=csfs)
+            dat.sample_stats(*eval(args), csf_dict=csfs, **eval(kwargs))
         elif 'plot' not in fname.lower():
-            getattr(dat,fname)(*eval(args),**eval(kwargs))
+            getattr(dat, fname)(*eval(args), **eval(kwargs))
         elif plotting:
-            getattr(dat,fname)(*eval(args),**eval(kwargs))
+            getattr(dat, fname)(*eval(args), **eval(kwargs))
         else:
             pass
 
@@ -2772,9 +2770,9 @@ class D(object):
             pr = re.compile(dataformat['column_id']['pattern'])
             columns = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
         self.analytes = np.array(columns)
-        
+
         columns = np.insert(columns, dataformat['column_id']['timecolumn'], 'Time')
-        
+
         # do any required pre-formatting
         if 'preformat_replace' in dataformat.keys():
             clean = True
@@ -2782,7 +2780,7 @@ class D(object):
                     fbuffer = f.read()
             for k, v in dataformat['preformat_replace'].items():
                 fbuffer = re.sub(k, v, fbuffer)
-            
+
             read_data = np.genfromtxt(BytesIO(fbuffer.encode()), 
                                       **dataformat['genfromtext_args']).T
 
@@ -3323,7 +3321,7 @@ class D(object):
         """
         if internal_standard is not None:
             self.internal_standard = internal_standard
-        
+
         self.setfocus(focus)
         self.data['ratios'] = {}
         for a in self.analytes:
@@ -3418,8 +3416,8 @@ class D(object):
                 bool: True applies filter specified in filt.switches.
                 str: logical string specifying a partucular filter
         stat_fns : dict
-            Dict of {name: function} pairs. Functions that take a single 
-            array_like input, and return a single statistic. Function should 
+            Dict of {name: function} pairs. Functions that take a single
+            array_like input, and return a single statistic. Function should
             be able to cope with NaN values.
         eachtrace : bool
             True: per - ablation statistics
@@ -3774,9 +3772,9 @@ class D(object):
 
             labels, core_samples_mask = cfun(ds, **kwargs)
             # return labels, and if DBSCAN core_sample_mask
-            
+
             labels_unique = np.unique(labels)
-            
+
             # label the clusters according to their contents
             if (sort is not None) & (sort is not False):
                 if isinstance(sort, str):
@@ -3786,31 +3784,31 @@ class D(object):
                     sanalytes = analytes + [False]
                 else:
                     sanalytes = analytes
-                
+
                 # make boolean filter to select analytes
                 if sort is True:
                     sortk = np.array([True] * len(sanalytes))
                 else:
                     sortk = np.array([s in sort for s in sanalytes])
-                
+
                 # create per-point mean based on selected analytes.
-                sd = np.apply_along_axis(sum, 1, ds[:,sortk])
+                sd = np.apply_along_axis(sum, 1, ds[:, sortk])
                 # calculate per-cluster means
                 avs = [np.nanmean(sd[labels == lab]) for lab in labels_unique]
                 # re-order the cluster labels based on their means
                 order = [x[0] for x in sorted(enumerate(avs), key=lambda x:x[1])]
-                sdict = dict(zip(order, labels_unique))    
+                sdict = dict(zip(order, labels_unique))
             else:
                 sdict = dict(zip(labels_unique, labels_unique))
 
             filts = {}
             for ind, lab in sdict.items():
                 filts[lab] = labels == ind
-            
+
             # only applies to DBSCAN results.
             if not all(np.isnan(core_samples_mask)):
                 filts['core'] = core_samples_mask
-            
+
             resized = {}
             for k, v in filts.items():
                 resized[k] = np.zeros(self.Time.size, dtype=bool)
@@ -3856,7 +3854,7 @@ class D(object):
         bin_seeding : bool
             Setting this option to True will speed up the algorithm.
             See sklearn documentation for full description.
-        
+
         Returns
         -------
         dict
@@ -3882,7 +3880,7 @@ class D(object):
             array of size [n_samples, n_features].
         n_clusters : int
             The number of clusters expected in the data.
-        
+
         Returns
         -------
         dict
@@ -4109,7 +4107,7 @@ class D(object):
             focus_stage = self.focus_stage
 
         fig = plt.figure(figsize=figsize)
-        ax = fig.add_axes([.1,.12,.77,.8])
+        ax = fig.add_axes([.1, .12, .77, .8])
 
         for a in analytes:
             x = self.Time
@@ -4202,7 +4200,7 @@ class D(object):
 
         ax.set_xlabel('Time (s)')
         ax.set_xlim(np.nanmin(x), np.nanmax(x))
-        
+
         # y label
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
@@ -4341,15 +4339,15 @@ class D(object):
         if filt is None or filt == 'all':
             sets = self.filt.sets
         else:
-            sets = {k: v for k,v in self.filt.sets.items() if any(filt in f for f in self.filt.components.keys())}
-            
+            sets = {k: v for k, v in self.filt.sets.items() if any(filt in f for f in self.filt.components.keys())}
+
         regex = re.compile('^([0-9]+)_([A-Za-z0-9-]+)_'
                            '([A-Za-z0-9-]+)[_$]?'
                            '([a-z0-9]+)?')
 
         cm = plt.cm.get_cmap('Spectral')
         ngrps = len(sets)
-        
+
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
@@ -4364,10 +4362,9 @@ class D(object):
                     nfilts = np.array([re.match(regex, f).groups() for f in filts])
                     fgnames = np.array(['_'.join(a) for a in nfilts[:, 1:3]])
                     fgrp = np.unique(fgnames)[0]
-                    
+
                     fig.set_size_inches(10, 3.5 * ngrps)
                     h = .8 / ngrps
-                    
 
                     y = nominal_values(self.focus[analyte])
                     yh = y[~np.isnan(y)]
@@ -4376,14 +4373,14 @@ class D(object):
 
                     axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
                                       fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
-                    
+
                     # get variables
                     fg = sets[i]
                     cs = cm(np.linspace(0, 1, len(fg)))
-                    fn = ['_'.join(x) for x in nfilts[:,(0,3)]]
+                    fn = ['_'.join(x) for x in nfilts[:, (0, 3)]]
                     an = nfilts[:, 0]
                     bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
-                    
+
                     if 'DBSCAN' in fgrp:
                         # determine data filters
                         core_ind = self.filt.components[[f for f in fg
@@ -4578,7 +4575,7 @@ class filt(object):
         astr = '{:' + '{:.0f}'.format(apad) + 's}'
         leftpad = max([len(s) for s
                        in self.switches[self.analytes[0]].keys()] + [11]) + 2
-        
+
         out = '{string:{number}s}'.format(string='n', number=3)
         out += '{string:{number}s}'.format(string='Filter Name', number=leftpad)
         for a in self.analytes:
@@ -4621,7 +4618,7 @@ class filt(object):
         if setn is None:
             setn = self.maxset + 1
         self.maxset = setn
-        
+
         if setn not in self.sets.keys():
             self.sets[setn] = [iname]
         else:
@@ -4662,12 +4659,12 @@ class filt(object):
 
         if setn is True:
             for n in name:
-                for k,v in self.sets.items():
+                for k, v in self.sets.items():
                     if n in v:
                         name.append([m for m in v if m != n])
 
         for n in name:
-            for k,v in self.sets.items():
+            for k, v in self.sets.items():
                 if n in v:
                     self.sets[k] = [m for m in v if n != m]
             del self.components[n]
@@ -4989,12 +4986,12 @@ class classifier(object):
     def __init__(self, analytes):
         """
         Object to fit then apply a classifier.
-        
+
         Parameters
         ----------
         analytes : str or array-like
             The analytes used by the clustring algorithm
-        
+
         Returns
         -------
         classifier object
@@ -5008,7 +5005,7 @@ class classifier(object):
     def format_data(self, data, scale=True):
         """
         Function for converting a dict to an array suitable for sklearn.
-        
+
         Parameters
         ----------
         data : dict
@@ -5018,7 +5015,7 @@ class classifier(object):
             Whether or not to scale the data. Should always be
             `True`, unless used by `classifier.fitting_data`
             where a scaler hasn't been created yet.
-        
+
         Returns
         -------
         A data array suitable for use with `sklearn.cluster`.
@@ -5047,13 +5044,13 @@ class classifier(object):
     def fitting_data(self, data):
         """
         Function to format data for cluster fitting.
-        
+
         Parameters
         ----------
         data : dict
             A dict of data, containing all elements of
             `analytes` as items.
-        
+
         Returns
         -------
         A data array for initial cluster fitting.
@@ -5069,7 +5066,7 @@ class classifier(object):
     def fit_kmeans(self, data, n_clusters, **kwargs):
         """
         Fit KMeans clustering algorithm to data.
-        
+
         Parameters
         ----------
         data : array-like
@@ -5078,7 +5075,7 @@ class classifier(object):
             The number of clusters in the data.
         **kwargs
             passed to `sklearn.cluster.KMeans`.
-            
+  
         Returns
         -------
         Fitted `sklearn.cluster.KMeans` object.
@@ -5090,7 +5087,7 @@ class classifier(object):
     def fit_meanshift(self, data, bandwidth=None, bin_seeding=False, **kwargs):
         """
         Fit MeanShift clustering algorithm to data.
-        
+
         Parameters
         ----------
         data : array-like
@@ -5105,7 +5102,7 @@ class classifier(object):
             documentation for `sklearn.cluster.MeanShift`.
         **kwargs
             passed to `sklearn.cluster.MeanShift`.
-        
+
         Returns
         -------
         Fitted `sklearn.cluster.MeanShift` object.
@@ -5119,7 +5116,7 @@ class classifier(object):
     def fit(self, data, method='kmeans', **kwargs):
         """
         fit classifiers from large dataset.
-        
+
         Parameters
         ----------
         data : dict
@@ -5142,7 +5139,7 @@ class classifier(object):
                     documentation for `sklearn.cluster.MeanShift`.
                 **kwargs :
                     passed to `sklearn.cluster.MeanShift`.
-        
+
         Returns
         -------
         list
@@ -5167,7 +5164,7 @@ class classifier(object):
     def predict(self, data):
         """
         Label new data with cluster identities.
-        
+
         Parameters
         ----------
         data : dict
@@ -5177,7 +5174,7 @@ class classifier(object):
             The name of an analyte used to sort the resulting
             clusters. If None, defaults to the first analyte
             used in fitting.
-        
+
         Returns
         -------
         array of clusters the same length as the data.
@@ -5195,7 +5192,7 @@ class classifier(object):
     def map_clusters(self, size, sampled, clusters):
         """
         Translate cluster identity back to original data size.
-        
+
         Parameters
         ----------
         size : int
@@ -5205,12 +5202,12 @@ class classifier(object):
             in original data.
         clusters : array-like
             integer array of cluster identities
-        
+
         Returns
         -------
         list of cluster identities the same length as original
         data. Where original data are non-finite, returns -2.
-        
+
         """
         ids = np.zeros(size, dtype=int)
         ids[:] = -2
@@ -5222,7 +5219,7 @@ class classifier(object):
     def sort_clusters(self, data, cs, sort_by):
         """
         Sort clusters by the concentration of a particular analyte.
-        
+
         Parameters
         ----------
         data : dict
@@ -5231,7 +5228,7 @@ class classifier(object):
             An array of clusters, the same length as values of data.
         sort_by : str
             analyte to sort the clusters by
-        
+
         Returns
         -------
         array of clusters, sorted by mean value of sort_by analyte.
@@ -5255,6 +5252,7 @@ class classifier(object):
 
         return csn
 
+
 # other useful functions
 def gauss(x, *p):
     """ Gaussian function.
@@ -5275,6 +5273,7 @@ def gauss(x, *p):
     """
     A, mu, sigma = p
     return A * np.exp(-0.5 * (-mu + x)**2 / sigma**2)
+
 
 def unitpicker(a, llim=0.1):
     """
@@ -5765,7 +5764,7 @@ def stderr(a):
 
 # Robust Statistics. See:
 #   - https://en.wikipedia.org/wiki/Robust_statistics
-#   - http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+#   - http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf
 #   - http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
 #   - http://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/h15.htm
 
@@ -5774,42 +5773,42 @@ def H15_mean(x):
     Calculate the Huber (H15) Robust mean of x.
 
     For details, see:
-        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf
         http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
     """
     mu = np.nanmean(x)
     sd = np.nanstd(x) * 1.134
     sig = 1.5
-    
+
     hi = x > mu + sig * sd
     lo = x < mu - sig * sd
-    
+
     if any(hi | lo):
         x[hi] = mu + sig * sd
         x[lo] = mu - sig * sd
-        return H15_mean(x)         
+        return H15_mean(x)
     else:
         return mu
 
-    
+
 def H15_std(x):
     """
     Calculate the Huber (H15) Robust standard deviation of x.
 
     For details, see:
-        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf
         http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
     """
     mu = np.nanmean(x)
     sd = np.nanstd(x) * 1.134
     sig = 1.5
-    
+
     hi = x > mu + sig * sd
     lo = x < mu - sig * sd
-    
+
     if any(hi | lo):
         x[hi] = mu + sig * sd
         x[lo] = mu - sig * sd
-        return H15_std(x)         
+        return H15_std(x)
     else:
         return sd
