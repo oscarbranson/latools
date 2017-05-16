@@ -309,6 +309,9 @@ class analyse(object):
         # copy colour map to top level
         self.cmaps = self.data[0].cmap
 
+        # initialise classifiers
+        self.classifiers = {}
+
         # f = open('errors.log', 'a')
         # f.write(('Errors and warnings during LATOOLS analysis '
         #          'are stored here.\n\n'))
@@ -348,7 +351,7 @@ class analyse(object):
         List of sample names
         """
         if subset is None:
-            samples = self.subsets['All_Analyses']
+            samples = self.subsets['All_Samples']
         else:
             try:
                 samples = self.subsets[subset]
@@ -1670,6 +1673,112 @@ class analyse(object):
     #         print(self.data_dict[sample].filt)
     #     else:
 
+    @_log
+    def fit_classifier(self, name, analytes, method, samples=None,
+                       subset=None, sort_by=0, **kwargs):
+        """
+        Create a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier.
+        analytes : str or array-like
+            Which analytes the clustering algorithm should consider.
+        method : str
+            Which clustering algorithm to use. Can be:
+                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+                             Automatically determines number of clusters
+                             in data based on the `bandwidth` of expected
+                             variation.
+                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+                          the characteristics of a known number of clusters
+                          within the data. Must provide `n_clusters` to specify
+                          the expected number of clusters.
+        samples : array-like
+            list of samples to consider. Overrides 'subset'.
+        subset : str
+            The subset of samples used to fit the classifier. Ignored if
+            'samples' is specified.
+        sort_by : int
+            Which analyte the resulting clusters should be sorted
+            by - defaults to 0, which is the first analyte.
+        **kwargs :
+            method-specific keyword parameters - see below.
+
+        Meanshift Parameters
+        --------------------
+        bandwidth : str or float
+            The bandwith (float) or bandwidth method ('scott' or 'silverman')
+            used to estimate the data bandwidth.
+        bin_seeding : bool
+            Modifies the behaviour of the meanshift algorithm. Refer to
+            sklearn.cluster.meanshift documentation.
+
+        K - Means Parameters
+        ------------------
+        n_clusters : int
+            The number of clusters expected in the data.
+
+        Returns
+        -------
+        name : str
+        """
+        # isolate data
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.get_focus(samples=samples)
+
+        # create classifer
+        c = classifier(analytes,
+                       sort_by)
+        # fit classifier
+        c.fit(data=self.focus,
+              method=method,
+              **kwargs)
+
+        self.classifiers[name] = c
+
+        return name
+
+    @_log
+    def apply_classifier(self, name, samples=None, subset=None):
+        """
+        Apply a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier to apply.
+        subset : str
+            The subset of samples to apply the classifier to.
+        Returns
+        -------
+        name : str
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        c = self.classifiers[name]
+        labs = c.classifier.ulabels_
+
+        for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
+            d = self.data_dict[s]
+            f = c.predict(d.focus)
+            for l in labs:
+                ind = f == l
+                d.filt.add(name=name + '_{:.0f}'.format(l),
+                           filt=ind,
+                           info=name + ' ' + c.method + ' classifier',
+                           params=(c.analytes, c.method))
+        return name
+
+
     # plot calibrations
     @_log
     def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
@@ -2022,12 +2131,121 @@ class analyse(object):
 
         return fig, axes
 
+    def crossplot_filters(self, filter_string, analytes=None,
+                          samples=None, subset=None):
+        """
+        Plot the results of a group of filters in a crossplot.
+
+        Parameters
+        ----------
+        filter_string : str
+            A string that identifies a group of filters.
+            e.g. 'test' would plot all filters with 'test' in the
+            name.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+
+        Returns
+        -------
+        fig, axes objects
+        """
+
+        if analytes is None:
+            analytes = [a for a in self.analytes if 'Ca' not in a]
+
+        if samples is None:
+            samples = self._get_samples(subset)
+
+        # isolate relevant filters
+        filts = self.data_dict[samples[0]].filt.components.keys()
+        cfilts = [f for f in filts if filter_string in f]
+        flab = re.compile('[0-9]+_(.*)$')  # regex to get filter name
+
+        # aggregate data
+        self.get_focus(samples=samples)
+
+        # set up axes
+        numvars = len(analytes)
+        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+                                 figsize=(12, 12))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05)
+
+        for ax in axes.flat:
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+
+            if ax.is_first_col():
+                ax.yaxis.set_ticks_position('left')
+            if ax.is_last_col():
+                ax.yaxis.set_ticks_position('right')
+            if ax.is_first_row():
+                ax.xaxis.set_ticks_position('top')
+            if ax.is_last_row():
+                ax.xaxis.set_ticks_position('bottom')
+
+        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                  'Greens', 'Greys', 'Oranges', 'OrRd',
+                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+
+        # isolate nominal_values for all analytes
+        focus = {k: nominal_values(v) for k, v in self.focus.items()}
+        # determine units for all analytes
+        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        # determine ranges for all analytes
+        rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
+                     np.nanmax(focus[a] * udict[a][0])) for a in analytes}
+
+        for f in cfilts:
+            self.get_focus(f, samples)
+            focus = {k: nominal_values(v) for k, v in self.focus.items()}
+            lab = flab.match(f).groups()[0]
+            axes[0, 0].scatter([], [], s=10, label=lab)
+
+            for i, j in zip(*np.triu_indices_from(axes, k=1)):
+                # get analytes
+                ai = analytes[i]
+                aj = analytes[j]
+
+                # remove nan, apply multipliers
+                pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
+                pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
+
+                # make plot
+                axes[i, j].scatter(pj, pi, alpha=0.4, s=10, lw=0)
+                axes[j, i].scatter(pi, pj, alpha=0.4, s=10, lw=0)
+
+                axes[i, j].set_ylim(*rdict[ai])
+                axes[i, j].set_xlim(*rdict[aj])
+
+                axes[j, i].set_ylim(*rdict[aj])
+                axes[j, i].set_xlim(*rdict[ai])
+
+        # diagonal labels
+        for a, n in zip(analytes, np.arange(len(analytes))):
+            axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
+                                xycoords='axes fraction',
+                                ha='center', va='center')
+            axes[n, n].set_xlim(*rdict[a])
+            axes[n, n].set_ylim(*rdict[a])
+
+        axes[0, 0].legend(loc='upper left', title='Cluster')
+
+        # switch on alternating axes
+        for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
+            axes[j, i].xaxis.set_visible(True)
+            for label in axes[j, i].get_xticklabels():
+                label.set_rotation(90)
+            axes[i, j].yaxis.set_visible(True)
+
+        return fig, axes
+
     # Plot traces
     @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
                     focus=None, outdir=None, filt=None, scale='log',
                     figsize=[10, 4], stats=True, stat='nanmean',
-                    err='nanstd', subset=None):
+                    err='nanstd', subset='All_Analyses'):
         """
         Plot analytes as a function of time.
 
@@ -2383,7 +2601,7 @@ class analyse(object):
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
-                               samples=None, subset=None):
+                               samples=None, subset='All_Analyses'):
         """
         Used for exporting minimal dataset. DON'T USE.
         """
@@ -2432,7 +2650,7 @@ class analyse(object):
 
     @_log
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
-                      samples=None, subset=None, filt=False):
+                      samples=None, subset='All_Analyses', filt=False):
         """
         Function to export raw data.
 
@@ -4315,6 +4533,108 @@ class D(object):
 
         return fig, axes
 
+    def crossplot_filters(self, filter_string, analytes=None):
+        """
+        Plot the results of a group of filters in a crossplot.
+
+        Parameters
+        ----------
+        filter_string : str
+            A string that identifies a group of filters.
+            e.g. 'test' would plot all filters with 'test' in the
+            name.
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+
+        Returns
+        -------
+        fig, axes objects
+        """
+
+        if analytes is None:
+            analytes = [a for a in self.analytes if 'Ca' not in a]
+
+        # isolate relevant filters
+        filts = self.filt.components.keys()
+        cfilts = [f for f in filts if filter_string in f]
+        flab = re.compile('[0-9]+_(.*)$')  # regex to get cluster number
+
+        # set up axes
+        numvars = len(analytes)
+        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+                                 figsize=(12, 12))
+        fig.subplots_adjust(hspace=0.05, wspace=0.05)
+
+        for ax in axes.flat:
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+
+            if ax.is_first_col():
+                ax.yaxis.set_ticks_position('left')
+            if ax.is_last_col():
+                ax.yaxis.set_ticks_position('right')
+            if ax.is_first_row():
+                ax.xaxis.set_ticks_position('top')
+            if ax.is_last_row():
+                ax.xaxis.set_ticks_position('bottom')
+
+        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                  'Greens', 'Greys', 'Oranges', 'OrRd',
+                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+
+        # isolate nominal_values for all analytes
+        focus = {k: nominal_values(v) for k, v in self.focus.items()}
+        # determine units for all analytes
+        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        # determine ranges for all analytes
+        rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
+                     np.nanmax(focus[a] * udict[a][0])) for a in analytes}
+
+        for f in cfilts:
+            ind = self.filt.grab_filt(f)
+            focus = {k: nominal_values(v[ind]) for k, v in self.focus.items()}
+            lab = flab.match(f).groups()[0]
+            axes[0,0].scatter([],[],s=10,label=lab)
+
+            for i, j in zip(*np.triu_indices_from(axes, k=1)):
+                # get analytes
+                ai = analytes[i]
+                aj = analytes[j]
+
+                # remove nan, apply multipliers
+                pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
+                pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
+
+                # make plot
+                axes[i, j].scatter(pj, pi, alpha=0.4, s=10, lw=0)
+                axes[j, i].scatter(pi, pj, alpha=0.4, s=10, lw=0)
+
+                axes[i, j].set_ylim(*rdict[ai])
+                axes[i, j].set_xlim(*rdict[aj])
+
+                axes[j, i].set_ylim(*rdict[aj])
+                axes[j, i].set_xlim(*rdict[ai])
+
+        # diagonal labels
+        for a, n in zip(analytes, np.arange(len(analytes))):
+            axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
+                                xycoords='axes fraction',
+                                ha='center', va='center')
+            axes[n, n].set_xlim(*rdict[a])
+            axes[n, n].set_ylim(*rdict[a])
+
+        axes[0, 0].legend(loc='upper left', title='Cluster', fontsize=8)
+
+        # switch on alternating axes
+        for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
+            axes[j, i].xaxis.set_visible(True)
+            for label in axes[j, i].get_xticklabels():
+                label.set_rotation(90)
+            axes[i, j].yaxis.set_visible(True)
+
+        return fig, axes
+
     @_log
     def filt_report(self, filt=None, analytes=None, savedir=None):
         """
@@ -4574,7 +4894,7 @@ class filt(object):
         apad = max([len(a) for a in self.analytes] + [7])
         astr = '{:' + '{:.0f}'.format(apad) + 's}'
         leftpad = max([len(s) for s
-                       in self.switches[self.analytes[0]].keys()] + [11]) + 2
+                       in self.components.keys()] + [11]) + 2
 
         out = '{string:{number}s}'.format(string='n', number=3)
         out += '{string:{number}s}'.format(string='Filter Name', number=leftpad)
@@ -4623,6 +4943,8 @@ class filt(object):
             self.sets[setn] = [iname]
         else:
             self.sets[setn].append(iname)
+
+        ## self.keys is not added to?
 
         self.components[iname] = filt
         self.info[iname] = info
@@ -4886,7 +5208,7 @@ class filt(object):
         if isinstance(filt, str):
             try:
                 ind = self.make_fromkey(filt)
-            except ValueError:
+            except KeyError:
                 print(("\n\n***Filter key invalid. Please consult "
                        "manual and try again."))
         elif isinstance(filt, dict):
@@ -4983,7 +5305,7 @@ class filt(object):
 
 
 class classifier(object):
-    def __init__(self, analytes):
+    def __init__(self, analytes, sort_by=0):
         """
         Object to fit then apply a classifier.
 
@@ -5000,6 +5322,7 @@ class classifier(object):
             self.analytes = [analytes]
         else:
             self.analytes = analytes
+        self.sort_by = sort_by
         return
 
     def format_data(self, data, scale=True):
@@ -5075,7 +5398,7 @@ class classifier(object):
             The number of clusters in the data.
         **kwargs
             passed to `sklearn.cluster.KMeans`.
-  
+
         Returns
         -------
         Fitted `sklearn.cluster.KMeans` object.
@@ -5153,11 +5476,12 @@ class classifier(object):
         self.classifier = clust(data=ds_fit, **kwargs)
 
         # sort cluster centers by value of first column, to avoid random variation.
-        c0 = self.classifier.cluster_centers_.T[0]
+        c0 = self.classifier.cluster_centers_.T[self.sort_by]
         self.classifier.cluster_centers_ = self.classifier.cluster_centers_[np.argsort(c0)]
 
         # recalculate the labels, so it's consistent with cluster centers
         self.classifier.labels_ = self.classifier.predict(ds_fit)
+        self.classifier.ulabels_ = np.unique(self.classifier.labels_)
 
         return
 
