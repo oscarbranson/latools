@@ -2204,7 +2204,9 @@ class analyse(object):
                      'std': np.nanstd,
                      'nanmean': np.nanmean,
                      'nanstd': np.nanstd,
-                     'se': stderr}
+                     'se': stderr,
+                     'H15_mean': H15_mean,
+                     'H15_std': H15_std}
 
         for s in stats:
             if isinstance(s, str):
@@ -5753,6 +5755,61 @@ def weighted_average(x, y, x_new, fwhm=300):
             'std': bin_std,
             'stderr': bin_se}
 
-
+# Statistical Functions
 def stderr(a):
+    """
+    Calculate the standard error of a.
+    """
     return np.nanstd(a) / np.sqrt(len(a))
+
+
+# Robust Statistics. See:
+#   - https://en.wikipedia.org/wiki/Robust_statistics
+#   - http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+#   - http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
+#   - http://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/h15.htm
+
+def H15_mean(x):
+    """
+    Calculate the Huber (H15) Robust mean of x.
+
+    For details, see:
+        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
+    """
+    mu = np.nanmean(x)
+    sd = np.nanstd(x) * 1.134
+    sig = 1.5
+    
+    hi = x > mu + sig * sd
+    lo = x < mu - sig * sd
+    
+    if any(hi | lo):
+        x[hi] = mu + sig * sd
+        x[lo] = mu - sig * sd
+        return H15_mean(x)         
+    else:
+        return mu
+
+    
+def H15_std(x):
+    """
+    Calculate the Huber (H15) Robust standard deviation of x.
+
+    For details, see:
+        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf 
+        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
+    """
+    mu = np.nanmean(x)
+    sd = np.nanstd(x) * 1.134
+    sig = 1.5
+    
+    hi = x > mu + sig * sd
+    lo = x < mu - sig * sd
+    
+    if any(hi | lo):
+        x[hi] = mu + sig * sd
+        x[lo] = mu - sig * sd
+        return H15_std(x)         
+    else:
+        return sd
