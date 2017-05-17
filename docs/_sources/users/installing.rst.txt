@@ -44,11 +44,12 @@ Once git is installed, you can install ``latools`` directly from the online proj
 
 3. Press [Return]
 
+.. Important:: If you're one of my lucky pre-release testers, please replace ``@master`` at the end of the installation code with ``@dev``.
+
 This will download and install the latest version of ``latools`` from Github. In the future if you'd like to update ``latools`` to the latest version it's as adding ``--upgrade`` to the end of the code above.
 
-.. Tip:: The ``@master`` at the end of the command installs the most up-to-date version of the software. If you want to install a specific version of ``latools``, replace ``@master`` with the version number (e.g. ``@v0.2.2-alpha`` will get you the very first release of ``latools``).
+.. Tip:: The ``@master`` at the end of the command installs the most up-to-date `stable` version of the software. If you want to install a specific version of ``latools``, replace ``@master`` with the version number (e.g. ``@v0.2.2-alpha`` will get you the very first release of ``latools``).
 
-.. Important:: If you're one of my lucky pre-release testers, please use ``@v0.2.2-alpha`` instead of ``@master``.
 
 -------------------
 2. Pre-built Binary

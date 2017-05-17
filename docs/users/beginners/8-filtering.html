@@ -243,10 +243,10 @@ We know from experience that the tape tends to have very low concentration of ot
 <h3>Creating a Filter<a class="headerlink" href="#creating-a-filter" title="Permalink to this headline">¶</a></h3>
 <p>We wouldn&#8217;t expect cultured foraminifera to have a Al/Ca of ~100 µmol/mol, so we therefore want to remove all data from regions with an Al/Ca above this.
 We&#8217;ll do this with a threshold filter:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">100</span><span class="n">e</span><span class="o">-</span><span class="mi">6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">100e-6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
 </pre></div>
 </div>
-<p>This goes through <em>all</em> the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 200 µmol/mol.
+<p>This goes through <em>all</em> the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol.
 This function calculates the filters, but does not apply them - that happens later.
 You can check which filters have been calculated, and which are active for individual analytes by typing:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_status</span><span class="p">()</span>
