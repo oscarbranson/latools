@@ -2159,7 +2159,7 @@ class analyse(object):
         # isolate relevant filters
         filts = self.data_dict[samples[0]].filt.components.keys()
         cfilts = [f for f in filts if filter_string in f]
-        flab = re.compile('[0-9]+_(.*)$')  # regex to get filter name
+        flab = re.compile('.*_(.*)$')  # regex to get filter name
 
         # aggregate data
         self.get_focus(samples=samples)
@@ -2229,7 +2229,7 @@ class analyse(object):
             axes[n, n].set_xlim(*rdict[a])
             axes[n, n].set_ylim(*rdict[a])
 
-        axes[0, 0].legend(loc='upper left', title='Cluster')
+        axes[0, 0].legend(loc='upper left', title=filter_string)
 
         # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
@@ -2421,7 +2421,8 @@ class analyse(object):
                      'nanstd': np.nanstd,
                      'se': stderr,
                      'H15_mean': H15_mean,
-                     'H15_std': H15_std}
+                     'H15_std': H15_std,
+                     'H15_se': H15_se}
 
         for s in stats:
             if isinstance(s, str):
@@ -2440,7 +2441,7 @@ class analyse(object):
                 self.custom_stat_functions += inspect.getsource(s) + '\n\n\n\n'
 
         # calculate stats for each sample
-        for s in self.samples:
+        for s in tqdm(self.samples, desc='Calculating Stats'):
             if self.srm_identifier not in s:
                 self.data_dict[s].sample_stats(analytes, filt=filt,
                                                stat_fns=stat_fns,
@@ -3467,6 +3468,7 @@ class D(object):
             self.mkrngs()
 
         # number the signal regions (used for statistics and standard matching)
+        self.ns = np.zeros(self.Time.size)
         n = 1
         for i in range(len(self.sig) - 1):
             if self.sig[i]:
@@ -4557,7 +4559,7 @@ class D(object):
         # isolate relevant filters
         filts = self.filt.components.keys()
         cfilts = [f for f in filts if filter_string in f]
-        flab = re.compile('[0-9]+_(.*)$')  # regex to get cluster number
+        flab = re.compile('.*_(.*)$')  # regex to get cluster number
 
         # set up axes
         numvars = len(analytes)
@@ -4624,7 +4626,7 @@ class D(object):
             axes[n, n].set_xlim(*rdict[a])
             axes[n, n].set_ylim(*rdict[a])
 
-        axes[0, 0].legend(loc='upper left', title='Cluster', fontsize=8)
+        axes[0, 0].legend(loc='upper left', title=filter_string, fontsize=8)
 
         # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
@@ -6136,3 +6138,26 @@ def H15_std(x):
         return H15_std(x)
     else:
         return sd
+
+
+def H15_se(x):
+    """
+    Calculate the Huber (H15) Robust standard deviation of x.
+
+    For details, see:
+        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf
+        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
+    """
+    mu = np.nanmean(x)
+    sd = np.nanstd(x) * 1.134
+    sig = 1.5
+
+    hi = x > mu + sig * sd
+    lo = x < mu - sig * sd
+
+    if any(hi | lo):
+        x[hi] = mu + sig * sd
+        x[lo] = mu - sig * sd
+        return H15_std(x)
+    else:
+        return sd / np.sqrt(sum(np.isfinite(x)))
