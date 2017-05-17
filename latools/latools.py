@@ -1675,7 +1675,7 @@ class analyse(object):
 
     @_log
     def fit_classifier(self, name, analytes, method, samples=None,
-                       subset=None, sort_by=0, **kwargs):
+                       subset=None, filt=True, sort_by=0, **kwargs):
         """
         Create a clustering classifier based on all samples, or a subset.
 
@@ -1728,9 +1728,7 @@ class analyse(object):
         if samples is not None:
             subset = self.make_subset(samples)
 
-        samples = self._get_samples(subset)
-
-        self.get_focus(samples=samples)
+        self.get_focus(subset=subset, filt=filt)
 
         # create classifer
         c = classifier(analytes,
@@ -2132,7 +2130,7 @@ class analyse(object):
         return fig, axes
 
     def crossplot_filters(self, filter_string, analytes=None,
-                          samples=None, subset=None):
+                          samples=None, subset=None, filt=None):
         """
         Plot the results of a group of filters in a crossplot.
 
@@ -2162,7 +2160,7 @@ class analyse(object):
         flab = re.compile('.*_(.*)$')  # regex to get filter name
 
         # aggregate data
-        self.get_focus(samples=samples)
+        self.get_focus(subset=subset, filt=filt)
 
         # set up axes
         numvars = len(analytes)
@@ -2197,7 +2195,7 @@ class analyse(object):
                      np.nanmax(focus[a] * udict[a][0])) for a in analytes}
 
         for f in cfilts:
-            self.get_focus(f, samples)
+            self.get_focus(f, subset=subset)
             focus = {k: nominal_values(v) for k, v in self.focus.items()}
             lab = flab.match(f).groups()[0]
             axes[0, 0].scatter([], [], s=10, label=lab)
@@ -4399,8 +4397,10 @@ class D(object):
             ind = self.filt.grab_filt(filt)
             lims = bool_2_indices(~ind)
             for l, u in lims:
-                if u >= len(self.Time):
+                if abs(u) >= len(self.Time):
                     u = -1
+                if l < 0:
+                    l = 0
                 ax.axvspan(self.Time[l], self.Time[u], color='k',
                            alpha=0.05, lw=0)
 
@@ -6085,7 +6085,7 @@ def stderr(a):
     """
     Calculate the standard error of a.
     """
-    return np.nanstd(a) / np.sqrt(len(a))
+    return np.nanstd(a) / np.sqrt(sum(np.isfinite(a)))
 
 
 # Robust Statistics. See:
@@ -6148,16 +6148,5 @@ def H15_se(x):
         http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf
         http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf
     """
-    mu = np.nanmean(x)
-    sd = np.nanstd(x) * 1.134
-    sig = 1.5
-
-    hi = x > mu + sig * sd
-    lo = x < mu - sig * sd
-
-    if any(hi | lo):
-        x[hi] = mu + sig * sd
-        x[lo] = mu - sig * sd
-        return H15_std(x)
-    else:
-        return sd / np.sqrt(sum(np.isfinite(x)))
+    sd = H15_std(x)
+    return sd / np.sqrt(sum(np.isfinite(x)))
