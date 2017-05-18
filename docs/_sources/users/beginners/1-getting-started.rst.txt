@@ -14,7 +14,7 @@ The Fundamentals: Python
 That means that you need to have a working copy of Python to use ``latools``.
 
 If you don't already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ (recommended).
-Both of these provide a complete working installation of Python, and all the pre-requisites you need to run latools.
+This provides a complete working installation of Python, and all the pre-requisites you need to run latools.
 
 ``latools`` has been developed and tested in Python 3.5. 
 It *should* also run on 2.7, but we can't guarantee that it will behave.
