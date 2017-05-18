@@ -76,7 +76,7 @@ To start processing data, you create an :class:`latools.analyse` object and tell
 The :class:`latools.analyse` object contains all of the :class:`latools.D` objects withing a 'dictionary' called ``latools.analyse.data_dict``, where the each individual :class:`latools.D` object can be accessed via its name.
 Data processing therefore works best when ablations of each individual sample or standard are stored in a single data folder, named according to what was measured.
 
-.. todo:: However, ``latools`` can also cope with multiple ablations stored in a single, long data file. As long as a list of sample names is provided to identify each ablation.
+.. todo:: In the near future, ``latools`` will also be able to cope with multiple ablations stored in a single, long data file, as long as a list of sample names is provided to identify each ablation.
 
 When you're performing a processing step that can happen at an individual-sample level (e.g. de-spiking), the :class:`latools.analyse` object passes the task directly on to the :class:`latools.D` objects,
 whereas when you're performing a step that requires consideration of the *entire* analytical session (e.g. calibration), the :class:`latools.analyse` object will coordinate the interaction of the different :class:`latools.D` objects (i.e. calculate calibration curves from SRM measurements, and apply them to quantify the compositions of your unknown samples).
