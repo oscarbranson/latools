@@ -18,14 +18,14 @@ At present, there is no standard way of reporting LA-MS data analysis, which wou
 
 ``latools`` automatically handles all the routine aspects of LA-MS data reduction:
 
-1. Signal Despiking
+1. Signal De-spiking
 2. Signal / Background Identification
 3. Background Subtraction
 4. Normalisation to internal standard
 5. Calibration to SRMs
 
 These processing steps perform the same basic functions as :ref:`other LA-MS processing software <latools_alternatives>`.
-If your end goal is calibrated albation profiles, these can be exported at this stage for external plotting an analysis.
+If your end goal is calibrated ablation profiles, these can be exported at this stage for external plotting an analysis.
 The real strength of ``latools`` comes in the systematic identification and removal of contaminant signals, and calculation of integrated values for ablation spots.
 This is accomplished with two significant new features.
 
@@ -41,7 +41,7 @@ If used correctly, ``latools`` will allow the high-throughput, semi-automated pr
 Because it is semi-automated, it is very easy to treat it as a 'black box'.
 **You must not do this.**
 The data you get at the end will only be valid if processed *appropriately*.
-Because ``latools`` brings reproducibility to LA-MS processing, it will be very easy for peers to examine your data processing methods, and identify any shotfalls.
+Because ``latools`` brings reproducibility to LA-MS processing, it will be very easy for peers to examine your data processing methods, and identify any shortfalls.
 In essence: to appropriately use ``latools``, you must understand how it works!
 
 The best way to understand how it works will be to play around with data processing, but before you do that there are a few things you can do to start you off in the right direction:
@@ -65,20 +65,20 @@ The ``latools`` module contains two core 'objects' that interact to process LA-M
 * :class:`latools.analyse` is a higher-level object, containing numerous :class:`latools.D` objects. This is the object you will interact with most when processing data, and it contains all the functions you need to perform your analysis.
 
 This structure reflects the hierarchical nature of LA-MS analysis. 
-Each ablation contains an measurements of a single sample (i.e. the 'D' object), but data reduction requires consideration of multiple ablations of samples and standards colected over an analytical session (i.e. the 'analyse' object).
-In line with this, some data processing steps (despiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the :class:`latools.D` object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the :class:`latools.analyse` level).
+Each ablation contains an measurements of a single sample (i.e. the 'D' object), but data reduction requires consideration of multiple ablations of samples and standards collected over an analytical session (i.e. the 'analyse' object).
+In line with this, some data processing steps (de-spiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the :class:`latools.D` object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the :class:`latools.analyse` level).
 
 How it works
 ------------
 In practice, you will do all data processing using the :class:`latools.analyse` object, which contains all the data processing functionality you'll need.
 To start processing data, you create an :class:`latools.analyse` object and tell it which folder your data are stored in.
-:class:`latools.analyse` then imports all the files in the data folder as :class:`latools.D` objects, and labels them by their filenames.
+:class:`latools.analyse` then imports all the files in the data folder as :class:`latools.D` objects, and labels them by their file names.
 The :class:`latools.analyse` object contains all of the :class:`latools.D` objects withing a 'dictionary' called :attribute:`latools.analyse.data_dict`, where the each individual :class:`latools.D` object can be accessed via its name.
 Data processing therefore works best when ablations of each individual sample or standard are stored in a single data folder, named according to what was measured.
 
 .. todo:: However, ``latools`` can also cope with multiple ablations stored in a single, long data file. As long as a list of sample names is provided to identify each ablation.
 
-When you're performing a processing step that can happen at an individual-sample level (e.g. despiking), the :class:`latools.analyse` object passes the task directly on to the :class:`latools.D` objects,
+When you're performing a processing step that can happen at an individual-sample level (e.g. de-spiking), the :class:`latools.analyse` object passes the task directly on to the :class:`latools.D` objects,
 whereas when you're performing a step that requires consideration of the *entire* analytical session (e.g. calibration), the :class:`latools.analyse` object will coordinate the interaction of the different :class:`latools.D` objects (i.e. calculate calibration curves from SRM measurements, and apply them to quantify the compositions of your unknown samples).
 
 Filtering

@@ -11,29 +11,29 @@ What is Data Filtering?
 =======================
 Laser ablation data are spatially resolved.
 In heterogeneous samples, this means that the concentrations of different analytes will change within a single analysis.
-This compositional heterogeneity can either be natural and expected (e.g. Mg/Ca variability in foraminifera), or caused by compositionally distinct contaminant phases indluded in the sample structure.
+This compositional heterogeneity can either be natural and expected (e.g. Mg/Ca variability in foraminifera), or caused by compositionally distinct contaminant phases included in the sample structure.
 If the end goal of your analysis is to get integrated compositional estimates for each ablation analysis, how you deal with sample heterogeneity becomes central to data processing, and can have a profound effect on the resulting integrated values.
 So far, heterogeneous samples tend to be processed manually, by choosing regions to integrate by eye, based on a set of criteria and knowledge of the sample material.
-While this is a valid approach to data reduction, it is *highly* irreproducible: if two 'expert analysts' were to process the data, the resulting values would not be quantitatively identical.
+While this is a valid approach to data reduction, it is not reproducible: if two 'expert analysts' were to process the data, the resulting values would not be quantitatively identical.
 Reproducibility is fundamental to sound science, and the inability to reproduce integrated values from identical raw data is a fundamental flaw in Laser Ablation studies.
 In short, this is a serious problem.
 
 To get round this, we have developed 'Data Filters'.
 Data Filters are systematic selection criteria, which can be applied to all samples to select specific regions of ablation data for integration.
-For example, the analyst might apply a filter that removes all regions where a particular analyte exceeds a threshold concentration, or exlcude regions where two contaminant elements co-vary through the ablation.
+For example, the analyst might apply a filter that removes all regions where a particular analyte exceeds a threshold concentration, or exclude regions where two contaminant elements co-vary through the ablation.
 Ultimately, the choice of selection criteria remains entirely subjective, but because these criteria are quantitative they can be uniformly applied to all specimens, and most importantly, reported and reproduced by an independent researcher.
 This removes significant possibilities for 'human error' from data analysis, and solves the long-standing problem of reproducibility in LA-MS data processing.
 
 Data Filters
 ============
 ``latools`` includes several filtering functions, which can be applied in any order, repetitively and in any sequence.
-By their combined application, it should be possible to islate any specific region within the data that is systematically identified by patterns in the ablation profile.
+By their combined application, it should be possible to isolate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):
 
 * :meth:`~latools.analyse.filter_threshold`: Creates two filter keys identifying where a specific analyte is above or below a given threshold.
 * :meth:`~latools.analyse.filter_distribution`: Finds separate `populations` within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.
 * :meth:`~latools.analyse.filter_clustering`: A more sophisticated version of :meth:`~latools.analyse.filter_distribution`, which uses data clustering algorithms from the `sklearn <http://scikit-learn.org/>`_ module to identify compositionally distinct 'populations' in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.
-* :meth:`~latools.analyse.filter_correlation`: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly covaries with an analyte that is a known contaminant indicator, the signal is likely contaminated, and shoule be discarded.
+* :meth:`~latools.analyse.filter_correlation`: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.
 
 For a full account of these filters, how they work and how they can be used, see :ref:`advanced_filtering`.
 
@@ -55,7 +55,7 @@ Or alternatively, you can make a 'crossplot' (using ``eg.crossplot()``) of your 
 
 This plots every analyte in your ablation profiles, plotted against every other analyte. The axes in each panel are described by the diagonal analyte names. The colour intensity in each panel corresponds to the data density (i.e. it's a 2D histogram!).
 
-Within these plots, you should focus on the behaviour of 'conaminant indicator' elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
+Within these plots, you should focus on the behaviour of 'contaminant indicator' elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
 As these are foraminifera, we will pay particularly close attention to the concentrations of Al, Mn and Ba in the ablations, which are all normally low and homogeneous in foraminifera samples, but are prone to contamination by clay particles.
 In these samples, the Ba and Mn are relatively uniform, but the Al increases towards the end of each ablation.
 This is because the tape that the specimens were mounted on contains a significant amount of Al, which is picked up by the laser as it ablates through the shell.
@@ -89,9 +89,9 @@ Finally, notice also that it says 'Subset: All_Samples' at the top, and lists wh
 You can apply different filters to different subsets of samples... We'll come back to this later.
 This display shows all the filters you've calculated, and which analytes they are applied to. 
 
-Before we think about applying the filter, we should check what it has acutally done to the data.
+Before we think about applying the filter, we should check what it has actually done to the data.
 
-.. note:: Filters do not delete any data. They simply create a *mask* which tells latools funcions which data to use, and which to ignore.
+.. note:: Filters do not delete any data. They simply create a *mask* which tells latools functions which data to use, and which to ignore.
 
 Checking a Filter
 -----------------
@@ -115,7 +115,7 @@ In this case, the 100 µmol/mol threshold seems to do a good job of excluding ex
 
 Applying a Filter
 -----------------
-Once you've identified which filter you want ot apply, you must turn that filter 'on' using::
+Once you've identified which filter you want to apply, you must turn that filter 'on' using::
 
     eg.filter_on(filt=0)
 
@@ -148,7 +148,7 @@ If this is the case, you can switch a filter on or off for a specific analyte::
 
 Notice how filter '0' is now deactivated for Mg25.
 
-Finally, let's return to the 'Subsets', which we skpped over earlier.
+Finally, let's return to the 'Subsets', which we skipped over earlier.
 
 Sample Subsets
 --------------

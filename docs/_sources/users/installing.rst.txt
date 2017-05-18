@@ -14,8 +14,10 @@ Prerequisite: Python
 ====================
 
 Before you install ``latools``, you'll need to make sure you have a working installation of Python, preferably version 3.5+. 
-If you don't already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
+If you don't already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ (recommended) or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
 These provide a working copy of Python, and most of the modules that ``latools`` relies on.
+
+.. tip:: If you're using Canopy, make sure you have both ``setuptools`` and ``pip`` installed before proceeding. You can install these packages by running ``enpkg setuptools`` and ``enpkg pip`` in a terminal window.
 
 If you already have a working Python installation or don't want to install one of the pre-packaged Python distributions, everything below `should` work.
 

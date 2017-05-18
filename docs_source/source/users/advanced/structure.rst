@@ -25,6 +25,6 @@ These :mod:`latools.D` instances are stored within the in ``data_dict`` within :
 When creating a :mod:`latools.analyse` instance it also reads the :ref:`configuration file <cfg_file>`, which contains the paths to the :ref:`SRM data table <srm_file>` and :ref:`data format description <advanced_data_formats>` that are essential for analysis.
 
 The :mod:`latools.analyse` class is essentially a 'wrapper' for dealing with numerous data files at once.
-The ability to process mutliple data files is essential if you wish to calibrate your data (i.e. you must have a number of samples, and at least one standard in the .
+The ability to process multiple data files is essential if you wish to calibrate your data (i.e. you must have a number of samples, and at least one standard in the .
 
 When each instance of :mod:`latools.D` is created, it is given a single ``data_file``, and a dict containing

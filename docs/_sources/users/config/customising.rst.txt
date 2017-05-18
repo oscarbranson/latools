@@ -4,19 +4,19 @@
 Lab-Specific Configuration
 ##########################
 
-.. warning:: ``latools`` will not work if incorrectly configured. Follow the instructions below carfully.
+.. warning:: ``latools`` will not work if incorrectly configured. Follow the instructions below carefully.
 
 Before use, ``latools`` must be configured to work with your particular set up.
 When you first install latools, you should run :func:`latools.intial_configuration`
 
-Initial lab-specific configuration can be set up using the :func:`latools.intial_configuration`, which prompts the user for the required paramters.
+Initial lab-specific configuration can be set up using the :func:`latools.intial_configuration`, which prompts the user for the required parameters.
 
 ``latools`` supports multiple simultaneous configurations, which can be specified at the start of data analysis using the ``config`` parameter of :class:`latools.analyse`.
 These configurations are stored in the 'latools.cfg' file, which can be found in the latools install location.
 The :func:`config_locator` can be used to find this file on your computer.
 
-The configuration file is formatted following the `configparser <https://wiki.python.org/moin/ConfigParserExamples>`_ syntax, with default and customisable paramters.
-Further configuration additions and modifications can be made with the :func:`latools.add_config` function, or by manually editing the `latools.cfg` file (not reccommended unless you know what you're doing).
+The configuration file is formatted following the `configparser <https://wiki.python.org/moin/ConfigParserExamples>`_ syntax, with default and customisable parameters.
+Further configuration additions and modifications can be made with the :func:`latools.add_config` function, or by manually editing the `latools.cfg` file (not recommended unless you know what you're doing).
 
 
 Defining SRM Materials

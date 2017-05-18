@@ -99,7 +99,7 @@
 <li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
 <li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data Despiking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
@@ -185,13 +185,13 @@
             
   <div class="section" id="sample-statistics">
 <span id="statistics"></span><h1>Sample Statistics<a class="headerlink" href="#sample-statistics" title="Permalink to this headline">¶</a></h1>
-<p>After filtering, you can calculated and export intergrated compositional values for your analyses:</p>
+<p>After filtering, you can calculated and export integrated compositional values for your analyses:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">sample_stats</span><span class="p">(</span><span class="n">stat_fns</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">],</span> <span class="n">filt</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Where <code class="docutils literal"><span class="pre">stat_fns</span></code> specifies which functions you would like to use to calculate the statistics (in this case the <code class="docutils literal"><span class="pre">nanmean</span></code> and <code class="docutils literal"><span class="pre">nanstd</span></code> of the <code class="docutils literal"><span class="pre">numpy</span></code> package).
 You can specify any function that accepts an array and returns a single value here.
-<code class="docutils literal"><span class="pre">filt</span></code> can either be True (applies all active filters), or a specific filter number or parially matching name to apply a specific filter.
+<code class="docutils literal"><span class="pre">filt</span></code> can either be True (applies all active filters), or a specific filter number or partially matching name to apply a specific filter.
 In combination with data subsets, and the ability to specify different combinations of filters for different subsets, this provides a flexible way to explore the impact of different filters on your integrated values.</p>
 <p>We&#8217;ve now calculated the statistics, but they are still trapped inside the &#8216;analyse&#8217; data object (<code class="docutils literal"><span class="pre">eg</span></code>).
 To get them out into a more useful form:</p>
@@ -200,7 +200,7 @@ To get them out into a more useful form:</p>
 </div>
 <p>This returns a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v0.20.1)"><code class="xref py py-class docutils literal"><span class="pre">pandas.DataFrame</span></code></a> containing all the statistics we just calculated.
 You can either keep this data in python and continue your analysis, or export the integrated values to an external file for analysis and plotting in <em>your_favourite_program</em>.</p>
-<p>To export the data, you can either specifing the <code class="docutils literal"><span class="pre">filename</span></code> variable in <a class="reference internal" href="../../docs/index.html#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code></a>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
+<p>To export the data, you can either specifying the <code class="docutils literal"><span class="pre">filename</span></code> variable in <a class="reference internal" href="../../docs/index.html#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code></a>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># .csv format</span>
 <span class="n">stats</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># excel format</span>
 </pre></div>

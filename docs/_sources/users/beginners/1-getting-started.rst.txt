@@ -13,7 +13,7 @@ The Fundamentals: Python
 ``latools`` is a python `module` - a package of code containing a number of Python `objects` and functions, which run within Python.
 That means that you need to have a working copy of Python to use ``latools``.
 
-If you don't already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
+If you don't already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum's `Anaconda <https://www.continuum.io/downloads>`_ (recommended) or Enthought's `Canopy <https://www.enthought.com/products/canopy/>`_.
 Both of these provide a complete working installation of Python, and all the pre-requisites you need to run latools.
 
 ``latools`` has been developed and tested in Python 3.5. 
@@ -24,7 +24,7 @@ Jupyter is a browser-based interface for ipython, which provides a nice clean in
 
 For simplicity, the rest of this guide will assume you're using Jupyter notebook, although it should translate directly to other Python interpreters.
 
-For a full walkthrough of getting ``latools`` set up on your system, head on over to the :ref:`install` guide.
+For a full walk through of getting ``latools`` set up on your system, head on over to the :ref:`install` guide.
 
 Preparation
 ===========
@@ -53,7 +53,7 @@ Once python is running, import latools into your environment::
 
 All the functions of latools are now accessible from within the ``la`` prefix.
 
-.. tip:: To run code in a jupyter notebook, you must 'evaluate' the cell containing the code. to do this, type:
+.. tip:: To run code in a Jupyter notebook, you must 'evaluate' the cell containing the code. to do this, type:
 
 	* [ctrl] + [return] evaluate the selected cell.
 	* [shift] + [return] evaluate the selected cell, and moves the focus to the next cell

@@ -187,7 +187,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Release:</th><td class="field-body">0.2.2a</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">Apr 24, 2017</td>
+<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">May 18, 2017</td>
 </tr>
 </tbody>
 </table>
@@ -200,14 +200,14 @@ At present, there is no standard way of reporting LA-MS data analysis, which wou
 <code class="docutils literal"><span class="pre">latools</span></code> is designed to tackle this problem.</p>
 <p><code class="docutils literal"><span class="pre">latools</span></code> automatically handles all the routine aspects of LA-MS data reduction:</p>
 <ol class="arabic simple">
-<li>Signal Despiking</li>
+<li>Signal De-spiking</li>
 <li>Signal / Background Identification</li>
 <li>Background Subtraction</li>
 <li>Normalisation to internal standard</li>
 <li>Calibration to SRMs</li>
 </ol>
 <p>These processing steps perform the same basic functions as <a class="reference internal" href="advanced/latools-alternatives.html#latools-alternatives"><span class="std std-ref">other LA-MS processing software</span></a>.
-If your end goal is calibrated albation profiles, these can be exported at this stage for external plotting an analysis.
+If your end goal is calibrated ablation profiles, these can be exported at this stage for external plotting an analysis.
 The real strength of <code class="docutils literal"><span class="pre">latools</span></code> comes in the systematic identification and removal of contaminant signals, and calculation of integrated values for ablation spots.
 This is accomplished with two significant new features.</p>
 <ol class="arabic simple" start="6">
@@ -222,7 +222,7 @@ This is accomplished with two significant new features.</p>
 Because it is semi-automated, it is very easy to treat it as a &#8216;black box&#8217;.
 <strong>You must not do this.</strong>
 The data you get at the end will only be valid if processed <em>appropriately</em>.
-Because <code class="docutils literal"><span class="pre">latools</span></code> brings reproducibility to LA-MS processing, it will be very easy for peers to examine your data processing methods, and identify any shotfalls.
+Because <code class="docutils literal"><span class="pre">latools</span></code> brings reproducibility to LA-MS processing, it will be very easy for peers to examine your data processing methods, and identify any shortfalls.
 In essence: to appropriately use <code class="docutils literal"><span class="pre">latools</span></code>, you must understand how it works!</p>
 <p>The best way to understand how it works will be to play around with data processing, but before you do that there are a few things you can do to start you off in the right direction:</p>
 <ol class="arabic simple">
@@ -244,21 +244,21 @@ That said, an understanding of Python won&#8217;t hurt!</p>
 <li><a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> is a higher-level object, containing numerous <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects. This is the object you will interact with most when processing data, and it contains all the functions you need to perform your analysis.</li>
 </ul>
 <p>This structure reflects the hierarchical nature of LA-MS analysis.
-Each ablation contains an measurements of a single sample (i.e. the &#8216;D&#8217; object), but data reduction requires consideration of multiple ablations of samples and standards colected over an analytical session (i.e. the &#8216;analyse&#8217; object).
-In line with this, some data processing steps (despiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> level).</p>
+Each ablation contains an measurements of a single sample (i.e. the &#8216;D&#8217; object), but data reduction requires consideration of multiple ablations of samples and standards collected over an analytical session (i.e. the &#8216;analyse&#8217; object).
+In line with this, some data processing steps (de-spiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> level).</p>
 </div>
 <div class="section" id="how-it-works">
 <h3>How it works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">¶</a></h3>
 <p>In practice, you will do all data processing using the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object, which contains all the data processing functionality you&#8217;ll need.
 To start processing data, you create an <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object and tell it which folder your data are stored in.
-<a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> then imports all the files in the data folder as <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects, and labels them by their filenames.
+<a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> then imports all the files in the data folder as <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects, and labels them by their file names.
 The <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object contains all of the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects withing a &#8216;dictionary&#8217; called <a href="#id1"><span class="problematic" id="id2">:attribute:`latools.analyse.data_dict`</span></a>, where the each individual <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object can be accessed via its name.
 Data processing therefore works best when ablations of each individual sample or standard are stored in a single data folder, named according to what was measured.</p>
 <div class="admonition-todo admonition" id="index-0">
 <p class="first admonition-title">Todo</p>
 <p class="last">However, <code class="docutils literal"><span class="pre">latools</span></code> can also cope with multiple ablations stored in a single, long data file. As long as a list of sample names is provided to identify each ablation.</p>
 </div>
-<p>When you&#8217;re performing a processing step that can happen at an individual-sample level (e.g. despiking), the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object passes the task directly on to the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects,
+<p>When you&#8217;re performing a processing step that can happen at an individual-sample level (e.g. de-spiking), the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object passes the task directly on to the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects,
 whereas when you&#8217;re performing a step that requires consideration of the <em>entire</em> analytical session (e.g. calibration), the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object will coordinate the interaction of the different <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects (i.e. calculate calibration curves from SRM measurements, and apply them to quantify the compositions of your unknown samples).</p>
 </div>
 <div class="section" id="filtering">

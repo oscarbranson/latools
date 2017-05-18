@@ -99,7 +99,7 @@
 <li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
 <li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data Despiking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
@@ -196,28 +196,28 @@ Now we can get into some of the new features of <code class="docutils literal"><
 <h2>What is Data Filtering?<a class="headerlink" href="#what-is-data-filtering" title="Permalink to this headline">¶</a></h2>
 <p>Laser ablation data are spatially resolved.
 In heterogeneous samples, this means that the concentrations of different analytes will change within a single analysis.
-This compositional heterogeneity can either be natural and expected (e.g. Mg/Ca variability in foraminifera), or caused by compositionally distinct contaminant phases indluded in the sample structure.
+This compositional heterogeneity can either be natural and expected (e.g. Mg/Ca variability in foraminifera), or caused by compositionally distinct contaminant phases included in the sample structure.
 If the end goal of your analysis is to get integrated compositional estimates for each ablation analysis, how you deal with sample heterogeneity becomes central to data processing, and can have a profound effect on the resulting integrated values.
 So far, heterogeneous samples tend to be processed manually, by choosing regions to integrate by eye, based on a set of criteria and knowledge of the sample material.
-While this is a valid approach to data reduction, it is <em>highly</em> irreproducible: if two &#8216;expert analysts&#8217; were to process the data, the resulting values would not be quantitatively identical.
+While this is a valid approach to data reduction, it is not reproducible: if two &#8216;expert analysts&#8217; were to process the data, the resulting values would not be quantitatively identical.
 Reproducibility is fundamental to sound science, and the inability to reproduce integrated values from identical raw data is a fundamental flaw in Laser Ablation studies.
 In short, this is a serious problem.</p>
 <p>To get round this, we have developed &#8216;Data Filters&#8217;.
 Data Filters are systematic selection criteria, which can be applied to all samples to select specific regions of ablation data for integration.
-For example, the analyst might apply a filter that removes all regions where a particular analyte exceeds a threshold concentration, or exlcude regions where two contaminant elements co-vary through the ablation.
+For example, the analyst might apply a filter that removes all regions where a particular analyte exceeds a threshold concentration, or exclude regions where two contaminant elements co-vary through the ablation.
 Ultimately, the choice of selection criteria remains entirely subjective, but because these criteria are quantitative they can be uniformly applied to all specimens, and most importantly, reported and reproduced by an independent researcher.
 This removes significant possibilities for &#8216;human error&#8217; from data analysis, and solves the long-standing problem of reproducibility in LA-MS data processing.</p>
 </div>
 <div class="section" id="data-filters">
 <h2>Data Filters<a class="headerlink" href="#data-filters" title="Permalink to this headline">¶</a></h2>
 <p><code class="docutils literal"><span class="pre">latools</span></code> includes several filtering functions, which can be applied in any order, repetitively and in any sequence.
-By their combined application, it should be possible to islate any specific region within the data that is systematically identified by patterns in the ablation profile.
+By their combined application, it should be possible to isolate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):</p>
 <ul class="simple">
 <li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
 <li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
 <li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>: A more sophisticated version of <a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code></a>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly covaries with an analyte that is a known contaminant indicator, the signal is likely contaminated, and shoule be discarded.</li>
+<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code></a>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.</li>
 </ul>
 <p>For a full account of these filters, how they work and how they can be used, see <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a>.</p>
 </div>
@@ -233,7 +233,7 @@ You can look at the calibrated profiles manually to get a sense of the patterns 
 <p>Or alternatively, you can make a &#8216;crossplot&#8217; (using <code class="docutils literal"><span class="pre">eg.crossplot()</span></code>) of your data, to examine how all the trace elements in your samples relate to each other:</p>
 <img alt="../../_images/crossplot.png" src="../../_images/crossplot.png" />
 <p>This plots every analyte in your ablation profiles, plotted against every other analyte. The axes in each panel are described by the diagonal analyte names. The colour intensity in each panel corresponds to the data density (i.e. it&#8217;s a 2D histogram!).</p>
-<p>Within these plots, you should focus on the behaviour of &#8216;conaminant indicator&#8217; elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
+<p>Within these plots, you should focus on the behaviour of &#8216;contaminant indicator&#8217; elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
 As these are foraminifera, we will pay particularly close attention to the concentrations of Al, Mn and Ba in the ablations, which are all normally low and homogeneous in foraminifera samples, but are prone to contamination by clay particles.
 In these samples, the Ba and Mn are relatively uniform, but the Al increases towards the end of each ablation.
 This is because the tape that the specimens were mounted on contains a significant amount of Al, which is picked up by the laser as it ablates through the shell.
@@ -266,10 +266,10 @@ The <code class="docutils literal"><span class="pre">filter_threshold</span></co
 Finally, notice also that it says &#8216;Subset: All_Samples&#8217; at the top, and lists which samples they are.
 You can apply different filters to different subsets of samples... We&#8217;ll come back to this later.
 This display shows all the filters you&#8217;ve calculated, and which analytes they are applied to.</p>
-<p>Before we think about applying the filter, we should check what it has acutally done to the data.</p>
+<p>Before we think about applying the filter, we should check what it has actually done to the data.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Filters do not delete any data. They simply create a <em>mask</em> which tells latools funcions which data to use, and which to ignore.</p>
+<p class="last">Filters do not delete any data. They simply create a <em>mask</em> which tells latools functions which data to use, and which to ignore.</p>
 </div>
 </div>
 <div class="section" id="checking-a-filter">
@@ -296,7 +296,7 @@ In this case, the 100 µmol/mol threshold seems to do a good job of excluding ex
 </div>
 <div class="section" id="applying-a-filter">
 <h3>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this headline">¶</a></h3>
-<p>Once you&#8217;ve identified which filter you want ot apply, you must turn that filter &#8216;on&#8217; using:</p>
+<p>Once you&#8217;ve identified which filter you want to apply, you must turn that filter &#8216;on&#8217; using:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -328,7 +328,7 @@ If this is the case, you can switch a filter on or off for a specific analyte:</
 </pre></div>
 </div>
 <p>Notice how filter &#8216;0&#8217; is now deactivated for Mg25.</p>
-<p>Finally, let&#8217;s return to the &#8216;Subsets&#8217;, which we skpped over earlier.</p>
+<p>Finally, let&#8217;s return to the &#8216;Subsets&#8217;, which we skipped over earlier.</p>
 </div>
 <div class="section" id="sample-subsets">
 <h3>Sample Subsets<a class="headerlink" href="#sample-subsets" title="Permalink to this headline">¶</a></h3>

@@ -105,7 +105,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data Despiking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
@@ -198,14 +198,14 @@ We recommend working through these examples to understand the mechanics of the s
 <p><a class="reference external" href="https://www.python.org/">Python</a> is an open-source (free) general purpose programming language, with growing application in science.
 <code class="docutils literal"><span class="pre">latools</span></code> is a python <cite>module</cite> - a package of code containing a number of Python <cite>objects</cite> and functions, which run within Python.
 That means that you need to have a working copy of Python to use <code class="docutils literal"><span class="pre">latools</span></code>.</p>
-<p>If you don&#8217;t already have this (or are unsure if you do), we reccommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum&#8217;s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> or Enthought&#8217;s <a class="reference external" href="https://www.enthought.com/products/canopy/">Canopy</a>.
+<p>If you don&#8217;t already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum&#8217;s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> (recommended) or Enthought&#8217;s <a class="reference external" href="https://www.enthought.com/products/canopy/">Canopy</a>.
 Both of these provide a complete working installation of Python, and all the pre-requisites you need to run latools.</p>
 <p><code class="docutils literal"><span class="pre">latools</span></code> has been developed and tested in Python 3.5.
 It <em>should</em> also run on 2.7, but we can&#8217;t guarantee that it will behave.</p>
 <p>&#8216;&#8217;latools&#8217;&#8217; should work in any python interpreter, but we recommend either <a class="reference external" href="http://jupyter.org/">Jupyter Notebook</a> or <a class="reference external" href="https://ipython.org/">iPython</a>.
 Jupyter is a browser-based interface for ipython, which provides a nice clean interactive front-end for writing code, taking notes and viewing plots.</p>
 <p>For simplicity, the rest of this guide will assume you&#8217;re using Jupyter notebook, although it should translate directly to other Python interpreters.</p>
-<p>For a full walkthrough of getting <code class="docutils literal"><span class="pre">latools</span></code> set up on your system, head on over to the <a class="reference internal" href="../installing.html#install"><span class="std std-ref">Installation</span></a> guide.</p>
+<p>For a full walk through of getting <code class="docutils literal"><span class="pre">latools</span></code> set up on your system, head on over to the <a class="reference internal" href="../installing.html#install"><span class="std std-ref">Installation</span></a> guide.</p>
 </div>
 <div class="section" id="preparation">
 <h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
@@ -234,7 +234,7 @@ This will open a new browser tab containing your Python notebook.</p>
 <p>All the functions of latools are now accessible from within the <code class="docutils literal"><span class="pre">la</span></code> prefix.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p>To run code in a jupyter notebook, you must &#8216;evaluate&#8217; the cell containing the code. to do this, type:</p>
+<p>To run code in a Jupyter notebook, you must &#8216;evaluate&#8217; the cell containing the code. to do this, type:</p>
 <ul class="last simple">
 <li>[ctrl] + [return] evaluate the selected cell.</li>
 <li>[shift] + [return] evaluate the selected cell, and moves the focus to the next cell</li>

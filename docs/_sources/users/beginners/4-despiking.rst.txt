@@ -1,12 +1,12 @@
 .. _despiking:
 
 ##############
-Data Despiking
+Data De-spiking
 ##############
 
-The first step in data reduction is the 'despike' the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).
+The first step in data reduction is the 'de-spike' the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).
 
-Two despiking methods are available:
+Two de-spiking methods are available:
 
 * :meth:`~latools.D.expdecay_despiker` removes low outliers, based on the signal washout time of your laser cell. The signal washout is described using an exponential decay function. If the measured signal decreases faster than physically possible based on your laser setup, these points are removed, and replaced with the average of the adjacent values.
 * :meth:`~latools.D.noise_despiker` removes high outliers by calculating a rolling mean and standard deviation, and replacing points that are greater than `n` standard deviations above the mean with the mean of the adjacent data points.
@@ -17,7 +17,7 @@ These functions can both be applied at once, using :meth:`~latools.analyse.despi
                noise_despiker=True)
 
 By default, this applies :meth:`~latools.D.expdecay_despiker` followed by :meth:`~latools.D.noise_despiker` to all samples. 
-You can specify several parameters that change the behaviour of these despiking routines.
+You can specify several parameters that change the behaviour of these de-spiking routines.
 
 The :meth:`~latools.D.expdecay_despiker` relies on knowing the exponential decay constant that describes the washout characteristics of your laser ablation cell.
 If this values is missing (as here), ``latools`` calculates it by fitting an exponential decay function to the internal standard at the on-off laser transition at the end of ablations of standards. 

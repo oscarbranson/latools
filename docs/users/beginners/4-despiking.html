@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data Despiking &mdash; latools 0.2.2a documentation</title>
+  <title>Data De-spiking &mdash; latools 0.2.2a documentation</title>
   
 
   
@@ -99,7 +99,7 @@
 <li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
 <li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Data Despiking</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Data De-spiking</a></li>
 <li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
@@ -164,7 +164,7 @@
         
           <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
         
-      <li>Data Despiking</li>
+      <li>Data De-spiking</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -183,10 +183,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="data-despiking">
-<span id="despiking"></span><h1>Data Despiking<a class="headerlink" href="#data-despiking" title="Permalink to this headline">¶</a></h1>
-<p>The first step in data reduction is the &#8216;despike&#8217; the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).</p>
-<p>Two despiking methods are available:</p>
+  <div class="section" id="data-de-spiking">
+<span id="despiking"></span><h1>Data De-spiking<a class="headerlink" href="#data-de-spiking" title="Permalink to this headline">¶</a></h1>
+<p>The first step in data reduction is the &#8216;de-spike&#8217; the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).</p>
+<p>Two de-spiking methods are available:</p>
 <ul class="simple">
 <li><a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> removes low outliers, based on the signal washout time of your laser cell. The signal washout is described using an exponential decay function. If the measured signal decreases faster than physically possible based on your laser setup, these points are removed, and replaced with the average of the adjacent values.</li>
 <li><a class="reference internal" href="../../docs/index.html#latools.D.noise_despiker" title="latools.D.noise_despiker"><code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code></a> removes high outliers by calculating a rolling mean and standard deviation, and replacing points that are greater than <cite>n</cite> standard deviations above the mean with the mean of the adjacent data points.</li>
@@ -197,7 +197,7 @@
 </pre></div>
 </div>
 <p>By default, this applies <a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> followed by <a class="reference internal" href="../../docs/index.html#latools.D.noise_despiker" title="latools.D.noise_despiker"><code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code></a> to all samples.
-You can specify several parameters that change the behaviour of these despiking routines.</p>
+You can specify several parameters that change the behaviour of these de-spiking routines.</p>
 <p>The <a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> relies on knowing the exponential decay constant that describes the washout characteristics of your laser ablation cell.
 If this values is missing (as here), <code class="docutils literal"><span class="pre">latools</span></code> calculates it by fitting an exponential decay function to the internal standard at the on-off laser transition at the end of ablations of standards.
 If this has been done, you will be informed. In this case, it should look like:</p>
