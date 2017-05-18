@@ -5,7 +5,7 @@
                      'skip_footer': 4},
 'column_id': {'name_row': 30,
               'timecolumn': 0,
-              'delimeter': '\t',
+              'delimiter': '\t',
               'pattern': '([A-z]{1,2}[0-9]{1,3})'},
 'meta_regex': {15: (['date'], '.*Date :\t*.{3}, (.[^\t\n]*)[\t]*$'),
                6: (['tune_params'], '.*Parameters :\t*(.[^\t]*)[\t]*$'),

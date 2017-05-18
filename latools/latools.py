@@ -2982,7 +2982,7 @@ class D(object):
                     self.meta[v[0][i]] = out[i]
 
         # column names
-        columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimeter']))
+        columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
         if 'pattern' in dataformat['column_id'].keys():
             pr = re.compile(dataformat['column_id']['pattern'])
             columns = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
