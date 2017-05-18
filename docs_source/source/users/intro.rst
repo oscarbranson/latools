@@ -73,7 +73,7 @@ How it works
 In practice, you will do all data processing using the :class:`latools.analyse` object, which contains all the data processing functionality you'll need.
 To start processing data, you create an :class:`latools.analyse` object and tell it which folder your data are stored in.
 :class:`latools.analyse` then imports all the files in the data folder as :class:`latools.D` objects, and labels them by their file names.
-The :class:`latools.analyse` object contains all of the :class:`latools.D` objects withing a 'dictionary' called :attribute:`latools.analyse.data_dict`, where the each individual :class:`latools.D` object can be accessed via its name.
+The :class:`latools.analyse` object contains all of the :class:`latools.D` objects withing a 'dictionary' called ``latools.analyse.data_dict``, where the each individual :class:`latools.D` object can be accessed via its name.
 Data processing therefore works best when ablations of each individual sample or standard are stored in a single data folder, named according to what was measured.
 
 .. todo:: However, ``latools`` can also cope with multiple ablations stored in a single, long data file. As long as a list of sample names is provided to identify each ablation.
