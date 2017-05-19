@@ -400,7 +400,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
-                  transform='log'):
+                  transform='log', thresh_n=None):
         """
         Automatically separates signal and background data regions.
 
@@ -466,6 +466,32 @@ class analyse(object):
         -------
         None
         """
+
+        if thresh_n is not None:
+            # calculate maximum background composition of internal standard
+            srms = self.subsets[self.srm_identifier]
+
+            if not hasattr(self.data_dict[srms[0]], 'bkg'):
+                for s in srms:
+                    self.data_dict[s].autorange()
+
+            srm_bkg_dat = []
+
+            for s in srms:
+                sd = self.data_dict[s]
+
+                ind = (sd.Time >= sd.bkgrng[0][0]) & (sd.Time <= sd.bkgrng[0][1])
+                srm_bkg_dat.append(sd.focus[self.internal_standard][ind])
+
+            srm_bkg_dat = np.concatenate(srm_bkg_dat)
+
+            bkg_mean = H15_mean(srm_bkg_dat)
+            bkg_std = H15_std(srm_bkg_dat)
+            bkg_thresh = bkg_mean + thresh_n * bkg_std
+        else:
+            bkg_thresh = None
+
+
         if analyte is None:
             analyte = self.internal_standard
         elif analyte not in self.minimal_analytes:
@@ -474,7 +500,8 @@ class analyse(object):
         for d in tqdm(self.data, desc='AutoRange'):
             d.autorange(analyte, gwin, win, smwin,
                         conf, on_mult, off_mult,
-                        d_mult, transform)
+                        d_mult, transform, bkg_thresh)
+
         return
 
     def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
@@ -1010,15 +1037,18 @@ class analyse(object):
             srmdat = srmdat.loc[srms_used]
 
             # isolate measured elements
-            elements = np.unique([re.findall('[A-Za-z]+', a)[0] for a in self.analytes])
+            elements = np.unique([re.findall('[A-Z][a-z]{0,}', a)[0] for a in self.analytes])
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
             # label elements
             srmdat.loc[:, 'element'] = np.nan
+            
+            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             for e in elements:
-                srmdat.loc[srmdat.Item.str.contains(e), 'element'] = str(e)
-
+                ind = [e in elnames.findall(i) for i in srmdat.Item]
+                srmdat.loc[ind, 'element'] = str(e)
+            
             # convert to table in same format as stdtab
-            self.srmdat = srmdat
+            self.srmdat = srmdat.dropna()
 
         srm_tab = self.srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
 
@@ -2242,7 +2272,7 @@ class analyse(object):
     @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
                     focus=None, outdir=None, filt=None, scale='log',
-                    figsize=[10, 4], stats=True, stat='nanmean',
+                    figsize=[10, 4], stats=False, stat='nanmean',
                     err='nanstd', subset='All_Analyses'):
         """
         Plot analytes as a function of time.
@@ -3262,7 +3292,7 @@ class D(object):
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
-                  transform='log'):
+                  transform='log', bkg_thresh=None):
         """
                 Automatically separates signal and background data regions.
 
@@ -3433,8 +3463,7 @@ class D(object):
                                "{:.1f} failed.".format(self.Time[z]) +
                                "\nPlease check the data plots and make sure " +
                                "everything is OK.\n(Run " +
-                               "'trace_plots(ranges=True)'"),
-                              UserWarning)
+                               "'trace_plots(ranges=True)'\n\n"))
                 pass  # if it fails for any reason, warn and skip it!
 
         # remove the transition regions from the signal and background ids.
@@ -3463,6 +3492,11 @@ class D(object):
                 corr = True
 
         if corr:
+            self.mkrngs()
+
+        # remove any background regions that contain internal_standard concs above bkg_thresh
+        if bkg_thresh is not None:
+            self.bkg[self.focus[self.internal_standard] > bkg_thresh] = False
             self.mkrngs()
 
         # number the signal regions (used for statistics and standard matching)
