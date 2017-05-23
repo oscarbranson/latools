@@ -29,6 +29,7 @@ setup(name='latools',
       package_data={
         'latools': ['latools.cfg',
                     'resources/*',
+                    'resources/data_formats/*',
                     'resources/test_data/*'],
       },
       zip_safe=False)
