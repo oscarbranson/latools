@@ -76,6 +76,10 @@ class analyse(object):
     internal_standard : str
         The name of the analyte used as an internal standard throughout
         analysis.
+    names : str
+        'file_names' : use the file names as labels
+        'metadata_names' : used the 'names' attribute of metadata as the name
+        anything else : use numbers.
 
     Attributes
     ----------
@@ -148,7 +152,8 @@ class analyse(object):
     """
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None, time_format=None, internal_standard='Ca43'):
+                 cmap=None, time_format=None, internal_standard='Ca43',
+                 names='file_names'):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -254,9 +259,25 @@ class analyse(object):
         self.data = np.array([D(self.folder + '/' + f,
                                 dataformat=self.dataformat,
                                 errorhunt=errorhunt,
-                                cmap=cmap, internal_standard=internal_standard) for f in self.files])
+                                cmap=cmap, 
+                                internal_standard=internal_standard,
+                                name=names) for f in self.files])
 
-        self.samples = np.array([s.sample for s in self.data])
+        # assign sample names
+        if (names == 'file_names') | (names == 'metadata_names'):
+            self.samples = np.array([s.sample for s in self.data])
+            # rename duplicates sample names
+            for u in np.unique(self.samples):
+                ind = self.samples == u
+                if sum(ind) > 1:
+                    self.samples[ind] = [s + '_{}'.format(n) for s, n in zip(self.samples[ind], np.arange(sum(ind)))]
+                    for i, sn in zip(np.arange(len(self.samples))[ind], self.samples[ind]):
+                        self.data[i].sample = sn
+        else:
+            self.samples = np.arange(len(self.data))
+            for i, s in enumerate(self.samples):
+                self.data[i].sampleseq1 = s
+
         self.analytes = np.array(self.data[0].analytes)
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
@@ -563,7 +584,7 @@ class analyse(object):
         trans = []
         times = []
         for v in self.stds:
-            for trnrng in v.trnrng[1::2]:
+            for trnrng in v.trnrng[-1::-2]:
                 tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
                                (v.Time < trnrng[1])])
                 sm = np.apply_along_axis(np.nanmean, 1,
@@ -671,7 +692,7 @@ class analyse(object):
         return
 
     # functions for background correction
-    def get_background(self, n_min=10, focus_stage='despiked'):
+    def get_background(self, n_min=10, n_max=None, focus_stage='despiked'):
         """
         Extract all background data from all samples on universal time scale.
         Used by both 'polynomial' and 'weightedmean' methods.
@@ -707,15 +728,19 @@ class analyse(object):
 
         self.bkg = {}
         # extract background data from whole dataset
-        self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        if n_max is None:
+            self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        else:
+            self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: (len(x) > n_min) & (len(x) < n_max))
         # calculate per - background region stats
         self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
         return
 
+
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
-                              n_min=20, cstep=None):
+                              n_min=20, n_max=None, cstep=None):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -732,28 +757,26 @@ class analyse(object):
             The interval between calculated background points.
 
         """
-        print("Calculating moving weighted mean background (fwhm={}s)...".format(weight_fwhm))
-
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min)
+        self.get_background(n_min=n_min, n_max=n_max)
 
         # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
             if cstep is None:
-                cstep = self.bkg['raw']['uTime'].ptp() / 100
+                cstep = weight_fwhm / 20
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
                               cstep)
             self.bkg['calc'] = {}
             self.bkg['calc']['uTime'] = bkg_t
 
-        for a in analytes:
+        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
             self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
                                                    self.bkg['raw'].loc[:, a],
                                                    self.bkg['calc']['uTime'],
@@ -761,7 +784,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, cstep=None):
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None):
         """
         Background calculation using a 1D interpolation.
 
@@ -781,15 +804,13 @@ class analyse(object):
             The interval between calculated background points.
 
         """
-        print("Calculating polynomial background ({} order)...".format(kind))
-
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min)
+        self.get_background(n_min=n_min, n_max=n_max)
 
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
@@ -803,7 +824,7 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
-        for a in analytes:
+        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
             imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
                                     d.loc[:, (a, 'mean')],
                                     kind=kind)
@@ -842,7 +863,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None, err='stderr', save=True):
+    def bkg_plot(self, analytes=None, figsize=None, yscale='log', ylim=None, err='stderr', save=True):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
                              "plot the background.")
@@ -851,6 +872,9 @@ class analyse(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if figsize is None:
+            figsize = (len(self.samples) * 0.15, 5)
 
         fig = plt.figure(figsize=figsize)
 
@@ -899,10 +923,10 @@ class analyse(object):
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
             ax.axvline(x, alpha=0.2, color='k', zorder=-1)
-            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+            ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
 
         if save:
-            fig.savefig(self.report_dir + '/background.pdf')
+            fig.savefig(self.report_dir + '/background.png', dpi=200)
 
         return fig, ax
 
@@ -1218,32 +1242,32 @@ class analyse(object):
             if drift_correct:
                 for n, g in self.srmtabs.loc[a, :].groupby(level=0):
                     if srm_errors:
-                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
-                                   sy=self.srmtabs.loc[a, 'srm_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
+                                   sy=self.srmtabs.loc[a].loc[:, 'srm_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     else:
-                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     uTime = g.index.get_level_values('uTime').values.mean()
                     self.calib_params.loc[uTime, a] = p
             else:
                 if srm_errors:
-                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a, 'meas_err'].values,
-                               sy=self.srmtabs.loc[a, 'srm_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
+                               sy=self.srmtabs.loc[a].loc[:, 'srm_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
                 else:
-                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a, 'meas_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
                 self.calib_params.loc[0, a] = p
@@ -2983,7 +3007,7 @@ class D(object):
     tplot
 
     """
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43'):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -2993,7 +3017,6 @@ class D(object):
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         self.file = data_file
-        self.sample = os.path.basename(self.file).split('.')[0]
         self.internal_standard = internal_standard
 
         with open(data_file) as f:
@@ -3008,6 +3031,14 @@ class D(object):
                 out = re.search(v[-1], lines[int(k)]).groups()
                 for i in np.arange(len(v[0])):
                     self.meta[v[0][i]] = out[i]
+
+        # sample name
+        if name == 'file_names':
+            self.sample = os.path.basename(self.file).split('.')[0]
+        elif name == 'metadata_names':
+            self.sample = self.meta['name']
+        else:
+            self.sample = 0
 
         # column names
         columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
@@ -4307,7 +4338,7 @@ class D(object):
     #     return fig, axes
 
     @_log
-    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=None,
+    def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               interactive=False, focus_stage=None, err_envelope=False):
         """
