@@ -34,4 +34,5 @@ build
 installation_test
 dataformats
 bughunting
-docs/latex
+docs
+docs_source
