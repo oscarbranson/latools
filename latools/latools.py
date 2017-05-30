@@ -20,6 +20,7 @@ import uncertainties.unumpy as un
 
 from io import BytesIO
 from functools import wraps
+from fuzzywuzzy import fuzz
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from scipy import odr
@@ -256,12 +257,15 @@ class analyse(object):
             self.dataformat = dataformat
 
         # load data (initialise D objects)
-        self.data = np.array([D(self.folder + '/' + f,
-                                dataformat=self.dataformat,
-                                errorhunt=errorhunt,
-                                cmap=cmap, 
-                                internal_standard=internal_standard,
-                                name=names) for f in self.files])
+        data = np.array([D(self.folder + '/' + f,
+                           dataformat=self.dataformat,
+                           errorhunt=errorhunt,
+                           cmap=cmap, 
+                           internal_standard=internal_standard,
+                           name=names) for f in self.files])
+
+        # sort by time
+        self.data = sorted(data, key=lambda d: d.meta['date'])
 
         # assign sample names
         if (names == 'file_names') | (names == 'metadata_names'):
@@ -770,6 +774,8 @@ class analyse(object):
             # create time points to calculate background
             if cstep is None:
                 cstep = weight_fwhm / 20
+            # TODO: Modify  bkg_t to make sure none of the calculated 
+            # bkg points are during a sample collection.
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
                               cstep)
@@ -1063,12 +1069,12 @@ class analyse(object):
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
             # label elements
             srmdat.loc[:, 'element'] = np.nan
-            
+
             elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             for e in elements:
                 ind = [e in elnames.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
-            
+
             # convert to table in same format as stdtab
             self.srmdat = srmdat.dropna()
 
@@ -1125,7 +1131,7 @@ class analyse(object):
 
             srmtabs[a] = srmtab
 
-        self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
+        self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
         return
 
     # def load_calibration(self, params=None):
@@ -1242,32 +1248,32 @@ class analyse(object):
             if drift_correct:
                 for n, g in self.srmtabs.loc[a, :].groupby(level=0):
                     if srm_errors:
-                        p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
-                                   sy=self.srmtabs.loc[a].loc[:, 'srm_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
+                                   sy=self.srmtabs.loc[a, 'srm_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     else:
-                        p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
+                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
+                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
                                    fn=self.calib_fns[a],
                                    coef0=p0)
                     uTime = g.index.get_level_values('uTime').values.mean()
                     self.calib_params.loc[uTime, a] = p
             else:
                 if srm_errors:
-                    p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
-                               sy=self.srmtabs.loc[a].loc[:, 'srm_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
+                               sy=self.srmtabs.loc[a, 'srm_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
                 else:
-                    p = odrfit(x=self.srmtabs.loc[a].loc[:, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a].loc[:, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a].loc[:, 'meas_err'].values,
+                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+                               y=self.srmtabs.loc[a, 'srm_mean'].values,
+                               sx=self.srmtabs.loc[a, 'meas_err'].values,
                                fn=self.calib_fns[a],
                                coef0=p0)
                 self.calib_params.loc[0, a] = p
@@ -1640,6 +1646,9 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
+        self.filter_status()
+        return
+
     @_log
     def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
         """
@@ -1672,6 +1681,36 @@ class analyse(object):
                 self.data_dict[s].filt.off(analyte, filt)
             except:
                 warnings.warn("filt.off failure in sample " + s)
+
+        self.filter_status()
+        return
+
+    @_log
+    def filter_new(self, name, filt_str, samples=None, subset=None):
+        """
+        Make new filter from combination of other filters.
+
+        Parameters
+        ----------
+        name : str
+            The name of the new filter. Should be unique.
+        filt_str : str
+            A logical combination of partial strings which will create
+            the new filter. For example, 'Albelow & Mnbelow' will combine
+            all filters that partially match 'Albelow' with those that
+            partially match 'Mnbelow' using the 'AND' logical operator.
+
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data_dict[s].filt.filter_new(name, filter_string)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         s = ''
@@ -1819,7 +1858,11 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
             d = self.data_dict[s]
-            f = c.predict(d.focus)
+            try:
+                f = c.predict(d.focus)
+            except ValueError:
+                # in case there's no data
+                f = np.array([-2] * len(d.Time))
             for l in labs:
                 ind = f == l
                 d.filt.add(name=name + '_{:.0f}'.format(l),
@@ -2645,6 +2688,8 @@ class analyse(object):
             if filename is None:
                 filename = 'stat_export.csv'
             out.to_csv(self.export_dir + '/' + filename)
+
+        out.drop(self.internal_standard, 1, inplace=True)
 
         self.stats_df = out
 
@@ -4317,6 +4362,28 @@ class D(object):
 
         return
 
+    def filter_new(self, name, filt_str):
+        """
+        Make new filter from combination of other filters.
+
+        Parameters
+        ----------
+        name : str
+            The name of the new filter. Should be unique.
+        filt_str : str
+            A logical combination of partial strings which will create
+            the new filter. For example, 'Albelow & Mnbelow' will combine
+            all filters that partially match 'Albelow' with those that
+            partially match 'Mnbelow' using the 'AND' logical operator.
+
+        Returns
+        -------
+        None
+        """
+        filt = self.filt.grab_filt(filt=filt_str)
+        self.filt.add(name, filt, info=filt_str)
+        return
+
     # Plotting Functions
     # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
     #             **kwargs):
@@ -5106,8 +5173,10 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, (str, int, float)):
+        if isinstance(filt, (int, float)):
             filt = [filt]
+        elif isinstance(filt, str):
+            filt = self.fuzzmatch(filt, multi=True)
 
         if analyte is None:
             analyte = self.analytes
@@ -5118,9 +5187,16 @@ class filt(object):
             for f in filt:
                 if isinstance(f, (int, float)):
                     f = self.index[int(f)]
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = True
+
+                try:
+                    self.switches[a][f] = True
+                except KeyError:
+                    f = self.fuzzmatch(f, multi=False)
+                    self.switches[a][f] = True
+
+                # for k in self.switches[a].keys():
+                #     if f in k:
+                #         self.switches[a][k] = True
         return
 
     def off(self, analyte=None, filt=None):
@@ -5132,8 +5208,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional. int, str or array_like
-            Name/number or iterable names/numbers of filters.
+        filt : optional. int, list of int or str
+            Number(s) or partial string that corresponds to filter name(s).
 
         Returns
         -------
@@ -5141,8 +5217,10 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, (str, int)):
+        if isinstance(filt, (int, float)):
             filt = [filt]
+        elif isinstance(filt, str):
+            filt = self.fuzzmatch(filt, multi=True)
 
         if analyte is None:
             analyte = self.analytes
@@ -5153,9 +5231,16 @@ class filt(object):
             for f in filt:
                 if isinstance(f, int):
                     f = self.index[f]
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = False
+
+                try:
+                    self.switches[a][f] = False
+                except KeyError:
+                    f = self.fuzzmatch(f, multi=False)
+                    self.switches[a][f] = False
+
+                # for k in self.switches[a].keys():
+                #     if f in k:
+                #         self.switches[a][k] = False
         return
 
     def make(self, analyte):
@@ -5189,6 +5274,34 @@ class filt(object):
             self.keys[a] = key
         return self.make_fromkey(key)
 
+    def fuzzmatch(self, fuzzkey, multi=False):
+        """
+        Identify a filter by fuzzy string matching.
+
+        Partial ('fuzzy') matching performed by `fuzzywuzzy.fuzzy.ratio`
+
+        Parameters
+        ----------
+        fuzzkey : str
+            A string that partially matches one filter name more than the others.
+
+        Returns
+        -------
+        The name of the most closely matched filter.
+        """
+
+        keys, ratios = np.array([(f, fuzz.ratio(fuzzkey, f)) for f in self.components.keys()]).T
+        ratios = ratios.astype(float)
+        mratio = ratios.max()
+
+        if multi:
+            return keys[ratios == mratio]
+        else:
+            if sum(ratios == mratio) == 1:
+                return keys[ratios == mratio][0]
+            else:
+                raise ValueError("\nThe filter key provided ('{:}') matches two or more filter names equally well:\n".format(fuzzkey) + ', '.join(keys[ratios == mratio]) + "\nPlease be more specific!")
+
     def make_fromkey(self, key):
         """
         Make filter from logical expression.
@@ -5216,7 +5329,7 @@ class filt(object):
         """
         if key != '':
             def make_runable(match):
-                return "self.components['" + match.group(0) + "']"
+                return "self.components['" + self.fuzzmatch(match.group(0)) + "']"
 
             runable = re.sub('[^\(\)|& ]+', make_runable, key)
             return eval(runable)
@@ -5709,8 +5822,11 @@ def pretty_element(s):
     str
         LaTeX formatted string with superscript numbers.
     """
-    g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
-    return '$^{' + g[1] + '}$' + g[0]
+    el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
+    m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+
+#     g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
+    return '$^{' + m + '}$' + el
 
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
