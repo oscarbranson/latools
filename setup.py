@@ -25,6 +25,7 @@ setup(name='latools',
                         'Ipython',
                         'configparser',
                         'tqdm',
+                        'fuzzywuzzy',
                         ],
       package_data={
         'latools': ['latools.cfg',
