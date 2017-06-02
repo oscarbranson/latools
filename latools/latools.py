@@ -378,10 +378,10 @@ class analyse(object):
         else:
             try:
                 samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not ".format(subset) +
-                                  "exist.\nUse 'make_subset' to create a" +
-                                  "subset."))
+            except KeyError:
+                raise KeyError(("Subset '{:s}' does not ".format(subset) +
+                                "exist.\nUse 'make_subset' to create a" +
+                                "subset."))
         return samples
 
     def _add_minimal_analte(self, analyte):
@@ -514,7 +514,6 @@ class analyse(object):
         else:
             bkg_thresh = None
 
-
         if analyte is None:
             analyte = self.internal_standard
         elif analyte not in self.minimal_analytes:
@@ -600,6 +599,7 @@ class analyse(object):
                              np.diff(v.Time[1:3]))
 
         times = np.concatenate(times)
+        times = np.round(times, 2)
         trans = np.concatenate(trans)
 
         ti = []
@@ -621,8 +621,8 @@ class analyse(object):
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
 
-            ax.scatter(times, trans, alpha=0.2, color='k', marker='x')
-            ax.scatter(ti, tr, alpha=0.6, color='k', marker='o')
+            ax.scatter(times, trans, alpha=0.2, color='k', marker='x', zorder=-2)
+            ax.scatter(ti, tr, alpha=1, color='k', marker='o')
             fitx = np.linspace(0, max(ti))
             ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
             ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5, ),
@@ -696,7 +696,7 @@ class analyse(object):
         return
 
     # functions for background correction
-    def get_background(self, n_min=10, n_max=None, focus_stage='despiked'):
+    def get_background(self, n_min=10, n_max=None, focus_stage='despiked', filter=False, f_win=5, f_n_lim=3):
         """
         Extract all background data from all samples on universal time scale.
         Used by both 'polynomial' and 'weightedmean' methods.
@@ -706,11 +706,23 @@ class analyse(object):
         n_min : int
             The minimum number of points a background region must
             have to be included in calculation.
-
+        n_max : int
+            The maximum number of points a background region must
+            have to be included in calculation.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
         Returns
         -------
         pandas.DataFrame object containing background data.
         """
+        idx = pd.IndexSlice
 
         allbkgs = {'uTime': [],
                    'ns': []}
@@ -739,12 +751,29 @@ class analyse(object):
         # calculate per - background region stats
         self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
+        if filter:
+            # calculate rolling mean and std from summary
+            t = self.bkg['summary'].loc[:, idx[:, 'mean']]
+            r = t.rolling(f_win).aggregate([np.nanmean, np.nanstd])
+            # calculate upper threshold
+            upper = r.loc[:, idx[:, :, 'nanmean']] + f_n_lim * r.loc[:, idx[:, :, 'nanstd']].values
+            # calculate which are over upper threshold
+            over = r.loc[:, idx[:, :, 'nanmean']] > np.roll(upper.values, 1, 0)
+            # identify them
+            ns_drop = over.loc[over.apply(any, 1),:].index.values
+            # drop them from summary
+            self.bkg['summary'].drop(ns_drop, inplace=True)
+            # remove them from raw
+            ind = np.ones(self.bkg['raw'].shape[0], dtype=bool)
+            for ns in ns_drop:
+                ind = ind & (self.bkg['raw'].loc[:, 'ns'] != ns)
+            self.bkg['raw'] = self.bkg['raw'].loc[ind, :]
         return
-
 
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
-                              n_min=20, n_max=None, cstep=None):
+                              n_min=20, n_max=None, cstep=None,
+                              filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -759,6 +788,15 @@ class analyse(object):
             will not be included in the fit.
         cstep : float or None
             The interval between calculated background points.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
 
         """
         if analytes is None:
@@ -767,14 +805,16 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min=n_min, n_max=n_max)
+        self.get_background(n_min=n_min, n_max=n_max,
+                            filter=filter,
+                            f_win=f_win, f_n_lim=f_n_lim)
 
         # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
             if cstep is None:
                 cstep = weight_fwhm / 20
-            # TODO: Modify  bkg_t to make sure none of the calculated 
+            # TODO: Modify  bkg_t to make sure none of the calculated
             # bkg points are during a sample collection.
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
@@ -790,7 +830,8 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None):
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None, 
+                          filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a 1D interpolation.
 
@@ -808,6 +849,15 @@ class analyse(object):
             will not be included in the fit.
         cstep : float or None
             The interval between calculated background points.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
 
         """
         if analytes is None:
@@ -816,7 +866,9 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min=n_min, n_max=n_max)
+        self.get_background(n_min=n_min, n_max=n_max,
+                            filter=filter,
+                            f_win=f_win, f_n_lim=f_n_lim)
 
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
@@ -891,7 +943,7 @@ class analyse(object):
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
 
-            for i, r in self.bkg['summary'].iterrows():
+            for i, r in tqdm(self.bkg['summary'].iterrows(), desc='Plotting ' + a + ':', leave=False):
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
                 yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
@@ -1030,7 +1082,7 @@ class analyse(object):
 
     #     return
 
-    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1038,12 +1090,13 @@ class analyse(object):
 
             for n in range(1, s.n + 1):
                 ind = s.ns == n
-                for a in s.analytes:
-                    aind = ind & ~np.isnan(nominal_values(s.focus[a]))
-                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'mean')] = np.nanmean(s.focus[a][aind])
-                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
+                if sum(ind) >= n_min:
+                    for a in s.analytes:
+                        aind = ind & ~np.isnan(nominal_values(s.focus[a]))
+                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
 
             # sort column multiindex
             stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
@@ -1171,7 +1224,8 @@ class analyse(object):
     # apply calibration to data
     @_log
     def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
-                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
+                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'],
+                  n_min=10):
         """
         Calibrates the data to measured SRM values.
 
@@ -1208,7 +1262,7 @@ class analyse(object):
             analytes = [analytes]
 
         if not hasattr(self, 'srmtabs'):
-            self.srm_id_auto(srms_used)
+            self.srm_id_auto(srms_used, n_min)
 
         # calibration functions
         def calib_0(P, x):
@@ -6243,8 +6297,7 @@ def weighted_average(x, y, x_new, fwhm=300):
     # Gaussian function as weights
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
-    for index in range(0, len(x_new)):
-        xn = x_new[index]
+    for index, xn in enumerate(x_new):
         weights = gauss(x, 1, xn, sigma)
         weights /= sum(weights)
         # weighted mean
