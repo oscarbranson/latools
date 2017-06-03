@@ -210,14 +210,20 @@ This removes significant possibilities for &#8216;human error&#8217; from data a
 </div>
 <div class="section" id="data-filters">
 <h2>Data Filters<a class="headerlink" href="#data-filters" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal"><span class="pre">latools</span></code> includes several filtering functions, which can be applied in any order, repetitively and in any sequence.
+<p><code class="docutils literal"><span class="pre">latools</span></code> includes several filtering functions, which can be created, combined and applied in any order, repetitively and in any sequence.
 By their combined application, it should be possible to isolate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):</p>
 <ul class="simple">
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>: A more sophisticated version of <a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code></a>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code>: A more sophisticated version of <code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.</li>
+</ul>
+<p>It is also possible to &#8216;train&#8217; a clustering algorithm based on analyte concentrations from <em>all</em> samples, and then apply it to individual filters.
+To do this, use:</p>
+<ul class="simple">
+<li><code class="xref py py-meth docutils literal"><span class="pre">fit_classifier()</span></code>: Uses a clustering algorithm based on specified analytes in <em>all</em> samples (or a subset) to identify separate compositions within the entire dataset. This is particularly useful if (for example) all samples are affected by a contaminant with a unique composition, or the samples contain a chemical &#8216;label&#8217; that identifies a particular material. This will be most robustly identified at the whole-analysis level, rather than the individual-sample level.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">apply_classifier()</span></code>: Applies the classifier fitted to the entire dataset to all samples individually. Creates a sample-level filter using the classifier based on all data.</li>
 </ul>
 <p>For a full account of these filters, how they work and how they can be used, see <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a>.</p>
 </div>
@@ -243,7 +249,7 @@ We know from experience that the tape tends to have very low concentration of ot
 <h3>Creating a Filter<a class="headerlink" href="#creating-a-filter" title="Permalink to this headline">¶</a></h3>
 <p>We wouldn&#8217;t expect cultured foraminifera to have a Al/Ca of ~100 µmol/mol, so we therefore want to remove all data from regions with an Al/Ca above this.
 We&#8217;ll do this with a threshold filter:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">100e-6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">100</span><span class="n">e</span><span class="o">-</span><span class="mi">6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
 </pre></div>
 </div>
 <p>This goes through <em>all</em> the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol.
@@ -297,27 +303,23 @@ In this case, the 100 µmol/mol threshold seems to do a good job of excluding ex
 <div class="section" id="applying-a-filter">
 <h3>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this headline">¶</a></h3>
 <p>Once you&#8217;ve identified which filter you want to apply, you must turn that filter &#8216;on&#8217; using:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Where <code class="docutils literal"><span class="pre">filt</span></code> can either be the filter number (as here), or a partially matching string (e.g. you could use <code class="docutils literal"><span class="pre">filt='below'</span></code> to turn on all filters with &#8216;below&#8217; in the name).
+<p>Where <code class="docutils literal"><span class="pre">filt</span></code> can either be the filter number (corresponding to the &#8216;n&#8217; column in the output of <code class="docutils literal"><span class="pre">filter_status()</span></code>) or a partially matching string, as here.
+For example, <code class="docutils literal"><span class="pre">'Albelow'</span></code> is most similar to <code class="docutils literal"><span class="pre">'Al27_thresh_below'</span></code>, so this filter will be turned on. You could also specify <code class="docutils literal"><span class="pre">'below'</span></code>, which would turn on all filters with &#8216;below&#8217; in the name. This is done using &#8216;fuzzy string matching&#8217;, provided by the <code class="docutils literal"><span class="pre">fuzzywuzzy</span></code> package.
 There is also a counterpart <code class="docutils literal"><span class="pre">eg.filter_off()</span></code> function, which works in the inverse.
-These functions will turn the threshold filter on for all analytes measured in all samples.
-The status of filtering can be checked with <code class="docutils literal"><span class="pre">eg.filter_status()</span></code> (as above), which should now return:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
-<span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>
-
-<span class="n">n</span>  <span class="n">Filter</span> <span class="n">Name</span>          <span class="n">Mg24</span>   <span class="n">Mg25</span>   <span class="n">Al27</span>   <span class="n">Ca43</span>   <span class="n">Ca44</span>   <span class="n">Mn55</span>   <span class="n">Sr88</span>   <span class="n">Ba137</span>  <span class="n">Ba138</span>
-<span class="mi">0</span>  <span class="n">Al27_thresh_below</span>    <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>
-<span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>
-</pre></div>
-</div>
+These functions will turn the threshold filter on for all analytes measured in all samples, and return a report of which filters are now on or off:</p>
+<blockquote>
+<div><p>Subset All_Samples:
+Samples: Sample-1, Sample-2, Sample-3</p>
+<p>n  Filter Name          Mg24   Mg25   Al27   Ca43   Ca44   Mn55   Sr88   Ba137  Ba138
+0  Al27_thresh_below    True   True   True   True   True   True   True   True   True
+1  Al27_thresh_above    False  False  False  False  False  False  False  False  False</p>
+</div></blockquote>
 <p>In some cases, you might have a sample where one analyte is effected by a contaminant that does not alter other analytes.
 If this is the case, you can switch a filter on or off for a specific analyte:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Mg25&#39;</span><span class="p">)</span>
-
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_status</span><span class="p">()</span>
-
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">,</span> <span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Mg25&#39;</span><span class="p">)</span>
 
 <span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
 <span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>
@@ -327,12 +329,12 @@ If this is the case, you can switch a filter on or off for a specific analyte:</
 <span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>
 </pre></div>
 </div>
-<p>Notice how filter &#8216;0&#8217; is now deactivated for Mg25.</p>
-<p>Finally, let&#8217;s return to the &#8216;Subsets&#8217;, which we skipped over earlier.</p>
+<p>Notice how the &#8216;Al27_thresh_below&#8217; filter is now deactivated for Mg25.</p>
 </div>
 <div class="section" id="sample-subsets">
 <h3>Sample Subsets<a class="headerlink" href="#sample-subsets" title="Permalink to this headline">¶</a></h3>
-<p>It is quite common to analyse distinct sets of samples in the same analytical session.
+<p>Finally, let&#8217;s return to the &#8216;Subsets&#8217;, which we skipped over earlier.
+It is quite common to analyse distinct sets of samples in the same analytical session.
 To accommodate this, you can create data &#8216;subsets&#8217; during analysis, and treat them in different ways.
 For example, imagine that &#8216;Sample-1&#8217; in our test dataset was a different type of sample, that needs to be filtered in a different way.
 We can identify this as a subset by:</p>
@@ -342,9 +344,6 @@ We can identify this as a subset by:</p>
 </div>
 <p>And filters can be turned on and off independently for each subset:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;set1&#39;</span><span class="p">)</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;set2&#39;</span><span class="p">)</span>
-
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_status</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;set1&#39;</span><span class="p">,</span> <span class="s1">&#39;set2&#39;</span><span class="p">])</span>
 
 <span class="n">Subset</span> <span class="n">set1</span><span class="p">:</span>
 <span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span>
@@ -352,6 +351,9 @@ We can identify this as a subset by:</p>
 <span class="n">n</span>  <span class="n">Filter</span> <span class="n">Name</span>          <span class="n">Mg24</span>   <span class="n">Mg25</span>   <span class="n">Al27</span>   <span class="n">Ca43</span>   <span class="n">Ca44</span>   <span class="n">Mn55</span>   <span class="n">Sr88</span>   <span class="n">Ba137</span>  <span class="n">Ba138</span>
 <span class="mi">0</span>  <span class="n">Al27_thresh_below</span>    <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>
 <span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>
+
+
+<span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;set2&#39;</span><span class="p">)</span>
 
 <span class="n">Subset</span> <span class="n">set2</span><span class="p">:</span>
 <span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>

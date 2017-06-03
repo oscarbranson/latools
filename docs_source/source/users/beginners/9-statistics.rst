@@ -6,9 +6,21 @@ Sample Statistics
 
 After filtering, you can calculated and export integrated compositional values for your analyses::
 
-	eg.sample_stats(stat_fns=[np.nanmean, np.nanstd], filt=True)
+	eg.sample_stats(stat_fns=['mean', 'std'], filt=True)
 
-Where ``stat_fns`` specifies which functions you would like to use to calculate the statistics (in this case the ``nanmean`` and ``nanstd`` of the ``numpy`` package). 
+Where ``stat_fns`` specifies which functions you would like to use to calculate the statistics.
+Built in options are:
+
+* ``'mean'``: Arithmetic mean, calculated by ``np.nanmean``.
+* ``'std'``: Arithmetic standard deviation, calculated by ``np.nanstd``.
+* ``'se'``:  Arithmetic standard error, calculated by ``np.nanstd / n``.
+* ``'H15_mean'``: Huber (H15) robust mean.
+* ``'H15_std'``: Huber (H15) robust standard deviation.
+* ``'H15_se'``: Huber (H15) robust standard error.
+* ``custom_fn(a)``: A function you've written yourself, which takes an array (``a``) and returns a single value. This function must be able to cope with ``NaN`` values.
+
+Where the Huber (H15) robust statistics remove outliers from the data, as described `here <http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf>`_.
+
 You can specify any function that accepts an array and returns a single value here.
 ``filt`` can either be True (applies all active filters), or a specific filter number or partially matching name to apply a specific filter.
 In combination with data subsets, and the ability to specify different combinations of filters for different subsets, this provides a flexible way to explore the impact of different filters on your integrated values.

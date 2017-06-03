@@ -45,13 +45,15 @@ Next, launch a Jupyter notebook in this folder. To do this, open a terminal wind
 
 This should open a browser window, showing the Jupyter main screen. 
 From here, start a new Python notebook by clicking 'New' in the top right, and selecting your Python version (preferably 3.5+).
-This will open a new browser tab containing your Python notebook.
+This will open a new browser tab containing your Jupyter notebook.
 
 Once python is running, import latools into your environment::
 
 	import latools as la
 
 All the functions of latools are now accessible from within the ``la`` prefix.
+
+.. tip:: if you want Jupyter notebook to display plots in-line (recommended), add an additional line after the import statement: `%matplotlib inline`.
 
 .. tip:: To run code in a Jupyter notebook, you must 'evaluate' the cell containing the code. to do this, type:
 

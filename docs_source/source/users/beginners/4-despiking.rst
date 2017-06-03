@@ -21,7 +21,8 @@ You can specify several parameters that change the behaviour of these de-spiking
 
 The :meth:`~latools.D.expdecay_despiker` relies on knowing the exponential decay constant that describes the washout characteristics of your laser ablation cell.
 If this values is missing (as here), ``latools`` calculates it by fitting an exponential decay function to the internal standard at the on-off laser transition at the end of ablations of standards. 
-If this has been done, you will be informed. In this case, it should look like::
+If this has been done, you will be informed. 
+In this case, it should look like::
 
     Calculating exponential decay coefficient
     from SRM Ca43 washouts...

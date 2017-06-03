@@ -189,26 +189,29 @@
   <div class="section" id="summary">
 <span id="beginner-summary"></span><h1>Summary<a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h1>
 <p>If we put all the preceding steps together:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="s1">&#39;./data/&#39;</span><span class="p">,</span>
-            <span class="n">config</span><span class="o">=</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span>
-            <span class="n">internal_standard</span><span class="o">=</span><span class="s1">&#39;Ca43&#39;</span><span class="p">,</span>
-            <span class="n">srm_identifier</span><span class="o">=</span><span class="s1">&#39;STD&#39;</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="s1">&#39;./data_remote/&#39;</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span>
+        <span class="n">internal_standard</span><span class="o">=</span><span class="s1">&#39;Ca43&#39;</span><span class="p">,</span>
+        <span class="n">srm_identifier</span><span class="o">=</span><span class="s1">&#39;STD&#39;</span><span class="p">)</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">trace_plots</span><span class="p">()</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">despike</span><span class="p">(</span><span class="n">expdecay_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-       <span class="n">noise_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+           <span class="n">noise_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">autorange</span><span class="p">(</span><span class="n">on_mult</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">],</span>
-         <span class="n">off_mult</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
+             <span class="n">off_mult</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">bkg_calc_weightedmean</span><span class="p">(</span><span class="n">weight_fwhm</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
-                     <span class="n">n_min</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+                         <span class="n">n_min</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">bkg_plot</span><span class="p">()</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">bkg_subtract</span><span class="p">()</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">ratio</span><span class="p">()</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">drift_correct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-         <span class="n">poly_n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-         <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
+             <span class="n">poly_n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+             <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">eg</span><span class="o">.</span><span class="n">calibration_plot</span><span class="p">()</span>
 
 <span class="c1"># create a threshold filter at 0.1 mmol/mol Al/Ca</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.1e-3</span><span class="p">)</span>
 <span class="c1"># turn off the &#39;above&#39; filter, so only data below the threshold is kept.</span>
-<span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">)</span>
 
 <span class="c1"># calculate sample statistics.</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">sample_stats</span><span class="p">()</span>
@@ -220,7 +223,7 @@
 </div>
 <p>Here we processed just 3 files, but the same procedure can be applied to an entire day of analyses, and takes just a little longer.</p>
 <p>The processing stage most likely to modify your results is filtering.
-There are a number of filters available, ranging from simple concentration thresholds (<a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>, as above) to advanced multi-dimensional clustering algorithms (<a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>).
+There are a number of filters available, ranging from simple concentration thresholds (<code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code>, as above) to advanced multi-dimensional clustering algorithms (<code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code>).
 We recommend you read and understand the section on <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a> before applying filters to your data.</p>
 <div class="section" id="before-you-go">
 <h2>Before You Go<a class="headerlink" href="#before-you-go" title="Permalink to this headline">¶</a></h2>

@@ -33,6 +33,6 @@ There should now be two new folders called ``reports_data/`` and ``export_data/`
 Note that the '_data' suffix will be the same as the name of the folder that contains your data - i.e. the names of these folders will change, depending on the name of your data folder.
 ``latools`` saves data and plots to these folders throughout analysis:
 
-* ``export_data`` will contain exported traces, per-ablation averages and minimal analysis exports.
-* ``reports_data`` will contain all plots generated during analysis.
+* ``data_export`` will contain exported data: traces, per-ablation averages and minimal analysis exports.
+* ``data_reports`` will contain all plots generated during analysis.
 

@@ -26,7 +26,7 @@ This removes significant possibilities for 'human error' from data analysis, and
 
 Data Filters
 ============
-``latools`` includes several filtering functions, which can be applied in any order, repetitively and in any sequence.
+``latools`` includes several filtering functions, which can be created, combined and applied in any order, repetitively and in any sequence.
 By their combined application, it should be possible to isolate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):
 
@@ -34,6 +34,12 @@ These filter are (in order of increasing complexity):
 * :meth:`~latools.analyse.filter_distribution`: Finds separate `populations` within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.
 * :meth:`~latools.analyse.filter_clustering`: A more sophisticated version of :meth:`~latools.analyse.filter_distribution`, which uses data clustering algorithms from the `sklearn <http://scikit-learn.org/>`_ module to identify compositionally distinct 'populations' in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.
 * :meth:`~latools.analyse.filter_correlation`: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.
+
+It is also possible to 'train' a clustering algorithm based on analyte concentrations from *all* samples, and then apply it to individual filters.
+To do this, use:
+
+* :meth:`~latools.analyse.fit_classifier`: Uses a clustering algorithm based on specified analytes in *all* samples (or a subset) to identify separate compositions within the entire dataset. This is particularly useful if (for example) all samples are affected by a contaminant with a unique composition, or the samples contain a chemical 'label' that identifies a particular material. This will be most robustly identified at the whole-analysis level, rather than the individual-sample level.
+* :meth:`~latools.analyse.apply_classifier`: Applies the classifier fitted to the entire dataset to all samples individually. Creates a sample-level filter using the classifier based on all data.
 
 For a full account of these filters, how they work and how they can be used, see :ref:`advanced_filtering`.
 
@@ -117,12 +123,12 @@ Applying a Filter
 -----------------
 Once you've identified which filter you want to apply, you must turn that filter 'on' using::
 
-    eg.filter_on(filt=0)
+    eg.filter_on(filt='Albelow')
 
-Where ``filt`` can either be the filter number (as here), or a partially matching string (e.g. you could use ``filt='below'`` to turn on all filters with 'below' in the name).
+Where ``filt`` can either be the filter number (corresponding to the 'n' column in the output of ``filter_status()``) or a partially matching string, as here.
+For example, ``'Albelow'`` is most similar to ``'Al27_thresh_below'``, so this filter will be turned on. You could also specify ``'below'``, which would turn on all filters with 'below' in the name. This is done using 'fuzzy string matching', provided by the ``fuzzywuzzy`` package.
 There is also a counterpart ``eg.filter_off()`` function, which works in the inverse.
-These functions will turn the threshold filter on for all analytes measured in all samples.
-The status of filtering can be checked with ``eg.filter_status()`` (as above), which should now return::
+These functions will turn the threshold filter on for all analytes measured in all samples, and return a report of which filters are now on or off:
 
     Subset All_Samples:
     Samples: Sample-1, Sample-2, Sample-3
@@ -134,10 +140,7 @@ The status of filtering can be checked with ``eg.filter_status()`` (as above), w
 In some cases, you might have a sample where one analyte is effected by a contaminant that does not alter other analytes.
 If this is the case, you can switch a filter on or off for a specific analyte::
 
-    eg.filter_off(filt=0, analyte='Mg25')
-
-    eg.filter_status()
-
+    eg.filter_off(filt='Albelow', analyte='Mg25')
 
     Subset All_Samples:
     Samples: Sample-1, Sample-2, Sample-3
@@ -146,12 +149,11 @@ If this is the case, you can switch a filter on or off for a specific analyte::
     0  Al27_thresh_below    True   False  True   True   True   True   True   True   True   
     1  Al27_thresh_above    False  False  False  False  False  False  False  False  False  
 
-Notice how filter '0' is now deactivated for Mg25.
-
-Finally, let's return to the 'Subsets', which we skipped over earlier.
+Notice how the 'Al27_thresh_below' filter is now deactivated for Mg25.
 
 Sample Subsets
 --------------
+Finally, let's return to the 'Subsets', which we skipped over earlier.
 It is quite common to analyse distinct sets of samples in the same analytical session.
 To accommodate this, you can create data 'subsets' during analysis, and treat them in different ways.
 For example, imagine that 'Sample-1' in our test dataset was a different type of sample, that needs to be filtered in a different way.
@@ -163,9 +165,6 @@ We can identify this as a subset by::
 And filters can be turned on and off independently for each subset::
 
     eg.filter_on(filt=0, subset='set1')
-    eg.filter_off(filt=0, subset='set2')
-
-    eg.filter_status(subset=['set1', 'set2'])
 
     Subset set1:
     Samples: Sample-1
@@ -173,6 +172,9 @@ And filters can be turned on and off independently for each subset::
     n  Filter Name          Mg24   Mg25   Al27   Ca43   Ca44   Mn55   Sr88   Ba137  Ba138  
     0  Al27_thresh_below    True   True   True   True   True   True   True   True   True   
     1  Al27_thresh_above    False  False  False  False  False  False  False  False  False  
+
+
+    eg.filter_off(filt=0, subset='set2')
 
     Subset set2:
     Samples: Sample-2, Sample-3
