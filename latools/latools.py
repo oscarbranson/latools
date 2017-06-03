@@ -2,10 +2,8 @@ import configparser
 import itertools
 import inspect
 import os
-import pprint
 import re
 import shutil
-import sys
 import time
 import warnings
 
@@ -22,6 +20,7 @@ import uncertainties.unumpy as un
 
 from io import BytesIO
 from functools import wraps
+from fuzzywuzzy import fuzz
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
 from scipy import odr
@@ -78,6 +77,10 @@ class analyse(object):
     internal_standard : str
         The name of the analyte used as an internal standard throughout
         analysis.
+    names : str
+        'file_names' : use the file names as labels
+        'metadata_names' : used the 'names' attribute of metadata as the name
+        anything else : use numbers.
 
     Attributes
     ----------
@@ -150,7 +153,8 @@ class analyse(object):
     """
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None, time_format=None, internal_standard='Ca43'):
+                 cmap=None, time_format=None, internal_standard='Ca43',
+                 names='file_names'):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -253,12 +257,31 @@ class analyse(object):
             self.dataformat = dataformat
 
         # load data (initialise D objects)
-        self.data = np.array([D(self.folder + '/' + f,
-                                dataformat=self.dataformat,
-                                errorhunt=errorhunt,
-                                cmap=cmap, internal_standard=internal_standard) for f in self.files])
+        data = np.array([D(self.folder + '/' + f,
+                           dataformat=self.dataformat,
+                           errorhunt=errorhunt,
+                           cmap=cmap, 
+                           internal_standard=internal_standard,
+                           name=names) for f in self.files])
 
-        self.samples = np.array([s.sample for s in self.data])
+        # sort by time
+        self.data = sorted(data, key=lambda d: d.meta['date'])
+
+        # assign sample names
+        if (names == 'file_names') | (names == 'metadata_names'):
+            self.samples = np.array([s.sample for s in self.data])
+            # rename duplicates sample names
+            for u in np.unique(self.samples):
+                ind = self.samples == u
+                if sum(ind) > 1:
+                    self.samples[ind] = [s + '_{}'.format(n) for s, n in zip(self.samples[ind], np.arange(sum(ind)))]
+                    for i, sn in zip(np.arange(len(self.samples))[ind], self.samples[ind]):
+                        self.data[i].sample = sn
+        else:
+            self.samples = np.arange(len(self.data))
+            for i, s in enumerate(self.samples):
+                self.data[i].sampleseq1 = s
+
         self.analytes = np.array(self.data[0].analytes)
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
@@ -355,10 +378,10 @@ class analyse(object):
         else:
             try:
                 samples = self.subsets[subset]
-            except:
-                raise ValueError(("Subset '{:s}' does not ".format(subset) +
-                                  "exist.\nUse 'make_subset' to create a" +
-                                  "subset."))
+            except KeyError:
+                raise KeyError(("Subset '{:s}' does not ".format(subset) +
+                                "exist.\nUse 'make_subset' to create a" +
+                                "subset."))
         return samples
 
     def _add_minimal_analte(self, analyte):
@@ -491,7 +514,6 @@ class analyse(object):
         else:
             bkg_thresh = None
 
-
         if analyte is None:
             analyte = self.internal_standard
         elif analyte not in self.minimal_analytes:
@@ -565,7 +587,7 @@ class analyse(object):
         trans = []
         times = []
         for v in self.stds:
-            for trnrng in v.trnrng[1::2]:
+            for trnrng in v.trnrng[-1::-2]:
                 tr = normalise(v.focus[analyte][(v.Time > trnrng[0]) &
                                (v.Time < trnrng[1])])
                 sm = np.apply_along_axis(np.nanmean, 1,
@@ -577,6 +599,7 @@ class analyse(object):
                              np.diff(v.Time[1:3]))
 
         times = np.concatenate(times)
+        times = np.round(times, 2)
         trans = np.concatenate(trans)
 
         ti = []
@@ -598,8 +621,8 @@ class analyse(object):
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
 
-            ax.scatter(times, trans, alpha=0.2, color='k', marker='x')
-            ax.scatter(ti, tr, alpha=0.6, color='k', marker='o')
+            ax.scatter(times, trans, alpha=0.2, color='k', marker='x', zorder=-2)
+            ax.scatter(ti, tr, alpha=1, color='k', marker='o')
             fitx = np.linspace(0, max(ti))
             ax.plot(fitx, expfit(fitx, ep), color='r', label='Fit')
             ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5, ),
@@ -673,7 +696,7 @@ class analyse(object):
         return
 
     # functions for background correction
-    def get_background(self, n_min=10, focus_stage='despiked'):
+    def get_background(self, n_min=10, n_max=None, focus_stage='despiked', filter=False, f_win=5, f_n_lim=3):
         """
         Extract all background data from all samples on universal time scale.
         Used by both 'polynomial' and 'weightedmean' methods.
@@ -683,11 +706,23 @@ class analyse(object):
         n_min : int
             The minimum number of points a background region must
             have to be included in calculation.
-
+        n_max : int
+            The maximum number of points a background region must
+            have to be included in calculation.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
         Returns
         -------
         pandas.DataFrame object containing background data.
         """
+        idx = pd.IndexSlice
 
         allbkgs = {'uTime': [],
                    'ns': []}
@@ -709,15 +744,36 @@ class analyse(object):
 
         self.bkg = {}
         # extract background data from whole dataset
-        self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        if n_max is None:
+            self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
+        else:
+            self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: (len(x) > n_min) & (len(x) < n_max))
         # calculate per - background region stats
         self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
 
+        if filter:
+            # calculate rolling mean and std from summary
+            t = self.bkg['summary'].loc[:, idx[:, 'mean']]
+            r = t.rolling(f_win).aggregate([np.nanmean, np.nanstd])
+            # calculate upper threshold
+            upper = r.loc[:, idx[:, :, 'nanmean']] + f_n_lim * r.loc[:, idx[:, :, 'nanstd']].values
+            # calculate which are over upper threshold
+            over = r.loc[:, idx[:, :, 'nanmean']] > np.roll(upper.values, 1, 0)
+            # identify them
+            ns_drop = over.loc[over.apply(any, 1),:].index.values
+            # drop them from summary
+            self.bkg['summary'].drop(ns_drop, inplace=True)
+            # remove them from raw
+            ind = np.ones(self.bkg['raw'].shape[0], dtype=bool)
+            for ns in ns_drop:
+                ind = ind & (self.bkg['raw'].loc[:, 'ns'] != ns)
+            self.bkg['raw'] = self.bkg['raw'].loc[ind, :]
         return
 
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
-                              n_min=20, cstep=None):
+                              n_min=20, n_max=None, cstep=None,
+                              filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -732,30 +788,41 @@ class analyse(object):
             will not be included in the fit.
         cstep : float or None
             The interval between calculated background points.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
 
         """
-        print("Calculating moving weighted mean background (fwhm={}s)...".format(weight_fwhm))
-
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min)
+        self.get_background(n_min=n_min, n_max=n_max,
+                            filter=filter,
+                            f_win=f_win, f_n_lim=f_n_lim)
 
         # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
             if cstep is None:
-                cstep = self.bkg['raw']['uTime'].ptp() / 100
+                cstep = weight_fwhm / 20
+            # TODO: Modify  bkg_t to make sure none of the calculated
+            # bkg points are during a sample collection.
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
                               cstep)
             self.bkg['calc'] = {}
             self.bkg['calc']['uTime'] = bkg_t
 
-        for a in analytes:
+        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
             self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
                                                    self.bkg['raw'].loc[:, a],
                                                    self.bkg['calc']['uTime'],
@@ -763,7 +830,8 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, cstep=None):
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None, 
+                          filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a 1D interpolation.
 
@@ -781,17 +849,26 @@ class analyse(object):
             will not be included in the fit.
         cstep : float or None
             The interval between calculated background points.
+        filter : bool
+            If true, apply a rolling filter to the isolated background regions
+            to exclude regions with anomalously high values. If True, two parameters
+            alter the filter's behaviour:
+                f_win : int
+                    The size of the rolling window
+                f_n_lim : float
+                    The number of standard deviations above the rolling mean
+                    to set the threshold.
 
         """
-        print("Calculating polynomial background ({} order)...".format(kind))
-
         if analytes is None:
             analytes = self.analytes
             self.bkg = {}
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.get_background(n_min)
+        self.get_background(n_min=n_min, n_max=n_max,
+                            filter=filter,
+                            f_win=f_win, f_n_lim=f_n_lim)
 
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
@@ -805,7 +882,7 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
-        for a in analytes:
+        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
             imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
                                     d.loc[:, (a, 'mean')],
                                     kind=kind)
@@ -844,7 +921,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_plot(self, analytes=None, figsize=[12, 5], yscale='log', ylim=None, err='stderr', save=True):
+    def bkg_plot(self, analytes=None, figsize=None, yscale='log', ylim=None, err='stderr', save=True):
         if not hasattr(self, 'bkg'):
             raise ValueError("Please run bkg_calc before attempting to\n" +
                              "plot the background.")
@@ -853,6 +930,12 @@ class analyse(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if figsize is None:
+            if len(self.samples) > 50:
+                figsize = (len(self.samples) * 0.15, 5)
+            else:
+                figsize = (7.5, 5)
 
         fig = plt.figure(figsize=figsize)
 
@@ -863,7 +946,8 @@ class analyse(object):
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
 
-            for i, r in self.bkg['summary'].iterrows():
+            for i, r in tqdm(self.bkg['summary'].iterrows(), desc='Plotting ' + a + ':',
+                             leave=False, total=len(self.bkg['summary'])):
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
                 yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
@@ -901,10 +985,10 @@ class analyse(object):
         for s, r in self.starttimes.iterrows():
             x = r.Dseconds
             ax.axvline(x, alpha=0.2, color='k', zorder=-1)
-            ax.text(x + 0.003 * self.bkg['raw']['uTime'].ptp(), ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+            ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
 
         if save:
-            fig.savefig(self.report_dir + '/background.pdf')
+            fig.savefig(self.report_dir + '/background.png', dpi=200)
 
         return fig, ax
 
@@ -1002,7 +1086,7 @@ class analyse(object):
 
     #     return
 
-    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614']):
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1010,12 +1094,13 @@ class analyse(object):
 
             for n in range(1, s.n + 1):
                 ind = s.ns == n
-                for a in s.analytes:
-                    aind = ind & ~np.isnan(nominal_values(s.focus[a]))
-                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'mean')] = np.nanmean(s.focus[a][aind])
-                    stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                               (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
+                if sum(ind) >= n_min:
+                    for a in s.analytes:
+                        aind = ind & ~np.isnan(nominal_values(s.focus[a]))
+                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
 
             # sort column multiindex
             stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
@@ -1041,12 +1126,12 @@ class analyse(object):
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
             # label elements
             srmdat.loc[:, 'element'] = np.nan
-            
+
             elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             for e in elements:
                 ind = [e in elnames.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
-            
+
             # convert to table in same format as stdtab
             self.srmdat = srmdat.dropna()
 
@@ -1103,7 +1188,7 @@ class analyse(object):
 
             srmtabs[a] = srmtab
 
-        self.srmtabs = pd.concat(srmtabs).apply(nominal_values)
+        self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
         return
 
     # def load_calibration(self, params=None):
@@ -1143,7 +1228,8 @@ class analyse(object):
     # apply calibration to data
     @_log
     def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
-                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614']):
+                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'],
+                  n_min=10):
         """
         Calibrates the data to measured SRM values.
 
@@ -1175,12 +1261,12 @@ class analyse(object):
         # check for identified srms
 
         if analytes is None:
-            analytes = self.analytes
+            analytes = self.analytes[self.analytes != self.internal_standard]
         elif isinstance(analytes, str):
             analytes = [analytes]
 
         if not hasattr(self, 'srmtabs'):
-            self.srm_id_auto(srms_used)
+            self.srm_id_auto(srms_used, n_min)
 
         # calibration functions
         def calib_0(P, x):
@@ -1618,6 +1704,9 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
+        self.filter_status()
+        return
+
     @_log
     def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
         """
@@ -1651,12 +1740,42 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
+        self.filter_status()
+        return
+
+    @_log
+    def filter_new(self, name, filt_str, samples=None, subset=None):
+        """
+        Make new filter from combination of other filters.
+
+        Parameters
+        ----------
+        name : str
+            The name of the new filter. Should be unique.
+        filt_str : str
+            A logical combination of partial strings which will create
+            the new filter. For example, 'Albelow & Mnbelow' will combine
+            all filters that partially match 'Albelow' with those that
+            partially match 'Mnbelow' using the 'AND' logical operator.
+
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data_dict[s].filt.filter_new(name, filter_string)
+
     def filter_status(self, sample=None, subset=None, stds=False):
         s = ''
         if sample is None and subset is None:
             if not self._has_subsets:
                 s += 'Subset: All Samples\n\n'
-                s += self.data_dict[self.samples[0]].filt.__repr__()
+                s += self.data_dict[self.subsets['All_Samples'][0]].filt.__repr__()
             else:
                 for n in sorted(self._subset_names):
                     s += 'Subset: ' + str(n) + '\n'
@@ -1797,7 +1916,11 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
             d = self.data_dict[s]
-            f = c.predict(d.focus)
+            try:
+                f = c.predict(d.focus)
+            except ValueError:
+                # in case there's no data
+                f = np.array([-2] * len(d.Time))
             for l in labs:
                 ind = f == l
                 d.filt.add(name=name + '_{:.0f}'.format(l),
@@ -2419,9 +2542,15 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
-            list of functions that take a single array_like input,
-            and return a single statistic. Function should be able
-            to cope with numpy NaN values.
+            list of functions or names of functions that take a single
+            array_like input, and return a single statistic. Function
+            should be able to cope with NaN values. Built-in functions:
+                'mean': arithmetic mean
+                'std': arithmetic standard deviation
+                'se': arithmetic standard error
+                'H15_mean': Huber mean (outlier removal)
+                'H15_std': Huber standard deviation (outlier removal)
+                'H15_se': Huber standard error (outlier removal)
         eachtrace : bool
             Whether to calculate the statistics for each analysis
             spot individually, or to produce per - sample means.
@@ -2623,6 +2752,8 @@ class analyse(object):
             if filename is None:
                 filename = 'stat_export.csv'
             out.to_csv(self.export_dir + '/' + filename)
+
+        out.drop(self.internal_standard, 1, inplace=True)
 
         self.stats_df = out
 
@@ -2985,7 +3116,7 @@ class D(object):
     tplot
 
     """
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43'):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -2995,7 +3126,6 @@ class D(object):
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         self.file = data_file
-        self.sample = os.path.basename(self.file).split('.')[0]
         self.internal_standard = internal_standard
 
         with open(data_file) as f:
@@ -3010,6 +3140,14 @@ class D(object):
                 out = re.search(v[-1], lines[int(k)]).groups()
                 for i in np.arange(len(v[0])):
                     self.meta[v[0][i]] = out[i]
+
+        # sample name
+        if name == 'file_names':
+            self.sample = os.path.basename(self.file).split('.')[0]
+        elif name == 'metadata_names':
+            self.sample = self.meta['name']
+        else:
+            self.sample = 0
 
         # column names
         columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
@@ -3632,6 +3770,10 @@ class D(object):
             self.data['calibrated'][a] = \
                 calib_fns[a](P,
                              self.data['ratios'][a])
+
+        if self.internal_standard not in analytes:
+            self.data['calibrated'][self.internal_standard] = \
+                np.empty(len(self.data['ratios'][self.internal_standard]))
 
             # coefs = calib_params[a]
             # if len(coefs) == 1:
@@ -4288,6 +4430,28 @@ class D(object):
 
         return
 
+    def filter_new(self, name, filt_str):
+        """
+        Make new filter from combination of other filters.
+
+        Parameters
+        ----------
+        name : str
+            The name of the new filter. Should be unique.
+        filt_str : str
+            A logical combination of partial strings which will create
+            the new filter. For example, 'Albelow & Mnbelow' will combine
+            all filters that partially match 'Albelow' with those that
+            partially match 'Mnbelow' using the 'AND' logical operator.
+
+        Returns
+        -------
+        None
+        """
+        filt = self.filt.grab_filt(filt=filt_str)
+        self.filt.add(name, filt, info=filt_str)
+        return
+
     # Plotting Functions
     # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
     #             **kwargs):
@@ -4309,7 +4473,7 @@ class D(object):
     #     return fig, axes
 
     @_log
-    def tplot(self, analytes=None, figsize=[10, 4], scale=None, filt=None,
+    def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               interactive=False, focus_stage=None, err_envelope=False):
         """
@@ -5077,8 +5241,10 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, (str, int, float)):
+        if isinstance(filt, (int, float)):
             filt = [filt]
+        elif isinstance(filt, str):
+            filt = self.fuzzmatch(filt, multi=True)
 
         if analyte is None:
             analyte = self.analytes
@@ -5089,9 +5255,16 @@ class filt(object):
             for f in filt:
                 if isinstance(f, (int, float)):
                     f = self.index[int(f)]
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = True
+
+                try:
+                    self.switches[a][f] = True
+                except KeyError:
+                    f = self.fuzzmatch(f, multi=False)
+                    self.switches[a][f] = True
+
+                # for k in self.switches[a].keys():
+                #     if f in k:
+                #         self.switches[a][k] = True
         return
 
     def off(self, analyte=None, filt=None):
@@ -5103,8 +5276,8 @@ class filt(object):
         analyte : optional, str or array_like
             Name or list of names of analytes.
             Defaults to all analytes.
-        filt : optional. int, str or array_like
-            Name/number or iterable names/numbers of filters.
+        filt : optional. int, list of int or str
+            Number(s) or partial string that corresponds to filter name(s).
 
         Returns
         -------
@@ -5112,8 +5285,10 @@ class filt(object):
         """
         if isinstance(analyte, str):
             analyte = [analyte]
-        if isinstance(filt, (str, int)):
+        if isinstance(filt, (int, float)):
             filt = [filt]
+        elif isinstance(filt, str):
+            filt = self.fuzzmatch(filt, multi=True)
 
         if analyte is None:
             analyte = self.analytes
@@ -5124,9 +5299,16 @@ class filt(object):
             for f in filt:
                 if isinstance(f, int):
                     f = self.index[f]
-                for k in self.switches[a].keys():
-                    if f in k:
-                        self.switches[a][k] = False
+
+                try:
+                    self.switches[a][f] = False
+                except KeyError:
+                    f = self.fuzzmatch(f, multi=False)
+                    self.switches[a][f] = False
+
+                # for k in self.switches[a].keys():
+                #     if f in k:
+                #         self.switches[a][k] = False
         return
 
     def make(self, analyte):
@@ -5160,6 +5342,34 @@ class filt(object):
             self.keys[a] = key
         return self.make_fromkey(key)
 
+    def fuzzmatch(self, fuzzkey, multi=False):
+        """
+        Identify a filter by fuzzy string matching.
+
+        Partial ('fuzzy') matching performed by `fuzzywuzzy.fuzzy.ratio`
+
+        Parameters
+        ----------
+        fuzzkey : str
+            A string that partially matches one filter name more than the others.
+
+        Returns
+        -------
+        The name of the most closely matched filter.
+        """
+
+        keys, ratios = np.array([(f, fuzz.ratio(fuzzkey, f)) for f in self.components.keys()]).T
+        ratios = ratios.astype(float)
+        mratio = ratios.max()
+
+        if multi:
+            return keys[ratios == mratio]
+        else:
+            if sum(ratios == mratio) == 1:
+                return keys[ratios == mratio][0]
+            else:
+                raise ValueError("\nThe filter key provided ('{:}') matches two or more filter names equally well:\n".format(fuzzkey) + ', '.join(keys[ratios == mratio]) + "\nPlease be more specific!")
+
     def make_fromkey(self, key):
         """
         Make filter from logical expression.
@@ -5187,7 +5397,7 @@ class filt(object):
         """
         if key != '':
             def make_runable(match):
-                return "self.components['" + match.group(0) + "']"
+                return "self.components['" + self.fuzzmatch(match.group(0)) + "']"
 
             runable = re.sub('[^\(\)|& ]+', make_runable, key)
             return eval(runable)
@@ -5680,8 +5890,11 @@ def pretty_element(s):
     str
         LaTeX formatted string with superscript numbers.
     """
-    g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
-    return '$^{' + g[1] + '}$' + g[0]
+    el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
+    m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+
+#     g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
+    return '$^{' + m + '}$' + el
 
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
@@ -6098,8 +6311,7 @@ def weighted_average(x, y, x_new, fwhm=300):
     # Gaussian function as weights
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
-    for index in range(0, len(x_new)):
-        xn = x_new[index]
+    for index, xn in enumerate(x_new):
         weights = gauss(x, 1, xn, sigma)
         weights /= sum(weights)
         # weighted mean
