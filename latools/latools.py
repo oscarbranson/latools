@@ -932,7 +932,10 @@ class analyse(object):
             analytes = [analytes]
 
         if figsize is None:
-            figsize = (len(self.samples) * 0.15, 5)
+            if len(self.samples) > 50:
+                figsize = (len(self.samples) * 0.15, 5)
+            else:
+                figsize = (7.5, 5)
 
         fig = plt.figure(figsize=figsize)
 
@@ -1771,7 +1774,7 @@ class analyse(object):
         if sample is None and subset is None:
             if not self._has_subsets:
                 s += 'Subset: All Samples\n\n'
-                s += self.data_dict[self.samples[0]].filt.__repr__()
+                s += self.data_dict[self.subsets['All_Samples'][0]].filt.__repr__()
             else:
                 for n in sorted(self._subset_names):
                     s += 'Subset: ' + str(n) + '\n'
