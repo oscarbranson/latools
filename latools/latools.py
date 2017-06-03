@@ -1704,7 +1704,7 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
-        self.filter_status(subset=None)
+        self.filter_status(subset=subset)
         return
 
     @_log
@@ -1740,11 +1740,11 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
-        self.filter_status(subset=None)
+        self.filter_status(subset=subset)
         return
 
     @_log
-    def filter_new(self, name, filt_str, samples=None, subset=None):
+    def filter_combine(self, name, filt_str, samples=None, subset=None):
         """
         Make new filter from combination of other filters.
 
