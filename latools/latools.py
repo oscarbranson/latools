@@ -946,7 +946,8 @@ class analyse(object):
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
 
-            for i, r in tqdm(self.bkg['summary'].iterrows(), desc='Plotting ' + a + ':', leave=False):
+            for i, r in tqdm(self.bkg['summary'].iterrows(), desc='Plotting ' + a + ':',
+                             leave=False, total=len(self.bkg['summary'])):
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
                 yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
