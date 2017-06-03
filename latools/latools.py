@@ -1704,7 +1704,7 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
-        self.filter_status()
+        self.filter_status(subset=None)
         return
 
     @_log
@@ -1740,7 +1740,7 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
-        self.filter_status()
+        self.filter_status(subset=None)
         return
 
     @_log
