@@ -26,6 +26,7 @@ setup(name='latools',
                         'configparser',
                         'tqdm',
                         'fuzzywuzzy',
+                        'python-Levenshtein'
                         ],
       package_data={
         'latools': ['latools.cfg',
