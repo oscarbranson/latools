@@ -1261,7 +1261,7 @@ class analyse(object):
         # check for identified srms
 
         if analytes is None:
-            analytes = self.analytes
+            analytes = self.analytes[self.analytes != self.internal_standard]
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -2542,9 +2542,15 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         stat_fns : array_like
-            list of functions that take a single array_like input,
-            and return a single statistic. Function should be able
-            to cope with numpy NaN values.
+            list of functions or names of functions that take a single
+            array_like input, and return a single statistic. Function
+            should be able to cope with NaN values. Built-in functions:
+                'mean': arithmetic mean
+                'std': arithmetic standard deviation
+                'se': arithmetic standard error
+                'H15_mean': Huber mean (outlier removal)
+                'H15_std': Huber standard deviation (outlier removal)
+                'H15_se': Huber standard error (outlier removal)
         eachtrace : bool
             Whether to calculate the statistics for each analysis
             spot individually, or to produce per - sample means.
@@ -3764,6 +3770,10 @@ class D(object):
             self.data['calibrated'][a] = \
                 calib_fns[a](P,
                              self.data['ratios'][a])
+
+        if self.internal_standard not in analytes:
+            self.data['calibrated'][self.internal_standard] = \
+                np.empty(len(self.data['ratios'][self.internal_standard]))
 
             # coefs = calib_params[a]
             # if len(coefs) == 1:
