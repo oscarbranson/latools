@@ -830,7 +830,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None, 
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
                           filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a 1D interpolation.
@@ -941,13 +941,13 @@ class analyse(object):
 
         ax = fig.add_axes([.07, .1, .84, .8])
 
-        for a in analytes:
+        for a in tqdm(analytes, desc='Plotting backgrounds:',
+                      leave=False, total=len(analytes)):
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
 
-            for i, r in tqdm(self.bkg['summary'].iterrows(), desc='Plotting ' + a + ':',
-                             leave=False, total=len(self.bkg['summary'])):
+            for i, r in self.bkg['summary'].iterrows():
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
                 yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
@@ -1704,7 +1704,7 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
-        self.filter_status()
+        self.filter_status(subset=subset)
         return
 
     @_log
@@ -1740,11 +1740,11 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
-        self.filter_status()
+        self.filter_status(subset=subset)
         return
 
     @_log
-    def filter_new(self, name, filt_str, samples=None, subset=None):
+    def filter_combine(self, name, filt_str, samples=None, subset=None):
         """
         Make new filter from combination of other filters.
 
@@ -2541,7 +2541,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        stat_fns : array_like
+        stats : array_like
             list of functions or names of functions that take a single
             array_like input, and return a single statistic. Function
             should be able to cope with NaN values. Built-in functions:
@@ -2748,12 +2748,12 @@ class analyse(object):
 
             out = out.join(ats)
 
+        out.drop(self.internal_standard, 1, inplace=True)
+
         if save:
             if filename is None:
                 filename = 'stat_export.csv'
             out.to_csv(self.export_dir + '/' + filename)
-
-        out.drop(self.internal_standard, 1, inplace=True)
 
         self.stats_df = out
 
