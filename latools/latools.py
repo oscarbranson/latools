@@ -2541,7 +2541,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        stat_fns : array_like
+        stats : array_like
             list of functions or names of functions that take a single
             array_like input, and return a single statistic. Function
             should be able to cope with NaN values. Built-in functions:
