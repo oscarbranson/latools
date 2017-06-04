@@ -186,10 +186,10 @@
   <div class="section" id="sample-statistics">
 <span id="statistics"></span><h1>Sample Statistics<a class="headerlink" href="#sample-statistics" title="Permalink to this headline">¶</a></h1>
 <p>After filtering, you can calculated and export integrated compositional values for your analyses:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">sample_stats</span><span class="p">(</span><span class="n">stat_fns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">],</span> <span class="n">filt</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">sample_stats</span><span class="p">(</span><span class="n">stats</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">],</span> <span class="n">filt</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Where <code class="docutils literal"><span class="pre">stat_fns</span></code> specifies which functions you would like to use to calculate the statistics.
+<p>Where <code class="docutils literal"><span class="pre">stats</span></code> specifies which functions you would like to use to calculate the statistics.
 Built in options are:</p>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">'mean'</span></code>: Arithmetic mean, calculated by <code class="docutils literal"><span class="pre">np.nanmean</span></code>.</li>
@@ -211,7 +211,7 @@ To get them out into a more useful form:</p>
 </div>
 <p>This returns a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v0.20.1)"><code class="xref py py-class docutils literal"><span class="pre">pandas.DataFrame</span></code></a> containing all the statistics we just calculated.
 You can either keep this data in python and continue your analysis, or export the integrated values to an external file for analysis and plotting in <em>your_favourite_program</em>.</p>
-<p>To export the data, you can either specifying the <code class="docutils literal"><span class="pre">filename</span></code> variable in <code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
+<p>To export the data, you can either specifying the <code class="docutils literal"><span class="pre">filename</span></code> variable in <a class="reference internal" href="../../docs/index.html#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-meth docutils literal"><span class="pre">getstats()</span></code></a>, which will be saved in the &#8216;export_data&#8217; directory, or you can use the pandas built in export methods like <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_csv.html#pandas.DataFrame.to_csv" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_csv()</span></code></a> or <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_excel.html#pandas.DataFrame.to_excel" title="(in pandas v0.20.1)"><code class="xref py py-meth docutils literal"><span class="pre">to_excel()</span></code></a> to take your data straight to a variety of formats, for example:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">stats</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># .csv format</span>
 <span class="n">stats</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="s1">&#39;reports/stats.csv&#39;</span><span class="p">)</span> <span class="c1"># excel format</span>
 </pre></div>
@@ -276,7 +276,7 @@ You can either keep this data in python and continue your analysis, or export th
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

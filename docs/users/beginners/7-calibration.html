@@ -189,7 +189,7 @@
 This is done by creating a calibration curve for each element based on SRMs measured throughout your analysis session, and a table of known SRM values.
 You can either calculate a single calibration from a combination of all your measured standards, or generate a time-sensitive calibration to account for sensitivity drift through an analytical session.
 The latter is achieved by creating a separate calibration curve for each element in each SRM measurement, and linearly extrapolating these calibrations between neighbouring standards.</p>
-<p>Calibration is performed using the <code class="xref py py-meth docutils literal"><span class="pre">calibrate()</span></code> method:</p>
+<p>Calibration is performed using the <a class="reference internal" href="../../docs/index.html#latools.analyse.calibrate" title="latools.analyse.calibrate"><code class="xref py py-meth docutils literal"><span class="pre">calibrate()</span></code></a> method:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">drift_correct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
              <span class="n">poly_n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
              <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
@@ -272,7 +272,7 @@ Once you have identified the SRMs in your standards, <code class="docutils liter
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

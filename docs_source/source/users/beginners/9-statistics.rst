@@ -6,9 +6,9 @@ Sample Statistics
 
 After filtering, you can calculated and export integrated compositional values for your analyses::
 
-	eg.sample_stats(stat_fns=['mean', 'std'], filt=True)
+	eg.sample_stats(stats=['mean', 'std'], filt=True)
 
-Where ``stat_fns`` specifies which functions you would like to use to calculate the statistics.
+Where ``stats`` specifies which functions you would like to use to calculate the statistics.
 Built in options are:
 
 * ``'mean'``: Arithmetic mean, calculated by ``np.nanmean``.
