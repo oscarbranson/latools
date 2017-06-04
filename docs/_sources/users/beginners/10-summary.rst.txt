@@ -31,7 +31,7 @@ If we put all the preceding steps together::
 	eg.filter_on(filt='Albelow')
 
 	# calculate sample statistics.
-	eg.sample_stats()
+	eg.sample_stats(stats=['mean', 'std'], filt=True)
 	# get statistics into a dataframe
 	stats =	eg.getstats()
 	# save statistics to a csv file
