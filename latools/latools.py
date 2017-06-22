@@ -154,7 +154,7 @@ class analyse(object):
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names'):
+                 names='file_names', srm_file=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -203,20 +203,28 @@ class analyse(object):
         print('latools analysis using "' + self.config + '" configuration:')
 
         # check srmfile exists, and store it in a class attribute.
-        if os.path.exists(pconf['srmfile']):
-            self.srmfile = pconf['srmfile']
-        elif os.path.exists(pkgrs.resource_filename('latools',
-                                                    pconf['srmfile'])):
-            self.srmfile = pkgrs.resource_filename('latools',
-                                                   pconf['srmfile'])
+        if srm_file is not None:
+            if os.path.exists(srm_file):
+                self.srmfile = srm_file
+            else:
+                raise ValueError(('Cannot find the specified SRM file:\n   ' +
+                                  srm_file +
+                                  'Please check that the file location is correct.'))
         else:
-            raise ValueError(('The SRM file specified in the ' + config +
-                              ' configuration cannot be found.\n'
-                              'Please make sure the file exists, and that the '
-                              'path in the config file is correct.\n'
-                              'To locate the config file, run '
-                              '`latools.config_locator()`.\n\n'
-                              '' + config + ' file: ' + pconf['srmfile']))
+            if os.path.exists(pconf['srmfile']):
+                self.srmfile = pconf['srmfile']
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        pconf['srmfile'])):
+                self.srmfile = pkgrs.resource_filename('latools',
+                                                       pconf['srmfile'])
+            else:
+                raise ValueError(('The SRM file specified in the ' + config +
+                                  ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that the '
+                                  'path in the config file is correct.\n'
+                                  'To locate the config file, run '
+                                  '`latools.config_locator()`.\n\n'
+                                  '' + config + ' file: ' + pconf['srmfile']))
 
         # load in dataformat information.
         # check dataformat file exists, and store it in a class attribute.
@@ -1090,6 +1098,9 @@ class analyse(object):
     #     return
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
+        if isinstance(srms_used, str):
+            srms_used = [srms_used]
+
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1119,10 +1130,36 @@ class analyse(object):
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
         if not hasattr(self, 'srmdat'):
+            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             # load SRM info
             srmdat = pd.read_csv(self.srmfile)
             srmdat.set_index('SRM', inplace=True)
             srmdat = srmdat.loc[srms_used]
+
+            # get element name
+            internal_el = elnames.match(self.internal_standard).groups()[0]
+            # calculate ratios to internal_standard for all elements
+            for srm in srms_used:
+                ind = srmdat.index == srm
+
+                # find denominator
+                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+                # calculate denominator composition (multiplier to account for stoichiometry,
+                # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
+                                  denom.Item.values[0])
+                # determine stoichiometric multiplier
+                N = [n for el, n in comp if el == internal_el][0]
+                if N == '':
+                    N = 1
+                else:
+                    N = float(N)
+
+                # calculate molar ratio
+                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+                srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
+                                                     (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+                                                    srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
             # isolate measured elements
             elements = np.unique([re.findall('[A-Z][a-z]{0,}', a)[0] for a in self.analytes])
@@ -1130,7 +1167,6 @@ class analyse(object):
             # label elements
             srmdat.loc[:, 'element'] = np.nan
 
-            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             for e in elements:
                 ind = [e in elnames.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
@@ -1138,7 +1174,7 @@ class analyse(object):
             # convert to table in same format as stdtab
             self.srmdat = srmdat.dropna()
 
-        srm_tab = self.srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+        srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
 
         # Auto - ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
@@ -1184,7 +1220,7 @@ class analyse(object):
 
             sub = stdtab.loc[:, a]
 
-            srmsub = self.srmdat.loc[self.srmdat.element == el, ['Value', 'Uncertainty']]
+            srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
 
             srmtab = sub.join(srmsub)
             srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
@@ -1344,7 +1380,7 @@ class analyse(object):
             try:
                 d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
             except:
-                print(d.sample + ' failed - probably first or last SRM\nwhich is outside interpolated time range.')
+                print(d.sample + ' failed - probably outside time range Of SRMs.')
 
         self.focus_stage = 'calibrated'
     #     # save calibration parameters
