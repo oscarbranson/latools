@@ -423,7 +423,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
-                  transform='log', thresh_n=None):
+                  transform='log', thresh_n=None, ploterrs=True):
         """
         Automatically separates signal and background data regions.
 
@@ -458,6 +458,7 @@ class analyse(object):
             The analyte that autorange should consider. For best results,
             choose an analyte that is present homogeneously in high
             concentrations.
+            This can also be 'total_counts' to use the sum of all analytes.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -516,6 +517,8 @@ class analyse(object):
 
         if analyte is None:
             analyte = self.internal_standard
+        if analyte == 'total_counts':
+            pass
         elif analyte not in self.minimal_analytes:
                 self.minimal_analytes.append(analyte)
 
@@ -582,7 +585,7 @@ class analyse(object):
 
         if not hasattr(self.stds[0], 'trnrng'):
             for s in self.stds:
-                s.autorange(**autorange_kwargs)
+                s.autorange(**autorange_kwargs, ploterrs=False)
 
         trans = []
         times = []
@@ -681,7 +684,7 @@ class analyse(object):
         -------
         None
         """
-        if exponent is None:
+        if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
                 self.find_expcoef(plot=exponentplot,
                                   autorange_kwargs=autorange_kwargs)
@@ -2115,6 +2118,33 @@ class analyse(object):
     @_log
     def set_focus(self, focus_stage=None, samples=None, subset=None):
         """
+        Set the 'focus' attribute of the data file.
+
+        The 'focus' attribute of the object points towards data from a
+        particular stage of analysis. It is used to identify the 'working
+        stage' of the data. Processing functions operate on the 'focus'
+        stage, so if steps are done out of sequence, things will break.
+
+        Parameters
+        ----------
+        focus : str
+            The name of the analysis stage desired:
+                'rawdata': raw data, loaded from csv file when object
+                    is initialised.
+                'despiked': despiked data.
+                'signal'/'background': isolated signal and background data,
+                    padded with np.nan. Created by self.separate, after
+                    signal and background regions have been identified by
+                    self.autorange.
+                'bkgsub': background subtracted data, created by
+                    self.bkg_correct
+                'ratios': element ratio data, created by self.ratio.
+                'calibrated': ratio data calibrated to standards, created by
+                    self.calibrate.
+
+        Returns
+        -------
+        None
         """
         if samples is not None:
             subset = self.make_subset(samples)
@@ -2231,7 +2261,9 @@ class analyse(object):
         # isolate nominal_values for all analytes
         focus = {k: nominal_values(v) for k, v in self.focus.items()}
         # determine units for all analytes
-        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        udict = {a: unitpicker(np.nanmean(focus[a]),
+                               focus_stage=self.focus_stage,
+                               denominator=self.internal_standard) for a in analytes}
         # determine ranges for all analytes
         rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                      np.nanmax(focus[a] * udict[a][0])) for a in analytes}
@@ -2342,7 +2374,9 @@ class analyse(object):
         # isolate nominal_values for all analytes
         focus = {k: nominal_values(v) for k, v in self.focus.items()}
         # determine units for all analytes
-        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        udict = {a: unitpicker(np.nanmean(focus[a]),
+                               focus_stage=self.focus_stage,
+                               denominator=self.internal_standard) for a in analytes}
         # determine ranges for all analytes
         rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                      np.nanmax(focus[a] * udict[a][0])) for a in analytes}
@@ -2444,10 +2478,15 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        if samples is not None:
-            subset = self.make_subset(samples)
+        # if samples is not None:
+        #     subset = self.make_subset(samples)
 
-        samples = self._get_samples(subset)
+        if subset is not None:
+            samples = self._get_samples(subset)
+        elif samples is None:
+            samples = self.subsets['All_Analyses']
+        elif isinstance(samples, str):
+            samples = [samplesobject, class_or_type_or_tuple]
 
         for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
@@ -2657,7 +2696,9 @@ class analyse(object):
         for ax, an in zip(axs, analytes):
             i = 0
             stab = self.getstats()
-            m, u = unitpicker(np.percentile(stab.loc[:, an].dropna(), 25), 0.1)
+            m, u = unitpicker(np.percentile(stab.loc[:, an].dropna(), 25), 0.1,
+                              focus_stage='calibrated',
+                              denominator=self.internal_standard)
             for s in samples:
                 if self.srm_identifier not in s:
                     d = self.stats[s]
@@ -3166,16 +3207,17 @@ class D(object):
             for k, v in dataformat['preformat_replace'].items():
                 fbuffer = re.sub(k, v, fbuffer)
 
-            read_data = np.genfromtxt(BytesIO(fbuffer.encode()), 
+            read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
                                       **dataformat['genfromtext_args']).T
 
         else:
-            read_data = np.genfromtxt(data_file, 
+            read_data = np.genfromtxt(data_file,
                                       **dataformat['genfromtext_args']).T
 
         # create data dict
         self.data = {}
         self.data['rawdata'] = dict(zip(columns, read_data))
+        self.data['total_counts'] = read_data.sum(0)
 
         # set focus to rawdata
         self.setfocus('rawdata')
@@ -3430,9 +3472,9 @@ class D(object):
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
-                  transform='log', bkg_thresh=None):
+                  transform='log', bkg_thresh=None, ploterrs=True):
         """
-                Automatically separates signal and background data regions.
+        Automatically separates signal and background data regions.
 
         Automatically detect signal and background regions in the laser
         data, based on the behaviour of a single analyte. The analyte used
@@ -3512,7 +3554,10 @@ class D(object):
 
         bins = 50  # determine automatically? As a function of bkg rms noise?
 
-        v = self.focus[analyte]  # get trace data
+        if analyte == 'total_counts':
+            v = self.data['total_counts']
+        else:
+            v = self.focus[analyte]  # get trace data
         vl = trans(v)  # apply transformation
         x = np.linspace(vl.min(), vl.max(), bins)  # define bin limits
 
@@ -3542,6 +3587,9 @@ class D(object):
         if zeros[-1] == bkg.size:
             zeros = zeros[:-1]
         tran = []  # initialise empty list for transition pairs
+
+        makeplot = False
+        plotlines = []
 
         for z in zeros:  # for each approximate transition
             # isolate the data around the transition
@@ -3596,14 +3644,16 @@ class D(object):
 
                 tran.append(lim)
             except:
-                warnings.warn(("\nSample {:s}: ".format(self.sample) +
+                if ploterrs:
+                    makeplot = True
+                    plotlines.append(self.Time[z])
+                warnings.warn(("\n\nSample {:s}: ".format(self.sample) +
                                "Transition identification at " +
                                "{:.1f} failed.".format(self.Time[z]) +
-                               "\nPlease check the data plots and make sure " +
-                               "everything is OK.\n(Run " +
-                               "'trace_plots(ranges=True)'\n\n"))
+                               "\n  **This is not necessarily a problem**"
+                               "\nBut please check the data plots and make sure " +
+                               "everything is OK.\n"))
                 pass  # if it fails for any reason, warn and skip it!
-
         # remove the transition regions from the signal and background ids.
         for t in tran:
             self.bkg[(self.Time > t[0]) & (self.Time < t[1])] = False
@@ -3638,14 +3688,19 @@ class D(object):
             self.mkrngs()
 
         # number the signal regions (used for statistics and standard matching)
-        self.ns = np.zeros(self.Time.size)
-        n = 1
-        for i in range(len(self.sig) - 1):
-            if self.sig[i]:
-                self.ns[i] = n
-            if self.sig[i] and ~self.sig[i + 1]:
-                n += 1
-        self.n = int(max(self.ns))  # record number of traces
+        # self.ns = np.zeros(self.Time.size)
+        # n = 1
+        # for i in range(len(self.sig) - 1):
+        #     if self.sig[i]:
+        #         self.ns[i] = n
+        #     if self.sig[i] and ~self.sig[i + 1]:
+        #         n += 1
+        # self.n = int(max(self.ns))  # record number of traces
+
+        if makeplot:
+            f, ax = self.tplot(ranges=True)
+            for pl in plotlines:
+                ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
 
         return
 
@@ -3668,6 +3723,17 @@ class D(object):
         self.trn[[0, -1]] = False
         trnr = self.Time[self.trn ^ np.roll(self.trn, 1)]
         self.trnrng = np.reshape(trnr, [trnr.size // 2, 2])
+
+        self.ns = np.zeros(self.Time.size)
+        n = 1
+        for i in range(len(self.sig) - 1):
+            if self.sig[i]:
+                self.ns[i] = n
+            if self.sig[i] and ~self.sig[i + 1]:
+                n += 1
+        self.n = int(max(self.ns))  # record number of traces
+
+        return
 
     @_log
     def bkg_subtract(self, analyte, bkg, ind=None):
@@ -4508,7 +4574,7 @@ class D(object):
 
         Returns
         -------
-        figure
+        figure, axis
         """
 
         if interactive:
@@ -4694,8 +4760,12 @@ class D(object):
         for i, j in zip(*np.triu_indices_from(axes, k=1)):
             for x, y in [(i, j), (j, i)]:
                 # set unit multipliers
-                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]))
-                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]))
+                mx, ux = unitpicker(np.nanmean(self.focus[analytes[x]]),
+                                    denominator=self.internal_standard,
+                                    focus_stage=self.focus_stage)
+                my, uy = unitpicker(np.nanmean(self.focus[analytes[y]]),
+                                    denominator=self.internal_standard,
+                                    focus_stage=self.focus_stage)
                 udict[analytes[x]] = (x, ux)
 
                 # get filter
@@ -4786,7 +4856,9 @@ class D(object):
         # isolate nominal_values for all analytes
         focus = {k: nominal_values(v) for k, v in self.focus.items()}
         # determine units for all analytes
-        udict = {a: unitpicker(np.nanmean(focus[a])) for a in analytes}
+        udict = {a: unitpicker(np.nanmean(focus[a]),
+                               denominator=self.internal_standard,
+                               focus_stage=self.focus_stage) for a in analytes}
         # determine ranges for all analytes
         rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                      np.nanmax(focus[a] * udict[a][0])) for a in analytes}
@@ -4889,7 +4961,9 @@ class D(object):
                     y = nominal_values(self.focus[analyte])
                     yh = y[~np.isnan(y)]
 
-                    m, u = unitpicker(np.nanmax(y))
+                    m, u = unitpicker(np.nanmax(y),
+                                      denominator=self.internal_standard,
+                                      focus_stage=self.focus_stage)
 
                     axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
                                       fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
@@ -5845,7 +5919,7 @@ def gauss(x, *p):
     return A * np.exp(-0.5 * (-mu + x)**2 / sigma**2)
 
 
-def unitpicker(a, llim=0.1):
+def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
 
@@ -5861,12 +5935,34 @@ def unitpicker(a, llim=0.1):
     (float, str)
         (multiplier, unit)
     """
-    udict = {0: 'mol/mol',
-             1: 'mmol/mol',
-             2: '$\mu$mol/mol',
-             3: 'nmol/mol',
-             4: 'pmol/mol',
-             5: 'fmol/mol'}
+
+    if denominator is not None:
+        pd = pretty_element(denominator)
+
+    if focus_stage == 'calibrated':
+        udict = {0: 'mol/mol ' + pd,
+                 1: 'mmol/mol ' + pd,
+                 2: '$\mu$mol/mol ' + pd,
+                 3: 'nmol/mol ' + pd,
+                 4: 'pmol/mol ' + pd,
+                 5: 'fmol/mol ' + pd}
+    elif focus_stage == 'ratios':
+        udict = {0: 'counts/count ' + pd,
+                 1: '$10^{-3}$ counts/count ' + pd,
+                 2: '$10^{-6}$ counts/count ' + pd,
+                 3: '$10^{-9}$ counts/count ' + pd,
+                 4: '$10^{-12}$ counts/count ' + pd,
+                 5: '$10^{-15}$ counts/count ' + pd}
+    elif focus_stage in ('rawdata', 'despiked', 'bkgsub'):
+        udict = udict = {0: 'counts',
+                         1: '$10^{-3}$ counts',
+                         2: '$10^{-6}$ counts',
+                         3: '$10^{-9}$ counts',
+                         4: '$10^{-12}$ counts',
+                         5: '$10^{-15}$ counts'}
+    else:
+        udict = {0: '', 1: '', 2: '', 3: '', 4: '', 5: ''}
+
     a = abs(a)
     n = 0
     if a < llim:
