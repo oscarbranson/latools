@@ -1,4 +1,4 @@
-import shutil
+import shutil, os
 import unittest
 import latools as la
 
