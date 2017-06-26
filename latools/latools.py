@@ -23,7 +23,7 @@ from functools import wraps
 from fuzzywuzzy import fuzz
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
-from scipy import odr
+# from scipy import odr
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
 import scipy.interpolate as interp
@@ -31,6 +31,8 @@ from sklearn import preprocessing
 
 from IPython import display
 from tqdm import tqdm  # status bars!
+
+idx = pd.IndexSlice  # multi-index slicing!
 
 # deactivate IPython deprecations warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -154,7 +156,7 @@ class analyse(object):
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names'):
+                 names='file_names', srm_file=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -203,20 +205,28 @@ class analyse(object):
         print('latools analysis using "' + self.config + '" configuration:')
 
         # check srmfile exists, and store it in a class attribute.
-        if os.path.exists(pconf['srmfile']):
-            self.srmfile = pconf['srmfile']
-        elif os.path.exists(pkgrs.resource_filename('latools',
-                                                    pconf['srmfile'])):
-            self.srmfile = pkgrs.resource_filename('latools',
-                                                   pconf['srmfile'])
+        if srm_file is not None:
+            if os.path.exists(srm_file):
+                self.srmfile = srm_file
+            else:
+                raise ValueError(('Cannot find the specified SRM file:\n   ' +
+                                  srm_file +
+                                  'Please check that the file location is correct.'))
         else:
-            raise ValueError(('The SRM file specified in the ' + config +
-                              ' configuration cannot be found.\n'
-                              'Please make sure the file exists, and that the '
-                              'path in the config file is correct.\n'
-                              'To locate the config file, run '
-                              '`latools.config_locator()`.\n\n'
-                              '' + config + ' file: ' + pconf['srmfile']))
+            if os.path.exists(pconf['srmfile']):
+                self.srmfile = pconf['srmfile']
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        pconf['srmfile'])):
+                self.srmfile = pkgrs.resource_filename('latools',
+                                                       pconf['srmfile'])
+            else:
+                raise ValueError(('The SRM file specified in the ' + config +
+                                  ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that the '
+                                  'path in the config file is correct.\n'
+                                  'To locate the config file, run '
+                                  '`latools.config_locator()`.\n\n'
+                                  '' + config + ' file: ' + pconf['srmfile']))
 
         # load in dataformat information.
         # check dataformat file exists, and store it in a class attribute.
@@ -1090,6 +1100,9 @@ class analyse(object):
     #     return
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
+        if isinstance(srms_used, str):
+            srms_used = [srms_used]
+
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1119,10 +1132,36 @@ class analyse(object):
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
         if not hasattr(self, 'srmdat'):
+            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             # load SRM info
             srmdat = pd.read_csv(self.srmfile)
             srmdat.set_index('SRM', inplace=True)
             srmdat = srmdat.loc[srms_used]
+
+            # get element name
+            internal_el = elnames.match(self.internal_standard).groups()[0]
+            # calculate ratios to internal_standard for all elements
+            for srm in srms_used:
+                ind = srmdat.index == srm
+
+                # find denominator
+                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+                # calculate denominator composition (multiplier to account for stoichiometry,
+                # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
+                                  denom.Item.values[0])
+                # determine stoichiometric multiplier
+                N = [n for el, n in comp if el == internal_el][0]
+                if N == '':
+                    N = 1
+                else:
+                    N = float(N)
+
+                # calculate molar ratio
+                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+                srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
+                                                     (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+                                                    srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
             # isolate measured elements
             elements = np.unique([re.findall('[A-Z][a-z]{0,}', a)[0] for a in self.analytes])
@@ -1130,7 +1169,6 @@ class analyse(object):
             # label elements
             srmdat.loc[:, 'element'] = np.nan
 
-            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
             for e in elements:
                 ind = [e in elnames.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
@@ -1138,7 +1176,7 @@ class analyse(object):
             # convert to table in same format as stdtab
             self.srmdat = srmdat.dropna()
 
-        srm_tab = self.srmdat.loc[:, ['Value', 'element']].reset_index().pivot(index='SRM', columns='element', values='Value')
+        srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
 
         # Auto - ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
@@ -1184,7 +1222,7 @@ class analyse(object):
 
             sub = stdtab.loc[:, a]
 
-            srmsub = self.srmdat.loc[self.srmdat.element == el, ['Value', 'Uncertainty']]
+            srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
 
             srmtab = sub.join(srmsub)
             srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
@@ -1230,38 +1268,33 @@ class analyse(object):
 
     # apply calibration to data
     @_log
-    def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
-                  srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'],
+    def calibrate(self, analytes=None, drift_correct=True,
+                  srms_used=['NIST610', 'NIST612', 'NIST614'],
                   n_min=10):
         """
         Calibrates the data to measured SRM values.
 
+        Assumes that y intercept is zero.
+
         Parameters
         ----------
-        poly_n : int
-            Specifies the type of function used to map
-            known SRM values to SRM measurements.
-            0: A linear function, forced through 0.
-            1 or more: An nth order polynomial.
-        focus : str
-            The `focus` stage of the data used to calculating the
-            ratios.
-        srmfile : str or None
-            Path the the file containing the known SRM values.
-            If None, the default file specified in the `latools.cfg`
-            is used. Refer to the documentation for more information
-            on the srmfile format.
+        analytes : str or array-like
+            Which analytes you'd like to calibrate. Defaults to all.
+        drift_correct : bool
+            Whether to pool all SRM measurements into a single calibration,
+            or vary the calibration through the run, interpolating
+            coefficients between measured SRMs.
+        srms_used : str or array-like
+            Which SRMs have been measured. Must match names given in
+            SRM data file *exactly*.
+        n_min : int
+            The minimum number of data points an SRM measurement
+            must have to be included.
 
         Returns
         -------
         None
         """
-        # MAKE CALIBRATION CLEVERER!?
-        #   USE ALL DATA OR AVERAGES?
-        #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
-        #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
-        # can store calibration function in self and use *coefs?
-        # check for identified srms
 
         if analytes is None:
             analytes = self.analytes[self.analytes != self.internal_standard]
@@ -1271,85 +1304,179 @@ class analyse(object):
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used, n_min)
 
-        # calibration functions
-        def calib_0(P, x):
-            return x * P[0]
-
-        def calib_n(P, x):
-            # where p is a list of polynomial coefficients n items long,
-            # corresponding to [..., 2nd, 1st, 0th] order coefficients
-            return np.polyval(P, x)
-
-        # wrapper for ODR fitting
-        def odrfit(x, y, fn, coef0, sx=None, sy=None):
-            dat = odr.RealData(x=x, y=y,
-                               sx=sx, sy=sy)
-            m = odr.Model(fn)
-            mod = odr.ODR(dat, m, coef0)
-            mod.run()
-            return un.uarray(mod.output.beta, mod.output.sd_beta)
-
         # make container for calibration params
         if not hasattr(self, 'calib_params'):
-            self.calib_params = pd.DataFrame(columns=self.analytes)
+            uTime = self.srmtabs.index.get_level_values('uTime').unique().values
+            self.calib_params = pd.DataFrame(columns=self.analytes, index=uTime)
 
-        # set up calibration functions
+        # calibration functions - kept to maintain calibration_plot function
+        def calib_0(x, P):
+            return x * P
+
+        # set up calibration functions - kept to maintain calibration_plot function
         if not hasattr(self, 'calib_fns'):
             self.calib_fns = {}
 
-        for a in analytes:
-            if poly_n == 0:
-                self.calib_fns[a] = calib_0
-                p0 = [1]
-            else:
-                self.calib_fns[a] = calib_n
-                p0 = [1] * (poly_n - 1) + [0]
-
-            # calculate calibrations
+        # zero intercept
+        for a in tqdm(analytes, desc='Calculating Calibrations'):
+            self.calib_fns[a] = calib_0  #  kept to maintain calibration_plot function
             if drift_correct:
-                for n, g in self.srmtabs.loc[a, :].groupby(level=0):
-                    if srm_errors:
-                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
-                                   sy=self.srmtabs.loc[a, 'srm_err'].values,
-                                   fn=self.calib_fns[a],
-                                   coef0=p0)
-                    else:
-                        p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                                   y=self.srmtabs.loc[a, 'srm_mean'].values,
-                                   sx=self.srmtabs.loc[a, 'meas_err'].values,
-                                   fn=self.calib_fns[a],
-                                   coef0=p0)
-                    uTime = g.index.get_level_values('uTime').values.mean()
-                    self.calib_params.loc[uTime, a] = p
+                for t in self.calib_params.index:
+                    meas = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'],
+                                     self.srmtabs.loc[idx[a, :, :, t], 'meas_err'])
+                    srm = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'],
+                                    self.srmtabs.loc[idx[a, :, :, t], 'srm_err'])
+                    self.calib_params.loc[t, a] = np.nanmean(srm / meas)
             else:
-                if srm_errors:
-                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a, 'meas_err'].values,
-                               sy=self.srmtabs.loc[a, 'srm_err'].values,
-                               fn=self.calib_fns[a],
-                               coef0=p0)
-                else:
-                    p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-                               y=self.srmtabs.loc[a, 'srm_mean'].values,
-                               sx=self.srmtabs.loc[a, 'meas_err'].values,
-                               fn=self.calib_fns[a],
-                               coef0=p0)
-                self.calib_params.loc[0, a] = p
+                meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
+                                 self.srmtabs.loc[a, 'meas_err'])
+                srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
+                                self.srmtabs.loc[a, 'srm_err'])
+                self.calib_params.loc[:, a] = np.nanmean(srm / meas)
 
-        # apply calibration
-        for d in tqdm(self.data, desc='Calibration'):
-            try:
-                d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
-            except:
-                print(d.sample + ' failed - probably first or last SRM\nwhich is outside interpolated time range.')
+        # fill in uTime=0 and uTime = max cases for interpolation
+        self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
+        maxuT = np.max([d.uTime.max() for d in self.data])  # calculate max uTime
+        self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
+        self.calib_params.sort_index(inplace=True)
+
+        # calculcate interpolators for applying calibrations
+        self.calib_ms = {}
+        for a in analytes:
+            self.calib_ms[a] = un_interp1d(self.calib_params.index.values,
+                                           self.calib_params.loc[:, a])
+
+        for d in tqdm(self.data, desc='Applying Calibrations'):
+            d.calibrate(self.calib_ms, analytes)
 
         self.focus_stage = 'calibrated'
+
+        return
+
+    # Old calibration function
+    # ++++++++++++++++++++++++
+    # @_log
+    # def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
+    #               srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'],
+    #               n_min=10):
+    #     """
+    #     Calibrates the data to measured SRM values.
+
+    #     Parameters
+    #     ----------
+    #     poly_n : int
+    #         Specifies the type of function used to map
+    #         known SRM values to SRM measurements.
+    #         0: A linear function, forced through 0.
+    #         1 or more: An nth order polynomial.
+    #     focus : str
+    #         The `focus` stage of the data used to calculating the
+    #         ratios.
+    #     srmfile : str or None
+    #         Path the the file containing the known SRM values.
+    #         If None, the default file specified in the `latools.cfg`
+    #         is used. Refer to the documentation for more information
+    #         on the srmfile format.
+
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     # MAKE CALIBRATION CLEVERER!?
+    #     #   USE ALL DATA OR AVERAGES?
+    #     #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
+    #     #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
+    #     # can store calibration function in self and use *coefs?
+    #     # check for identified srms
+
+    #     if analytes is None:
+    #         analytes = self.analytes[self.analytes != self.internal_standard]
+    #     elif isinstance(analytes, str):
+    #         analytes = [analytes]
+
+    #     if not hasattr(self, 'srmtabs'):
+    #         self.srm_id_auto(srms_used, n_min)
+
+    #     # calibration functions
+    #     def calib_0(P, x):
+    #         return x * P[0]
+
+    #     def calib_n(P, x):
+    #         # where p is a list of polynomial coefficients n items long,
+    #         # corresponding to [..., 2nd, 1st, 0th] order coefficients
+    #         return np.polyval(P, x)
+
+    #     # wrapper for ODR fitting
+    #     def odrfit(x, y, fn, coef0, sx=None, sy=None):
+    #         dat = odr.RealData(x=x, y=y,
+    #                            sx=sx, sy=sy)
+    #         m = odr.Model(fn)
+    #         mod = odr.ODR(dat, m, coef0)
+    #         mod.run()
+    #         return un.uarray(mod.output.beta, mod.output.sd_beta)
+
+    #     # make container for calibration params
+    #     if not hasattr(self, 'calib_params'):
+    #         self.calib_params = pd.DataFrame(columns=self.analytes)
+
+    #     # set up calibration functions
+    #     if not hasattr(self, 'calib_fns'):
+    #         self.calib_fns = {}
+
+    #     print('Calculating transfer functions...')
+    #     for a in analytes:
+    #         if poly_n == 0:
+    #             self.calib_fns[a] = calib_0
+    #             p0 = [1]
+    #         else:
+    #             self.calib_fns[a] = calib_n
+    #             p0 = [1] * (poly_n - 1) + [0]
+
+    #         # calculate calibrations
+    #         if drift_correct:
+    #             for n, g in self.srmtabs.loc[a, :].groupby(level=0):
+    #                 if srm_errors:
+    #                     p = odrfit(x=g['meas_mean'].values,
+    #                                y=g['srm_mean'].values,
+    #                                sx=g['meas_err'].values,
+    #                                sy=g['srm_err'].values,
+    #                                fn=self.calib_fns[a],
+    #                                coef0=p0)
+    #                 else:
+    #                     p = odrfit(x=g['meas_mean'].values,
+    #                                y=g['srm_mean'].values,
+    #                                sx=g['meas_err'].values,
+    #                                fn=self.calib_fns[a],
+    #                                coef0=p0)
+    #                 uTime = g.index.get_level_values('uTime').values.mean()
+    #                 self.calib_params.loc[uTime, a] = p
+    #         else:
+    #             if srm_errors:
+    #                 p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+    #                            y=self.srmtabs.loc[a, 'srm_mean'].values,
+    #                            sx=self.srmtabs.loc[a, 'meas_err'].values,
+    #                            sy=self.srmtabs.loc[a, 'srm_err'].values,
+    #                            fn=self.calib_fns[a],
+    #                            coef0=p0)
+    #             else:
+    #                 p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
+    #                            y=self.srmtabs.loc[a, 'srm_mean'].values,
+    #                            sx=self.srmtabs.loc[a, 'meas_err'].values,
+    #                            fn=self.calib_fns[a],
+    #                            coef0=p0)
+    #             self.calib_params.loc[0, a] = p
+
+    #     # apply calibration
+    #     for d in tqdm(self.data, desc='Calibration'):
+    #         try:
+    #             d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
+    #         except:
+    #             print(d.sample + ' failed - probably outside time range of SRMs.')
+
+    #     self.focus_stage = 'calibrated'
     #     # save calibration parameters
     #     # self.save_calibration()
-        return
+        # return
 
     # data filtering
     # TODO:
@@ -2038,33 +2165,33 @@ class analyse(object):
             else:
                 x = np.array(xlim)
 
-            coefs = self.calib_params[a][0]
+            coefs = self.calib_params[a].values.mean()
 
             # plot line of best fit
-            line = nominal_values(self.calib_fns[a](coefs, x))
+            line = nominal_values(self.calib_fns[a](x, coefs))
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
-            if len(coefs) == 1:
-                force_zero = True
-            else:
-                force_zero = False
+            # if len(coefs) == 1:
+            force_zero = True  # because calibration only supports zero intercept at the mo.
+            # else:
+            #     force_zero = False
 
             R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'],
                         nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])),
                         force_zero=force_zero)
 
             # labels
-            if len(coefs) == 1:
-                label = 'y = {:.2e} x'.format(coefs[0])
-            else:
-                label = r''
-                for n, p in enumerate(coefs):
-                    if len(coefs) - n - 1 == 0:
-                        label += '{:.1e}'.format(p)
-                    elif len(coefs) - n - 1 == 1:
-                        label += '{:.1e} x\n+ '.format(p)
-                    else:
-                        label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs) - n - 1) + '}$\n+ '
+            # if len(coefs) == 1:  # commented out non-zero intercept cases
+            label = 'y = {:.2e} x'.format(coefs)
+            # else:
+            #     label = r''
+            #     for n, p in enumerate(coefs):
+            #         if len(coefs) - n - 1 == 0:
+            #             label += '{:.1e}'.format(p)
+            #         elif len(coefs) - n - 1 == 1:
+            #             label += '{:.1e} x\n+ '.format(p)
+            #         else:
+            #             label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs) - n - 1) + '}$\n+ '
 
             if '{:.3f}'.format(R2) == '1.000':
                 label += '\n$R^2$: >0.999'
@@ -2205,9 +2332,11 @@ class analyse(object):
     # crossplot of all data
     @_log
     def crossplot(self, analytes=None, lognorm=True,
-                  bins=25, filt=False, samples=None, subset=None, **kwargs):
+                  bins=25, filt=False, samples=None,
+                  subset=None, figsize=(12, 12), save=False,
+                  colourful=True, **kwargs):
         """
-        Plot analytes against each other as 2D histograms.
+        Plot analytes against each other.
 
         Parameters
         ----------
@@ -2225,15 +2354,15 @@ class analyse(object):
 
         Returns
         -------
-        None
+        (fig, axes)
         """
         if analytes is None:
-            analytes = [a for a in self.analytes if 'Ca' not in a]
+            analytes = self.analytes
+        if self.focus_stage in ['ratio', 'calibrated']:
+            analytes = [a for a in analytes if self.internal_standard not in a]
 
-        if subset is None:
-            subset = 'All_Samples'
-
-        self.get_focus(filt, samples, subset)
+        if figsize[0] < 1.5 * len(analytes):
+            figsize = [1.5 * len(analytes)] * 2
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -2253,10 +2382,17 @@ class analyse(object):
             if ax.is_last_row():
                 ax.xaxis.set_ticks_position('bottom')
 
-        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-                  'Greens', 'Greys', 'Oranges', 'OrRd',
-                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        # set up colour scales
+        if colourful:
+            cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                      'Greens', 'Greys', 'Oranges', 'OrRd',
+                      'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        else:
+            cmlist = ['Greys']
+
+        while len(cmlist) < len(analytes):
+            cmlist *= 2
 
         # isolate nominal_values for all analytes
         focus = {k: nominal_values(v) for k, v in self.focus.items()}
@@ -2277,19 +2413,19 @@ class analyse(object):
             pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
             pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
 
-            # make plot
+            # determine normalisation shceme
             if lognorm:
-                axes[i, j].hist2d(pj, pi, bins,
-                                  norm=mpl.colors.LogNorm(),
-                                  cmap=plt.get_cmap(cmlist[i]))
-                axes[j, i].hist2d(pi, pj, bins,
-                                  norm=mpl.colors.LogNorm(),
-                                  cmap=plt.get_cmap(cmlist[j]))
+                norm = mpl.colors.LogNorm()
             else:
-                axes[i, j].hist2d(pj, pi, bins,
-                                  cmap=plt.get_cmap(cmlist[i]))
-                axes[j, i].hist2d(pi, pj, bins,
-                                  cmap=plt.get_cmap(cmlist[j]))
+                norm = None
+
+            # draw plots
+            axes[i, j].hist2d(pj, pi, bins,
+                              norm=norm,
+                              cmap=plt.get_cmap(cmlist[i]))
+            axes[j, i].hist2d(pi, pj, bins,
+                              norm=norm,
+                              cmap=plt.get_cmap(cmlist[j]))
 
             axes[i, j].set_ylim(*rdict[ai])
             axes[i, j].set_xlim(*rdict[aj])
@@ -2304,13 +2440,15 @@ class analyse(object):
                                 ha='center', va='center')
             axes[n, n].set_xlim(*rdict[a])
             axes[n, n].set_ylim(*rdict[a])
-
         # switch on alternating axes
         for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
             axes[j, i].xaxis.set_visible(True)
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
+
+        if save:
+            fig.savefig(self.report_dir + '/crossplot.png', dpi=200)
 
         return fig, axes
 
@@ -3028,6 +3166,8 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
         data_folder = dirname + paths['data_folder']
     if srm_table is None:
         srm_table = dirname + paths['srm_table']
+    
+    csfs = {}
     if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
         # load custom functions as a dict
         with open(dirname + paths['custom_stat_functions'], 'r') as f:
@@ -3035,7 +3175,6 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
 
         fname = re.compile('def (.*)\(.*')
 
-        csfs = {}
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
@@ -3804,7 +3943,7 @@ class D(object):
             return pout[a]
 
     @_log
-    def calibrate(self, calib_fns, calib_params, analytes=None, drift_correct=False):
+    def calibrate(self, calib_ms, analytes=None):
         """
         Apply calibration to data.
 
@@ -3828,14 +3967,9 @@ class D(object):
             self.data['calibrated'] = {}
 
         for a in analytes:
-            if drift_correct:
-                P = self.drift_params(calib_params, a)
-            else:
-                P = calib_params[a].values[0]
+            P = calib_ms[a].new(self.uTime)
 
-            self.data['calibrated'][a] = \
-                calib_fns[a](P,
-                             self.data['ratios'][a])
+            self.data['calibrated'][a] = self.data['ratios'][a] * P
 
         if self.internal_standard not in analytes:
             self.data['calibrated'][self.internal_standard] = \
@@ -4708,7 +4842,7 @@ class D(object):
         return fig, ax
 
     @_log
-    def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True):
+    def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True, colourful=True, figsize=(12, 12)):
         """
         Plot analytes against each other.
 
@@ -4731,8 +4865,12 @@ class D(object):
         (fig, axes)
         """
         if analytes is None:
-            analytes = [a for a in self.analytes
-                        if a != self.internal_standard]
+            analytes = self.analytes
+        if self.focus_stage in ['ratio', 'calibrated']:
+            analytes = [a for a in analytes if self.internal_standard not in a]
+
+        if figsize[0] < 1.5 * len(analytes):
+            figsize = [1.5 * len(analytes)] * 2
 
         numvars = len(analytes)
         fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
@@ -4752,10 +4890,18 @@ class D(object):
             if ax.is_last_row():
                 ax.xaxis.set_ticks_position('bottom')
 
-        cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-                  'Greens', 'Greys', 'Oranges', 'OrRd',
-                  'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                  'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        # set up colour scales
+        if colourful:
+            cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
+                      'Greens', 'Greys', 'Oranges', 'OrRd',
+                      'PuBu', 'PuBuGn', 'PuRd', 'Purples',
+                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+        else:
+            cmlist = ['Greys']
+
+        while len(cmlist) < len(analytes):
+            cmlist *= 2
+
         udict = {}
         for i, j in zip(*np.triu_indices_from(axes, k=1)):
             for x, y in [(i, j), (j, i)]:
@@ -4778,13 +4924,20 @@ class D(object):
                 px = self.focus[analytes[x]][ind] * mx
                 py = self.focus[analytes[y]][ind] * my
 
+                # determine normalisation shceme
                 if lognorm:
-                    axes[x, y].hist2d(py, px, bins,
-                                      norm=mpl.colors.LogNorm(),
-                                      cmap=plt.get_cmap(cmlist[x]))
+                    norm = mpl.colors.LogNorm()
                 else:
-                    axes[x, y].hist2d(py, px, bins,
-                                      cmap=plt.get_cmap(cmlist[x]))
+                    norm = None
+
+                # draw plots
+                axes[i, j].hist2d(pj, pi, bins,
+                                  norm=norm,
+                                  cmap=plt.get_cmap(cmlist[i]))
+                axes[j, i].hist2d(pi, pj, bins,
+                                  norm=norm,
+                                  cmap=plt.get_cmap(cmlist[j]))
+
                 axes[x, y].set_ylim([px.min(), px.max()])
                 axes[x, y].set_xlim([py.min(), py.max()])
         # diagonal labels
@@ -6283,6 +6436,28 @@ def std_devs(a):
         return a
 
 
+class un_interp1d(object):
+    """
+    object for handling interpolation of values with uncertainties.
+    """
+    def __init__(self, xs, ys, **kwargs):
+        self.nom_interp = interp.interp1d(un.nominal_values(xs),
+                                          un.nominal_values(ys), **kwargs)
+        self.std_interp = interp.interp1d(un.nominal_values(xs),
+                                          un.std_devs(ys), **kwargs)
+
+    def new(self, xn):
+        yn = self.nom_interp(xn)
+        yn_err = self.std_interp(xn)
+        return un.uarray(yn, yn_err)
+
+    def new_nom(self, xn):
+        return self.nom_interp(xn)
+
+    def new_std(self, xn):
+        return self.std_interp(xn)
+
+
 def rolling_window(a, window, pad=None):
     """
     Returns (win, len(a)) rolling - window array of data.
@@ -6421,6 +6596,7 @@ def weighted_average(x, y, x_new, fwhm=300):
     return {'mean': bin_avg,
             'std': bin_std,
             'stderr': bin_se}
+
 
 # Statistical Functions
 def stderr(a):
