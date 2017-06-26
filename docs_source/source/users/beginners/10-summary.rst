@@ -4,7 +4,14 @@
 Summary
 #######
 
-If we put all the preceding steps together::
+If we put all the preceding steps together:
+
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 15-60
+
+The old one::
 
 	eg = la.analyse(data_folder='./data_remote/',
                 config='DEFAULT',

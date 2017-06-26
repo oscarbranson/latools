@@ -12,9 +12,12 @@ If you are unwilling to make your entire raw dataset available, it is also possi
 
 Minimal Export
 ==============
-The minimum parameters and data to reproduce you're analysis can be exported by::
+The minimum parameters and data to reproduce you're analysis can be exported by:
 
-    eg.minimal_export(ks)
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 60
 
 This will create a new folder inside the ``data_export`` folder, called ``minimal export``. This will contain your complete dataset, or a subset of your dataset containing only the analytes you specify, the SRM values used to calibrate your data, and a ``.log`` file that contains a record of everything you've done to your data.
 
