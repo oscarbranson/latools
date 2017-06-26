@@ -23,7 +23,7 @@ from functools import wraps
 from fuzzywuzzy import fuzz
 from mpld3 import plugins
 from mpld3 import enable_notebook, disable_notebook
-from scipy import odr
+# from scipy import odr
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
 import scipy.interpolate as interp
@@ -2333,7 +2333,8 @@ class analyse(object):
     @_log
     def crossplot(self, analytes=None, lognorm=True,
                   bins=25, filt=False, samples=None,
-                  subset=None, figsize=(12, 12), colourful=True, **kwargs):
+                  subset=None, figsize=(12, 12), save=False,
+                  colourful=True, **kwargs):
         """
         Plot analytes against each other.
 
@@ -2445,6 +2446,9 @@ class analyse(object):
             for label in axes[j, i].get_xticklabels():
                 label.set_rotation(90)
             axes[i, j].yaxis.set_visible(True)
+
+        if save:
+            fig.savefig(self.report_dir + '/crossplot.png', dpi=200)
 
         return fig, axes
 
@@ -3162,6 +3166,8 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
         data_folder = dirname + paths['data_folder']
     if srm_table is None:
         srm_table = dirname + paths['srm_table']
+    
+    csfs = {}
     if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
         # load custom functions as a dict
         with open(dirname + paths['custom_stat_functions'], 'r') as f:
@@ -3169,7 +3175,6 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
 
         fname = re.compile('def (.*)\(.*')
 
-        csfs = {}
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
