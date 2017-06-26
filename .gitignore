@@ -34,7 +34,5 @@ build
 installation_test
 dataformats
 bughunting
-docs
-docs_source
 petrology_test
 data
