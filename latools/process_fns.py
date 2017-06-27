@@ -1,5 +1,10 @@
+import os
+import re
 import numpy as np
 import warnings
+
+from io import BytesIO
+from latools.helpers import Bunch
 
 
 # Functions to work with laser ablation signals
@@ -17,7 +22,7 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
         The number of standard deviations above the rolling
         mean above which data are considered outliers.
 
-    Returns
+    Returns 
     -------
     None
     """
@@ -40,6 +45,9 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
         over[npad:-npad] = (sig[npad:-npad] > rmean + nlim * rstd)  # | (sig[npad:-npad] < rmean - nlim * rstd)
         # if any are over, replace them with mean of neighbours
         if any(over):
+            # replace with values either side
+            # sig[over] = sig[np.roll(over, -1) | np.roll(over, 1)].reshape((sum(over), 2)).mean(1)
+            # replace with mean
             sig[npad:-npad][over[npad:-npad]] = rmean[over[npad:-npad]]
             nloops += 1
         # repeat until no more removed.
@@ -82,3 +90,54 @@ def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
         raise warnings.warn(('\n***maxiter ({}) exceeded during expdecay_despike***\n\n'.format(maxiter) +
                              'This is probably because the expdecay_coef is too small.\n'))
     return sig
+
+
+def read_data(data_file, dataformat, name_mode):
+    with open(data_file) as f:
+        lines = f.readlines()
+
+    if 'meta_regex' in dataformat.keys():
+        meta = Bunch()
+        for k, v in dataformat['meta_regex'].items():
+            out = re.search(v[-1], lines[int(k)]).groups()
+            for i in np.arange(len(v[0])):
+                meta[v[0][i]] = out[i]
+
+    # sample name
+    if name_mode == 'file_names':
+        sample = os.path.basename(data_file).split('.')[0]
+    elif name_mode == 'metadata_names':
+        sample = meta['name']
+    else:
+        sample = 0
+
+    # column and analyte names
+    columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
+    if 'pattern' in dataformat['column_id'].keys():
+        pr = re.compile(dataformat['column_id']['pattern'])
+        analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
+
+    # do any required pre-formatting
+    if 'preformat_replace' in dataformat.keys():
+        with open(data_file) as f:
+                fbuffer = f.read()
+        for k, v in dataformat['preformat_replace'].items():
+            fbuffer = re.sub(k, v, fbuffer)
+        # dead data
+        read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
+                                  **dataformat['genfromtext_args']).T
+    else:
+        # read data
+        read_data = np.genfromtxt(data_file,
+                                  **dataformat['genfromtext_args']).T
+
+    # data dict
+    dind = np.ones(read_data.shape[0], dtype=bool)
+    dind[dataformat['column_id']['timecolumn']] = False
+
+    data = Bunch()
+    data['Time'] = read_data[dataformat['column_id']['timecolumn']]
+    data['rawdata'] = Bunch(zip(analytes, read_data[dind]))
+    data['total_counts'] = read_data[dind].sum(0)
+
+    return sample, analytes, data, meta

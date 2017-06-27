@@ -1,4 +1,3 @@
-import os
 import re
 import itertools
 import numpy as np
@@ -10,7 +9,6 @@ import sklearn.cluster as cl
 import scipy.interpolate as interp
 import uncertainties.unumpy as un
 
-from io import BytesIO
 from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.optimize import curve_fit
@@ -125,55 +123,8 @@ class D(object):
         self.file = data_file
         self.internal_standard = internal_standard
 
-        with open(data_file) as f:
-            lines = f.readlines()
-
-        # read the metadata, using key, regex pairs in the line - numbered
-        # dataformat['meta_regex'] dict.
-        # metadata
-        if 'meta_regex' in dataformat.keys():
-            self.meta = {}
-            for k, v in dataformat['meta_regex'].items():
-                out = re.search(v[-1], lines[int(k)]).groups()
-                for i in np.arange(len(v[0])):
-                    self.meta[v[0][i]] = out[i]
-
-        # sample name
-        if name == 'file_names':
-            self.sample = os.path.basename(self.file).split('.')[0]
-        elif name == 'metadata_names':
-            self.sample = self.meta['name']
-        else:
-            self.sample = 0
-
-        # column names
-        columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
-        if 'pattern' in dataformat['column_id'].keys():
-            pr = re.compile(dataformat['column_id']['pattern'])
-            columns = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
-        self.analytes = np.array(columns)
-
-        columns = np.insert(columns, dataformat['column_id']['timecolumn'], 'Time')
-
-        # do any required pre-formatting
-        if 'preformat_replace' in dataformat.keys():
-            clean = True
-            with open(data_file) as f:
-                    fbuffer = f.read()
-            for k, v in dataformat['preformat_replace'].items():
-                fbuffer = re.sub(k, v, fbuffer)
-
-            read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
-                                      **dataformat['genfromtext_args']).T
-
-        else:
-            read_data = np.genfromtxt(data_file,
-                                      **dataformat['genfromtext_args']).T
-
-        # create data dict
-        self.data = {}
-        self.data['rawdata'] = dict(zip(columns, read_data))
-        self.data['total_counts'] = read_data.sum(0)
+        self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+        self.Time = self.data['Time']
 
         # set focus to rawdata
         self.setfocus('rawdata')
@@ -182,7 +133,7 @@ class D(object):
         try:
             self.cmap = dict(zip(self.analytes,
                                  cb.get_map('Paired', 'qualitative',
-                                            len(columns)).hex_colors))
+                                            len(self.analytes)).hex_colors))
         except:
             self.cmap = \
                 dict(zip(self.analytes,

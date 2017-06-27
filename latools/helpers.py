@@ -8,6 +8,13 @@ import uncertainties.unumpy as un
 import scipy.interpolate as interp
 
 
+# Bunch modifies dict to allow item access using dot (.) operator
+class Bunch(dict):
+    def __init__(self, *args, **kwds):
+        super(Bunch, self).__init__(*args, **kwds)
+        self.__dict__ = self
+
+
 # other useful functions
 def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
     """
