@@ -18,6 +18,7 @@ from sklearn import preprocessing
 from functools import wraps
 from mpld3 import enable_notebook, disable_notebook, plugins
 
+import latools.process_fns as proc
 from .filt_obj import filt
 from .helpers import bool_2_indices, fastgrad, rolling_window, fastsmooth
 from .helpers import unitpicker, pretty_element
@@ -256,7 +257,7 @@ class D(object):
             setattr(self, k, self.focus[k])
 
     # despiking functions
-    def expdecay_despiker(self, exponent=None, tstep=None):
+    def expdecay_despiker(self, exponent=None, tstep=None, maxiter=3):
         """
         Apply exponential decay filter to remove unrealistically low values.
 
@@ -267,53 +268,27 @@ class D(object):
         tstep : float
             The time increment between data points.
             Calculated from Time variable if None.
+        maxiter : int
+            The max number of times that the fitler is applied.
 
         Returns
         -------
         None
         """
-        # if exponent is None:
-        #     if not hasattr(self, 'expdecay_coef'):
-        #         self.find_expcoef()
-        #     exponent = self.expdecay_coef
         if tstep is None:
             tstep = np.diff(self.Time[:2])
         if not hasattr(self, 'despiked'):
             self.data['despiked'] = {}
-        for a, vo in self.focus.items():
-            v = vo.copy()
-            if 'time' not in a.lower():
-                lowlim = np.roll(v * np.exp(tstep * exponent), 1)
-                over = np.roll(lowlim > v, -1)
 
-                if sum(over) > 0:
-                    # get adjacent values to over - limit values
-                    # calculate replacement values
-                    neighbours = []
-                    fixend = False
-                    oover = over.copy()
-                    if oover[0]:
-                        neighbours.append([v[1], np.nan])
-                        oover[0] = False
-                    if oover[-1]:
-                        oover[-1] = False
-                        fixend = True
-                    neighbours.append(np.hstack([v[np.roll(oover, -1)][:, np.newaxis],
-                                                 v[np.roll(oover, 1)][:, np.newaxis]]))
-                    if fixend:
-                        neighbours.append([v[-2], np.nan])
+        # do the work
+        for a, v in self.focus.items():
+            self.data['despiked'][a] = proc.expdecay_despike(v, exponent, tstep, maxiter)
 
-                    neighbours = np.vstack(neighbours)
-
-                    replacements = np.apply_along_axis(np.nanmean, 1, neighbours)
-                    # and subsitite them in
-                    v[over] = replacements
-                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
     # spike filter
-    def noise_despiker(self, win=3, nlim=12.):
+    def noise_despiker(self, win=3, nlim=6., maxiter=3):
         """
         Apply standard deviation filter to remove anomalous high values.
 
@@ -324,57 +299,25 @@ class D(object):
         nlim : float
             The number of standard deviations above the rolling
             mean above which data are considered outliers.
+        maxiter : int
+            The max number of times that the fitler is applied.
 
         Returns
         -------
         None
         """
-        if ~isinstance(win, int):
-            win = int(win)
         if not hasattr(self, 'despiked'):
             self.data['despiked'] = {}
-        for a, vo in self.focus.items():
-            v = vo.copy()
-            if 'time' not in a.lower():
-                # calculate rolling mean using convolution
-                kernel = np.ones(win) / win
-                rmean = np.convolve(v, kernel, 'same')
 
-            # with warnings.catch_warnings():
-                # to catch 'empty slice' warnings
-                # warnings.simplefilter("ignore", category=RuntimeWarning)
-                # rmean = \
-                #     np.apply_along_axis(np.nanmean, 1,
-                #                         rolling_window(v, win,
-                #                                             pad=np.nan))
-                # rmean = \
-                #     np.apply_along_axis(np.nanmean, 1,
-                #                         rolling_window(v, win,
-                #                                             pad=np.nan))
-                # calculate rolling standard deviation
-                # (count statistics, so **0.5)
-                rstd = rmean**0.5
+        for a, v in self.focus.items():
+            self.data['despiked'][a] = proc.noise_despike(v, int(win), nlim, maxiter)
 
-                # find which values are over the threshold
-                # (v > rmean + nlim * rstd)
-                over = v > rmean + nlim * rstd
-                if sum(over) > 0:
-                    # get adjacent values to over - limit values
-                    neighbours = \
-                        np.hstack([v[np.roll(over, -1)][:, np.newaxis],
-                                   v[np.roll(over, 1)][:, np.newaxis]])
-                    # calculate the mean of the neighbours
-                    replacements = np.apply_along_axis(np.nanmean, 1,
-                                                       neighbours)
-                    # and subsitite them in
-                    v[over] = replacements
-                self.data['despiked'][a] = v
         self.setfocus('despiked')
         return
 
     @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
-                noise_despiker=True, win=3, nlim=12.):
+                noise_despiker=True, win=3, nlim=12., maxiter=3):
         """
         Applies expdecay_despiker and noise_despiker to data.
 
@@ -396,16 +339,18 @@ class D(object):
         nlim : float
             The number of standard deviations above the rolling mean
             that data are excluded.
+        maxiter : int
+            The max number of times that the fitler is applied.
 
         Returns
         -------
         None
         """
         if noise_despiker:
-            self.noise_despiker(win, nlim)
+            self.noise_despiker(win, nlim, maxiter)
         if expdecay_despiker:
-            self.expdecay_despiker(exponent, tstep)
-
+            warnings.warn('expdecay_spiker is broken... not run.')
+        #     self.expdecay_despiker(exponent, tstep, maxiter)
         return
 
     # helper functions for data selection

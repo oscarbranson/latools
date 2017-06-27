@@ -652,9 +652,9 @@ class analyse(object):
         return
 
     @_log
-    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+    def despike(self, expdecay_despiker=False, exponent=None, tstep=None,
                 noise_despiker=True, win=3, nlim=12., exponentplot=False,
-                autorange_kwargs={}):
+                maxiter=4, autorange_kwargs={}):
         """
         Despikes data with exponential decay and noise filters.
 
@@ -679,6 +679,8 @@ class analyse(object):
         exponentplot : bool
             Whether or not to show a plot of the automatically determined
             exponential decay exponent.
+        maxiter : int
+            The max number of times that the fitler is applied.
 
         Returns
         -------
@@ -689,11 +691,11 @@ class analyse(object):
                 self.find_expcoef(plot=exponentplot,
                                   autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         for d in tqdm(self.data, desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
-                      noise_despiker, win, nlim)
+                      noise_despiker, win, nlim, maxiter)
 
         self.focus_stage = 'despiked'
         return
