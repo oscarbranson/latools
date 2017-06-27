@@ -1,4 +1,4 @@
-import shutil, os
+import shutil
 import unittest
 import latools as la
 
@@ -10,7 +10,7 @@ class test_latools(unittest.TestCase):
     print('\n\nTest LATOOLS on static data.')
 
     # load test data
-    d = la.analyse('./test_dir/test_data')
+    d = la.analyse('./tests/test_dir/test_data')
 
     # despike
     d.despike(expdecay_despiker=False, noise_despiker=True)
@@ -63,7 +63,7 @@ class test_latools(unittest.TestCase):
     d.minimal_export()
 
     # clean up
-    shutil.rmtree('./test_dir/test_data_reports')
+    shutil.rmtree('./tests/test_dir/test_data_reports')
 
     print('\nDone.\n\n')
 
@@ -73,10 +73,10 @@ class test_reproduce(unittest.TestCase):
     Test data reproduction.
     """
     print('\n\nTesting latools.reproduce')
-    d = la.reproduce('./test_dir/test_data_export/minimal_export/analysis.log')
+    d = la.reproduce('./tests/test_dir/test_data_export/minimal_export/analysis.log')
 
     # clean up
-    shutil.rmtree('./test_dir/test_data_export')
+    shutil.rmtree('./tests/test_dir/test_data_export')
 
     print('\nDone.\n\n')
 
