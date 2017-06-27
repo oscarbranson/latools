@@ -14,7 +14,6 @@ class test_latools(unittest.TestCase):
 
     # despike
     d.despike(expdecay_despiker=False, noise_despiker=True)
-    d.despike(expdecay_despiker=True, noise_despiker=False)
 
     # autorange
     d.autorange(on_mult=[1.5, 0.8],

@@ -22,7 +22,6 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
     if win % 2 != 1:
         win += 1  # win must be odd
 
-    sig = sig.copy()  # copy signal
     kernel = np.ones(win) / win  # make convolution kernel
     over = np.ones(len(sig), dtype=bool)  # initialize bool array
     # pad edges to avoid edge-effects
@@ -63,7 +62,6 @@ def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
     -------
     None
     """
-    sig = sig.copy()  # copy signal
     lo = np.ones(len(sig), dtype=bool)  # initialize bool array
     nloop = 0  # track number of iterations
     # do the despiking

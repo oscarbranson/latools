@@ -256,65 +256,6 @@ class D(object):
         for k in self.focus.keys():
             setattr(self, k, self.focus[k])
 
-    # despiking functions
-    def expdecay_despiker(self, exponent=None, tstep=None, maxiter=3):
-        """
-        Apply exponential decay filter to remove unrealistically low values.
-
-        Parameters
-        ----------
-        exponent : float
-            Expinent used in filter
-        tstep : float
-            The time increment between data points.
-            Calculated from Time variable if None.
-        maxiter : int
-            The max number of times that the fitler is applied.
-
-        Returns
-        -------
-        None
-        """
-        if tstep is None:
-            tstep = np.diff(self.Time[:2])
-        if not hasattr(self, 'despiked'):
-            self.data['despiked'] = {}
-
-        # do the work
-        for a, v in self.focus.items():
-            self.data['despiked'][a] = proc.expdecay_despike(v, exponent, tstep, maxiter)
-
-        self.setfocus('despiked')
-        return
-
-    # spike filter
-    def noise_despiker(self, win=3, nlim=6., maxiter=3):
-        """
-        Apply standard deviation filter to remove anomalous high values.
-
-        Parameters
-        ----------
-        win : int
-            The window used to calculate rolling statistics.
-        nlim : float
-            The number of standard deviations above the rolling
-            mean above which data are considered outliers.
-        maxiter : int
-            The max number of times that the fitler is applied.
-
-        Returns
-        -------
-        None
-        """
-        if not hasattr(self, 'despiked'):
-            self.data['despiked'] = {}
-
-        for a, v in self.focus.items():
-            self.data['despiked'][a] = proc.noise_despike(v, int(win), nlim, maxiter)
-
-        self.setfocus('despiked')
-        return
-
     @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
                 noise_despiker=True, win=3, nlim=12., maxiter=3):
@@ -346,11 +287,22 @@ class D(object):
         -------
         None
         """
-        if noise_despiker:
-            self.noise_despiker(win, nlim, maxiter)
-        if expdecay_despiker:
-            warnings.warn('expdecay_spiker is broken... not run.')
-        #     self.expdecay_despiker(exponent, tstep, maxiter)
+        if not hasattr(self, 'despiked'):
+            self.data['despiked'] = {}
+
+        out = {}
+        for a, v in self.focus.items():
+            if 'time' not in a.lower():
+                sig = v.copy()  # copy data
+                if noise_despiker:
+                    sig = proc.noise_despike(sig, int(win), nlim, maxiter)
+                if expdecay_despiker:
+                    warnings.warn('expdecay_spiker is broken... not run.')
+                    # sig = proc.expdecay_despike(v, exponent, tstep, maxiter)
+                out[a] = sig
+
+        self.data['despiked'].update(out)
+        self.setfocus('despiked')
         return
 
     # helper functions for data selection
