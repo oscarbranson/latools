@@ -4,9 +4,9 @@ import latools as la
 # IF YOU CHANGE THIS, MUST UPDATE LINE NO CALLS IN DOCS_SOURCE BEGINNERS GUIDE!!!
 
 class test_docscode(unittest.TestCase):
+    """test examples in documentation - WARNING don't change line numbers. Copied directly to docs.
     """
-    test examples in documentation - WARNING don't change line numbers. Copied directly to docs.
-    """
+    print('\n\nTesting Beginners Guide code examples.')
     os.mkdir('./latools_demo_tmp')
     os.chdir('latools_demo_tmp')
 
@@ -64,3 +64,9 @@ class test_docscode(unittest.TestCase):
     # clean up
     os.chdir('..')
     shutil.rmtree('latools_demo_tmp')
+
+    print('\nDone.\n\n')
+
+
+if __name__ == '__main__':
+    unittest.main()
