@@ -1,13 +1,13 @@
 import unittest
-import os, shutil
+import os, shutil, sys
 import latools as la
 # IF YOU CHANGE THIS, MUST UPDATE LINE NO CALLS IN DOCS_SOURCE BEGINNERS GUIDE!!!
-
 class test_docscode(unittest.TestCase):
     """test examples in documentation - WARNING don't change line numbers. Copied directly to docs.
     """
     print('\n\nTesting Beginners Guide code examples.')
-    os.mkdir('./latools_demo_tmp')
+    if not os.path.exists('./latools_demo_tmp'):
+        os.mkdir('./latools_demo_tmp')
     os.chdir('latools_demo_tmp')
 
     la.get_example_data('./data')
