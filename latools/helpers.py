@@ -459,6 +459,22 @@ def fastgrad(a, win=11):
                            np.zeros(int(win / 2))])
 
 
+def findmins(x, y):
+    """ Function to find local minima.
+
+    Parameters
+    ----------
+    x, y : array_like
+        1D arrays of the independent (x) and dependent (y) variables.
+
+    Returns
+    -------
+    array_like
+        Array of points in x where y has a local minimum.
+    """
+    return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
+
+
 # def gaus_deriv(x, *p):
 #     A, mu, sigma = p
 #     return A * ((np.exp((-(x - mu)**2)/(2*sigma**2)) * (x - mu)) /

@@ -21,7 +21,7 @@ from mpld3 import enable_notebook, disable_notebook, plugins
 import latools.process_fns as proc
 from .filt_obj import filt
 from .helpers import bool_2_indices, fastgrad, rolling_window, fastsmooth
-from .helpers import unitpicker, pretty_element
+from .helpers import unitpicker, pretty_element, findmins
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties, gauss
 
 
@@ -305,22 +305,6 @@ class D(object):
         self.setfocus('despiked')
         return
 
-    # helper functions for data selection
-    def findmins(self, x, y):
-        """ Function to find local minima.
-
-        Parameters
-        ----------
-        x, y : array_like
-            1D arrays of the independent (x) and dependent (y) variables.
-
-        Returns
-        -------
-        array_like
-            Array of points in x where y has a local minimum.
-        """
-        return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
-
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
                   conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
@@ -417,7 +401,7 @@ class D(object):
         kde = gaussian_kde(vl)
         yd = kde.pdf(x)  # calculate gaussian_kde of sample
 
-        mins = self.findmins(x, yd)  # find minima in kde
+        mins = findmins(x, yd)  # find minima in kde
 
         vs = fastsmooth(v, gwin)
         bkg = vs < btrans(d_mult * mins[0])  # set background as lowest distribution
@@ -899,7 +883,7 @@ class D(object):
                 x = np.linspace(np.nanmin(d), np.nanmax(d),
                                 kde.dataset.size // 3)
                 yd = kde.pdf(x)
-                limits = np.concatenate([self.findmins(x, yd), [x.max()]])
+                limits = np.concatenate([findmins(x, yd), [x.max()]])
 
                 if transform == 'log':
                     limits = 10**limits
