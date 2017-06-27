@@ -3,6 +3,8 @@ import warnings
 
 
 # Functions to work with laser ablation signals
+
+# Despiking functions
 def noise_despike(sig, win=3, nlim=24., maxiter=4):
     """
     Apply standard deviation filter to remove anomalous values.
@@ -46,6 +48,8 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
 
 def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
     """
+    THERE'S SOMETHING WRONG WITH THIS FUNCTION. REMOVES TOO MUCH DATA!
+
     Apply exponential decay filter to remove unrealistically low values.
 
     Parameters
