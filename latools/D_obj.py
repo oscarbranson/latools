@@ -300,9 +300,6 @@ class D(object):
             Must be odd.
         win : int
             Determines the width (c +/- win) of the transition data subsets.
-        smwin : int
-            The smoothing window used for calculating the second derivative.
-            Must be odd.
         on_mult and off_mult : tuple, len=2
             Factors to control the width of the excluded transition regions.
             A region n times the full - width - half - maximum of the transition

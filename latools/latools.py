@@ -498,29 +498,30 @@ class analyse(object):
         None
         """
 
-        if thresh_n is not None:
-            # calculate maximum background of srms
-            srms = self.subsets[self.srm_identifier]
+        # if thresh_n is not None:
+        #     # calculate maximum background of srms
+        #     srms = self.subsets[self.srm_identifier]
 
-            if not hasattr(self.data_dict[srms[0]], 'bkg'):
-                for s in srms:
-                    self.data_dict[s].autorange()
+        #     if not hasattr(self.data_dict[srms[0]], 'bkg'):
+        #         for s in srms:
+        #             self.data_dict[s].autorange()
 
-            srm_bkg_dat = []
+        #     srm_bkg_dat = []
 
-            for s in srms:
-                sd = self.data_dict[s]
+        #     for s in srms:
+        #         sd = self.data_dict[s]
 
-                ind = (sd.Time >= sd.bkgrng[0][0]) & (sd.Time <= sd.bkgrng[0][1])
-                srm_bkg_dat.append(sd.focus[self.internal_standard][ind])
+        #         ind = (sd.Time >= sd.bkgrng[0][0]) & (sd.Time <= sd.bkgrng[0][1])
+        #         srm_bkg_dat.append(sd.focus[self.internal_standard][ind])
 
-            srm_bkg_dat = np.concatenate(srm_bkg_dat)
+        #     srm_bkg_dat = np.concatenate(srm_bkg_dat)
 
-            bkg_mean = H15_mean(srm_bkg_dat)
-            bkg_std = H15_std(srm_bkg_dat)
-            bkg_thresh = bkg_mean + thresh_n * bkg_std
-        else:
-            bkg_thresh = None
+        #     bkg_mean = H15_mean(srm_bkg_dat)
+        #     bkg_std = H15_std(srm_bkg_dat)
+        #     bkg_thresh = bkg_mean + thresh_n * bkg_std
+        # else:
+        #     bkg_thresh = None
+        bkg_thresh = None
 
         if analyte is None:
             analyte = self.internal_standard
