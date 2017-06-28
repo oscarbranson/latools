@@ -141,15 +141,27 @@ def bool_2_indices(bool_array):
     """
     if ~isinstance(bool_array, np.ndarray):
         bool_array = np.array(bool_array)
-    if bool_array[-1]:
-        bool_array[-1] = False
+    
     lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
     if len(lims) > 0:
-        if lims[-1] == bool_array.size - 1:
-            lims[-1] = bool_array.size
+        if bool_array[0]:
+            lims = np.concatenate([[0], lims])
+        if bool_array[-1]:
+            lims = np.concatenate([lims, [bool_array.size - 1]])
         return np.reshape(lims, (len(lims) // 2, 2))
     else:
         return [[np.nan, np.nan]]
+    # if ~isinstance(bool_array, np.ndarray):
+    #     bool_array = np.array(bool_array)
+    # # if bool_array[-1]:
+    # #     bool_array[-1] = False
+    # lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
+    # if len(lims) > 0:
+    #     # if lims[-1] == bool_array.size - 1:
+    #     #     lims[-1] = bool_array.size
+    #     return np.reshape(lims, (len(lims) // 2, 2))
+    # else:
+    #     return [[np.nan, np.nan]]
 
 
 def enumerate_bool(bool_array, nstart=0):
@@ -418,17 +430,26 @@ def fastsmooth(a, win=11):
     """
     # check to see if 'window' is odd (even does not work)
     if win % 2 == 0:
-        win -= 1  # subtract 1 from window if it is even.
-    # trick for efficient 'rolling' computation in numpy
-    # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-    # strides = a.strides + (a.strides[-1], )
-    # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    wins = rolling_window(a, win)
-    # apply rolling gradient to data
-    a = map(np.nanmean, wins)
+        win += 1  # add 1 to window if it is even.
+    kernel = np.ones(win) / win
+    npad = int((win - 1) / 2)
+    spad = np.full(npad + 1, np.mean(a[:(npad + 1)]))
+    epad = np.full(npad - 1, np.mean(a[-(npad - 1):]))
+    return np.concatenate([spad, np.convolve(a, kernel, 'valid'), epad])
 
-    return np.concatenate([np.zeros(int(win / 2)), list(a),
-                           np.zeros(int(win / 2))])
+    # # check to see if 'window' is odd (even does not work)
+    # if win % 2 == 0:
+    #     win -= 1  # subtract 1 from window if it is even.
+    # # trick for efficient 'rolling' computation in numpy
+    # # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
+    # # strides = a.strides + (a.strides[-1], )
+    # # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    # wins = rolling_window(a, win)
+    # # apply rolling gradient to data
+    # a = map(np.nanmean, wins)
+
+    # return np.concatenate([np.zeros(int(win / 2)), list(a),
+    #                        np.zeros(int(win / 2))])
 
 
 def fastgrad(a, win=11):
@@ -453,7 +474,7 @@ def fastgrad(a, win=11):
     """
     # check to see if 'window' is odd (even does not work)
     if win % 2 == 0:
-        win -= 1  # subtract 1 from window if it is even.
+        win += 1  # subtract 1 from window if it is even.
     # trick for efficient 'rolling' computation in numpy
     # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
     # strides = a.strides + (a.strides[-1], )
