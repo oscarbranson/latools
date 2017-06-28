@@ -429,7 +429,7 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=None, d_mult=1.2,
+                  conf=0.01, on_mult=[1., 1.], off_mult=None,
                   transform='log', thresh_n=None, ploterrs=True):
         """
         Automatically separates signal and background data regions.
@@ -499,7 +499,7 @@ class analyse(object):
         """
 
         if thresh_n is not None:
-            # calculate maximum background composition of internal standard
+            # calculate maximum background of srms
             srms = self.subsets[self.srm_identifier]
 
             if not hasattr(self.data_dict[srms[0]], 'bkg'):
@@ -530,9 +530,9 @@ class analyse(object):
                 self.minimal_analytes.append(analyte)
 
         for d in tqdm(self.data, desc='AutoRange'):
-            d.autorange(analyte, gwin, win, smwin,
-                        conf, on_mult, off_mult,
-                        d_mult, transform, bkg_thresh)
+            d.autorange(analyte=analyte, gwin=gwin, win=win,
+                        on_mult=on_mult, off_mult=off_mult,
+                        ploterrs=ploterrs, bkg_thresh=bkg_thresh)
 
         return
 
