@@ -11,16 +11,15 @@ import uncertainties.unumpy as un
 
 from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
-from scipy.optimize import curve_fit
 from sklearn import preprocessing
 from functools import wraps
 from mpld3 import enable_notebook, disable_notebook, plugins
 
 import latools.process_fns as proc
 from .filt_obj import filt
-from .helpers import bool_2_indices, fastgrad, rolling_window, fastsmooth
+from .helpers import bool_2_indices, rolling_window
 from .helpers import unitpicker, pretty_element, findmins
-from .stat_fns import nominal_values, std_devs, unpack_uncertainties, gauss
+from .stat_fns import nominal_values, std_devs, unpack_uncertainties
 
 
 class D(object):
@@ -134,7 +133,7 @@ class D(object):
             self.cmap = dict(zip(self.analytes,
                                  cb.get_map('Paired', 'qualitative',
                                             len(self.analytes)).hex_colors))
-        except:
+        except ValueError:
             self.cmap = \
                 dict(zip(self.analytes,
                          [mpl.colors.rgb2hex(c) for c
@@ -410,7 +409,6 @@ class D(object):
     #         `on_mult` and `off_mult` refer to the laser - on and laser - off
     #         transitions, respectively. See manual for full explanation.
     #         Defaults to (1.5, 1) and (1, 1.5).
-
 
     #     Adds
     #     ----
@@ -1537,12 +1535,12 @@ class D(object):
         if filt is not None:
             ind = self.filt.grab_filt(filt)
             lims = bool_2_indices(~ind)
-            for l, u in lims:
+            for lo, u in lims:
                 if abs(u) >= len(self.Time):
                     u = -1
-                if l < 0:
-                    l = 0
-                ax.axvspan(self.Time[l], self.Time[u], color='k',
+                if lo < 0:
+                    lo = 0
+                ax.axvspan(self.Time[lo], self.Time[u], color='k',
                            alpha=0.05, lw=0)
 
             # drawn = []
