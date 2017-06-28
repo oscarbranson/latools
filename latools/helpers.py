@@ -124,33 +124,46 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
     return
 
 
-def bool_2_indices(bool_array):
-    """
-    Get list of limit tuples from boolean array.
+def bool_2_indices(a):
+    lims = []
+    d = np.where(a)[0]  # find indices of True
+    lims.append([d[0]])  # add first
+    lims.append([d[-1]])  # add last
+    wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
+    if len(wnc) > 0:
+        lims.append(d[wnc] + 1)  # add last consecutive + 1
+        lims.append(d[(wnc + 1)])  # add first consecutive
+    lims = np.concatenate(lims)  # combine lims and sort
+    lims.sort()  # sort output
+    return np.reshape(lims, (lims.size // 2, 2))
 
-    Parameters
-    ----------
-    bool_array : array_like
-        boolean array
+# def bool_2_indices(bool_array):
+#     """
+#     Get list of limit tuples from boolean array.
 
-    Returns
-    -------
-    array_like
-        [2, n] array of (start, end) values describing True parts
-        of bool_array
-    """
-    if ~isinstance(bool_array, np.ndarray):
-        bool_array = np.array(bool_array)
+#     Parameters
+#     ----------
+#     bool_array : array_like
+#         boolean array
+
+#     Returns
+#     -------
+#     array_like
+#         [2, n] array of (start, end) values describing True parts
+#         of bool_array
+#     """
+#     if ~isinstance(bool_array, np.ndarray):
+#         bool_array = np.array(bool_array)
     
-    lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
-    if len(lims) > 0:
-        if bool_array[0]:
-            lims = np.concatenate([[0], lims])
-        if bool_array[-1]:
-            lims = np.concatenate([lims, [bool_array.size - 1]])
-        return np.reshape(lims, (len(lims) // 2, 2))
-    else:
-        return [[np.nan, np.nan]]
+#     lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
+#     if len(lims) > 0:
+#         if bool_array[0]:
+#             lims = np.concatenate([[0], lims])
+#         if bool_array[-1]:
+#             lims = np.concatenate([lims, [bool_array.size - 1]])
+#         return np.reshape(lims, (len(lims) // 2, 2))
+#     else:
+#         return [[np.nan, np.nan]]
     # if ~isinstance(bool_array, np.ndarray):
     #     bool_array = np.array(bool_array)
     # # if bool_array[-1]:
@@ -184,7 +197,7 @@ def enumerate_bool(bool_array, nstart=0):
     ind = bool_2_indices(bool_array)
     ns = np.full(bool_array.size, nstart, dtype=int)
     for n, lims in enumerate(ind):
-        ns[lims[0]:lims[-1]] = nstart + n + 1
+        ns[lims[0]:lims[-1] + 1] = nstart + n + 1
     return ns
 
 
