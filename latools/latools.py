@@ -24,7 +24,7 @@ from .D_obj import D
 from .classifier_obj import classifier
 from .stat_fns import *
 from .helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, pretty_element, get_date
+                      un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch)
 from .stat_fns import R2calc, weighted_average, nominal_values, std_devs
 
@@ -94,9 +94,7 @@ class analyse(object):
         The directory where parameters are stored.
     report_dir : str
         The directory where plots are saved.
-    data : array_like
-        A list of `latools.D` data objects.
-    data_dict : dict
+    data : dict
         A dict of `latools.D` data objects, labelled by sample
         name.
     samples : array_like
@@ -261,13 +259,13 @@ class analyse(object):
         elif isinstance(dataformat, dict):
             self.dataformat = dataformat
 
-        # load data (initialise D objects)
-        data = np.array([D(self.folder + '/' + f,
-                           dataformat=self.dataformat,
-                           errorhunt=errorhunt,
-                           cmap=cmap,
-                           internal_standard=internal_standard,
-                           name=names) for f in self.files])
+        # load data into list (initialise D objects)
+        data = [D(self.folder + '/' + f,
+                  dataformat=self.dataformat,
+                  errorhunt=errorhunt,
+                  cmap=cmap,
+                  internal_standard=internal_standard,
+                  name=names) for f in self.files]
 
         # create universal time scale
         if 'date' in data[0].meta.keys():
@@ -286,34 +284,38 @@ class analyse(object):
             for d in data:
                 d.uTime = d.Time + ts
                 ts += d.Time[-1]
-            warnings.warn("Time not found in data file. Universal time scale\n" +
+            warnings.warn("Time not determined from dataformat. Universal time scale\n" +
                           "approximated as continuously measured samples.\n" +
+                          "Samples might not be in the right order.\n"
                           "Background correction and calibration may not behave\n" +
                           "as expected.")
 
-        # assign sample names
+        # sort data by uTime
+        data.sort(key=lambda d: d.uTime[0])
+
+        # process sample names
         if (names == 'file_names') | (names == 'metadata_names'):
-            self.samples = np.array([s.sample for s in data])
-            # rename duplicates sample names
-            for u in np.unique(self.samples):
-                ind = self.samples == u
-                if sum(ind) > 1:
-                    self.samples[ind] = [s + '_{}'.format(n) for s, n in zip(self.samples[ind], np.arange(sum(ind)))]
-                    for i, sn in zip(np.arange(len(self.samples))[ind], self.samples[ind]):
-                        data[i].sample = sn
+            samples = np.array([s.sample for s in data], dtype=object)  # get all sample names
+            # if duplicates, rename them
+            usamples, ucounts = np.unique(samples, return_counts=True)
+            if usamples.size != samples.size:
+                dups = usamples[ucounts > 1]  # identify duplicates
+                nreps = ucounts[ucounts > 1]  # identify how many times they repeat
+                for d, n in zip(dups, nreps):  # cycle through duplicates
+                    new = [d + '_{}'.format(i) for i in range(n)]  # append number to duplicate names
+                    samples[samples == d] = new  # rename in samples
+                    for s, ns in zip(data[samples == d], new):
+                        s.sample = ns  # rename in D objects
         else:
-            data = sorted(data, key=lambda d: d.uTime[0])
-            self.samples = np.arange(len(data))
-            for i, s in enumerate(self.samples):
+            samples = np.arange(len(data))  # assign a range of numbers
+            for i, s in enumerate(samples):
                 data[i].sample = s
+        self.samples = samples
 
         # copy colour map to top level
         self.cmaps = data[0].cmap
 
-        # From this point on, data stored in dicts
-        self.data = Bunch(zip(self.samples, data))
-        self.data_dict = data
-
+        # get analytes
         self.analytes = np.array(data[0].analytes)
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
@@ -322,12 +324,12 @@ class analyse(object):
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = [internal_standard]
 
-        # self.data_dict = {}
-        # for s, d in zip(self.samples, self.data):
-        #     self.data_dict[s] = d
+        # From this point on, data stored in dicts
+        self.data = Bunch(zip(self.samples, data))
 
+        # get SRM info
         self.srm_identifier = srm_identifier
-        self.stds = []
+        self.stds = []  # make this a dict
         _ = [self.stds.append(s) for s in self.data.values()
              if self.srm_identifier in s.sample]
         self.srms_ided = False
@@ -346,11 +348,6 @@ class analyse(object):
 
         # initialise classifiers
         self.classifiers = {}
-
-        # f = open('errors.log', 'a')
-        # f.write(('Errors and warnings during LATOOLS analysis '
-        #          'are stored here.\n\n'))
-        # f.close()
 
         # report
         print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
@@ -482,14 +479,14 @@ class analyse(object):
         #     # calculate maximum background of srms
         #     srms = self.subsets[self.srm_identifier]
 
-        #     if not hasattr(self.data_dict[srms[0]], 'bkg'):
+        #     if not hasattr(self.data[srms[0]], 'bkg'):
         #         for s in srms:
-        #             self.data_dict[s].autorange()
+        #             self.data[s].autorange()
 
         #     srm_bkg_dat = []
 
         #     for s in srms:
-        #         sd = self.data_dict[s]
+        #         sd = self.data[s]
 
         #         ind = (sd.Time >= sd.bkgrng[0][0]) & (sd.Time <= sd.bkgrng[0][1])
         #         srm_bkg_dat.append(sd.focus[self.internal_standard][ind])
@@ -510,7 +507,7 @@ class analyse(object):
         elif analyte not in self.minimal_analytes:
                 self.minimal_analytes.append(analyte)
 
-        for d in tqdm(self.data_dict.values(), desc='AutoRange'):
+        for d in tqdm(self.data.values(), desc='AutoRange'):
             d.autorange(analyte=analyte, gwin=gwin, win=win,
                         on_mult=on_mult, off_mult=off_mult,
                         ploterrs=ploterrs, bkg_thresh=bkg_thresh)
@@ -674,7 +671,7 @@ class analyse(object):
             exponent = self.expdecay_coef
             time.sleep(0.1)
 
-        for d in tqdm(self.data_dict.values(), desc='Despiking'):
+        for d in tqdm(self.data.values(), desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
                       noise_despiker, win, nlim, maxiter)
 
@@ -717,7 +714,7 @@ class analyse(object):
             allbkgs[a] = []
 
         n0 = 0
-        for s in self.data_dict.values():
+        for s in self.data.values():
             if sum(s.bkg) > 0:
                 allbkgs['uTime'].append(s.uTime[s.bkg])
                 allbkgs['ns'].append(enumerate_bool(s.bkg, n0)[s.bkg])
@@ -896,7 +893,7 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        for d in tqdm(self.data_dict.values(), desc='Background Subtraction'):
+        for d in tqdm(self.data.values(), desc='Background Subtraction'):
             [d.bkg_subtract(a,
                             un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
                                       np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
@@ -968,10 +965,13 @@ class analyse(object):
         ax.set_xlim(self.bkg['raw']['uTime'].min(),
                     self.bkg['raw']['uTime'].max())
 
-        for s, r in self.starttimes.iterrows():
-            x = r.Dseconds
-            ax.axvline(x, alpha=0.2, color='k', zorder=-1)
-            ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+        for s, d in self.data.items():
+            ax.axvline(d.uTime[0], alpha=0.2, color='k', zorder=-1)
+            ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+        # for s, r in self.starttimes.iterrows():
+        #     x = r.Dseconds
+        #     ax.axvline(x, alpha=0.2, color='k', zorder=-1)
+        #     ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
 
         if save:
             fig.savefig(self.report_dir + '/background.png', dpi=200)
@@ -1003,7 +1003,7 @@ class analyse(object):
             if internal_standard not in self.minimal_analytes:
                 self.minimal_analytes.append(internal_standard)
 
-        for s in tqdm(self.data_dict.values(), desc='Ratio Calculation'):
+        for s in tqdm(self.data.values(), desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
 
         self.focus_stage = 'ratio'
@@ -1063,7 +1063,7 @@ class analyse(object):
 
     #     # make boolean identifiers in standard D
     #     for sn, rs in self.srm_rng.items():
-    #         s = self.data_dict[sn]
+    #         s = self.data[sn]
     #         s.std_labels = {}
     #         for srm, rng in rs.items():
     #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
@@ -1309,7 +1309,7 @@ class analyse(object):
 
         # fill in uTime=0 and uTime = max cases for interpolation
         self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-        maxuT = np.max([d.uTime.max() for d in self.data_dict.values()])  # calculate max uTime
+        maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
         self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
         self.calib_params.sort_index(inplace=True)
 
@@ -1319,7 +1319,7 @@ class analyse(object):
             self.calib_ms[a] = un_interp1d(self.calib_params.index.values,
                                            self.calib_params.loc[:, a])
 
-        for d in tqdm(self.data_dict.values(), desc='Applying Calibrations'):
+        for d in tqdm(self.data.values(), desc='Applying Calibrations'):
             d.calibrate(self.calib_ms, analytes)
 
         self.focus_stage = 'calibrated'
@@ -1508,7 +1508,7 @@ class analyse(object):
         if focus_stage is None:
             focus_stage = self.focus_stage
 
-        for s in self.data_dict.values():
+        for s in self.data.values():
             ind = np.ones(len(s.Time), dtype=bool)
             for v in s.data[focus_stage].values():
                 ind = ind & (nominal_values(v) > 0)
@@ -1557,7 +1557,7 @@ class analyse(object):
         self._add_minimal_analte(analyte)
 
         for s in tqdm(samples, desc='Threshold Filter'):
-            self.data_dict[s].filter_threshold(analyte, threshold, filt=False)
+            self.data[s].filter_threshold(analyte, threshold, filt=False)
 
     @_log
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
@@ -1602,7 +1602,7 @@ class analyse(object):
         self._add_minimal_analte(analyte)
 
         for s in tqdm(samples, desc='Distribution Filter'):
-            self.data_dict[s].filter_distribution(analyte, binwidth='scott',
+            self.data[s].filter_distribution(analyte, binwidth='scott',
                                                   filt=filt, transform=None,
                                                   min_data=min_data)
 
@@ -1716,7 +1716,7 @@ class analyse(object):
         self._add_minimal_analte(analytes)
 
         for s in tqdm(samples, desc='Clustering Filter'):
-            self.data_dict[s].filter_clustering(analytes=analytes, filt=filt,
+            self.data[s].filter_clustering(analytes=analytes, filt=filt,
                                                 normalise=normalise,
                                                 method=method,
                                                 include_time=include_time,
@@ -1768,7 +1768,7 @@ class analyse(object):
         self._add_minimal_analte([x_analyte, y_analyte])
 
         for s in tqdm(samples, desc='Correlation Filter'):
-            self.data_dict[s].filter_correlation(x_analyte, y_analyte,
+            self.data[s].filter_correlation(x_analyte, y_analyte,
                                                  window=window,
                                                  r_threshold=r_threshold,
                                                  p_threshold=p_threshold,
@@ -1803,7 +1803,7 @@ class analyse(object):
 
         for s in samples:
             try:
-                self.data_dict[s].filt.on(analyte, filt)
+                self.data[s].filt.on(analyte, filt)
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
@@ -1839,7 +1839,7 @@ class analyse(object):
 
         for s in samples:
             try:
-                self.data_dict[s].filt.off(analyte, filt)
+                self.data[s].filt.off(analyte, filt)
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
@@ -1871,29 +1871,29 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Threshold Filter'):
-            self.data_dict[s].filt.filter_new(name, filter_string)
+            self.data[s].filt.filter_new(name, filter_string)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         s = ''
         if sample is None and subset is None:
             if not self._has_subsets:
                 s += 'Subset: All Samples\n\n'
-                s += self.data_dict[self.subsets['All_Samples'][0]].filt.__repr__()
+                s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()
             else:
                 for n in sorted(self._subset_names):
                     s += 'Subset: ' + str(n) + '\n'
                     s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                    s += self.data_dict[self.subsets[n][0]].filt.__repr__()
+                    s += self.data[self.subsets[n][0]].filt.__repr__()
                 if len(self.subsets['not_in_set']) > 0:
                     s += '\nNot in Subset:\n'
                     s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
-                    s += self.data_dict[self.subsets['not_in_set'][0]].filt.__repr__()
+                    s += self.data[self.subsets['not_in_set'][0]].filt.__repr__()
             print(s)
             return
 
         elif sample is not None:
             s += 'Sample: ' + sample + '\n'
-            s += self.data_dict[sample].filt.__repr__()
+            s += self.data[sample].filt.__repr__()
             print(s)
             return
 
@@ -1903,7 +1903,7 @@ class analyse(object):
             for n in subset:
                 s += 'Subset: ' + str(n) + '\n'
                 s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                s += self.data_dict[self.subsets[n][0]].filt.__repr__()
+                s += self.data[self.subsets[n][0]].filt.__repr__()
             print(s)
             return
 
@@ -1918,11 +1918,11 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         for s in samples:
-            self.data_dict[s].filt.clear()
+            self.data[s].filt.clear()
 
     # def filter_status(self, sample=None):
     #     if sample is not None:
-    #         print(self.data_dict[sample].filt)
+    #         print(self.data[sample].filt)
     #     else:
 
     @_log
@@ -2018,7 +2018,7 @@ class analyse(object):
         labs = c.classifier.ulabels_
 
         for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
-            d = self.data_dict[s]
+            d = self.data[s]
             try:
                 f = c.predict(d.focus)
             except ValueError:
@@ -2257,7 +2257,7 @@ class analyse(object):
             self.focus_stage = focus_stage
 
         for s in samples:
-            self.data_dict[s].setfocus(focus_stage)
+            self.data[s].setfocus(focus_stage)
 
     # fetch all the data from the data objects
     def get_focus(self, filt=False, samples=None, subset=None):
@@ -2290,7 +2290,7 @@ class analyse(object):
             self.focus[a] = []
 
         for sa in samples:
-            s = self.data_dict[sa]
+            s = self.data[sa]
             self.focus['uTime'].append(s.uTime)
             ind = s.filt.grab_filt(filt)
             for a in self.analytes:
@@ -2451,7 +2451,7 @@ class analyse(object):
             samples = self._get_samples(subset)
 
         # isolate relevant filters
-        filts = self.data_dict[samples[0]].filt.components.keys()
+        filts = self.data[samples[0]].filt.components.keys()
         cfilts = [f for f in filts if filter_string in f]
         flab = re.compile('.*_(.*)$')  # regex to get filter name
 
@@ -2600,7 +2600,7 @@ class analyse(object):
             samples = [samples]
 
         for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data_dict[s].tplot(analytes=analytes, figsize=figsize,
+            f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
                                            scale=scale, filt=filt,
                                            ranges=ranges, stats=stats,
                                            stat=stat, err=err, focus_stage=focus)
@@ -2636,7 +2636,7 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Drawing Plots'):
-            self.data_dict[s].filt_report(filt=filt_str,
+            self.data[s].filt_report(filt=filt_str,
                                           analytes=analytes,
                                           savedir=outdir)
             # plt.close(fig)
@@ -2750,11 +2750,11 @@ class analyse(object):
         # calculate stats for each sample
         for s in tqdm(self.samples, desc='Calculating Stats'):
             if self.srm_identifier not in s:
-                self.data_dict[s].sample_stats(analytes, filt=filt,
+                self.data[s].sample_stats(analytes, filt=filt,
                                                stat_fns=stat_fns,
                                                eachtrace=eachtrace)
 
-                self.stats[s] = self.data_dict[s].stats
+                self.stats[s] = self.data[s].stats
 
     @_log
     def ablation_times(self, samples=None, subset=None):
@@ -2767,7 +2767,7 @@ class analyse(object):
         ats = {}
 
         for s in samples:
-            ats[s] = self.data_dict[s].ablation_times()
+            ats[s] = self.data[s].ablation_times()
 
         frames = []
         for s in samples:
@@ -2934,13 +2934,13 @@ class analyse(object):
             os.mkdir(outdir)
 
         for s in samples:
-            d = self.data_dict[s].data[focus_stage]
+            d = self.data[s].data[focus_stage]
             out = {}
 
             for a in analytes:
                 out[a] = d[a]
 
-            out = pd.DataFrame(out, index=self.data_dict[s].Time)
+            out = pd.DataFrame(out, index=self.data[s].Time)
             out.index.name = 'Time'
 
             header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
@@ -2949,7 +2949,7 @@ class analyse(object):
                       '# Run latools.reproduce to import analysis.',
                       '#',
                       '# Sample: %s' % (s),
-                      '# Analysis Time: ' + self.data_dict[s].meta['date']]
+                      '# Analysis Time: ' + self.data[s].meta['date']]
 
             header = '\n'.join(header) + '\n'
 
@@ -3021,8 +3021,8 @@ class analyse(object):
             os.mkdir(outdir)
 
         for s in samples:
-            d = self.data_dict[s].data[focus_stage]
-            ind = self.data_dict[s].filt.grab_filt(filt)
+            d = self.data[s].data[focus_stage]
+            ind = self.data[s].filt.grab_filt(filt)
             out = {}
 
             for a in analytes:
@@ -3031,7 +3031,7 @@ class analyse(object):
                     out[a + '_std'] = std_devs(d[a][ind])
                     out[a + '_std'][out[a + '_std'] == 0] = np.nan
 
-            out = pd.DataFrame(out, index=self.data_dict[s].Time[ind])
+            out = pd.DataFrame(out, index=self.data[s].Time[ind])
             out.index.name = 'Time'
 
             header = ['# Sample: %s' % (s),
