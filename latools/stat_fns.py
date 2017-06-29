@@ -40,39 +40,87 @@ def std_devs(a):
         return a
 
 
-def weighted_average(x, y, x_new, fwhm=300):
+# def weighted_average(x, y, x_new, fwhm=300):
+#     """
+#     Calculate gaussian weigted moving mean, SD and SE.
+
+#     Parameters
+#     ----------
+#     x, y : array - like
+#         The x and y data to smooth
+#     x_new : array - like
+#         The new x - scale to interpolate the data
+
+#     """
+#     bin_avg = np.zeros(len(x_new))
+#     bin_std = np.zeros(len(x_new))
+#     bin_se = np.zeros(len(x_new))
+
+#     # Gaussian function as weights
+#     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+
+#     for index, xn in enumerate(x_new):
+#         weights = gauss(x, 1, xn, sigma)
+#         weights /= sum(weights)
+#         # weighted mean
+#         bin_avg[index] = np.average(y, weights=weights)
+#         # weighted standard deviation
+#         bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))
+#         # weighted standard error (mean / sqrt(n_points_in_gaussian))
+#         bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \
+#             np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
+
+#     return {'mean': bin_avg,
+#             'std': bin_std,
+#             'stderr': bin_se}
+
+
+def gauss_weighted_stats(x, yarray, x_new, fwhm):
     """
     Calculate gaussian weigted moving mean, SD and SE.
 
     Parameters
     ----------
-    x, y : array - like
-        The x and y data to smooth
-    x_new : array - like
-        The new x - scale to interpolate the data
+    x : array-like
+        The independent variable
+    yarray : (n,m) array
+        Where n = x.size, and m is the number of
+        dependent variables to smooth.
+    x_new : array-like
+        The new x-scale to interpolate the data
+    fwhm : int
+        FWHM of the gaussian kernel.
 
+    Returns
+    -------
+    (mean, std, se) : tuple
     """
-    bin_avg = np.zeros(len(x_new))
-    bin_std = np.zeros(len(x_new))
-    bin_se = np.zeros(len(x_new))
-
-    # Gaussian function as weights
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
-    for index, xn in enumerate(x_new):
-        weights = gauss(x, 1, xn, sigma)
-        weights /= sum(weights)
-        # weighted mean
-        bin_avg[index] = np.average(y, weights=weights)
-        # weighted standard deviation
-        bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))
-        # weighted standard error (mean / sqrt(n_points_in_gaussian))
-        bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \
-            np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
+    # create empty mask array
+    mask = np.zeros((x.size, yarray.shape[1], x_new.size))
+    # fill mask
+    for i, xni in enumerate(x_new):
+        mask[:, :, i] = gauss(x[:, np.newaxis], 1, xni, sigma)
+    # normalise mask
+    nmask = mask / mask.sum(0)  # sum of each gaussian = 1
 
-    return {'mean': bin_avg,
-            'std': bin_std,
-            'stderr': bin_se}
+    # calculate moving average
+    av = (nmask * yarray[:, :, np.newaxis]).sum(0)  # apply mask to data
+    # sum along xn axis to get means
+
+    # calculate moving sd
+    diff = np.power(av - yarray[:, :, np.newaxis], 2)
+    std = np.sqrt((diff * nmask).sum(0))
+    # sqrt of weighted average of data-mean
+
+    # calculate moving se
+    se = std / np.sqrt(mask.sum(0))
+    # max amplitude of weights is 1, so sum of weights scales
+    # a fn of how many points are nearby. Use this as 'n' in
+    # SE calculation.
+
+    return av, std, se
 
 
 def gauss(x, *p):
@@ -83,7 +131,7 @@ def gauss(x, *p):
     x : array_like
         Independent variable.
     *p : parameters unpacked to A, mu, sigma
-        A: area
+        A: amplitude
         mu: centre
         sigma: width
 

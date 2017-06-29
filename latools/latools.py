@@ -26,7 +26,7 @@ from .stat_fns import *
 from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch)
-from .stat_fns import R2calc, weighted_average, nominal_values, std_devs
+from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -694,8 +694,6 @@ class analyse(object):
         -------
         pandas.DataFrame object containing background data.
         """
-        idx = pd.IndexSlice
-
         allbkgs = {'uTime': [],
                    'ns': []}
 
@@ -712,7 +710,7 @@ class analyse(object):
                     allbkgs[a].append(s.data[focus_stage][a][s.bkg])
 
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
-        bkgs = pd.DataFrame(allbkgs)
+        bkgs = pd.DataFrame(allbkgs)  # using pandas here because it's much more efficient than loops.
 
         self.bkg = {}
         # extract background data from whole dataset
@@ -794,12 +792,16 @@ class analyse(object):
             self.bkg['calc'] = {}
             self.bkg['calc']['uTime'] = bkg_t
 
-        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
-            self.bkg['calc'][a] = weighted_average(self.bkg['raw'].uTime,
-                                                   self.bkg['raw'].loc[:, a],
-                                                   self.bkg['calc']['uTime'],
-                                                   weight_fwhm)
-        return
+        # TODO : this is clumsy.
+        mean, std, stderr = gauss_weighted_stats(self.bkg['raw'].uTime,
+                                                 self.bkg['raw'].loc[:, analytes].values,
+                                                 self.bkg['calc']['uTime'],
+                                                 fwhm=weight_fwhm)
+
+        for i, a in enumerate(analytes):
+            self.bkg['calc'][a] = {'mean': mean[i],
+                                   'std': std[i],
+                                   'stderr': stderr[i]}
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
