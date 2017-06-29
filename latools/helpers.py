@@ -3,6 +3,8 @@ import shutil
 import re
 import configparser
 import numpy as np
+import datetime as dt
+import dateutil as du
 import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
@@ -13,6 +15,25 @@ class Bunch(dict):
     def __init__(self, *args, **kwds):
         super(Bunch, self).__init__(*args, **kwds)
         self.__dict__ = self
+
+
+def get_date(datetime, time_format=None):
+    """
+    Return a datetime oject from a string, with optional time format.
+
+    Parameters
+    ----------
+    datetime : str
+        Date-time as string in any sensible format.
+    time_format : datetime str (optional)
+        String describing the datetime format. If missing uses
+        dateutil.parser to guess time format.
+    """
+    if time_format is None:
+        t = du.parser.parse(datetime)
+    else:
+        t = dt.datetime.strftime(datetime, time_format)
+    return t
 
 
 # other useful functions
