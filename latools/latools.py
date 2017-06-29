@@ -1,6 +1,7 @@
 import configparser
 import itertools
 import inspect
+import json
 import os
 import re
 import time
@@ -247,8 +248,8 @@ class analyse(object):
         # if it's a string, check the file exists and import it.
         if isinstance(dataformat, str):
             if os.path.exists(dataformat):
-                self.dataformat = eval(open(dataformat).read())
-                # self.dataformat = json.load(open(dataformat))
+                # self.dataformat = eval(open(dataformat).read())
+                self.dataformat = json.load(open(dataformat))
             else:
                 warnings.warn(("The dataformat file (" + dataformat +
                                ") cannot be found.\nPlease make sure the file "

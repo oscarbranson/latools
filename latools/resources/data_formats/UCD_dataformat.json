@@ -1,0 +1,28 @@
+{
+    "unit": "cps",
+    "genfromtext_args": {
+        "delimiter": ",",
+        "skip_header": 4
+    },
+    "meta_regex": {
+        "0": [
+            [
+                "path"
+            ],
+            "(.*)"
+        ],
+        "2": [
+            [
+                "date",
+                "method"
+            ],
+            "([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\\.m)"
+        ]
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timecolumn": 0,
+        "name_row": 3,
+        "pattern": "([A-z]{1,2}[0-9]{1,3})"
+    }
+}
