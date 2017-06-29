@@ -203,8 +203,10 @@ class D(object):
         """
         self.focus = self.data[focus]
         self.focus_stage = focus
-        for k in self.focus.keys():
-            setattr(self, k, self.focus[k])
+
+        self.__dict__.update(self.focus)
+        # for k in self.focus.keys():
+            # setattr(self, k, self.focus[k])
 
     @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
