@@ -24,8 +24,8 @@ from .D_obj import D
 from .classifier_obj import classifier
 from .stat_fns import *
 from .helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, pretty_element,
-                      unitpicker, rangecalc)
+                      un_interp1d, pretty_element, get_date
+                      unitpicker, rangecalc, Bunch)
 from .stat_fns import R2calc, weighted_average, nominal_values, std_devs
 
 idx = pd.IndexSlice  # multi-index slicing!
@@ -162,6 +162,7 @@ class analyse(object):
         del(params['self'])
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
+        # assign file paths
         self.folder = os.path.realpath(data_folder)
         self.parent_folder = os.path.dirname(self.folder)
         self.files = np.array([f for f in os.listdir(self.folder)
@@ -179,11 +180,8 @@ class analyse(object):
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
-        self.focus_stage = 'rawdata'
-
         # load configuration parameters
-        # read in config file
-        conf = configparser.ConfigParser()
+        conf = configparser.ConfigParser()  # read in config file
         conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
         # load defaults into dict
         pconf = dict(conf.defaults())
@@ -271,25 +269,52 @@ class analyse(object):
                            internal_standard=internal_standard,
                            name=names) for f in self.files])
 
-        # sort by time
-        self.data = sorted(data, key=lambda d: d.meta['date'])
+        # create universal time scale
+        if 'date' in data[0].meta.keys():
+            if (time_format is None) and ('time_format' in self.dataformat.keys()):
+                time_format = self.dataformat['time_format']
+
+            start_times = []
+            for d in data:
+                start_times.append(get_date(d.meta['date'], time_format))
+            min_time = min(start_times)
+
+            for d, st in zip(data, start_times):
+                d.uTime = d.Time + (st - min_time).seconds
+        else:
+            ts = 0
+            for d in data:
+                d.uTime = d.Time + ts
+                ts += d.Time[-1]
+            warnings.warn("Time not found in data file. Universal time scale\n" +
+                          "approximated as continuously measured samples.\n" +
+                          "Background correction and calibration may not behave\n" +
+                          "as expected.")
 
         # assign sample names
         if (names == 'file_names') | (names == 'metadata_names'):
-            self.samples = np.array([s.sample for s in self.data])
+            self.samples = np.array([s.sample for s in data])
             # rename duplicates sample names
             for u in np.unique(self.samples):
                 ind = self.samples == u
                 if sum(ind) > 1:
                     self.samples[ind] = [s + '_{}'.format(n) for s, n in zip(self.samples[ind], np.arange(sum(ind)))]
                     for i, sn in zip(np.arange(len(self.samples))[ind], self.samples[ind]):
-                        self.data[i].sample = sn
+                        data[i].sample = sn
         else:
-            self.samples = np.arange(len(self.data))
+            data = sorted(data, key=lambda d: d.uTime[0])
+            self.samples = np.arange(len(data))
             for i, s in enumerate(self.samples):
-                self.data[i].sampleseq1 = s
+                data[i].sample = s
 
-        self.analytes = np.array(self.data[0].analytes)
+        # copy colour map to top level
+        self.cmaps = data[0].cmap
+
+        # From this point on, data stored in dicts
+        self.data = Bunch(zip(self.samples, data))
+        self.data_dict = data
+
+        self.analytes = np.array(data[0].analytes)
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
@@ -297,15 +322,18 @@ class analyse(object):
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = [internal_standard]
 
-        self.data_dict = {}
-        for s, d in zip(self.samples, self.data):
-            self.data_dict[s] = d
+        # self.data_dict = {}
+        # for s, d in zip(self.samples, self.data):
+        #     self.data_dict[s] = d
 
         self.srm_identifier = srm_identifier
         self.stds = []
-        _ = [self.stds.append(s) for s in self.data
+        _ = [self.stds.append(s) for s in self.data.values()
              if self.srm_identifier in s.sample]
         self.srms_ided = False
+
+        # set up focus_stage recording
+        self.focus_stage = 'rawdata'
 
         # set up subsets
         self._has_subsets = False
@@ -315,29 +343,6 @@ class analyse(object):
         self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
         self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
-
-        # create universal time scale
-        if 'date' in self.data[0].meta.keys():
-            if (time_format is None) and ('time_format' in self.dataformat.keys()):
-                time_format = self.dataformat['time_format']
-
-            self.starttimes = self.get_starttimes(time_format)
-
-            for d in self.data_dict.values():
-                d.uTime = d.Time + self.starttimes.loc[d.sample, 'Dseconds']
-
-        else:
-            ts = 0
-            for d in self.data_dict.values():
-                d.uTime = d.Time + ts
-                ts += d.Time[-1]
-            warnings.warn("Time not found in data file. Universal time scale\n" +
-                          "approximated as continuously measured samples.\n" +
-                          "Background correction and calibration may not behave\n" +
-                          "as expected.")
-
-        # copy colour map to top level
-        self.cmaps = self.data[0].cmap
 
         # initialise classifiers
         self.classifiers = {}
@@ -401,31 +406,6 @@ class analyse(object):
             if a not in self.minimal_analytes:
                 self.minimal_analytes.append(a)
 
-    # Work functions
-    def get_starttimes(self, time_format=None):
-        try:
-            sd = {}
-            for k, v in self.data_dict.items():
-                sd[k] = v.meta['date']
-
-            sd = pd.DataFrame.from_dict(sd, orient='index')
-            sd.columns = ['date']
-
-            sd.loc[:, 'date'] = pd.to_datetime(sd['date'], format=time_format)
-
-            sd['Ddate'] = sd.date - sd.date.min()
-            sd['Dseconds'] = sd.Ddate / np.timedelta64(1, 's')
-            sd.sort_values(by='Dseconds', inplace=True)
-            sd['sequence'] = range(sd.shape[0])
-            return sd
-        except:
-            ValueError(("Cannot determine data file start times.\n" +
-                        "This could be because:\n  1) 'date' " +
-                        "not specified in 'meta_regex' section of \n" +
-                        "     file format. Consult 'data format' documentation\n  " +
-                        "   and modify appropriately.\n  2) time_format cannot be" +
-                        " automatically determined.\n     Consult 'strptime'" +
-                        " documentation, and provide a\n     valid 'time_format'."))
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
