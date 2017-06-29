@@ -336,18 +336,19 @@ class analyse(object):
 
         # set up focus_stage recording
         self.focus_stage = 'rawdata'
+        self.focus = Bunch()
 
         # set up subsets
         self._has_subsets = False
         self._subset_names = []
-        self.subsets = {}
+        self.subsets = Bunch()
         self.subsets['All_Analyses'] = self.samples
         self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
         self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
         # initialise classifiers
-        self.classifiers = {}
+        self.classifiers = Bunch()
 
         # report
         print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
@@ -712,7 +713,7 @@ class analyse(object):
         allbkgs.update((k, np.concatenate(v)) for k, v in allbkgs.items())
         bkgs = pd.DataFrame(allbkgs)  # using pandas here because it's much more efficient than loops.
 
-        self.bkg = {}
+        self.bkg = Bunch()
         # extract background data from whole dataset
         if n_max is None:
             self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: len(x) > n_min)
@@ -771,7 +772,7 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes
-            self.bkg = {}
+            self.bkg = Bunch()
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -789,7 +790,7 @@ class analyse(object):
             bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
                               self.bkg['raw']['uTime'].max(),
                               cstep)
-            self.bkg['calc'] = {}
+            self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
         # TODO : this is clumsy.
@@ -836,7 +837,7 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes
-            self.bkg = {}
+            self.bkg = Bunch()
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -852,7 +853,7 @@ class analyse(object):
                               self.bkg['summary']['uTime']['mean'].max(),
                               cstep)
 
-            self.bkg['calc'] = {}
+            self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
@@ -1014,7 +1015,7 @@ class analyse(object):
 
     #     def id(self, s):
     #         stdnms = []
-    #         s.srm_rngs = {}
+    #         s.srm_rngs = Bunch()
     #         for n in np.arange(s.n) + 1:
     #             fig, ax = s.tplot(scale='log')
     #             lims = s.Time[s.ns == n][[0, -1]]
@@ -1039,7 +1040,7 @@ class analyse(object):
     #         else:
     #             for s in self.stds[1:]:
     #                 if s.n == n0:
-    #                     s.srm_rngs = {}
+    #                     s.srm_rngs = Bunch()
     #                     for n in np.arange(s.n) + 1:
     #                         s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
     #                 else:
@@ -1048,14 +1049,14 @@ class analyse(object):
     #     display.clear_output()
 
     #     # record srm_rng in self
-    #     self.srm_rng = {}
+    #     self.srm_rng = Bunch()
     #     for s in self.stds:
     #         self.srm_rng[s.sample] = s.srm_rngs
 
     #     # make boolean identifiers in standard D
     #     for sn, rs in self.srm_rng.items():
     #         s = self.data[sn]
-    #         s.std_labels = {}
+    #         s.std_labels = Bunch()
     #         for srm, rng in rs.items():
     #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
 
@@ -1180,7 +1181,7 @@ class analyse(object):
         stdtab = stdtab.reset_index().set_index(['STD', 'SRM', 'uTime'])
 
         # combine to make SRM reference tables
-        srmtabs = {}
+        srmtabs = Bunch()
         for a in self.analytes:
             el = re.findall('[A-Za-z]+', a)[0]
 
@@ -1220,7 +1221,7 @@ class analyse(object):
     #     # make boolean identifiers in standard D
     #     for s in self.stds:
     #         s.srm_rngs = self.srm_rng[s.sample]
-    #         s.std_labels = {}
+    #         s.std_labels = Bunch()
     #         for srm, rng in s.srm_rngs.items():
     #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
     #     self.srms_ided = True
@@ -1279,7 +1280,7 @@ class analyse(object):
 
         # set up calibration functions - kept to maintain calibration_plot function
         if not hasattr(self, 'calib_fns'):
-            self.calib_fns = {}
+            self.calib_fns = Bunch()
 
         # zero intercept
         for a in tqdm(analytes, desc='Calculating Calibrations'):
@@ -1305,7 +1306,7 @@ class analyse(object):
         self.calib_params.sort_index(inplace=True)
 
         # calculcate interpolators for applying calibrations
-        self.calib_ms = {}
+        self.calib_ms = Bunch()
         for a in analytes:
             self.calib_ms[a] = un_interp1d(self.calib_params.index.values,
                                            self.calib_params.loc[:, a])
@@ -1385,7 +1386,7 @@ class analyse(object):
 
     #     # set up calibration functions
     #     if not hasattr(self, 'calib_fns'):
-    #         self.calib_fns = {}
+    #         self.calib_fns = Bunch()
 
     #     print('Calculating transfer functions...')
     #     for a in analytes:
@@ -2067,8 +2068,7 @@ class analyse(object):
             fig = plt.figure(figsize=[12, 3 * nrow])
         else:
             fig = plt.figure(figsize=[14, 3 * nrow])
-            if not hasattr(self, 'focus'):
-                self.get_focus()
+            self.get_focus()
 
         gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
                                    hspace=0.3, wspace=0.3)
@@ -2278,22 +2278,21 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        t = 0
-        self.focus = {'uTime': []}
-        for a in self.analytes:
-            self.focus[a] = []
+        # t = 0
+        focus = {'uTime': []}
+        focus.update({a: [] for a in self.analytes})
 
         for sa in samples:
             s = self.data[sa]
-            self.focus['uTime'].append(s.uTime)
+            focus['uTime'].append(s.uTime)
             ind = s.filt.grab_filt(filt)
             for a in self.analytes:
                 tmp = s.focus[a].copy()
                 tmp[~ind] = np.nan
-                self.focus[a].append(tmp)
+                focus[a].append(tmp)
 
-        for k, v in self.focus.items():
-            self.focus[k] = np.concatenate(v)
+        self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
+
         return
 
     # crossplot of all data
@@ -2595,9 +2594,9 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
-                                           scale=scale, filt=filt,
-                                           ranges=ranges, stats=stats,
-                                           stat=stat, err=err, focus_stage=focus)
+                                      scale=scale, filt=filt,
+                                      ranges=ranges, stats=stats,
+                                      stat=stat, err=err, focus_stage=focus)
             # ax = fig.axes[0]
             # for l, u in s.sigrng:
             #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -2711,10 +2710,10 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.stats = {}
+        self.stats = Bunch()
 
         self.stats_calced = []
-        stat_fns = {}
+        stat_fns = Bunch()
 
         stat_dict = {'mean': np.nanmean,
                      'std': np.nanstd,
@@ -2745,8 +2744,8 @@ class analyse(object):
         for s in tqdm(self.samples, desc='Calculating Stats'):
             if self.srm_identifier not in s:
                 self.data[s].sample_stats(analytes, filt=filt,
-                                               stat_fns=stat_fns,
-                                               eachtrace=eachtrace)
+                                          stat_fns=stat_fns,
+                                          eachtrace=eachtrace)
 
                 self.stats[s] = self.data[s].stats
 
@@ -2758,7 +2757,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        ats = {}
+        ats = Bunch()
 
         for s in samples:
             ats[s] = self.data[s].ablation_times()
@@ -2922,14 +2921,14 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         focus_stage = 'rawdata'
-        ud = 'counts'
+        # ud = 'counts'
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
         for s in samples:
             d = self.data[s].data[focus_stage]
-            out = {}
+            out = Bunch()
 
             for a in analytes:
                 out[a] = d[a]
@@ -3017,7 +3016,7 @@ class analyse(object):
         for s in samples:
             d = self.data[s].data[focus_stage]
             ind = self.data[s].filt.grab_filt(filt)
-            out = {}
+            out = Bunch()
 
             for a in analytes:
                 out[a] = nominal_values(d[a][ind])
@@ -3121,7 +3120,7 @@ def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom
     if srm_table is None:
         srm_table = dirname + paths['srm_table']
 
-    csfs = {}
+    csfs = Bunch()
     if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
         # load custom functions as a dict
         with open(dirname + paths['custom_stat_functions'], 'r') as f:
