@@ -176,6 +176,14 @@ def read_data(data_file, dataformat, name_mode):
 
     data = Bunch()
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
+
+    # convert raw data into counts
+    if 'unit' in dataformat:
+        if dataformat['unit'] == 'cps':
+            tstep = data['Time'][1] - data['Time'][0]
+            read_data[dind] *= tstep
+        else:
+            pass
     data['rawdata'] = Bunch(zip(analytes, read_data[dind]))
     data['total_counts'] = read_data[dind].sum(0)
 
