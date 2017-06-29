@@ -178,6 +178,7 @@ def read_data(data_file, dataformat, name_mode):
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
 
     # convert raw data into counts
+    # TODO: Is this correct? Should actually be per-analyte dwell?
     if 'unit' in dataformat:
         if dataformat['unit'] == 'cps':
             tstep = data['Time'][1] - data['Time'][0]
