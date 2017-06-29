@@ -97,6 +97,41 @@ def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
 
 
 def read_data(data_file, dataformat, name_mode):
+    """
+    Load data_file described by a dataformat dict.
+
+    Parameters
+    ----------
+    data_file : str
+        Path to data file, including extension.
+    dataformat : dict
+        A dataformat dict, see example below.
+    name_mode : str
+        How to identyfy sample names. If 'file_names' uses the
+        input name of the file, stripped of the extension. If
+        'metadata_names' uses the 'name' attribute of the 'meta'
+        sub-dictionary in dataformat. If any other str, uses this
+        str as the sample name.
+
+    Example dataformat
+    -------------------
+        {'genfromtext_args': {'delimiter': ',',
+                              'skip_header': 4},  # passed directly to np.genfromtxt
+         'column_id': {'name_row': 3,  # which row contains the column names
+                       'delimiter': ',',  # delimeter between column names
+                       'timecolumn': 0,  # which column contains the 'time' variable
+                       'pattern': '([A-z]{1,2}[0-9]{1,3})'},  # a regex pattern which captures the column names
+         'meta_regex': {  # a dict of (line_no: ([descriptors], [regexs])) pairs
+                        0: (['path'], '(.*)'),
+                        2: (['date', 'method'],  # MUST include date
+                            '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\.m)')
+                        }
+        }
+
+    Returns
+    -------
+    sample, analytes, data, meta : tuple
+    """
     with open(data_file) as f:
         lines = f.readlines()
 
@@ -113,7 +148,7 @@ def read_data(data_file, dataformat, name_mode):
     elif name_mode == 'metadata_names':
         sample = meta['name']
     else:
-        sample = 0
+        sample = name_mode
 
     # column and analyte names
     columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
