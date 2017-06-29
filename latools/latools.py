@@ -322,7 +322,7 @@ class analyse(object):
         else:
             ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
-        self.minimal_analytes = [internal_standard]
+        self.minimal_analytes = set([internal_standard])
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
@@ -392,17 +392,6 @@ class analyse(object):
                                 "exist.\nUse 'make_subset' to create a" +
                                 "subset."))
         return samples
-
-    def _add_minimal_analte(self, analyte):
-        """
-        Check for existence of analyte(s) in minimal_list, add if not present.
-        """
-        if isinstance(analyte, str):
-            analyte = [analyte]
-        for a in analyte:
-            if a not in self.minimal_analytes:
-                self.minimal_analytes.append(a)
-
 
     @_log
     def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
@@ -504,8 +493,8 @@ class analyse(object):
             analyte = self.internal_standard
         if analyte == 'total_counts':
             pass
-        elif analyte not in self.minimal_analytes:
-                self.minimal_analytes.append(analyte)
+        
+        self.minimal_analytes.update([analyte])
 
         for d in tqdm(self.data.values(), desc='AutoRange'):
             d.autorange(analyte=analyte, gwin=gwin, win=win,
@@ -549,8 +538,8 @@ class analyse(object):
         """
         if analyte is None:
             analyte = self.internal_standard
-        elif analyte not in self.minimal_analytes:
-                self.minimal_analytes.append(analyte)
+
+        self.minimal_analytes.update([analyte])
 
         print('Calculating exponential decay coefficient\nfrom SRM {} washouts...'.format(analyte))
 
@@ -1000,8 +989,8 @@ class analyse(object):
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
-            if internal_standard not in self.minimal_analytes:
-                self.minimal_analytes.append(internal_standard)
+                
+            self.minimal_analytes.update([internal_standard])
 
         for s in tqdm(self.data.values(), desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
@@ -1554,7 +1543,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        self._add_minimal_analte(analyte)
+        self.minimal_analytes.update([analyte])
 
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data[s].filter_threshold(analyte, threshold, filt=False)
@@ -1599,7 +1588,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        self._add_minimal_analte(analyte)
+        self.minimal_analytes.update([analyte])
 
         for s in tqdm(samples, desc='Distribution Filter'):
             self.data[s].filter_distribution(analyte, binwidth='scott',
@@ -1713,15 +1702,18 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        self._add_minimal_analte(analytes)
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
+        self.minimal_analytes.update(analytes)
 
         for s in tqdm(samples, desc='Clustering Filter'):
             self.data[s].filter_clustering(analytes=analytes, filt=filt,
-                                                normalise=normalise,
-                                                method=method,
-                                                include_time=include_time,
-                                                min_data=min_data,
-                                                **kwargs)
+                                           normalise=normalise,
+                                           method=method,
+                                           include_time=include_time,
+                                           min_data=min_data,
+                                           **kwargs)
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
@@ -1765,14 +1757,14 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        self._add_minimal_analte([x_analyte, y_analyte])
+        self.minimal_analytes.update([x_analyte, y_analyte])
 
         for s in tqdm(samples, desc='Correlation Filter'):
             self.data[s].filter_correlation(x_analyte, y_analyte,
-                                                 window=window,
-                                                 r_threshold=r_threshold,
-                                                 p_threshold=p_threshold,
-                                                 filt=filt)
+                                            window=window,
+                                            r_threshold=r_threshold,
+                                            p_threshold=p_threshold,
+                                            filt=filt)
 
     @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
@@ -2637,8 +2629,8 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Drawing Plots'):
             self.data[s].filt_report(filt=filt_str,
-                                          analytes=analytes,
-                                          savedir=outdir)
+                                     analytes=analytes,
+                                     savedir=outdir)
             # plt.close(fig)
         return
 
@@ -3060,20 +3052,7 @@ class analyse(object):
         if isinstance(target_analytes, str):
             target_analytes = [target_analytes]
 
-        if any([a not in target_analytes for a in self.minimal_analytes]) and override:
-            excluded = [a for a in self.minimal_analytes if a not in target_analytes]
-            warnings.warn('\n\nYou have chosen to specify particular analytes,\n' +
-                          'and override the default minimal_export function.\n' +
-                          'The following analytes are used in data\n' +
-                          'processing, but not included in this export:\n' +
-                          '  {}\n'.format(excluded) +
-                          'Export will continue, but we cannot guarantee\n' +
-                          'that the analysis will be reproducible. You MUST\n' +
-                          'check to make sure the analysis can be duplicated\n' +
-                          "by the `latools.reproduce` function before\n" +
-                          'distributing this dataset.')
-        else:
-            target_analytes = np.unique(np.concatenate([target_analytes, self.minimal_analytes]))
+        self.minimal_analytes.update(target_analytes)
 
         # set up data path
         if path is None:
@@ -3082,7 +3061,7 @@ class analyse(object):
             os.mkdir(path)
 
         # export data
-        self._minimal_export_traces(path + '/data', analytes=target_analytes)
+        self._minimal_export_traces(path + '/data', analytes=self.minimal_analytes)
 
         # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
@@ -3111,7 +3090,7 @@ class analyse(object):
             f.write('\n'.join(self.log))
 
         # export srm table
-        els = np.unique([re.sub('[0-9]', '', a) for a in target_analytes])
+        els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
         srmdat = []
         for e in els:
             srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
