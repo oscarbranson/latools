@@ -530,7 +530,7 @@ class analyse(object):
         elif analyte not in self.minimal_analytes:
                 self.minimal_analytes.append(analyte)
 
-        for d in tqdm(self.data, desc='AutoRange'):
+        for d in tqdm(self.data_dict.values(), desc='AutoRange'):
             d.autorange(analyte=analyte, gwin=gwin, win=win,
                         on_mult=on_mult, off_mult=off_mult,
                         ploterrs=ploterrs, bkg_thresh=bkg_thresh)
@@ -694,7 +694,7 @@ class analyse(object):
             exponent = self.expdecay_coef
             time.sleep(0.1)
 
-        for d in tqdm(self.data, desc='Despiking'):
+        for d in tqdm(self.data_dict.values(), desc='Despiking'):
             d.despike(expdecay_despiker, exponent, tstep,
                       noise_despiker, win, nlim, maxiter)
 
@@ -1023,7 +1023,7 @@ class analyse(object):
             if internal_standard not in self.minimal_analytes:
                 self.minimal_analytes.append(internal_standard)
 
-        for s in tqdm(self.data, desc='Ratio Calculation'):
+        for s in tqdm(self.data_dict.values(), desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
 
         self.focus_stage = 'ratio'
@@ -1329,7 +1329,7 @@ class analyse(object):
 
         # fill in uTime=0 and uTime = max cases for interpolation
         self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-        maxuT = np.max([d.uTime.max() for d in self.data])  # calculate max uTime
+        maxuT = np.max([d.uTime.max() for d in self.data_dict.values()])  # calculate max uTime
         self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
         self.calib_params.sort_index(inplace=True)
 
@@ -1339,7 +1339,7 @@ class analyse(object):
             self.calib_ms[a] = un_interp1d(self.calib_params.index.values,
                                            self.calib_params.loc[:, a])
 
-        for d in tqdm(self.data, desc='Applying Calibrations'):
+        for d in tqdm(self.data_dict.values(), desc='Applying Calibrations'):
             d.calibrate(self.calib_ms, analytes)
 
         self.focus_stage = 'calibrated'
@@ -2603,7 +2603,7 @@ class analyse(object):
         None
         """
         if focus is None:
-            focus = self.data[0].focus_stage
+            focus = self.focus_stage
         if outdir is None:
             outdir = self.report_dir + '/' + focus
         if not os.path.isdir(outdir):
@@ -2817,7 +2817,7 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         analytes = [a for a in analytes if a !=
-                    self.data[0].internal_standard]
+                    self.internal_standard]
 
         if figsize is None:
             figsize = (1.5 * len(self.stats), 3 * len(analytes))
@@ -2847,7 +2847,7 @@ class analyse(object):
                                 lw=0, elinewidth=1)
 
                     ax.set_ylabel('%s / %s (%s )' % (pretty_element(an),
-                                                     pretty_element(self.data[0].internal_standard),
+                                                     pretty_element(self.internal_standard),
                                                      u))
 
                     # plot whole - sample mean
@@ -3024,7 +3024,7 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         if focus_stage is None:
-            focus_stage = self.data[0].focus_stage
+            focus_stage = self.focus_stage
 
         if outdir is None:
             outdir = self.export_dir
