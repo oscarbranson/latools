@@ -17,7 +17,7 @@ from mpld3 import enable_notebook, disable_notebook, plugins
 
 import latools.process_fns as proc
 from .filt_obj import filt
-from .helpers import bool_2_indices, rolling_window
+from .helpers import bool_2_indices, rolling_window, Bunch
 from .helpers import unitpicker, pretty_element, findmins
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
 
@@ -240,7 +240,7 @@ class D(object):
         None
         """
         if not hasattr(self, 'despiked'):
-            self.data['despiked'] = {}
+            self.data['despiked'] = Bunch()
 
         out = {}
         for a, v in self.focus.items():
@@ -261,7 +261,7 @@ class D(object):
     @_log
     def autorange(self, analyte=None, gwin=7, win=30,
                   on_mult=[1., 1.], off_mult=[1., 1.5],
-                  ploterrs=True, bkg_thresh=None, **kwargs):
+                  ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -332,6 +332,9 @@ class D(object):
             sig = self.focus[analyte]
         else:
             raise ValueError('Invalid analyte.')
+
+        if transform == 'log':
+            sig = np.log10(sig)
 
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, win=win,
@@ -600,9 +603,21 @@ class D(object):
         sigrng and bkgrng arrays. These arrays can be saved by 'save_ranges' in
         the analyse object.
         """
-        self.bkgrng = self.Time[bool_2_indices(self.bkg)]
-        self.sigrng = self.Time[bool_2_indices(self.sig)]
-        self.trnrng = self.Time[bool_2_indices(self.trn)]
+        bbool = bool_2_indices(self.bkg)
+        if bbool is not None:
+            self.bkgrng = self.Time[bbool]
+        else:
+            self.bkgrng = [[np.nan, np.nan]]
+        sbool = bool_2_indices(self.sig)
+        if sbool is not None:
+            self.sigrng = self.Time[sbool]
+        else:
+            self.sigrng = [[np.nan, np.nan]]
+        tbool = bool_2_indices(self.trn)
+        if tbool is not None:
+            self.trnrng = self.Time[tbool]
+        else:
+            self.trnrng = [[np.nan, np.nan]]
 
         self.ns = np.zeros(self.Time.size)
         n = 1
@@ -629,7 +644,7 @@ class D(object):
         """
 
         if 'bkgsub' not in self.data.keys():
-            self.data['bkgsub'] = {}
+            self.data['bkgsub'] = Bunch()
 
         self.data['bkgsub'][analyte] = self.focus[analyte] - bkg
 
@@ -659,10 +674,10 @@ class D(object):
             self.internal_standard = internal_standard
 
         self.setfocus(focus)
-        self.data['ratios'] = {}
+        self.data['ratios'] = Bunch()
         for a in self.analytes:
-            self.data['ratios'][a] = \
-                self.focus[a] / self.focus[self.internal_standard]
+            self.data['ratios'][a] = (self.focus[a] /
+                                      self.focus[self.internal_standard])
         self.setfocus('ratios')
         return
 
@@ -705,7 +720,7 @@ class D(object):
             analytes = self.analytes
 
         if 'calibrated' not in self.data.keys():
-            self.data['calibrated'] = {}
+            self.data['calibrated'] = Bunch()
 
         for a in analytes:
             P = calib_ms[a].new(self.uTime)
@@ -767,7 +782,7 @@ class D(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        self.stats = {}
+        self.stats = Bunch()
         self.stats['analytes'] = analytes
 
         with warnings.catch_warnings():
