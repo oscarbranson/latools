@@ -501,11 +501,34 @@ class analyse(object):
         elif analyte in self.analytes:
             self.minimal_analytes.update([analyte])
 
-        for d in tqdm(self.data.values(), desc='AutoRange'):
-            d.autorange(analyte=analyte, gwin=gwin, win=win,
-                        on_mult=on_mult, off_mult=off_mult,
-                        ploterrs=ploterrs, bkg_thresh=bkg_thresh)
+        fails = {}  # list for catching failures.
+        for s, d in tqdm(self.data.items(), desc='AutoRange'):
+            f = d.autorange(analyte=analyte, gwin=gwin, win=win,
+                            on_mult=on_mult, off_mult=off_mult,
+                            ploterrs=ploterrs, bkg_thresh=bkg_thresh)
+            if f is not None:
+                fails[s] = f
+        # handle failures
+        if len(fails) > 0:
+            wstr = ('\n\n' + '*' * 41 + '\n' +
+                    '                 WARNING\n' + '*' * 41 + '\n' +
+                    'Autorange failed for some samples:\n')
 
+            kwidth = max([len(k) for k in fails.keys()]) + 1
+            fstr = '  {:' + '{}'.format(kwidth) + 's}: '
+            for k in sorted(fails.keys()):
+                wstr += fstr.format(k) + ', '.join(['{:.1f}'.format(f) for f in fails[k][-1]]) + '\n'
+
+            wstr += ('\n*** THIS IS NOT NECESSARILY A PROBLEM ***\n' +
+                     'But please check the plots below to make\n' +
+                     'sure they look OK. Failures are marked by\n' +
+                     'dashed vertical red lines.\n\n' +
+                     'To examine an autorange failure in more\n' +
+                     'detail, use the `autorange_plot` method\n' +
+                     'of the failing data object, e.g.:\n' +
+                     "dat.data['Sample'].autorange_plot(params)\n" +
+                     '*' * 41 + '\n')
+            warnings.warn(wstr)
         return
 
     def find_expcoef(self, nsd_below=0., analyte=None, plot=False,

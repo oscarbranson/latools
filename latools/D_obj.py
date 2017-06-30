@@ -259,7 +259,7 @@ class D(object):
         return
 
     @_log
-    def autorange(self, analyte=None, gwin=7, win=30,
+    def autorange(self, analyte='total_counts', gwin=7, win=30,
                   on_mult=[1., 1.], off_mult=[1., 1.5],
                   ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
         """
@@ -348,18 +348,48 @@ class D(object):
             plotlines = []
             for f in failed:
                 plotlines.append(f)
-            warnings.warn(("\n\nSample {:s}: ".format(self.sample) +
-                           "Transition identification at " +
-                           "{:.1f} failed.".format(f) +
-                           "\n  **This is not necessarily a problem**"
-                           "\nBut please check the data plots and make sure " +
-                           "everything is OK.\n"))
+            # warnings.warn(("\n\nSample {:s}: ".format(self.sample) +
+            #                "Transition identification at " +
+            #                "{:.1f} failed.".format(f) +
+            #                "\n  **This is not necessarily a problem**"
+            #                "\nBut please check the data plots and make sure " +
+            #                "everything is OK.\n"))
 
         if ploterrs and errs_to_plot:
             f, ax = self.tplot(ranges=True)
             for pl in plotlines:
                 ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
-            return f
+            return f, plotlines
+        else:
+            return
+
+    def autorange_plot(self, analyte='total_counts', gwin=7, win=20,
+                       on_mult=[1., 1.], off_mult=[1., 1.5],
+                       transform='log'):
+        """
+        Plot a detailed autorange report for this sample.
+        """
+
+        if analyte is None:
+            sig = self.focus[self.internal_standard]
+        elif analyte == 'total_counts':
+            sig = self.data['total_counts']
+        elif analyte in self.analytes:
+            sig = self.focus[analyte]
+        else:
+            raise ValueError('Invalid analyte.')
+
+        if transform == 'log':
+            sig = np.log10(sig)
+
+        fig, axs = proc.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
+                                       win=win, on_mult=on_mult,
+                                       off_mult=off_mult)
+
+        return fig, axs
+
+
+
 
     # OLD Autorange Function
     # def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
