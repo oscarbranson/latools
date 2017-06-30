@@ -726,7 +726,7 @@ class D(object):
             return pout[a]
 
     @_log
-    def calibrate(self, calib_ms, analytes=None):
+    def calibrate(self, calib_ps, analytes=None):
         """
         Apply calibration to data.
 
@@ -750,9 +750,14 @@ class D(object):
             self.data['calibrated'] = Bunch()
 
         for a in analytes:
-            P = calib_ms[a].new(self.uTime)
+            m = calib_ps[a]['m'].new(self.uTime)
 
-            self.data['calibrated'][a] = self.data['ratios'][a] * P
+            if 'c' in calib_ps[a]:
+                c = calib_ps[a]['c'].new(self.uTime)
+            else:
+                c = 0
+
+            self.data['calibrated'][a] = self.data['ratios'][a] * m + c
 
         if self.internal_standard not in analytes:
             self.data['calibrated'][self.internal_standard] = \

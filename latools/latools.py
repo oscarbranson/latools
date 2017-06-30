@@ -1288,13 +1288,13 @@ class analyse(object):
         del self.srmtabs
         del self.calib_params
         del self.calib_fns
-        del self.calib_ms
+        del self.calib_ps
 
     # apply calibration to data
     @_log
     def calibrate(self, analytes=None, drift_correct=True,
                   srms_used=['NIST610', 'NIST612', 'NIST614'],
-                  n_min=10):
+                  zero_intercept=True, n_min=10):
         """
         Calibrates the data to measured SRM values.
 
@@ -1328,50 +1328,101 @@ class analyse(object):
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used, n_min)
 
+        fill = False  # whether or not to pad with zero and max at end.
         # make container for calibration params
         if not hasattr(self, 'calib_params'):
             uTime = self.srmtabs.index.get_level_values('uTime').unique().values
-            self.calib_params = pd.DataFrame(columns=self.analytes, index=uTime)
+            self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
+                                             index=uTime)
+            fill = True
 
-        # calibration functions - kept to maintain calibration_plot function
-        def calib_0(x, P):
-            return x * P
-
-        # set up calibration functions - kept to maintain calibration_plot function
-        if not hasattr(self, 'calib_fns'):
-            self.calib_fns = Bunch()
-
-        # zero intercept
-        for a in tqdm(analytes, desc='Calculating Calibrations'):
-            self.calib_fns[a] = calib_0   # kept to maintain calibration_plot function
-            if drift_correct:
-                for t in self.calib_params.index:
-                    meas = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'],
-                                     self.srmtabs.loc[idx[a, :, :, t], 'meas_err'])
-                    srm = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'],
-                                    self.srmtabs.loc[idx[a, :, :, t], 'srm_err'])
-                    self.calib_params.loc[t, a] = np.nanmean(srm / meas)
+        for a in analytes:
+            if zero_intercept:
+                if (a, 'c') in self.calib_params:
+                    self.calib_params.drop((a, 'c'), 1, inplace=True)
+                if drift_correct:
+                    for t in self.calib_params.index:
+                        try:
+                            meas = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'],
+                                             self.srmtabs.loc[idx[a, :, :, t], 'meas_err'])
+                            srm = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'],
+                                            self.srmtabs.loc[idx[a, :, :, t], 'srm_err'])
+                            self.calib_params.loc[t, a] = np.nanmean(srm / meas)
+                        except KeyError:
+                            # If the calibration is being recalculated, calib_params
+                            # will have t=0 and t=max(uTime) values that are outside
+                            # the srmtabs index.
+                            # If this happens, drop them, and re-fill them at the end.
+                            self.calib_params.drop(t, inplace=True)
+                            fill = True
+                else:
+                    meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
+                                     self.srmtabs.loc[a, 'meas_err'])
+                    srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
+                                    self.srmtabs.loc[a, 'srm_err'])
+                    self.calib_params.loc[:, a] = np.nanmean(srm / meas)
             else:
-                meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
-                                 self.srmtabs.loc[a, 'meas_err'])
-                srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
-                                self.srmtabs.loc[a, 'srm_err'])
-                self.calib_params.loc[:, a] = np.nanmean(srm / meas)
+                if drift_correct:
+                    for t in self.calib_params.index:
+                        try:
+                            x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
+                            y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
+                            warnings.warn('\n\nError estimation for drift-corrected non-zero-intercept\n' +
+                                          'calibrations is not implemented.\n')
+                            # TODO : error estimation in drift corrected non-zero-intercept
+                            # case. Tricky because np.polyfit will only return cov
+                            # if n samples > order + 2 (rare, for laser ablation).
+                            # 
+                            # First attempt (doesn't work):
+                            # errs = np.sqrt(self.srmtabs.loc[idx[a, :, :, t], 'meas_err'].values**2 +
+                            #                self.srmtabs.loc[idx[a, :, :, t], 'srm_err'].values**2)
+                            # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
+                            # ferr = np.sqrt(np.diag(cov))
+                            # pe = un.uarray(p, ferr)
+                            pe = np.polyfit(x, y, 1)
 
-        # fill in uTime=0 and uTime = max cases for interpolation
-        self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-        maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
-        self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
-        self.calib_params.sort_index(inplace=True)
+                            self.calib_params.loc[t, idx[a, 'm']] = pe[0]
+                            self.calib_params.loc[t, idx[a, 'c']] = pe[1]
+                        except KeyError:
+                            # If the calibration is being recalculated, calib_params
+                            # will have t=0 and t=max(uTime) values that are outside
+                            # the srmtabs index.
+                            # If this happens, drop them, and re-fill them at the end.
+                            self.calib_params.drop(t, inplace=True)
+                            fill = True
+                else:
+                    x = self.srmtabs.loc[idx[a, :, :], 'meas_mean']
+                    y = self.srmtabs.loc[idx[a, :, :], 'srm_mean']
+                    errs = np.sqrt(self.srmtabs.loc[idx[a, :, :], 'meas_err']**2 +
+                                   self.srmtabs.loc[idx[a, :, :], 'srm_err']**2)
+
+                    p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
+                    ferr = np.sqrt(np.diag(cov))
+                    pe = un.uarray(p, ferr)
+
+                    self.calib_params.loc[:, idx[a, 'm']] = pe[0]
+                    self.calib_params.loc[:, idx[a, 'c']] = pe[1]
+
+        if fill:
+            # fill in uTime=0 and uTime = max cases for interpolation
+            self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
+            maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
+            self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
+        # sort indices for slice access
+        self.calib_params.sort_index(1, inplace=True)
+        self.calib_params.sort_index(0, inplace=True)
 
         # calculcate interpolators for applying calibrations
-        self.calib_ms = Bunch()
+        self.calib_ps = Bunch()
         for a in analytes:
-            self.calib_ms[a] = un_interp1d(self.calib_params.index.values,
-                                           self.calib_params.loc[:, a])
+            self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
+                                                 self.calib_params.loc[:, (a, 'm')])}
+            if not zero_intercept:
+                self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
+                                                    self.calib_params.loc[:, (a, 'c')])
 
         for d in tqdm(self.data.values(), desc='Applying Calibrations'):
-            d.calibrate(self.calib_ms, analytes)
+            d.calibrate(self.calib_ps, analytes)
 
         self.focus_stage = 'calibrated'
 
@@ -1654,8 +1705,8 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Distribution Filter'):
             self.data[s].filter_distribution(analyte, binwidth='scott',
-                                                  filt=filt, transform=None,
-                                                  min_data=min_data)
+                                             filt=filt, transform=None,
+                                             min_data=min_data)
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
@@ -2191,35 +2242,36 @@ class analyse(object):
             else:
                 x = np.array(xlim)
 
-            coefs = self.calib_params[a].values.mean()
+            coefs = self.calib_params[a]
+            m = coefs.m.values.mean()
+            m_nom = nominal_values(m)
+            # calculate case-specific paramers
+            if 'c' in coefs:
+                c = coefs.c.values.mean()
+                c_nom = nominal_values(c)
+                # calculate R2
+                ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
+                R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=False)
+                # generate line and label
+                line = x * m_nom + c_nom
+                label = 'y = {:.2e} x'.format(m)
+                if c > 0:
+                    label += '\n+ {:.2e}'.format(c)
+                else:
+                    label += '\n {:.2e}'.format(c)
+            else:
+                # calculate R2
+                ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom
+                R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=True)
+                # generate line and label
+                line = x * m_nom
+                label = 'y = {:.2e} x'.format(m)
 
             # plot line of best fit
-            line = nominal_values(self.calib_fns[a](x, coefs))
             ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
-            # if len(coefs) == 1:
-            force_zero = True  # because calibration only supports zero intercept at the mo.
-            # else:
-            #     force_zero = False
-
-            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'],
-                        nominal_values(self.calib_fns[a](coefs, self.srmtabs.loc[a, 'meas_mean'])),
-                        force_zero=force_zero)
-
-            # labels
-            # if len(coefs) == 1:  # commented out non-zero intercept cases
-            label = 'y = {:.2e} x'.format(coefs)
-            # else:
-            #     label = r''
-            #     for n, p in enumerate(coefs):
-            #         if len(coefs) - n - 1 == 0:
-            #             label += '{:.1e}'.format(p)
-            #         elif len(coefs) - n - 1 == 1:
-            #             label += '{:.1e} x\n+ '.format(p)
-            #         else:
-            #             label += '{:.1e}$ x^'.format(p) + '{' + '{:.0f}'.format(len(coefs) - n - 1) + '}$\n+ '
-
-            if '{:.3f}'.format(R2) == '1.000':
+            # add R2 to label
+            if round(R2, 3) == 1:
                 label += '\n$R^2$: >0.999'
             else:
                 label += '\n$R^2$: {:.3f}'.format(R2)
