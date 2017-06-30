@@ -291,6 +291,8 @@ class analyse(object):
                           "Background correction and calibration may not behave\n" +
                           "as expected.")
 
+        self.max_time = max([d.uTime.max() for d in data])
+
         # sort data by uTime
         data.sort(key=lambda d: d.uTime[0])
 
@@ -396,9 +398,12 @@ class analyse(object):
         return samples
 
     @_log
-    def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
-                  conf=0.01, on_mult=[1., 1.], off_mult=None,
+    def autorange(self, analyte='total_counts', gwin=7, win=20,
+                  on_mult=[1., 1.5], off_mult=[1.5, 1],
                   transform='log', thresh_n=None, ploterrs=True):
+        # def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
+        #               conf=0.01, on_mult=[1., 1.], off_mult=None,
+        #               transform='log', thresh_n=None, ploterrs=True):
         """
         Automatically separates signal and background data regions.
 
@@ -493,10 +498,8 @@ class analyse(object):
 
         if analyte is None:
             analyte = self.internal_standard
-        if analyte == 'total_counts':
-            pass
-        
-        self.minimal_analytes.update([analyte])
+        elif analyte in self.analytes:
+            self.minimal_analytes.update([analyte])
 
         for d in tqdm(self.data.values(), desc='AutoRange'):
             d.autorange(analyte=analyte, gwin=gwin, win=win,
@@ -788,13 +791,13 @@ class analyse(object):
                 cstep = weight_fwhm / 20
             # TODO: Modify  bkg_t to make sure none of the calculated
             # bkg points are during a sample collection.
-            bkg_t = np.arange(self.bkg['raw']['uTime'].min(),
-                              self.bkg['raw']['uTime'].max(),
-                              cstep)
+            bkg_t = np.linspace(0,
+                                self.max_time,
+                                self.max_time // cstep)
             self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
-        # TODO : this is clumsy.
+        # TODO : calculation then dict assignment is clumsy.
         mean, std, stderr = gauss_weighted_stats(self.bkg['raw'].uTime,
                                                  self.bkg['raw'].loc[:, analytes].values,
                                                  self.bkg['calc']['uTime'],
@@ -886,12 +889,23 @@ class analyse(object):
         elif isinstance(analytes, str):
             analytes = [analytes]
 
+        # make background interpolators
+        bkg_interps = {}
+        for a in analytes:
+            bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
+                                         y=un.uarray(self.bkg['calc'][a]['mean'],
+                                                     self.bkg['calc'][a][errtype]))
+
         for d in tqdm(self.data.values(), desc='Background Subtraction'):
-            [d.bkg_subtract(a,
-                            un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
-                                      np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
-                            ~d.sig) for a in self.analytes]
+            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig) for a in analytes]
             d.setfocus('bkgsub')
+
+        # for d in tqdm(self.data.values(), desc='Background Subtraction'):
+        #     [d.bkg_subtract(a,
+        #                     un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
+        #                               np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
+        #                     ~d.sig) for a in self.analytes]
+        #     d.setfocus('bkgsub')
 
         self.focus_stage = 'bkgsub'
         return
@@ -918,7 +932,7 @@ class analyse(object):
         ax = fig.add_axes([.07, .1, .84, .8])
 
         for a in tqdm(analytes, desc='Plotting backgrounds:',
-                      leave=False, total=len(analytes)):
+                      leave=True, total=len(analytes)):
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
                        alpha=0.2, s=3, c=self.cmaps[a],
                        lw=0.5)
@@ -957,10 +971,12 @@ class analyse(object):
         # scale x axis to range ± 2.5%
         ax.set_xlim(self.bkg['raw']['uTime'].min(),
                     self.bkg['raw']['uTime'].max())
+        ax.set_ylim(ax.get_ylim() * np.array([1, 10]))
 
         for s, d in self.data.items():
             ax.axvline(d.uTime[0], alpha=0.2, color='k', zorder=-1)
-            ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
+            ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90,
+                    va='top', ha='left', zorder=-1, fontsize=7)
         # for s, r in self.starttimes.iterrows():
         #     x = r.Dseconds
         #     ax.axvline(x, alpha=0.2, color='k', zorder=-1)
@@ -993,7 +1009,6 @@ class analyse(object):
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
-                
             self.minimal_analytes.update([internal_standard])
 
         for s in tqdm(self.data.values(), desc='Ratio Calculation'):
@@ -1231,6 +1246,12 @@ class analyse(object):
     #     self.calib_dict = self.params['calib']['calib_dict']
 
     #     return
+
+    def clear_calibration(self):
+        del self.srmtabs
+        del self.calib_params
+        del self.calib_fns
+        del self.calib_ms
 
     # apply calibration to data
     @_log
