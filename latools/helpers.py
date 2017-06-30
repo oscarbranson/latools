@@ -146,17 +146,20 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
 
 
 def bool_2_indices(a):
-    lims = []
-    d = np.where(a)[0]  # find indices of True
-    lims.append([d[0]])  # add first
-    lims.append([d[-1]])  # add last
-    wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
-    if len(wnc) > 0:
-        lims.append(d[wnc] + 1)  # add last consecutive + 1
-        lims.append(d[(wnc + 1)])  # add first consecutive
-    lims = np.concatenate(lims)  # combine lims and sort
-    lims.sort()  # sort output
-    return np.reshape(lims, (lims.size // 2, 2))
+    if any(a):
+        lims = []
+        d = np.where(a)[0]  # find indices of True
+        lims.append([d[0]])  # add first
+        lims.append([d[-1]])  # add last
+        wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
+        if len(wnc) > 0:
+            lims.append(d[wnc] + 1)  # add last consecutive + 1
+            lims.append(d[(wnc + 1)])  # add first consecutive
+        lims = np.concatenate(lims)  # combine lims and sort
+        lims.sort()  # sort output
+        return np.reshape(lims, (lims.size // 2, 2))
+    else:
+        return None
 
 # def bool_2_indices(bool_array):
 #     """
@@ -185,6 +188,7 @@ def bool_2_indices(a):
 #         return np.reshape(lims, (len(lims) // 2, 2))
 #     else:
 #         return [[np.nan, np.nan]]
+
     # if ~isinstance(bool_array, np.ndarray):
     #     bool_array = np.array(bool_array)
     # # if bool_array[-1]:
@@ -394,11 +398,11 @@ class un_interp1d(object):
     object for handling interpolation of values with uncertainties.
     """
 
-    def __init__(self, xs, ys, **kwargs):
-        self.nom_interp = interp.interp1d(un.nominal_values(xs),
-                                          un.nominal_values(ys), **kwargs)
-        self.std_interp = interp.interp1d(un.nominal_values(xs),
-                                          un.std_devs(ys), **kwargs)
+    def __init__(self, x, y, **kwargs):
+        self.nom_interp = interp.interp1d(un.nominal_values(x),
+                                          un.nominal_values(y), **kwargs)
+        self.std_interp = interp.interp1d(un.nominal_values(x),
+                                          un.std_devs(y), **kwargs)
 
     def new(self, xn):
         yn = self.nom_interp(xn)
@@ -434,7 +438,19 @@ def rolling_window(a, window, pad=None):
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
     strides = a.strides + (a.strides[-1], )
     out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    if pad is not None:
+    if isinstance(pad, str):
+        shape = (window // 2, window)
+        if pad == 'ends':
+            prepad = np.full(shape, a[0])
+            postpad = np.full(shape, a[-1])
+        elif pad == 'mean_ends':
+            prepad = np.full(shape, np.mean(a[:(window // 2)]))
+            postpad = np.full(shape, np.mean(a[-(window // 2):]))
+        else:
+            raise ValueError("If pad is a string, it must be either 'ends' or 'mean_ends'.")
+
+        return np.concatenate((prepad, out, postpad))
+    elif pad is not None:
         blankpad = np.empty((window // 2, window))
         blankpad[:] = pad
         return np.concatenate([blankpad, out, blankpad])
@@ -513,12 +529,13 @@ def fastgrad(a, win=11):
     # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
     # strides = a.strides + (a.strides[-1], )
     # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    wins = rolling_window(a, win)
+    wins = rolling_window(a, win, 'ends')
     # apply rolling gradient to data
     a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
 
-    return np.concatenate([np.zeros(int(win / 2)), list(a),
-                           np.zeros(int(win / 2))])
+    return np.array(list(a))
+    # return np.concatenate([np.zeros(int(win / 2)), list(a),
+    #                        np.zeros(int(win / 2))])
 
 
 def findmins(x, y):
