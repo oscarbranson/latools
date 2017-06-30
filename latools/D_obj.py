@@ -364,7 +364,7 @@ class D(object):
             return
 
     def autorange_plot(self, analyte='total_counts', gwin=7, win=20,
-                       on_mult=[1., 1.], off_mult=[1., 1.5],
+                       on_mult=[1.5, 1.], off_mult=[1., 1.5],
                        transform='log'):
         """
         Plot a detailed autorange report for this sample.
@@ -387,9 +387,6 @@ class D(object):
                                        off_mult=off_mult)
 
         return fig, axs
-
-
-
 
     # OLD Autorange Function
     # def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
