@@ -1217,7 +1217,21 @@ class analyse(object):
             # a known vs. measured SRM. The measured SRM is identified as the SRM that
             # has the smallest weighted sum value.
             stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-        stdtab = stdtab.reset_index().set_index(['STD', 'SRM', 'uTime'])
+
+        # calculate mean time for each SRM
+        # reset index and sort
+        stdtab.reset_index(inplace=True)
+        stdtab.sort_index(1, inplace=True)
+        # isolate STD and uTime
+        uT = stdtab.loc[:, ['uTime', 'STD']].set_index('STD')
+        uT.sort_index(inplace=True)
+        uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
+        # replace uTime values with means
+        stdtab.set_index(['STD'], inplace=True)
+        stdtab.loc[:, 'uTime'] = uTm
+        # reset index
+        stdtab.reset_index(inplace=True)
+        stdtab.set_index(['STD', 'SRM', 'uTime'], inplace=True)
 
         # combine to make SRM reference tables
         srmtabs = Bunch()
