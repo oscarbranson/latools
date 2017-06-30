@@ -2,6 +2,7 @@ import os
 import re
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
 
 from io import BytesIO
 from scipy.stats import gaussian_kde
@@ -45,8 +46,10 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
     while any(over) and (nloops < maxiter):
         rmean = np.convolve(sig, kernel, 'valid')  # mean by convolution
         rstd = rmean**0.5  # std = sqrt(signal), because count statistics
-        # identify where signal > mean + std * nlim (OR signa < mean - std * nlim)
-        over[npad:-npad] = (sig[npad:-npad] > rmean + nlim * rstd)  # | (sig[npad:-npad] < rmean - nlim * rstd)
+        # identify where signal > mean + std * nlim (OR signa < mean - std *
+        # nlim)
+        # | (sig[npad:-npad] < rmean - nlim * rstd)
+        over[npad:-npad] = (sig[npad:-npad] > rmean + nlim * rstd)
         # if any are over, replace them with mean of neighbours
         if any(over):
             # replace with values either side
@@ -151,7 +154,8 @@ def read_data(data_file, dataformat, name_mode):
         sample = name_mode
 
     # column and analyte names
-    columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
+    columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(
+        dataformat['column_id']['delimiter']))
     if 'pattern' in dataformat['column_id'].keys():
         pr = re.compile(dataformat['column_id']['pattern'])
         analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
@@ -159,7 +163,7 @@ def read_data(data_file, dataformat, name_mode):
     # do any required pre-formatting
     if 'preformat_replace' in dataformat.keys():
         with open(data_file) as f:
-                fbuffer = f.read()
+            fbuffer = f.read()
         for k, v in dataformat['preformat_replace'].items():
             fbuffer = re.sub(k, v, fbuffer)
         # dead data
@@ -277,11 +281,11 @@ def autorange(t, sig, gwin=7, win=30,
     for z in zeros:  # for each approximate transition
         # isolate the data around the transition
         if z - win < 0:
-            lo = win
+            lo = gwin // 2
             hi = int(z + win)
-        elif z + win > (len(sig) - 1):
+        elif z + win > (len(sig) - gwin // 2):
             lo = int(z - win)
-            hi = len(sig) - 1
+            hi = len(sig) - gwin // 2
         else:
             lo = int(z - win)
             hi = int(z + win)
@@ -290,7 +294,8 @@ def autorange(t, sig, gwin=7, win=30,
         ys = g[lo:hi]
 
         # determine type of transition (on/off)
-        tp = sigs[hi] > sigs[lo]  # True if 'on' transition.
+        mid = (hi + lo) // 2
+        tp = sigs[mid + 3] > sigs[mid - 3]  # True if 'on' transition.
 
         # fit a gaussian to the first derivative of each
         # transition. Initial guess parameters:
@@ -305,13 +310,14 @@ def autorange(t, sig, gwin=7, win=30,
         # transitions (i.e. end of one ablation and start of next)
         # ablation are < win time steps apart).
         c = t[z]  # center of transition
-        width = float(np.diff(t[:2]) * 2)  # initial width guess
+        width = (t[1] - t[0]) * 2
+
         try:
             pg, _ = curve_fit(gauss, xs, ys,
                               p0=(np.nanmax(ys),
                                   c,
                                   width),
-                              sigma=abs(xs - c) + .01)
+                              sigma=(xs - c)**2 + .01)
             # get the x positions when the fitted gaussian is at 'conf' of
             # maximum
             # determine transition FWHM
@@ -324,24 +330,241 @@ def autorange(t, sig, gwin=7, win=30,
 
             fbkg[(t > lim[0]) & (t < lim[1])] = False
             fsig[(t > lim[0]) & (t < lim[1])] = False
-        except:
-            failed.append(c)
+        except RuntimeError:
+            failed.append([c, tp])
             pass
 
     ftrn = ~fbkg & ~fsig
 
-    # if there are any failed transitions, apply mean transition width to them
+    # if there are any failed transitions, exclude the mean transition width
+    # either side of the failures
     if len(failed) > 0:
-        trns = bool_2_indices(ftrn)
-        tr_mean = (trns[:, 1] - trns[:, 0]).mean()
-        for f in failed:
-            ind = (t >= f - tr_mean / 2) & (t <= f + tr_mean / 2)
+        trns = t[bool_2_indices(ftrn)]
+        tr_mean = (trns[:, 1] - trns[:, 0]).mean() / 2
+        for f, tp in failed:
+            if tp:
+                ind = (t >= f - tr_mean *
+                       on_mult[0]) & (t <= f + tr_mean * on_mult[0])
+            else:
+                ind = (t >= f - tr_mean *
+                       off_mult[0]) & (t <= f + tr_mean * off_mult[0])
             fsig[ind] = False
             fbkg[ind] = False
             ftrn[ind] = False
 
-    return fbkg, fsig, ftrn, failed
+    return fbkg, fsig, ftrn, [f[0] for f in failed]
 
+
+def autorange_plot(t, sig, gwin=7, win=30,
+                   on_mult=(1.5, 1.), off_mult=(1., 1.5)):
+    """
+    Function for visualising the autorange mechanism.
+
+    Parameters
+    ----------
+    t : array-like
+        Independent variable (usually time).
+    sig : array-like
+        Dependent signal, with distinctive 'on' and 'off' regions.
+    gwin : int
+        The window used for signal smoothing and calculationg of first
+        derivative.
+        Defaults to 7.
+    win : int
+        The width (c +/- win) of the transition data subsets.
+        Defaults to 20.
+    on_mult and off_mult : tuple, len=2
+        Control the width of the excluded transition regions, which is defined
+        relative to the peak full-width-half-maximum (FWHM) of the transition
+        gradient. The region n * FHWM below the transition, and m * FWHM above
+        the tranision will be excluded, where (n, m) are specified in `on_mult`
+        and `off_mult`.
+        `on_mult` and `off_mult` apply to the off-on and on-off transitions,
+        respectively.
+        Defaults to (1.5, 1) and (1, 1.5).
+
+    Returns
+    -------
+    fig, axes
+    """
+
+    # perform autorange calculations
+    bins = 50
+    kde_x = np.linspace(sig.min(), sig.max(), bins)
+
+    kde = gaussian_kde(sig)
+    yd = kde.pdf(kde_x)
+    mins = findmins(kde_x, yd)  # find minima in kde
+
+    sigs = fastsmooth(sig, gwin)
+
+    bkg = sigs < (mins[0])  # set background as lowest distribution
+    # bkg[0] = True  # the first value must always be background
+
+    # assign rough background and signal regions based on kde minima
+    fbkg = bkg
+    fsig = ~bkg
+
+    g = abs(fastgrad(sig, gwin))
+    # 2. determine the approximate index of each transition
+    zeros = bool_2_indices(fsig).flatten()
+
+    lohi = []
+    pgs = []
+    excl = []
+    tps = []
+    failed = []
+
+    for z in zeros:  # for each approximate transition
+        # isolate the data around the transition
+        if z - win < 0:
+            lo = gwin // 2
+            hi = int(z + win)
+        elif z + win > (len(sig) - gwin // 2):
+            lo = int(z - win)
+            hi = len(sig) - gwin // 2
+        else:
+            lo = int(z - win)
+            hi = int(z + win)
+
+        xs = t[lo:hi]
+        ys = g[lo:hi]
+
+        lohi.append([lo, hi])
+
+        # determine type of transition (on/off)
+        mid = (hi + lo) // 2
+        tp = sigs[mid + 3] > sigs[mid - 3]  # True if 'on' transition.
+        tps.append(tp)
+
+        c = t[z]  # center of transition
+        width = (t[1] - t[0]) * 2  # initial width guess
+        try:
+            pg, _ = curve_fit(gauss, xs, ys,
+                              p0=(np.nanmax(ys),
+                                  c,
+                                  width),
+                              sigma=(xs - c)**2 + .01)
+            pgs.append(pg)
+            fwhm = 2 * pg[-1] * np.sqrt(2 * np.log(2))
+            # apply on_mult or off_mult, as appropriate.
+            if tp:
+                lim = np.array([-fwhm, fwhm]) * on_mult + pg[1]
+            else:
+                lim = np.array([-fwhm, fwhm]) * off_mult + pg[1]
+            excl.append(lim)
+
+            fbkg[(t > lim[0]) & (t < lim[1])] = False
+            fsig[(t > lim[0]) & (t < lim[1])] = False
+            failed.append(False)
+        except RuntimeError:
+            failed.append(True)
+            lohi.append([np.nan, np.nan])
+            pgs.append([np.nan, np.nan, np.nan])
+            excl.append([np.nan, np.nan])
+            tps.append(tp)
+            pass
+
+    # make plot
+    nrows = 2 + len(zeros) // 2 + len(zeros) % 2
+
+    fig, axs = plt.subplots(nrows, 2, figsize=(6, 4 + 1.5 * nrows))
+
+    # Trace
+    ax1, ax2, ax3, ax4 = axs.flat[:4]
+    ax4.set_visible(False)
+
+    # widen ax1 & 3
+    for ax in [ax1, ax3]:
+        p = ax.axes.get_position()
+        p2 = [p.x0, p.y0, p.width * 1.75, p.height]
+        ax.axes.set_position(p2)
+
+    # move ax3 up
+    p = ax3.axes.get_position()
+    p2 = [p.x0, p.y0 + 0.15 * p.height, p.width, p.height]
+    ax3.axes.set_position(p2)
+
+    # truncate ax2
+    p = ax2.axes.get_position()
+    p2 = [p.x0 + p.width * 0.6, p.y0, p.width * 0.4, p.height]
+    ax2.axes.set_position(p2)
+
+    # plot traces and gradient
+    ax1.plot(t, sig, c='k', lw=1)
+    ax1.set_xticklabels([])
+    ax1.set_ylabel('Signal')
+    ax3.plot(t, g, c='k', lw=1)
+    ax3.set_xlabel('Time (s)')
+    ax3.set_ylabel('Gradient')
+
+    # plot kde
+    ax2.fill_betweenx(kde_x, yd, color=(0, 0, 0, 0.2))
+    ax2.plot(yd, kde_x, c='k')
+    ax2.set_ylim(ax1.get_ylim())
+    ax2.set_yticklabels([])
+    ax2.set_xlabel('Data\nDensity')
+
+    # limit
+    for ax in [ax1, ax2]:
+        ax.axhline(mins[0], c='k', ls='dashed', alpha=0.4)
+
+    # zeros
+    for z in zeros:
+        ax1.axvline(t[z], c='r', alpha=0.5)
+        ax3.axvline(t[z], c='r', alpha=0.5)
+
+    # plot individual transitions
+    n = 1
+    for (lo, hi), lim, tp, pg, fail, ax in zip(lohi, excl, tps, pgs, failed, axs.flat[4:]):
+        # plot region on gradient axis
+        ax3.axvspan(t[lo], t[hi], color='r', alpha=0.1, zorder=-2)
+
+        # plot individual transitions
+        x = t[lo:hi]
+        y = g[lo:hi]
+        ys = sig[lo:hi]
+        ax.scatter(x, y, c='k', marker='x', zorder=-1, s=10)
+        ax.set_yticklabels([])
+
+        tax = ax.twinx()
+        tax.plot(x, ys, c='k', alpha=0.3, zorder=-5)
+        tax.set_yticklabels([])
+
+        # plot fitted gaussian
+        xn = np.linspace(x.min(), x.max(), 100)
+        ax.plot(xn, gauss(xn, *pg), c='r', alpha=0.5)
+
+        # plot center and excluded region
+        ax.axvline(pg[1], c='b', alpha=0.5)
+        ax.axvspan(*lim, color='b', alpha=0.1, zorder=-2)
+
+        if tp:
+            ax.text(.05, .95, '{} (on)'.format(n), ha='left',
+                    va='top', transform=ax.transAxes)
+        else:
+            ax.text(.95, .95, '{} (off)'.format(n), ha='right',
+                    va='top', transform=ax.transAxes)
+
+        if ax.is_last_row():
+            ax.set_xlabel('Time (s)')
+        if ax.is_first_col():
+            ax.set_ylabel('Gradient (x)')
+        if ax.is_last_col():
+            tax.set_ylabel('Signal (line)')
+
+        if fail:
+            ax.axes.set_facecolor((1, 0, 0, 0.2))
+            ax.text(.5, .5, 'FAIL', ha='center', va='center',
+                    fontsize=16, color=(1, 0, 0, 0.5), transform=ax.transAxes)
+
+        n += 1
+
+    # should never be, but just in case...
+    if len(zeros) % 2 == 1:
+        axs.flat[-1].set_visible = False
+
+    return fig, axs
 
 # def rolling_mean_std(sig, win=3):
 #     npad = int((win - 1) / 2)
