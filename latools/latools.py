@@ -26,8 +26,9 @@ from .classifier_obj import classifier
 from .stat_fns import *
 from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
-                      unitpicker, rangecalc, Bunch)
+                      unitpicker, rangecalc, Bunch, calc_grads)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
+from .plots import crossplot, histograms
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -748,6 +749,10 @@ class analyse(object):
             self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: (len(x) > n_min) & (len(x) < n_max))
         # calculate per - background region stats
         self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
+        # sort summary by uTime
+        self.bkg['summary'].sort_values(('uTime', 'mean'), inplace=True)
+        # self.bkg['summary'].index = np.arange(self.bkg['summary'].shape[0])
+        # self.bkg['summary'].index.name = 'ns'
 
         if filter:
             # calculate rolling mean and std from summary
@@ -812,15 +817,20 @@ class analyse(object):
             # create time points to calculate background
             if cstep is None:
                 cstep = weight_fwhm / 20
-            # TODO: Modify  bkg_t to make sure none of the calculated
-            # bkg points are during a sample collection.
+            elif cstep > weight_fwhm:
+                warnings.warn("\ncstep should be less than weight_fwhm. Your backgrounds\n" +
+                              "might not behave as expected.\n")
+            # TODO: Modify bkg_t to make sure none of the calculated
+            # bkg points are during a sample collection? Though shouldn't
+            # be a problem with gaussian smooth if bkgs are behaving
+            # correctly.
             bkg_t = np.linspace(0,
                                 self.max_time,
                                 self.max_time // cstep)
             self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
-        # TODO : calculation then dict assignment is clumsy.
+        # TODO : calculation then dict assignment is clumsy...
         mean, std, stderr = gauss_weighted_stats(self.bkg['raw'].uTime,
                                                  self.bkg['raw'].loc[:, analytes].values,
                                                  self.bkg['calc']['uTime'],
@@ -872,72 +882,85 @@ class analyse(object):
                             filter=filter,
                             f_win=f_win, f_n_lim=f_n_lim)
 
+        def pad(a, lo=None, hi=None):
+            if lo is None:
+                lo = [a[0]]
+            if hi is None:
+                hi = [a[-1]]
+            return np.concatenate((lo, a, hi))
+
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
-            if cstep is None:
-                cstep = self.bkg['raw']['uTime'].ptp() / 100
-            bkg_t = np.arange(self.bkg['summary']['uTime']['mean'].min(),
-                              self.bkg['summary']['uTime']['mean'].max(),
-                              cstep)
+            # if cstep is None:
+                # cstep = self.bkg['raw']['uTime'].ptp() / 100
+            # bkg_t = np.arange(self.bkg['summary']['uTime']['mean'].min(),
+            #                   self.bkg['summary']['uTime']['mean'].max(),
+            #                   cstep)
+
+            bkg_t = pad(self.bkg['summary'].loc[:, ('uTime', 'mean')], [0], [self.max_time])
 
             self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
         for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
-            imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
-                                    d.loc[:, (a, 'mean')],
-                                    kind=kind)
-            istd = interp.interp1d(d.loc[:, ('uTime', 'mean')],
-                                   d.loc[:, (a, 'std')],
-                                   kind=kind)
-            ise = interp.interp1d(d.loc[:, ('uTime', 'mean')],
-                                  d.loc[:, (a, 'stderr')],
-                                  kind=kind)
-            self.bkg['calc'][a] = {'mean': imean(self.bkg['calc']['uTime']),
-                                   'std': istd(self.bkg['calc']['uTime']),
-                                   'stderr': ise(self.bkg['calc']['uTime'])}
+            self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
+                                   'std': pad(d.loc[:, (a, 'std')].values),
+                                   'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+
+        self.bkg['calc']
+
+        # d = self.bkg['summary']
+        # for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
+        #     imean = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+        #                             d.loc[:, (a, 'mean')],
+        #                             kind=kind)
+        #     istd = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+        #                            d.loc[:, (a, 'std')],
+        #                            kind=kind)
+        #     ise = interp.interp1d(d.loc[:, ('uTime', 'mean')],
+        #                           d.loc[:, (a, 'stderr')],
+        #                           kind=kind)
+        #     self.bkg['calc'][a] = {'mean': imean(self.bkg['calc']['uTime']),
+        #                            'std': istd(self.bkg['calc']['uTime']),
+        #                            'stderr': ise(self.bkg['calc']['uTime'])}
         return
 
     @_log
-    def bkg_subtract(self, analytes=None, errtype='stderr'):
+    def bkg_subtract(self, analytes=None, errtype='stderr', focus='despiked'):
         """
         Subtract calculated background from data.
 
         Must run bkg_calc first!
         """
-
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
 
-        # make background interpolators
+        # make uncertainty-aware background interpolators
         bkg_interps = {}
         for a in analytes:
             bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
                                          y=un.uarray(self.bkg['calc'][a]['mean'],
                                                      self.bkg['calc'][a][errtype]))
 
+        # apply background corrections
         for d in tqdm(self.data.values(), desc='Background Subtraction'):
-            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig) for a in analytes]
+            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus) for a in analytes]
             d.setfocus('bkgsub')
-
-        # for d in tqdm(self.data.values(), desc='Background Subtraction'):
-        #     [d.bkg_subtract(a,
-        #                     un.uarray(np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a]['mean']),
-        #                               np.interp(d.uTime, self.bkg['calc']['uTime'], self.bkg['calc'][a][errtype])),
-        #                     ~d.sig) for a in self.analytes]
-        #     d.setfocus('bkgsub')
 
         self.focus_stage = 'bkgsub'
         return
 
     @_log
-    def bkg_plot(self, analytes=None, figsize=None, yscale='log', ylim=None, err='stderr', save=True):
+    def bkg_plot(self, analytes=None, figsize=None, yscale='log',
+                 ylim=None, err='stderr', save=True):
         if not hasattr(self, 'bkg'):
-            raise ValueError("Please run bkg_calc before attempting to\n" +
-                             "plot the background.")
+            raise ValueError("\nPlease calculate a background before attempting to\n" +
+                             "plot it... either:\n" +
+                             "   bkg_calc_interp1d\n" +
+                             "   bkg_calc_weightedmean\n")
 
         if analytes is None:
             analytes = self.analytes
@@ -957,7 +980,7 @@ class analyse(object):
         for a in tqdm(analytes, desc='Plotting backgrounds:',
                       leave=True, total=len(analytes)):
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
-                       alpha=0.2, s=3, c=self.cmaps[a],
+                       alpha=0.5, s=3, c=self.cmaps[a],
                        lw=0.5)
 
             for i, r in self.bkg['summary'].iterrows():
@@ -966,7 +989,7 @@ class analyse(object):
                 yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
                 yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
 
-                l_se = plt.fill_between(x, yl, yu, alpha=0.5, lw=0.5, color=self.cmaps[a], zorder=1)
+                ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
 
             ax.plot(self.bkg['calc']['uTime'],
                     self.bkg['calc'][a]['mean'],
@@ -980,6 +1003,8 @@ class analyse(object):
             ax.set_yscale('log')
         if ylim is not None:
             ax.set_ylim(ylim)
+        else:
+            ax.set_ylim(ax.get_ylim() * np.array([1, 10]))  # x10 to make sample names readable.
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Background Counts')
@@ -992,18 +1017,13 @@ class analyse(object):
         ax.legend(labels=la[:len(analytes)], handles=ha[:len(analytes)], bbox_to_anchor=(1, 1))
 
         # scale x axis to range ± 2.5%
-        ax.set_xlim(self.bkg['raw']['uTime'].min(),
-                    self.bkg['raw']['uTime'].max())
-        ax.set_ylim(ax.get_ylim() * np.array([1, 10]))
+        xlim = rangecalc(self.bkg['raw']['uTime'], 0.025)
+        ax.set_xlim(xlim)
 
         for s, d in self.data.items():
             ax.axvline(d.uTime[0], alpha=0.2, color='k', zorder=-1)
             ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90,
                     va='top', ha='left', zorder=-1, fontsize=7)
-        # for s, r in self.starttimes.iterrows():
-        #     x = r.Dseconds
-        #     ax.axvline(x, alpha=0.2, color='k', zorder=-1)
-        #     ax.text(x, ax.get_ylim()[1], s, rotation=90, va='top', ha='left', zorder=-1)
 
         if save:
             fig.savefig(self.report_dir + '/background.png', dpi=200)
@@ -1039,69 +1059,6 @@ class analyse(object):
 
         self.focus_stage = 'ratio'
         return
-
-    # functions for identifying SRMs
-    # def srm_id(self):
-    #     """
-    #     Asks the user to name the SRMs measured.
-    #     """
-    #     s = self.stds[0]
-    #     fig = s.tplot(scale='log')
-    #     display.clear_output(wait=True)
-    #     display.display(fig)
-
-    #     n0 = s.n
-
-    #     def id(self, s):
-    #         stdnms = []
-    #         s.srm_rngs = Bunch()
-    #         for n in np.arange(s.n) + 1:
-    #             fig, ax = s.tplot(scale='log')
-    #             lims = s.Time[s.ns == n][[0, -1]]
-    #             ax.axvspan(lims[0], lims[1],
-    #                        color='r', alpha=0.2, lw=0)
-    #             display.clear_output(wait=True)
-    #             display.display(fig)
-    #             stdnm = input('Name this standard: ')
-    #             stdnms.append(stdnm)
-    #             s.srm_rngs[stdnm] = lims
-    #             plt.close(fig)
-    #         return stdnms
-
-    #     nms0 = id(self, s)
-
-    #     if len(self.stds) > 1:
-    #         ans = input(('Were all other SRMs measured in '
-    #                      'the same sequence? [Y/n]'))
-    #         if ans.lower() == 'n':
-    #             for s in self.stds[1:]:
-    #                 id(self, s)
-    #         else:
-    #             for s in self.stds[1:]:
-    #                 if s.n == n0:
-    #                     s.srm_rngs = Bunch()
-    #                     for n in np.arange(s.n) + 1:
-    #                         s.srm_rngs[nms0[n-1]] = s.Time[s.ns == n][[0, -1]]
-    #                 else:
-    #                     _ = id(self, s)
-
-    #     display.clear_output()
-
-    #     # record srm_rng in self
-    #     self.srm_rng = Bunch()
-    #     for s in self.stds:
-    #         self.srm_rng[s.sample] = s.srm_rngs
-
-    #     # make boolean identifiers in standard D
-    #     for sn, rs in self.srm_rng.items():
-    #         s = self.data[sn]
-    #         s.std_labels = Bunch()
-    #         for srm, rng in rs.items():
-    #             s.std_labels[srm] = tuples_2_bool(rng, s.Time)
-
-    #     self.srms_ided = True
-
-    #     return
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
         if isinstance(srms_used, str):
@@ -1367,26 +1324,27 @@ class analyse(object):
                         try:
                             x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
                             y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
+                            errs = np.sqrt(self.srmtabs.loc[idx[a, :, :, t], 'meas_err'].values**2 +
+                                           self.srmtabs.loc[idx[a, :, :, t], 'srm_err'].values**2)
                             warnings.warn('\n\nError estimation for drift-corrected non-zero-intercept\n' +
                                           'calibrations is not implemented.\n')
                             # TODO : error estimation in drift corrected non-zero-intercept
                             # case. Tricky because np.polyfit will only return cov
                             # if n samples > order + 2 (rare, for laser ablation).
-                            # 
+                            #
                             # First attempt (doesn't work):
-                            # errs = np.sqrt(self.srmtabs.loc[idx[a, :, :, t], 'meas_err'].values**2 +
-                            #                self.srmtabs.loc[idx[a, :, :, t], 'srm_err'].values**2)
+                            #
                             # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
                             # ferr = np.sqrt(np.diag(cov))
                             # pe = un.uarray(p, ferr)
-                            pe = np.polyfit(x, y, 1)
+                            pe = np.polyfit(x, y, 1, w=errs)
 
                             self.calib_params.loc[t, idx[a, 'm']] = pe[0]
                             self.calib_params.loc[t, idx[a, 'c']] = pe[1]
                         except KeyError:
                             # If the calibration is being recalculated, calib_params
                             # will have t=0 and t=max(uTime) values that are outside
-                            # the srmtabs index.
+                            # the srmtabs index and can't be interpolated.
                             # If this happens, drop them, and re-fill them at the end.
                             self.calib_params.drop(t, inplace=True)
                             fill = True
@@ -1428,131 +1386,6 @@ class analyse(object):
 
         return
 
-    # Old calibration function
-    # ++++++++++++++++++++++++
-    # @_log
-    # def calibrate(self, poly_n=0, analytes=None, drift_correct=False,
-    #               srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'],
-    #               n_min=10):
-    #     """
-    #     Calibrates the data to measured SRM values.
-
-    #     Parameters
-    #     ----------
-    #     poly_n : int
-    #         Specifies the type of function used to map
-    #         known SRM values to SRM measurements.
-    #         0: A linear function, forced through 0.
-    #         1 or more: An nth order polynomial.
-    #     focus : str
-    #         The `focus` stage of the data used to calculating the
-    #         ratios.
-    #     srmfile : str or None
-    #         Path the the file containing the known SRM values.
-    #         If None, the default file specified in the `latools.cfg`
-    #         is used. Refer to the documentation for more information
-    #         on the srmfile format.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     # MAKE CALIBRATION CLEVERER!?
-    #     #   USE ALL DATA OR AVERAGES?
-    #     #   IF POLY_N > 0, STILL FORCE THROUGH ZERO IF ALL
-    #     #   STDS ARE WITHIN ERROR OF EACH OTHER (E.G. AL/CA)
-    #     # can store calibration function in self and use *coefs?
-    #     # check for identified srms
-
-    #     if analytes is None:
-    #         analytes = self.analytes[self.analytes != self.internal_standard]
-    #     elif isinstance(analytes, str):
-    #         analytes = [analytes]
-
-    #     if not hasattr(self, 'srmtabs'):
-    #         self.srm_id_auto(srms_used, n_min)
-
-    #     # calibration functions
-    #     def calib_0(P, x):
-    #         return x * P[0]
-
-    #     def calib_n(P, x):
-    #         # where p is a list of polynomial coefficients n items long,
-    #         # corresponding to [..., 2nd, 1st, 0th] order coefficients
-    #         return np.polyval(P, x)
-
-    #     # wrapper for ODR fitting
-    #     def odrfit(x, y, fn, coef0, sx=None, sy=None):
-    #         dat = odr.RealData(x=x, y=y,
-    #                            sx=sx, sy=sy)
-    #         m = odr.Model(fn)
-    #         mod = odr.ODR(dat, m, coef0)
-    #         mod.run()
-    #         return un.uarray(mod.output.beta, mod.output.sd_beta)
-
-    #     # make container for calibration params
-    #     if not hasattr(self, 'calib_params'):
-    #         self.calib_params = pd.DataFrame(columns=self.analytes)
-
-    #     # set up calibration functions
-    #     if not hasattr(self, 'calib_fns'):
-    #         self.calib_fns = Bunch()
-
-    #     print('Calculating transfer functions...')
-    #     for a in analytes:
-    #         if poly_n == 0:
-    #             self.calib_fns[a] = calib_0
-    #             p0 = [1]
-    #         else:
-    #             self.calib_fns[a] = calib_n
-    #             p0 = [1] * (poly_n - 1) + [0]
-
-    #         # calculate calibrations
-    #         if drift_correct:
-    #             for n, g in self.srmtabs.loc[a, :].groupby(level=0):
-    #                 if srm_errors:
-    #                     p = odrfit(x=g['meas_mean'].values,
-    #                                y=g['srm_mean'].values,
-    #                                sx=g['meas_err'].values,
-    #                                sy=g['srm_err'].values,
-    #                                fn=self.calib_fns[a],
-    #                                coef0=p0)
-    #                 else:
-    #                     p = odrfit(x=g['meas_mean'].values,
-    #                                y=g['srm_mean'].values,
-    #                                sx=g['meas_err'].values,
-    #                                fn=self.calib_fns[a],
-    #                                coef0=p0)
-    #                 uTime = g.index.get_level_values('uTime').values.mean()
-    #                 self.calib_params.loc[uTime, a] = p
-    #         else:
-    #             if srm_errors:
-    #                 p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-    #                            y=self.srmtabs.loc[a, 'srm_mean'].values,
-    #                            sx=self.srmtabs.loc[a, 'meas_err'].values,
-    #                            sy=self.srmtabs.loc[a, 'srm_err'].values,
-    #                            fn=self.calib_fns[a],
-    #                            coef0=p0)
-    #             else:
-    #                 p = odrfit(x=self.srmtabs.loc[a, 'meas_mean'].values,
-    #                            y=self.srmtabs.loc[a, 'srm_mean'].values,
-    #                            sx=self.srmtabs.loc[a, 'meas_err'].values,
-    #                            fn=self.calib_fns[a],
-    #                            coef0=p0)
-    #             self.calib_params.loc[0, a] = p
-
-    #     # apply calibration
-    #     for d in tqdm(self.data, desc='Calibration'):
-    #         try:
-    #             d.calibrate(self.calib_fns, self.calib_params, analytes, drift_correct=drift_correct)
-    #         except:
-    #             print(d.sample + ' failed - probably outside time range of SRMs.')
-
-    #     self.focus_stage = 'calibrated'
-    #     # save calibration parameters
-    #     # self.save_calibration()
-        # return
-
     # data filtering
     # TODO:
     #   - implement 'filter sets'. Subsets dicts of samples at the 'analyse'
@@ -1561,6 +1394,9 @@ class analyse(object):
     #           b) Apply and on/off filters independently for each set.
     #           c) Each set should have a 'filter_status' function, listing
     #               the state of each filter for each analyte within the set.
+    #
+    #
+    # TODO: Re-factor filtering to use 'classifier' objects?
 
     @_log
     def make_subset(self, samples=None, name=None):
@@ -1660,6 +1496,47 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data[s].filter_threshold(analyte, threshold, filt=False)
+
+    @_log
+    def filter_gradient_threshold(self, analyte, threshold, win=15, filt=False,
+                                  samples=None, subset=None):
+        """
+        Calculate a gradient threshold filter to the data.
+
+        Generates two filters above and below the threshold value for a
+        given analyte.
+
+        Parameters
+        ----------
+        analyte : str
+            The analyte that the filter applies to.
+        win : int
+            The window over which to calculate the moving gradient
+        threshold : float
+            The threshold value.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
+
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.minimal_analytes.update([analyte])
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data[s].filter_gradient_threshold(analyte, win, threshold, filt=filt)
 
     @_log
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
@@ -2030,6 +1907,25 @@ class analyse(object):
     #         print(self.data[sample].filt)
     #     else:
 
+    def filter_nremoved(self, filt=True, quiet=False):
+        rminfo = {}
+        for n in self.subsets['All_Samples']:
+            s = self.data[n]
+            rminfo[n] = s.filt_nremoved(filt)
+        if not quiet:
+            maxL = max([len(s) for s in rminfo.keys()])
+            print('{string:{number}s}'.format(string='Sample', number=maxL + 2) +
+                  '{total:4s}'.format(total='tot') +
+                  '{removed:4s}'.format(removed='flt') +
+                  '{percent:4s}'.format(percent='%rm'))
+            for k, (ntot, nfilt, pcrm) in rminfo.items():
+                print('{string:{number}s}'.format(string=k, number=maxL + 2) +
+                      '{total:4.0f}'.format(total=ntot) +
+                      '{removed:4.0f}'.format(removed=nfilt) +
+                      '{percent:4.0f}'.format(percent=pcrm))
+
+        return rminfo
+
     @_log
     def fit_classifier(self, name, analytes, method, samples=None,
                        subset=None, filt=True, sort_by=0, **kwargs):
@@ -2137,7 +2033,6 @@ class analyse(object):
                            params=(c.analytes, c.method))
         return name
 
-
     # plot calibrations
     @_log
     def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
@@ -2210,11 +2105,12 @@ class analyse(object):
 
             # work out axis scaling
             if not loglog:
-                xlim, ylim = rangecalc(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values),
-                                       nominal_values(self.srmtabs.loc[a, 'srm_mean'].values),
-                                       pad=0.1)
-                xlim[0] = 0
-                ylim[0] = 0
+                xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
+                                 nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
+                ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
+                                 nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
+                xlim = [0, 1.05 * xmax]
+                ylim = [0, 1.05 * ymax]
             else:
                 xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
                 yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
@@ -2406,12 +2302,59 @@ class analyse(object):
 
         return
 
+    # fetch all the gradients from the data objects
+    def get_gradients(self, analytes=None, win=5, filt=False, samples=None, subset=None):
+        """
+        Collect all data from all samples into a single array.
+        Data from standards is not collected.
+
+        Parameters
+        ----------
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        samples : str or list
+        subset : str or int
+
+        Returns
+        -------
+        None
+        """
+        if analytes is None:
+            analytes = self.analytes
+        if not hasattr(self, 'gradients'):
+            self.gradients = Bunch()
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        # t = 0
+        focus = {'uTime': []}
+        focus.update({a: [] for a in analytes})
+
+        for sa in tqdm(samples, desc='Calculating Gradients'):
+            s = self.data[sa]
+            focus['uTime'].append(s.uTime)
+            ind = s.filt.grab_filt(filt)
+            grads = calc_grads(s.uTime, s.focus, keys=analytes, win=win)
+            for a in analytes:
+                tmp = grads[a]
+                tmp[~ind] = np.nan
+                focus[a].append(tmp)
+
+        self.gradients.update({k: np.concatenate(v) for k, v, in focus.items()})
+
+        return
+
     # crossplot of all data
     @_log
     def crossplot(self, analytes=None, lognorm=True,
                   bins=25, filt=False, samples=None,
                   subset=None, figsize=(12, 12), save=False,
-                  colourful=True, **kwargs):
+                  colourful=True, mode='hist2d', **kwargs):
         """
         Plot analytes against each other.
 
@@ -2428,6 +2371,115 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
+        figsize : tuple
+        save : bool
+        colourful : bool
+        mode : str
+
+        Returns
+        -------
+        (fig, axes)
+        """
+
+        if analytes is None:
+            analytes = self.analytes
+        if self.focus_stage in ['ratio', 'calibrated']:
+            analytes = [a for a in analytes if self.internal_standard not in a]
+
+        # sort analytes
+        try:
+            analytes = sorted(analytes, key=lambda x: float(re.findall('[0-9.-]+', x)[0]))
+        except IndexError:
+            analytes = sorted(analytes)
+
+        self.get_focus(filt=filt, samples=samples, subset=subset)
+
+        fig, axes = crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
+                              bins=bins, figsize=figsize, colourful=colourful,
+                              focus_stage=self.focus_stage, cmap=self.cmaps,
+                              denominator=self.internal_standard, mode=mode)
+
+        if save:
+            fig.savefig(self.report_dir + '/crossplot.png', dpi=200)
+
+        return fig, axes
+
+    @_log
+    def gradient_crossplot(self, analytes=None, win=15, lognorm=True,
+                           bins=25, filt=False, samples=None,
+                           subset=None, figsize=(12, 12), save=False,
+                           colourful=True, mode='hist2d', **kwargs):
+        """
+        Plot analyte gradients against each other.
+
+        Parameters
+        ----------
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+        lognorm : bool
+            Whether or not to log normalise the colour scale
+            of the 2D histogram.
+        bins : int
+            The number of bins in the 2D histogram.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        figsize : tuple
+        save : bool
+        colourful : bool
+        mode : str
+
+        Returns
+        -------
+        (fig, axes)
+        """
+
+        if analytes is None:
+            analytes = self.analytes
+        if self.focus_stage in ['ratio', 'calibrated']:
+            analytes = [a for a in analytes if self.internal_standard not in a]
+
+        # sort analytes
+        try:
+            analytes = sorted(analytes, key=lambda x: float(re.findall('[0-9.-]+', x)[0]))
+        except IndexError:
+            analytes = sorted(analytes)
+
+        self.get_focus(filt=filt, samples=samples, subset=subset)
+
+        # calculate gradients
+        grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
+
+        fig, axes = crossplot(dat=grads, keys=analytes, lognorm=lognorm,
+                              bins=bins, figsize=figsize, colourful=colourful,
+                              focus_stage=self.focus_stage, cmap=self.cmaps,
+                              denominator=self.internal_standard, mode=mode)
+
+        if save:
+            fig.savefig(self.report_dir + '/g_crossplot.png', dpi=200)
+
+        return fig, axes
+
+    def histograms(self, analytes=None, bins=25, logy=False,
+                   filt=False, colourful=True):
+        """
+        Plot histograms of analytes.
+
+        Parameters
+        ----------
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+        bins : int
+            The number of bins in each histogram (default = 25)
+        logy : bool
+            If true, y axis is a log scale.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        colourful : bool
+            If True, histograms are colourful :)
 
         Returns
         -------
@@ -2437,97 +2489,18 @@ class analyse(object):
             analytes = self.analytes
         if self.focus_stage in ['ratio', 'calibrated']:
             analytes = [a for a in analytes if self.internal_standard not in a]
-
-        if figsize[0] < 1.5 * len(analytes):
-            figsize = [1.5 * len(analytes)] * 2
-
-        numvars = len(analytes)
-        fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
-                                 figsize=(12, 12))
-        fig.subplots_adjust(hspace=0.05, wspace=0.05)
-
-        for ax in axes.flat:
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
-
-            if ax.is_first_col():
-                ax.yaxis.set_ticks_position('left')
-            if ax.is_last_col():
-                ax.yaxis.set_ticks_position('right')
-            if ax.is_first_row():
-                ax.xaxis.set_ticks_position('top')
-            if ax.is_last_row():
-                ax.xaxis.set_ticks_position('bottom')
-
-        # set up colour scales
         if colourful:
-            cmlist = ['Blues', 'BuGn', 'BuPu', 'GnBu',
-                      'Greens', 'Greys', 'Oranges', 'OrRd',
-                      'PuBu', 'PuBuGn', 'PuRd', 'Purples',
-                      'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd']
+            cmap = self.cmaps
         else:
-            cmlist = ['Greys']
+            cmap = None
 
-        while len(cmlist) < len(analytes):
-            cmlist *= 2
-
-        # isolate nominal_values for all analytes
-        focus = {k: nominal_values(v) for k, v in self.focus.items()}
-        # determine units for all analytes
-        udict = {a: unitpicker(np.nanmean(focus[a]),
-                               focus_stage=self.focus_stage,
-                               denominator=self.internal_standard) for a in analytes}
-        # determine ranges for all analytes
-        rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
-                     np.nanmax(focus[a] * udict[a][0])) for a in analytes}
-
-        for i, j in zip(*np.triu_indices_from(axes, k=1)):
-            # get analytes
-            ai = analytes[i]
-            aj = analytes[j]
-
-            # remove nan, apply multipliers
-            pi = focus[ai][~np.isnan(focus[ai])] * udict[ai][0]
-            pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
-
-            # determine normalisation shceme
-            if lognorm:
-                norm = mpl.colors.LogNorm()
-            else:
-                norm = None
-
-            # draw plots
-            axes[i, j].hist2d(pj, pi, bins,
-                              norm=norm,
-                              cmap=plt.get_cmap(cmlist[i]))
-            axes[j, i].hist2d(pi, pj, bins,
-                              norm=norm,
-                              cmap=plt.get_cmap(cmlist[j]))
-
-            axes[i, j].set_ylim(*rdict[ai])
-            axes[i, j].set_xlim(*rdict[aj])
-
-            axes[j, i].set_ylim(*rdict[aj])
-            axes[j, i].set_xlim(*rdict[ai])
-
-        # diagonal labels
-        for a, n in zip(analytes, np.arange(len(analytes))):
-            axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
-                                xycoords='axes fraction',
-                                ha='center', va='center')
-            axes[n, n].set_xlim(*rdict[a])
-            axes[n, n].set_ylim(*rdict[a])
-        # switch on alternating axes
-        for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
-            axes[j, i].xaxis.set_visible(True)
-            for label in axes[j, i].get_xticklabels():
-                label.set_rotation(90)
-            axes[i, j].yaxis.set_visible(True)
-
-        if save:
-            fig.savefig(self.report_dir + '/crossplot.png', dpi=200)
+        self.get_focus(filt=filt)
+        fig, axes = histograms(self.focus, keys=analytes,
+                               bins=bins, logy=logy, cmap=cmap)
 
         return fig, axes
+
+
 
     def crossplot_filters(self, filter_string, analytes=None,
                           samples=None, subset=None, filt=None):
@@ -2612,8 +2585,8 @@ class analyse(object):
                 pj = focus[aj][~np.isnan(focus[aj])] * udict[aj][0]
 
                 # make plot
-                axes[i, j].scatter(pj, pi, alpha=0.4, s=10, lw=0)
-                axes[j, i].scatter(pi, pj, alpha=0.4, s=10, lw=0)
+                axes[i, j].scatter(pj, pi, alpha=0.4, s=10, lw=0.5, edgecolor='k')
+                axes[j, i].scatter(pi, pj, alpha=0.4, s=10, lw=0.5, edgecolor='k')
 
                 axes[i, j].set_ylim(*rdict[ai])
                 axes[i, j].set_xlim(*rdict[aj])
@@ -2714,6 +2687,82 @@ class analyse(object):
             # for l, u in s.bkgrng:
             #     ax.axvspan(l, u, color='k', alpha=0.1)
             f.savefig(outdir + '/' + s + '_traces.pdf')
+            # TODO: on older(?) computers raises
+            # 'OSError: [Errno 24] Too many open files'
+            plt.close(f)
+        return
+
+    # Plot gradients
+    @_log
+    def gradient_plots(self, analytes=None, win=15, samples=None, ranges=False,
+                       focus=None, outdir=None,
+                       figsize=[10, 4], subset='All_Analyses'):
+        """
+        Plot analyte gradients as a function of time.
+
+        Parameters
+        ----------
+        analytes : optional, array_like or str
+            The analyte(s) to plot. Defaults to all analytes.
+        samples: optional, array_like or str
+            The sample(s) to plot. Defaults to all samples.
+        ranges : bool
+            Whether or not to show the signal/backgroudn regions
+            identified by 'autorange'.
+        focus : str
+            The focus 'stage' of the analysis to plot. Can be
+            'rawdata', 'despiked':, 'signal', 'background',
+            'bkgsub', 'ratios' or 'calibrated'.
+        outdir : str
+            Path to a directory where you'd like the plots to be
+            saved. Defaults to 'reports/[focus]' in your data directory.
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        scale : str
+            If 'log', plots the data on a log scale.
+        figsize : array_like
+            Array of length 2 specifying figure [width, height] in
+            inches.
+        stats : bool
+            Whether or not to overlay the mean and standard deviations
+            for each trace.
+        stat, err: str
+            The names of the statistic and error components to plot.
+            Deafaults to 'nanmean' and 'nanstd'.
+
+
+        Returns
+        -------
+        None
+        """
+        if focus is None:
+            focus = self.focus_stage
+        if outdir is None:
+            outdir = self.report_dir + '/' + focus + '_gradient'
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
+        # if samples is not None:
+        #     subset = self.make_subset(samples)
+
+        if subset is not None:
+            samples = self._get_samples(subset)
+        elif samples is None:
+            samples = self.subsets['All_Analyses']
+        elif isinstance(samples, str):
+            samples = [samples]
+
+        for s in tqdm(samples, desc='Drawing Plots'):
+            f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
+                                      ranges=ranges, focus_stage=focus)
+            # ax = fig.axes[0]
+            # for l, u in s.sigrng:
+            #     ax.axvspan(l, u, color='r', alpha=0.1)
+            # for l, u in s.bkgrng:
+            #     ax.axvspan(l, u, color='k', alpha=0.1)
+            f.savefig(outdir + '/' + s + '_gradients.pdf')
             # TODO: on older(?) computers raises
             # 'OSError: [Errno 24] Too many open files'
             plt.close(f)
@@ -3212,7 +3261,8 @@ class analyse(object):
             f.write(srmdat.to_csv())
 
 
-def reproduce(log_file, plotting=False, data_folder=None, srm_table=None, custom_stat_functions=None):
+def reproduce(log_file, plotting=False, data_folder=None,
+              srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with `latools.minimal_export`
     """
