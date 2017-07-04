@@ -571,7 +571,7 @@ def calc_grads(x, dat, keys=None, win=5):
 
     xs = rolling_window(x, win, pad='repeat_ends')
     grads = Bunch()
-    for k in tqdm(keys, desc='Calculating Gradients', leave=False):
+    for k in keys:
         d = nominal_values(rolling_window(dat[k], win, pad='repeat_ends'))
 
         grads[k] = np.array(list(map(grad, zip(xs, d))))

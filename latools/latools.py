@@ -2303,7 +2303,7 @@ class analyse(object):
         return
 
     # fetch all the gradients from the data objects
-    def get_gradients(self, analytes=None, win=5, filt=False, samples=None, subset=None):
+    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None):
         """
         Collect all data from all samples into a single array.
         Data from standards is not collected.
@@ -2446,12 +2446,13 @@ class analyse(object):
         except IndexError:
             analytes = sorted(analytes)
 
-        self.get_focus(filt=filt, samples=samples, subset=subset)
-
         # calculate gradients
-        grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
+        self.get_gradients(analytes, win, filt, samples, subset)
 
-        fig, axes = crossplot(dat=grads, keys=analytes, lognorm=lognorm,
+        # self.get_focus(filt=filt, samples=samples, subset=subset)
+        # grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
+
+        fig, axes = crossplot(dat=self.gradients, keys=analytes, lognorm=lognorm,
                               bins=bins, figsize=figsize, colourful=colourful,
                               focus_stage=self.focus_stage, cmap=self.cmaps,
                               denominator=self.internal_standard, mode=mode)
@@ -2499,8 +2500,6 @@ class analyse(object):
                                bins=bins, logy=logy, cmap=cmap)
 
         return fig, axes
-
-
 
     def crossplot_filters(self, filter_string, analytes=None,
                           samples=None, subset=None, filt=None):
