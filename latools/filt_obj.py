@@ -347,7 +347,7 @@ class filt(object):
         mratio = ratios.max()
 
         if multi:
-            return keys[ratios == mratio]
+            return keys[ratios >= mratio * 0.8]
         else:
             if sum(ratios == mratio) == 1:
                 return keys[ratios == mratio][0]
