@@ -17,7 +17,7 @@ from mpld3 import enable_notebook, disable_notebook, plugins
 
 import latools.process_fns as proc
 from .filt_obj import filt
-from .helpers import bool_2_indices, rolling_window, Bunch
+from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
 from .helpers import unitpicker, pretty_element, findmins
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
 
@@ -206,7 +206,7 @@ class D(object):
 
         self.__dict__.update(self.focus)
         # for k in self.focus.keys():
-            # setattr(self, k, self.focus[k])
+        # setattr(self, k, self.focus[k])
 
     @_log
     def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
@@ -658,7 +658,7 @@ class D(object):
         return
 
     @_log
-    def bkg_subtract(self, analyte, bkg, ind=None):
+    def bkg_subtract(self, analyte, bkg, ind=None, focus_stage='despiked'):
         """
         Subtract provided background from signal (focus stage).
 
@@ -673,7 +673,7 @@ class D(object):
         if 'bkgsub' not in self.data.keys():
             self.data['bkgsub'] = Bunch()
 
-        self.data['bkgsub'][analyte] = self.focus[analyte] - bkg
+        self.data['bkgsub'][analyte] = self.data[focus_stage][analyte] - bkg
 
         if ind is not None:
             self.data['bkgsub'][analyte][ind] = np.nan
@@ -912,6 +912,64 @@ class D(object):
             # if there are no data
             name = analyte + '_thresh_nodata'
             info = analyte + ' threshold filter (no data)'
+
+            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
+                          info=info, params=params, setn=setn)
+
+    @_log
+    def filter_gradient_threshold(self, analyte, win, threshold, filt=False):
+        """
+        Apply gradient threshold filter.
+
+        Generates threshold filters for the given analytes above and below
+        the specified threshold.
+
+        Two filters are created with prefixes '_above' and '_below'.
+            '_above' keeps all the data above the threshold.
+            '_below' keeps all the data below the threshold.
+
+        i.e. to select data below the threshold value, you should turn the
+        '_above' filter off.
+
+        Parameters
+        ----------
+        analyte : TYPE
+            Description of `analyte`.
+        threshold : TYPE
+            Description of `threshold`.
+        filt : TYPE
+            Description of `filt`.
+
+        Returns
+        -------
+        None
+        """
+        params = locals()
+        del(params['self'])
+
+        # calculate absolute gradient
+        grad = abs(calc_grads(self.Time, self.focus, [analyte], win)[analyte])
+
+        if not isinstance(filt, bool):
+            ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(grad))
+        else:
+            ind = ~np.isnan(grad)
+
+        setn = self.filt.maxset + 1
+
+        if any(ind):
+            self.filt.add(analyte + '_gthresh_below',
+                          grad <= threshold,
+                          'Keep gradient below {:.3e} '.format(threshold) + analyte,
+                          params, setn=setn)
+            self.filt.add(analyte + '_gthresh_above',
+                          grad >= threshold,
+                          'Keep gradient above {:.3e} '.format(threshold) + analyte,
+                          params, setn=setn)
+        else:
+            # if there are no data
+            name = analyte + '_gthresh_nodata'
+            info = analyte + ' gradient threshold filter (no data)'
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params, setn=setn)
@@ -1406,7 +1464,7 @@ class D(object):
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
 
-        name = x_analyte + ' - ' + y_analyte + '_corr'
+        name = x_analyte + '_' + y_analyte + '_corr'
 
         self.filt.add(name=name,
                       filt=cfilt,
@@ -1632,6 +1690,80 @@ class D(object):
         return fig, ax
 
     @_log
+    def gplot(self, analytes=None, win=5, figsize=[10, 4],
+              ranges=False, focus_stage=None):
+        """
+        Plot analytes gradients as a function of Time.
+
+        Parameters
+        ----------
+        analytes : array_like
+            list of strings containing names of analytes to plot.
+            None = all analytes.
+        win : int
+            The window over which to calculate the rolling gradient.
+        figsize : tuple
+            size of final figure.
+        ranges : bool
+            show signal/background regions.
+
+        Returns
+        -------
+        figure, axis
+        """
+
+        if type(analytes) is str:
+            analytes = [analytes]
+        if analytes is None:
+            analytes = self.analytes
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_axes([.1, .12, .77, .8])
+
+        x = self.Time
+        grads = calc_grads(x, self.data[focus_stage], analytes, win)
+
+        for a in analytes:
+            ax.plot(x, grads[a], color=self.cmap[a], label=a)
+
+        if ranges:
+            for lims in self.bkgrng:
+                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+            for lims in self.sigrng:
+                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
+
+        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
+                transform=ax.transAxes,
+                ha='left', va='top')
+
+        ax.set_xlabel('Time (s)')
+        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+
+        # y label
+        ud = {'rawdata': 'counts/s',
+              'despiked': 'counts/s',
+              'bkgsub': 'background corrected counts/s',
+              'ratios': 'counts/{:s} count/s',
+              'calibrated': 'mol/mol/s {:s}'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        ax.set_ylabel(ud[focus_stage])
+        # y tick format
+
+        def yfmt(x, p):
+            return '{:.0e}'.format(x)
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
+
+        ax.legend(bbox_to_anchor=(1.15, 1))
+
+        ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+
+        return fig, ax
+
+    @_log
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True, colourful=True, figsize=(12, 12)):
         """
         Plot analytes against each other.
@@ -1844,6 +1976,12 @@ class D(object):
             axes[i, j].yaxis.set_visible(True)
 
         return fig, axes
+
+    def filt_nremoved(self, filt=True):
+        ntot = sum(self.sig)
+        nfilt = sum(self.filt.grab_filt(filt) & self.sig)
+        pcrm = 100. * (ntot - nfilt) / ntot
+        return (ntot, nfilt, pcrm)
 
     @_log
     def filt_report(self, filt=None, analytes=None, savedir=None):
