@@ -8,6 +8,8 @@ import dateutil as du
 import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
+from tqdm import tqdm
+from .stat_fns import nominal_values
 
 
 # Bunch modifies dict to allow item access using dot (.) operator
@@ -36,7 +38,6 @@ def get_date(datetime, time_format=None):
     return t
 
 
-# other useful functions
 def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
@@ -178,7 +179,7 @@ def bool_2_indices(a):
 #     """
 #     if ~isinstance(bool_array, np.ndarray):
 #         bool_array = np.array(bool_array)
-    
+
 #     lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
 #     if len(lims) > 0:
 #         if bool_array[0]:
@@ -386,11 +387,17 @@ def get_example_data(destination_dir):
 
 
 # for plotting
-def rangecalc(xs, ys, pad=0.05):
-    xd = max(xs)
-    yd = max(ys)
-    return ([0 - pad * xd, max(xs) + pad * xd],
-            [0 - pad * yd, max(ys) + pad * yd])
+# def rangecalc(xs, ys, pad=0.05):
+#     xd = max(xs)
+#     yd = max(ys)
+#     return ([0 - pad * xd, max(xs) + pad * xd],
+#             [0 - pad * yd, max(ys) + pad * yd])
+
+def rangecalc(xs, pad=0.05):
+    mn = np.nanmin(xs)
+    mx = np.nanmax(xs)
+    xr = mx - mn
+    return [mn - pad * xr, mx + pad * xr]
 
 
 class un_interp1d(object):
@@ -446,8 +453,11 @@ def rolling_window(a, window, pad=None):
         elif pad == 'mean_ends':
             prepad = np.full(shape, np.mean(a[:(window // 2)]))
             postpad = np.full(shape, np.mean(a[-(window // 2):]))
+        elif pad == 'repeat_ends':
+            prepad = np.full((window // 2, window), out[0])
+            postpad = np.full((window // 2, window), out[0])
         else:
-            raise ValueError("If pad is a string, it must be either 'ends' or 'mean_ends'.")
+            raise ValueError("If pad is a string, it must be either 'ends', 'mean_ends' or 'repeat_ends'.")
 
         return np.concatenate((prepad, out, postpad))
     elif pad is not None:
@@ -536,6 +546,37 @@ def fastgrad(a, win=11):
     return np.array(list(a))
     # return np.concatenate([np.zeros(int(win / 2)), list(a),
     #                        np.zeros(int(win / 2))])
+
+
+def calc_grads(x, dat, keys=None, win=5):
+    """
+    Calculate gradients of values in dat.
+    
+    Parameters
+    ----------
+    x : array like
+        Independent variable for items in dat.
+    dat : dict
+        {key: dependent_variable} pairs
+    keys
+    """
+    if keys is None:
+        keys = dat.keys()
+
+    def grad(xy):
+        try:
+            return np.polyfit(xy[0], xy[1], 1)[0]
+        except ValueError:
+            return np.nan
+
+    xs = rolling_window(x, win, pad='repeat_ends')
+    grads = Bunch()
+    for k in tqdm(keys, desc='Calculating Gradients', leave=False):
+        d = nominal_values(rolling_window(dat[k], win, pad='repeat_ends'))
+
+        grads[k] = np.array(list(map(grad, zip(xs, d))))
+
+    return grads
 
 
 def findmins(x, y):
