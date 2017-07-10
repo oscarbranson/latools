@@ -307,8 +307,9 @@ class analyse(object):
                 nreps = ucounts[ucounts > 1]  # identify how many times they repeat
                 for d, n in zip(dups, nreps):  # cycle through duplicates
                     new = [d + '_{}'.format(i) for i in range(n)]  # append number to duplicate names
-                    samples[samples == d] = new  # rename in samples
-                    for s, ns in zip(data[samples == d], new):
+                    ind = samples == d
+                    samples[ind] = new  # rename in samples
+                    for s, ns in zip([data[i] for i in np.where(ind)[0]], new):
                         s.sample = ns  # rename in D objects
         else:
             samples = np.arange(len(data))  # assign a range of numbers
@@ -399,7 +400,7 @@ class analyse(object):
         return samples
 
     @_log
-    def autorange(self, analyte='total_counts', gwin=7, win=20,
+    def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
                   transform='log', thresh_n=None, ploterrs=True):
         # def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
@@ -504,7 +505,7 @@ class analyse(object):
 
         fails = {}  # list for catching failures.
         for s, d in tqdm(self.data.items(), desc='AutoRange'):
-            f = d.autorange(analyte=analyte, gwin=gwin, win=win,
+            f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
                             on_mult=on_mult, off_mult=off_mult,
                             ploterrs=ploterrs, bkg_thresh=bkg_thresh)
             if f is not None:
@@ -1539,6 +1540,48 @@ class analyse(object):
             self.data[s].filter_gradient_threshold(analyte, win, threshold, filt=filt)
 
     @_log
+    def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
+                                  on_mult=(1., 1.), off_mult=(1., 1.), nbin=5,
+                                  filt=False, samples=None, subset=None):
+        """
+        Find inclusions in profile based on specific analytes.
+
+        Identifies anomalously high / low regions of a specific analyte or analytes
+        and returns two filters of the 'low' and 'high' regions, excluding the
+        the transition between them.
+
+        The mechanics of the filter is identical to the `autorange` function.
+
+        Parameters
+        ----------
+        analytes : str or list
+            Which analytes to use to identify inclusions.
+        gwin : int
+            The size of the window used for smoothing and calculating the derivative.
+        win : int
+            The region either side of lo-hi transitions to consider for exclusion.
+        log : bool
+            Whether or not to log-transform the data
+        on_mult, off_mult : tuple
+            The width (multiples of FWHM) either side of identified matierla transitions to exclude.
+        """
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.minimal_analytes.update(analytes)
+
+        for s in tqdm(samples, desc='Finding Inclusions'):
+            self.data[s].filter_inclusion_excluder(analytes, gwin=gwin, swin=swin, win=win, log=log,
+                                                   on_mult=on_mult, off_mult=off_mult,
+                                                   filt=filt, nbin=nbin)
+        return
+
+    @_log
     def filter_distribution(self, analyte, binwidth='scott', filt=False,
                             transform=None, samples=None, subset=None,
                             min_data=10):
@@ -1703,6 +1746,7 @@ class analyse(object):
                                            method=method,
                                            include_time=include_time,
                                            min_data=min_data,
+                                           sort=sort,
                                            **kwargs)
 
     @_log
@@ -2769,8 +2813,8 @@ class analyse(object):
 
     # filter reports
     @_log
-    def filter_reports(self, analytes, filt_str='all', samples=None,
-                       outdir=None, subset=None):
+    def filter_reports(self, analytes, nbin=5, filt_str='all', samples=None,
+                       outdir=None, subset='All_Samples'):
         """
         Plot filter reports for all filters that contain ``filt_str``
         in the name.
@@ -2790,7 +2834,8 @@ class analyse(object):
         for s in tqdm(samples, desc='Drawing Plots'):
             self.data[s].filt_report(filt=filt_str,
                                      analytes=analytes,
-                                     savedir=outdir)
+                                     savedir=outdir,
+                                     nbin=nbin)
             # plt.close(fig)
         return
 
