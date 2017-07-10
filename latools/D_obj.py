@@ -20,6 +20,8 @@ from .filt_obj import filt
 from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
 from .helpers import unitpicker, pretty_element, findmins
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
+from .filters import percentile_filter
+import latools.plots as plots
 
 
 class D(object):
@@ -260,7 +262,7 @@ class D(object):
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
-                  on_mult=[1., 1.], off_mult=[1., 1.5],
+                  on_mult=[1., 1.], off_mult=[1., 1.5], nbin=10,
                   ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
         """
         Automatically separates signal and background data regions.
@@ -337,7 +339,7 @@ class D(object):
 
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
-                                            on_mult=on_mult, off_mult=off_mult)
+                                            nbin=nbin, on_mult=on_mult, off_mult=off_mult)
 
         self.mkrngs()
 
@@ -365,7 +367,7 @@ class D(object):
 
     def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,
                        on_mult=[1.5, 1.], off_mult=[1., 1.5],
-                       transform='log'):
+                       transform='log', nbin=10):
         """
         Plot a detailed autorange report for this sample.
         """
@@ -382,9 +384,9 @@ class D(object):
         if transform == 'log':
             sig = np.log10(sig)
 
-        fig, axs = proc.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
-                                       swin=swin, win=win, on_mult=on_mult,
-                                       off_mult=off_mult)
+        fig, axs = plots.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
+                                        swin=swin, win=win, on_mult=on_mult,
+                                        off_mult=off_mult)
 
         return fig, axs
 
@@ -891,7 +893,7 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        vals = trace = nominal_values(self.focus[analyte])
+        vals = nominal_values(self.focus[analyte])
         if filt is not False:
             ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
         else:
@@ -901,11 +903,11 @@ class D(object):
 
         if any(ind):
             self.filt.add(analyte + '_thresh_below',
-                          trace <= threshold,
+                          vals <= threshold,
                           'Keep below {:.3e} '.format(threshold) + analyte,
                           params, setn=setn)
             self.filt.add(analyte + '_thresh_above',
-                          trace >= threshold,
+                          vals >= threshold,
                           'Keep above {:.3e} '.format(threshold) + analyte,
                           params, setn=setn)
         else:
