@@ -401,7 +401,7 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
-                  on_mult=[1., 1.5], off_mult=[1.5, 1],
+                  on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
                   transform='log', thresh_n=None, ploterrs=True):
         # def autorange(self, analyte=None, gwin=11, win=40, smwin=5,
         #               conf=0.01, on_mult=[1., 1.], off_mult=None,
@@ -506,7 +506,7 @@ class analyse(object):
         fails = {}  # list for catching failures.
         for s, d in tqdm(self.data.items(), desc='AutoRange'):
             f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
-                            on_mult=on_mult, off_mult=off_mult,
+                            on_mult=on_mult, off_mult=off_mult, nbin=nbin,
                             ploterrs=ploterrs, bkg_thresh=bkg_thresh)
             if f is not None:
                 fails[s] = f
@@ -1094,7 +1094,7 @@ class analyse(object):
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
         if not hasattr(self, 'srmdat'):
-            elnames = re.compile('([A-Z][a-z]{0,})')  # regex to ID element names
+            elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
             # load SRM info
             srmdat = pd.read_csv(self.srmfile)
             srmdat.set_index('SRM', inplace=True)
@@ -1126,13 +1126,14 @@ class analyse(object):
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
             # isolate measured elements
-            elements = np.unique([re.findall('[A-Z][a-z]{0,}', a)[0] for a in self.analytes])
+            elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
             # label elements
             srmdat.loc[:, 'element'] = np.nan
 
+            elonly = re.compile('([A-Z][a-z]{0,})')
             for e in elements:
-                ind = [e in elnames.findall(i) for i in srmdat.Item]
+                ind = [e in elonly.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
 
             # convert to table in same format as stdtab
@@ -1325,10 +1326,10 @@ class analyse(object):
                         try:
                             x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
                             y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
-                            errs = np.sqrt(self.srmtabs.loc[idx[a, :, :, t], 'meas_err'].values**2 +
-                                           self.srmtabs.loc[idx[a, :, :, t], 'srm_err'].values**2)
-                            warnings.warn('\n\nError estimation for drift-corrected non-zero-intercept\n' +
-                                          'calibrations is not implemented.\n')
+                            # errs = np.sqrt(self.srmtabs.loc[idx[a, :, :, t], 'meas_err'].values**2 +
+                            #                self.srmtabs.loc[idx[a, :, :, t], 'srm_err'].values**2)
+                            # warnings.warn('\n\nError estimation for drift-corrected non-zero-intercept\n' +
+                            #               'calibrations is not implemented.\n')
                             # TODO : error estimation in drift corrected non-zero-intercept
                             # case. Tricky because np.polyfit will only return cov
                             # if n samples > order + 2 (rare, for laser ablation).
@@ -1338,10 +1339,25 @@ class analyse(object):
                             # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
                             # ferr = np.sqrt(np.diag(cov))
                             # pe = un.uarray(p, ferr)
-                            pe = np.polyfit(x, y, 1, w=errs)
+                            # pe = np.polyfit(x, y, 1, w=errs)
+                            print(x)
+                            if len(x) == 1:
+                                m = x / y
+                                c = None
+                            elif len(x) == 2:
+                                m = y.ptp() / x.ptp()
+                                c = y[0] - m * x[0]
+                            elif len(x) > 2:
+                                def lin(x, m, c):
+                                    return x * m + c
+                                p, cov = curve_fit(lin, x, y)
+                                err = np.sqrt(np.diag(cov))
+                                m = un.uarray(p[0], err[0])
+                                c = un.uarray(p[1], err[1])
 
-                            self.calib_params.loc[t, idx[a, 'm']] = pe[0]
-                            self.calib_params.loc[t, idx[a, 'c']] = pe[1]
+                            self.calib_params.loc[t, idx[a, 'm']] = m  # pe[0]
+                            if c is not None:
+                                self.calib_params.loc[t, idx[a, 'c']] = c  # pe[1]
                         except KeyError:
                             # If the calibration is being recalculated, calib_params
                             # will have t=0 and t=max(uTime) values that are outside
@@ -1499,6 +1515,45 @@ class analyse(object):
             self.data[s].filter_threshold(analyte, threshold, filt=False)
 
     @_log
+    def filter_threshold_percentile(self, analyte, percentiles, filt=False,
+                                    samples=None, subset=None):
+        """
+        Applies a threshold filter to the data.
+
+        Generates two filters above and below the threshold value for a
+        given analyte.
+
+        Parameters
+        ----------
+        analyte : str
+            The analyte that the filter applies to.
+        percentiles : float or array-like of len=2
+            The percentile values.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
+
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.minimal_analytes.update([analyte])
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data[s].filter_threshold_percentile(analyte, percentiles, filt=False)
+
+    @_log
     def filter_gradient_threshold(self, analyte, threshold, win=15, filt=False,
                                   samples=None, subset=None):
         """
@@ -1538,6 +1593,47 @@ class analyse(object):
 
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data[s].filter_gradient_threshold(analyte, win, threshold, filt=filt)
+
+    @_log
+    def filter_gradient_threshold_percentile(self, analyte, percentiles, win=15, filt=False,
+                                             samples=None, subset=None):
+        """
+        Calculate a gradient threshold filter to the data.
+
+        Generates two filters above and below the threshold value for a
+        given analyte.
+
+        Parameters
+        ----------
+        analyte : str
+            The analyte that the filter applies to.
+        win : int
+            The window over which to calculate the moving gradient
+        percentiles : float or array-like of len=2
+            The percentile values.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
+
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.minimal_analytes.update([analyte])
+
+        for s in tqdm(samples, desc='Threshold Filter'):
+            self.data[s].filter_gradient_threshold_percentile(analyte, win, percentiles, filt=filt)
 
     @_log
     def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
