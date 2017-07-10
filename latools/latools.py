@@ -1543,6 +1543,9 @@ class analyse(object):
         -------
         None
         """
+        params = locals()
+        del(params['self'])
+
         if samples is not None:
             subset = self.make_subset(samples)
 
@@ -1550,8 +1553,51 @@ class analyse(object):
 
         self.minimal_analytes.update([analyte])
 
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_threshold_percentile(analyte, percentiles, filt=False)
+        # for s in tqdm(samples, desc='Threshold Filter'):
+        #     self.data[s].filter_threshold_percentile(analyte, percentiles, filt=False)
+
+        # Get all samples
+        self.get_focus(analytes=[analyte], filt=filt, subset=subset)
+        dat = self.focus[analyte][~np.isnan(self.focus[analyte])]
+
+        # calculate filter limits
+        if isinstance(percentiles, (int, float)):
+            percentiles = [percentiles]
+        lims = np.percentile(dat, percentiles)
+
+        # Calculate filter for individual samples
+        for s in tqdm(samples, desc='Percentile theshold filter'):
+            d = self.data[s]
+            setn = d.filt.maxset + 1
+            g = d.focus[analyte]
+            if len(lims) == 1:
+                above = g >= lims[0]
+                below = g < lims[0]
+
+                d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
+                           below,
+                           'Values below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                           params, setn=setn)
+                d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
+                           above,
+                           'Values above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                           params, setn=setn)
+
+            elif len(lims) == 2:
+                inside = (g >= min(lims)) & (g <= max(lims))
+                outside = (g < min(lims)) | (g > max(lims))
+
+                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                d.filt.add(analyte + '_' + lpc + '-pcnt_inside',
+                           inside,
+                           'Values between ' + lpc + ' ' + analyte + 'percentiles',
+                           params, setn=setn)
+                d.filt.add(analyte + '_' + lpc + '-pcnt_outside',
+                           outside,
+                           'Values outside ' + lpc + ' ' + analyte + 'percentiles',
+                           params, setn=setn)
+        return
+
 
     @_log
     def filter_gradient_threshold(self, analyte, threshold, win=15, filt=False,
@@ -1625,6 +1671,9 @@ class analyse(object):
         -------
         None
         """
+        params = locals()
+        del(params['self'])
+
         if samples is not None:
             subset = self.make_subset(samples)
 
@@ -1632,8 +1681,46 @@ class analyse(object):
 
         self.minimal_analytes.update([analyte])
 
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_gradient_threshold_percentile(analyte, win, percentiles, filt=filt)
+        # Calculate gradients of all samples
+        self.get_gradients(analytes=[analyte], win=win, filt=filt, subset=subset)
+        grad = self.gradients[analyte][~np.isnan(self.gradients[analyte])]
+        # calculate filter limits
+        if isinstance(percentiles, (int, float)):
+            percentiles = [percentiles]
+        lims = np.percentile(grad, percentiles)
+
+        # Calculate filter for individual samples
+        for s in tqdm(samples, desc='Percentile theshold filter'):
+            d = self.data[s]
+            setn = d.filt.maxset + 1
+            g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
+            if len(lims) == 1:
+                above = g >= lims[0]
+                below = g < lims[0]
+
+                d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
+                           below,
+                           'Gradients below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                           params, setn=setn)
+                d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
+                           above,
+                           'Gradients above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                           params, setn=setn)
+
+            elif len(lims) == 2:
+                inside = (g >= min(lims)) & (g <= max(lims))
+                outside = (g < min(lims)) | (g > max(lims))
+
+                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_inside',
+                           inside,
+                           'Gradients between ' + lpc + ' ' + analyte + 'percentiles',
+                           params, setn=setn)
+                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_outside',
+                           outside,
+                           'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
+                           params, setn=setn)
+        return
 
     @_log
     def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
