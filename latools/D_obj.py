@@ -259,7 +259,7 @@ class D(object):
         return
 
     @_log
-    def autorange(self, analyte='total_counts', gwin=7, win=30,
+    def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
                   on_mult=[1., 1.], off_mult=[1., 1.5],
                   ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
         """
@@ -323,7 +323,6 @@ class D(object):
         -------
         None
         """
-
         if analyte is None:
             sig = self.focus[self.internal_standard]
         elif analyte == 'total_counts':
@@ -337,7 +336,7 @@ class D(object):
             sig = np.log10(sig)
 
         (self.bkg, self.sig,
-         self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, win=win,
+         self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
                                             on_mult=on_mult, off_mult=off_mult)
 
         self.mkrngs()
@@ -347,7 +346,8 @@ class D(object):
             errs_to_plot = True
             plotlines = []
             for f in failed:
-                plotlines.append(f)
+                if f != self.Time[-1]:
+                    plotlines.append(f)
             # warnings.warn(("\n\nSample {:s}: ".format(self.sample) +
             #                "Transition identification at " +
             #                "{:.1f} failed.".format(f) +
@@ -355,7 +355,7 @@ class D(object):
             #                "\nBut please check the data plots and make sure " +
             #                "everything is OK.\n"))
 
-        if ploterrs and errs_to_plot:
+        if ploterrs and errs_to_plot and len(plotlines) > 0:
             f, ax = self.tplot(ranges=True)
             for pl in plotlines:
                 ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
@@ -363,7 +363,7 @@ class D(object):
         else:
             return
 
-    def autorange_plot(self, analyte='total_counts', gwin=7, win=20,
+    def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,
                        on_mult=[1.5, 1.], off_mult=[1., 1.5],
                        transform='log'):
         """
@@ -383,7 +383,7 @@ class D(object):
             sig = np.log10(sig)
 
         fig, axs = proc.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
-                                       win=win, on_mult=on_mult,
+                                       swin=swin, win=win, on_mult=on_mult,
                                        off_mult=off_mult)
 
         return fig, axs
@@ -892,7 +892,7 @@ class D(object):
 
         # generate filter
         vals = trace = nominal_values(self.focus[analyte])
-        if not isinstance(filt, bool):
+        if filt is not False:
             ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
         else:
             ind = ~np.isnan(vals)
@@ -950,7 +950,7 @@ class D(object):
         # calculate absolute gradient
         grad = abs(calc_grads(self.Time, self.focus, [analyte], win)[analyte])
 
-        if not isinstance(filt, bool):
+        if filt is not False:
             ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(grad))
         else:
             ind = ~np.isnan(grad)
@@ -973,6 +973,72 @@ class D(object):
 
             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
                           info=info, params=params, setn=setn)
+
+    @_log
+    def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
+                                  on_mult=(1., 1.), off_mult=(1., 1.), filt=False,
+                                  nbin=5):
+        """
+        Find inclusions in profile based on specific analytes.
+
+        Identifies anomalously high / low regions of a specific analyte or analytes
+        and returns two filters of the 'low' and 'high' regions, excluding the
+        the transition between them.
+
+        The mechanics of the filter is identical to the `autorange` function.
+
+        Parameters
+        ----------
+        analytes : str or list
+            Which analytes to use to identify inclusions.
+        gwin : int
+            The size of the window used for smoothing and calculating the derivative.
+        win : int
+            The region either side of lo-hi transitions to consider for exclusion.
+        log : bool
+            Whether or not to log-transform the data
+        on_mult, off_mult : tuple
+            The width (multiples of FWHM) either side of identified matierla transitions to exclude.
+        """
+        params = locals()
+        del(params['self'])
+
+        if isinstance(analytes, str):
+            y = nominal_values(self.focus[analytes])
+            analytes = analytes[analytes]
+        else:
+            ys = np.zeros((self.Time.size, len(analytes)))
+            for i, a in enumerate(analytes):
+                ys[:, i] = nominal_values(self.focus[a])
+            y = ys.sum(1)
+
+        # transform data, if specified
+        if log:
+            y = np.log10(y)
+
+        # generate filter, if on
+        if filt is not False:
+            ind = (self.filt.grab_filt(filt, analytes) & ~np.isnan(y))
+        else:
+            ind = ~np.isnan(y)
+
+        # create empy arrays for result
+        lo = np.zeros(y.size, dtype=bool)
+        hi = np.zeros(y.size, dtype=bool)
+
+        # calculate filter
+        lo[ind], hi[ind], _, _ = proc.autorange(self.Time[ind], y[ind],
+                                                gwin=gwin, swin=swin, win=win, on_mult=on_mult,
+                                                off_mult=off_mult, nbin=nbin)
+
+        setn = self.filt.maxset + 1
+        self.filt.add(name='-'.join(analytes) + '_inclusion-excluder_lo',
+                      filt=lo, info='Regions with low concentrations of analytes.',
+                      params=params, setn=setn)
+        self.filt.add(name='-'.join(analytes) + '_inclusion-excluder_hi',
+                      filt=hi, info='Regions with high concentrations of analytes.',
+                      params=params, setn=setn)
+        return
 
     @_log
     def filter_distribution(self, analytes, binwidth='scott', filt=False,
@@ -1641,14 +1707,18 @@ class D(object):
 
         if filt is not None:
             ind = self.filt.grab_filt(filt)
-            lims = bool_2_indices(~ind)
-            for lo, u in lims:
-                if abs(u) >= len(self.Time):
-                    u = -1
-                if lo < 0:
-                    lo = 0
-                ax.axvspan(self.Time[lo], self.Time[u], color='k',
-                           alpha=0.05, lw=0)
+            if any(~ind):
+                lims = bool_2_indices(~ind)
+                for lo, u in lims:
+                    if abs(u) >= len(self.Time):
+                        u = -1
+                    if lo < 0:
+                        lo = 0
+                    ax.axvspan(self.Time[lo], self.Time[u], color='k',
+                               alpha=0.05, lw=0)
+            else:
+                ax.axvspan(self.Time[0], self.Time[-1], color='k',
+                               alpha=0.05, lw=0)
 
             # drawn = []
             # for k, v in self.filt.switches.items():
@@ -1984,7 +2054,7 @@ class D(object):
         return (ntot, nfilt, pcrm)
 
     @_log
-    def filt_report(self, filt=None, analytes=None, savedir=None):
+    def filt_report(self, filt=None, analytes=None, savedir=None, nbin=5):
         """
         Visualise effect of data filters.
 
@@ -2049,7 +2119,7 @@ class D(object):
                     cs = cm(np.linspace(0, 1, len(fg)))
                     fn = ['_'.join(x) for x in nfilts[:, (0, 3)]]
                     an = nfilts[:, 0]
-                    bins = np.linspace(np.nanmin(y), np.nanmax(y), 50) * m
+                    bins = np.linspace(np.nanmin(y), np.nanmax(y), len(yh) // nbin) * m
 
                     if 'DBSCAN' in fgrp:
                         # determine data filters
