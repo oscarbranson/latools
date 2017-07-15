@@ -347,7 +347,7 @@ class filt(object):
         mratio = ratios.max()
 
         if multi:
-            return keys[ratios >= mratio * 0.8]
+            return keys[ratios == mratio]
         else:
             if sum(ratios == mratio) == 1:
                 return keys[ratios == mratio][0]
@@ -436,11 +436,18 @@ class filt(object):
             boolean filter
         """
         if isinstance(filt, str):
-            try:
-                ind = self.make_fromkey(filt)
-            except KeyError:
-                print(("\n\n***Filter key invalid. Please consult "
-                       "manual and try again."))
+            if filt in self.components:
+                if analyte is None:
+                    return self.components[filt]
+                else:
+                    if self.switches[analyte][filt]:
+                        return self.components[filt]
+            else:
+                try:
+                    ind = self.make_fromkey(filt)
+                except KeyError:
+                    print(("\n\n***Filter key invalid. Please consult "
+                           "manual and try again."))
         elif isinstance(filt, dict):
             try:
                 ind = self.make_fromkey(filt[analyte])
