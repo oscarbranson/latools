@@ -20,7 +20,6 @@ from .filt_obj import filt
 from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
 from .helpers import unitpicker, pretty_element, findmins
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
-from .filters import percentile_filter
 import latools.plots as plots
 
 
