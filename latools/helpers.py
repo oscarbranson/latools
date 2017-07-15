@@ -149,18 +149,36 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
 def bool_2_indices(a):
     if any(a):
         lims = []
-        d = np.where(a)[0]  # find indices of True
-        lims.append([d[0]])  # add first
-        lims.append([d[-1]])  # add last
-        wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
-        if len(wnc) > 0:
-            lims.append(d[wnc] + 1)  # add last consecutive + 1
-            lims.append(d[(wnc + 1)])  # add first consecutive
-        lims = np.concatenate(lims)  # combine lims and sort
-        lims.sort()  # sort output
+        lims.append(np.where(a[:-1] != a[1:])[0])
+
+        if a[0]:
+            lims.append([0])
+        if a[-1]:
+            lims.append([len(a) - 1])
+        lims = np.concatenate(lims)
+        lims.sort()
+
         return np.reshape(lims, (lims.size // 2, 2))
     else:
         return None
+
+
+
+# def bool_2_indices(a):
+#     if any(a):
+#         lims = []
+#         d = np.where(a)[0]  # find indices of True
+#         lims.append([d[0]])  # add first
+#         lims.append([d[-1]])  # add last
+#         wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
+#         if len(wnc) > 0:
+#             lims.append(d[wnc] + 1)  # add last consecutive + 1
+#             lims.append(d[(wnc + 1)])  # add first consecutive
+#         lims = np.concatenate(lims)  # combine lims and sort
+#         lims.sort()  # sort output
+#         return np.reshape(lims, (lims.size // 2, 2))
+#     else:
+#         return None
 
 # def bool_2_indices(bool_array):
 #     """
@@ -558,7 +576,14 @@ def calc_grads(x, dat, keys=None, win=5):
         Independent variable for items in dat.
     dat : dict
         {key: dependent_variable} pairs
-    keys
+    keys : str or array-like
+        Which keys in dict to calculate the gradient of.
+    win : int
+        The side of the rolling window for gradient calculation
+
+    Returns
+    -------
+    dict of gradients
     """
     if keys is None:
         keys = dat.keys()
