@@ -18,7 +18,7 @@ from mpld3 import enable_notebook, disable_notebook, plugins
 import latools.process_fns as proc
 from .filt_obj import filt
 from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
-from .helpers import unitpicker, pretty_element, findmins
+from .helpers import unitpicker, pretty_element, findmins, stack_keys
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
 import latools.plots as plots
 
@@ -1253,20 +1253,29 @@ class D(object):
             sampled = np.arange(self.Time.size)[ind]
 
             # generate data for clustering
-            if len(analytes) == 1:
-                # if single analyte
-                d = nominal_values(self.focus[analytes[0]][ind])
-                if include_time:
-                    t = self.Time[ind]
-                    ds = np.vstack([d, t]).T
-                else:
-                    ds = np.array(list(zip(d, np.zeros(len(d)))))
+            if include_time:
+                extra = self.Time
             else:
-                # package multiple analytes
-                d = [nominal_values(self.focus[a][ind]) for a in analytes]
-                if include_time:
-                    d.append(self.Time[ind])
-                ds = np.vstack(d).T
+                extra = None
+            # get data as array
+            ds = stack_keys(self.focus, analytes, extra)
+            # apply filter, and get nominal values
+            ds = nominal_values(ds[ind, :])
+
+            # if len(analytes) == 1:
+            #     # if single analyte
+            #     d = nominal_values(self.focus[analytes[0]][ind])
+            #     if include_time:
+            #         t = self.Time[ind]
+            #         ds = np.vstack([d, t]).T
+            #     else:
+            #         ds = np.array(list(zip(d, np.zeros(len(d)))))
+            # else:
+            #     # package multiple analytes
+            #     d = [nominal_values(self.focus[a][ind]) for a in analytes]
+            #     if include_time:
+            #         d.append(self.Time[ind])
+            #     ds = np.vstack(d).T
 
             if normalise | (len(analytes) > 1):
                 ds = preprocessing.scale(ds)
@@ -1719,7 +1728,7 @@ class D(object):
                                alpha=0.05, lw=0)
             else:
                 ax.axvspan(self.Time[0], self.Time[-1], color='k',
-                               alpha=0.05, lw=0)
+                           alpha=0.05, lw=0)
 
             # drawn = []
             # for k, v in self.filt.switches.items():

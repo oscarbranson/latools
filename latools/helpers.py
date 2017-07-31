@@ -625,3 +625,29 @@ def findmins(x, y):
 #     return A * ((np.exp((-(x - mu)**2)/(2*sigma**2)) * (x - mu)) /
 #                 (np.sqrt(2 * np.pi) * sigma**3))
 
+
+def stack_keys(ddict, keys, extra=None):
+    """
+    Combine elements of ddict into an array of shape (len(ddict[key]), len(keys)).
+
+    Useful for preparing data for sklearn.
+
+    Parameters
+    ----------
+    ddict : dict
+        A dict containing arrays or lists to be stacked.
+        Must be of equal length.
+    keys : list or str
+        The keys of dict to stack. Must be present in ddict.
+    extra : list (optional)
+        A list of additional arrays to stack. Elements of extra
+        must be the same length as arrays in ddict.
+        Extras are inserted as the first columns of output.
+    """
+    if isinstance(keys, str):
+        d = [ddict[keys]]
+    else:
+        d = [ddict[k] for k in keys]
+    if extra is not None:
+        d = extra + d
+    return np.vstack(d).T
