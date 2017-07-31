@@ -23,7 +23,7 @@ def unpack_uncertainties(uarray):
     try:
         return un.nominal_values(uarray), un.std_devs(uarray)
     except:
-        return uarray
+        return uarray, None
 
 
 def nominal_values(a):
