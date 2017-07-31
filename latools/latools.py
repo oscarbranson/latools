@@ -14,7 +14,6 @@ import pandas as pd
 import pkg_resources as pkgrs
 import uncertainties as unc
 import uncertainties.unumpy as un
-import scipy.interpolate as interp
 from sklearn.preprocessing import minmax_scale
 
 from scipy.optimize import curve_fit
@@ -37,6 +36,9 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 # deactivate numpy invalid comparison warnings
 np.seterr(invalid='ignore')
 
+
+# TODO: Allow full sklearn integration by allowing sample-wise application of custom classifiers. i.e. Provide data collection (get_data) ajd filter addition API.
+# Especially: PCA, Gaussian Mixture Models
 
 class analyse(object):
     """
@@ -1058,7 +1060,7 @@ class analyse(object):
         for s in tqdm(self.data.values(), desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
 
-        self.focus_stage = 'ratio'
+        self.focus_stage = 'ratios'
         return
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
@@ -1321,6 +1323,7 @@ class analyse(object):
                                     self.srmtabs.loc[a, 'srm_err'])
                     self.calib_params.loc[:, a] = np.nanmean(srm / meas)
             else:
+                self.calib_params.loc[:, (a, 'c')] = 0
                 if drift_correct:
                     for t in self.calib_params.index:
                         try:
@@ -1340,7 +1343,6 @@ class analyse(object):
                             # ferr = np.sqrt(np.diag(cov))
                             # pe = un.uarray(p, ferr)
                             # pe = np.polyfit(x, y, 1, w=errs)
-                            print(x)
                             if len(x) == 1:
                                 m = x / y
                                 c = None
@@ -1352,12 +1354,12 @@ class analyse(object):
                                     return x * m + c
                                 p, cov = curve_fit(lin, x, y)
                                 err = np.sqrt(np.diag(cov))
-                                m = un.uarray(p[0], err[0])
-                                c = un.uarray(p[1], err[1])
+                                m = unc.ufloat(p[0], err[0])
+                                c = unc.ufloat(p[1], err[1])
 
-                            self.calib_params.loc[t, idx[a, 'm']] = m  # pe[0]
+                            self.calib_params.loc[t, (a, 'm')] = m  # pe[0]
                             if c is not None:
-                                self.calib_params.loc[t, idx[a, 'c']] = c  # pe[1]
+                                self.calib_params.loc[t, (a, 'c')] = c  # pe[1]
                         except KeyError:
                             # If the calibration is being recalculated, calib_params
                             # will have t=0 and t=max(uTime) values that are outside
@@ -1391,10 +1393,10 @@ class analyse(object):
         self.calib_ps = Bunch()
         for a in analytes:
             self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
-                                                 self.calib_params.loc[:, (a, 'm')])}
+                                                 self.calib_params.loc[:, (a, 'm')].values)}
             if not zero_intercept:
                 self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
-                                                    self.calib_params.loc[:, (a, 'c')])
+                                                    self.calib_params.loc[:, (a, 'c')].values)
 
         for d in tqdm(self.data.values(), desc='Applying Calibrations'):
             d.calibrate(self.calib_ps, analytes)
@@ -3385,6 +3387,9 @@ class analyse(object):
 
         if focus_stage is None:
             focus_stage = self.focus_stage
+
+        if focus_stage in ['ratios', 'calibrated']:
+            analytes = analytes[analytes != self.internal_standard]
 
         if outdir is None:
             outdir = self.export_dir
