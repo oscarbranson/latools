@@ -196,7 +196,7 @@ def read_data(data_file, dataformat, name_mode):
 
 def autorange(t, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
-              nbin=10):
+              nbin=10, thresh=None):
     """
     Automatically separates signal and background in an on/off data stream.
 
@@ -264,19 +264,22 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
     # smooth signal
     sigs = fastsmooth(sig, swin)
 
-    # bins = 50
-    bins = sig.size // nbin
-    kde_x = np.linspace(sig.min(), sig.max(), bins)
+    if thresh is None:
+        # bins = 50
+        bins = sig.size // nbin
+        kde_x = np.linspace(sig.min(), sig.max(), bins)
 
-    kde = gaussian_kde(sigs)
-    yd = kde.pdf(kde_x)
-    mins = findmins(kde_x, yd)  # find minima in kde
+        kde = gaussian_kde(sigs)
+        yd = kde.pdf(kde_x)
+        mins = findmins(kde_x, yd)  # find minima in kde
 
-    if len(mins) > 0:
-        bkg = sigs < (mins[0])  # set background as lowest distribution
+        if len(mins) > 0:
+            bkg = sigs < (mins[0])  # set background as lowest distribution
+        else:
+            bkg = np.ones(sig.size, dtype=bool)
+        # bkg[0] = True  # the first value must always be background
     else:
-        bkg = np.ones(sig.size, dtype=bool)
-    # bkg[0] = True  # the first value must always be background
+        bkg = sigs < thresh
 
     # assign rough background and signal regions based on kde minima
     fbkg = bkg
@@ -334,7 +337,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
                 # get the x positions when the fitted gaussian is at 'conf' of
                 # maximum
                 # determine transition FWHM
-                fwhm = 2 * pg[-1] * np.sqrt(2 * np.log(2))
+                fwhm = abs(2 * pg[-1] * np.sqrt(2 * np.log(2)))
                 # apply on_mult or off_mult, as appropriate.
                 if tp:
                     lim = np.array([-fwhm, fwhm]) * on_mult + pg[1]

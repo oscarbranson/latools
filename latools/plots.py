@@ -212,7 +212,7 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None):
 
 def autorange_plot(t, sig, gwin=7, swin=None, win=30,
                    on_mult=(1.5, 1.), off_mult=(1., 1.5),
-                   nbin=10):
+                   nbin=10, thresh=None):
     """
     Function for visualising the autorange mechanism.
 
@@ -250,22 +250,24 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     if swin is None:
         swin = gwin // 2
 
+    sigs = fastsmooth(sig, swin)
+
     # perform autorange calculations
+    
     # bins = 50
     bins = sig.size // nbin
     kde_x = np.linspace(sig.min(), sig.max(), bins)
 
-    kde = gaussian_kde(sig)
+    kde = gaussian_kde(sigs)
     yd = kde.pdf(kde_x)
     mins = findmins(kde_x, yd)  # find minima in kde
 
-    sigs = fastsmooth(sig, swin)
-
+    if thresh is not None:
+        mins = [thresh]
     if len(mins) > 0:
         bkg = sigs < (mins[0])  # set background as lowest distribution
     else:
         bkg = np.ones(sig.size, dtype=bool)
-        mins = [np.nan]
     # bkg[0] = True  # the first value must always be background
 
     # assign rough background and signal regions based on kde minima
@@ -315,7 +317,7 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
                                       width),
                                   sigma=(xs - c)**2 + .01)
                 pgs.append(pg)
-                fwhm = 2 * pg[-1] * np.sqrt(2 * np.log(2))
+                fwhm = abs(2 * pg[-1] * np.sqrt(2 * np.log(2)))
                 # apply on_mult or off_mult, as appropriate.
                 if tp:
                     lim = np.array([-fwhm, fwhm]) * on_mult + pg[1]
