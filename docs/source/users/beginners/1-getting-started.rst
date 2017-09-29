@@ -64,6 +64,7 @@ All the functions of latools are now accessible from within the ``la`` prefix.
 	* [alt] + [return] evaluate the selected cell, and creates a new empty cell underneath.
 
 .. _example_data:
+
 Example Data
 ============
 
