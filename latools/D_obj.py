@@ -51,13 +51,15 @@ class D(object):
     data : dict
         A dictionary containing the raw data, and modified data
         from each processing stage. Entries can be:
-            rawdata: created during initialisation.
-            despiked: created by `despike`
-            signal: created by `autorange`
-            background: created by `autorange`
-            bkgsub: created by `bkg_correct`
-            ratios: created by `ratio`
-            calibrated: created by `calibrate`
+
+            * 'rawdata': created during initialisation.
+            * 'despiked': created by `despike`
+            * 'signal': created by `autorange`
+            * 'background': created by `autorange`
+            * 'bkgsub': created by `bkg_correct`
+            * 'ratios': created by `ratio`
+            * 'calibrated': created by `calibrate`
+
     focus : dict
         A dictionary containing one item from `data`. This is the
         currently 'active' data that processing functions will
@@ -80,35 +82,7 @@ class D(object):
         spot is labelled with a unique number. Used for separating
         analysys spots when calculating sample statistics.
     filt : filt object
-        An object for storing, selecting and creating data filters.
-
-    Methods
-    -------
-    ablation_times
-    autorange
-    bkg_subtract
-    calibrate
-    cluster_DBSCAN
-    cluster_kmeans
-    cluster_meanshift
-    crossplot
-    despike
-    drift_params
-    expdecay_despiker
-    filt_report
-    filter_clustering
-    filter_correlation
-    filter_distribution
-    filter_threshold
-    findmins
-    get_params
-    mkrngs
-    noise_despiker
-    ratio
-    sample_stats
-    setfocus
-    tplot
-
+        An object for storing, selecting and creating data filters.F
     """
 
     def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):
@@ -181,22 +155,25 @@ class D(object):
         stage' of the data. Processing functions operate on the 'focus'
         stage, so if steps are done out of sequence, things will break.
 
+        Names of analysis stages:
+
+        * 'rawdata': raw data, loaded from csv file when object
+          is initialised.
+        * 'despiked': despiked data.
+        * 'signal'/'background': isolated signal and background data,
+          padded with np.nan. Created by self.separate, after
+          signal and background regions have been identified by
+          self.autorange.
+        * 'bkgsub': background subtracted data, created by
+          self.bkg_correct
+        * 'ratios': element ratio data, created by self.ratio.
+        * 'calibrated': ratio data calibrated to standards, created by
+          self.calibrate.
+
         Parameters
         ----------
         focus : str
-            The name of the analysis stage desired:
-                'rawdata': raw data, loaded from csv file when object
-                    is initialised.
-                'despiked': despiked data.
-                'signal'/'background': isolated signal and background data,
-                    padded with np.nan. Created by self.separate, after
-                    signal and background regions have been identified by
-                    self.autorange.
-                'bkgsub': background subtracted data, created by
-                    self.bkg_correct
-                'ratios': element ratio data, created by self.ratio.
-                'calibrated': ratio data calibrated to standards, created by
-                    self.calibrate.
+            The name of the analysis stage desired.
 
         Returns
         -------
@@ -239,6 +216,7 @@ class D(object):
         Returns
         -------
         None
+
         """
         if not hasattr(self, 'despiked'):
             self.data['despiked'] = Bunch()
@@ -270,7 +248,7 @@ class D(object):
         data, based on the behaviour of a single analyte. The analyte used
         should be abundant and homogenous in the sample.
 
-        Step 1: Thresholding
+        **Step 1: Thresholding.**
         The background signal is determined using a gaussian kernel density
         estimator (kde) of all the data. Under normal circumstances, this
         kde should find two distinct data distributions, corresponding to
@@ -279,7 +257,7 @@ class D(object):
         regions. Any point where the trace crosses this thrshold is identified
         as a 'transition'.
 
-        Step 2: Transition Removal
+        **Step 2: Transition Removal.**
         The width of the transition regions between signal and background are
         then determined, and the transitions are excluded from analysis. The
         width of the transitions is determined by fitting a gaussian to the
@@ -311,18 +289,15 @@ class D(object):
             Defaults to (1.5, 1) and (1, 1.5).
 
 
-        Adds
-        ----
-        bkg, sig, trn : bool, array_like
-            Boolean arrays the same length as the data, identifying
-            'background', 'signal' and 'transition' data regions.
-        bkgrng, sigrng, trnrng: array_like
-            Pairs of values specifying the edges of the 'background', 'signal'
-            and 'transition' data regions in the same units as the Time axis.
-
         Returns
         -------
-        None
+        Outputs added as instance attributes. Returns None.
+        bkg, sig, trn : iterable, bool
+            Boolean arrays identifying background, signal and transision
+            regions
+        bkgrng, sigrng and trnrng : iterable
+            (min, max) pairs identifying the boundaries of contiguous
+            True regions in the boolean arrays.
         """
         if analyte is None:
             sig = self.focus[self.internal_standard]
@@ -851,7 +826,6 @@ class D(object):
         Returns
         -------
             dict of times for each ablation.
-
         """
         ats = {}
         for n in np.arange(self.n) + 1:
@@ -1054,9 +1028,8 @@ class D(object):
         binwidth : str of float
             Specify the bin width of the kernel density estimator.
             Passed to `scipy.stats.gaussian_kde`.
-            str: The method used to automatically estimate bin width.
-                 Can be 'scott' or 'silverman'.
-            float: Manually specify the binwidth of the data.
+            If 'scott' or 'silverman', the method used to automatically
+            estimate bin width. If float, it manually sets the binwidth.
         filt : bool
             Whether or not to apply existing filters to the data before
             calculating this filter.
@@ -1070,6 +1043,7 @@ class D(object):
         Returns
         -------
         None
+
         """
         params = locals()
         del(params['self'])
@@ -1140,6 +1114,33 @@ class D(object):
         """
         Applies an n - dimensional clustering filter to the data.
 
+        Available Clustering Algorithms
+
+        * 'meanshift': The `sklearn.cluster.MeanShift` algorithm.
+          Automatically determines number of clusters
+          in data based on the `bandwidth` of expected
+          variation.
+        * 'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
+          the characteristics of a known number of clusters
+          within the data. Must provide `n_clusters` to specify
+          the expected number of clusters.
+        * 'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
+          determines the number and characteristics of clusters
+          within the data based on the 'connectivity' of the
+          data (i.e. how far apart each data point is in a
+          multi - dimensional parameter space). Requires you to
+          set `eps`, the minimum distance point must be from
+          another point to be considered in the same cluster,
+          and `min_samples`, the minimum number of points that
+          must be within the minimum distance for it to be
+          considered a cluster. It may also be run in automatic
+          mode by specifying `n_clusters` alongside
+          `min_samples`, where eps is decreased until the
+          desired number of clusters is obtained.
+        
+        For more information on these algorithms, refer to the
+        documentation.
+
         Parameters
         ----------
         analytes : str
@@ -1152,30 +1153,7 @@ class D(object):
             variance. Reccomended if clustering based on more than 1 analyte.
             Uses `sklearn.preprocessing.scale`.
         method : str
-            Which clustering algorithm to use. Can be:
-                'meanshift': The `sklearn.cluster.MeanShift` algorithm.
-                             Automatically determines number of clusters
-                             in data based on the `bandwidth` of expected
-                             variation.
-                'kmeans': The `sklearn.cluster.KMeans` algorithm. Determines
-                          the characteristics of a known number of clusters
-                          within the data. Must provide `n_clusters` to specify
-                          the expected number of clusters.
-                'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
-                          determines the number and characteristics of clusters
-                          within the data based on the 'connectivity' of the
-                          data (i.e. how far apart each data point is in a
-                          multi - dimensional parameter space). Requires you to
-                          set `eps`, the minimum distance point must be from
-                          another point to be considered in the same cluster,
-                          and `min_samples`, the minimum number of points that
-                          must be within the minimum distance for it to be
-                          considered a cluster. It may also be run in automatic
-                          mode by specifying `n_clusters` alongside
-                          `min_samples`, where eps is decreased until the
-                          desired number of clusters is obtained.
-                For more information on these algorithms, refer to the
-                documentation.
+            Which clustering algorithm to use (see above).
         include_time : bool
             Whether or not to include the Time variable in the clustering
             analysis. Useful if you're looking for spatially continuous
@@ -1184,10 +1162,10 @@ class D(object):
         sort : bool, str or array-like
             Whether or not to label the resulting clusters according to their
             contents. If used, the cluster with the lowest values will be
-            labelled from 0, in order of increasing cluster mean value.analytes
-                True: Sort by all analytes used to generate the cluster.
-                str: Sort by a single specified analyte
-                array-like: Sort by a number of specified analytes.
+            labelled from 0, in order of increasing cluster mean value.analytes.
+            The sorting rules depend on the value of 'sort', which can be the name
+            of a single analyte (str), a list of several analyte names (array-like)
+            or True (bool), to specify all analytes used to calcualte the cluster.
         min_data : int
             The minimum number of data points that should be considered by
             the filter. Default = 10.
@@ -1437,7 +1415,6 @@ class D(object):
         -------
         dict
             boolean array for each identified cluster and core samples.
-
         """
         if min_samples is None:
             min_samples = self.Time.size // 20
