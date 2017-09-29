@@ -19,3 +19,4 @@ data
 *sublime*
 *.bkup
 *docs_source*
+.vscode
