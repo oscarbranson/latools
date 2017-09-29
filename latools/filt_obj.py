@@ -43,21 +43,6 @@ class filt(object):
         applied in (for some filters, order matters).
     n : int
         The number of filters applied to the data.
-
-    Methods
-    -------
-    add
-    clean
-    clear
-    get_components
-    get_info
-    grab_filt
-    make
-    make_fromkey
-    make_keydict
-    off
-    on
-    remove
     """
 
     def __init__(self, size, analytes):
@@ -339,7 +324,7 @@ class filt(object):
 
         Returns
         -------
-        The name of the most closely matched filter.
+        The name of the most closely matched filter. : str
         """
 
         keys, ratios = np.array([(f, fuzz.ratio(fuzzkey, f)) for f in self.components.keys()]).T
@@ -362,10 +347,9 @@ class filt(object):
         filtering, where combinations of nested and/or filters are desired. Filter names must
         exactly match the names listed by print(filt).
 
-        Example:
-            key = '(Filter_1 | Filter_2) & Filter_3'
+        Example: ``key = '(Filter_1 | Filter_2) & Filter_3'``
         is equivalent to:
-            (Filter_1 OR Filter_2) AND Filter_3
+        ``(Filter_1 OR Filter_2) AND Filter_3``
         statements in parentheses are evaluated first.
 
         Parameters
@@ -476,8 +460,7 @@ class filt(object):
 
         Returns
         -------
-        array_like
-            boolean filter
+        boolean filter : array-like
         """
         out = {}
         for k, v in self.components.items():

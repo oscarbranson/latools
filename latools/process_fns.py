@@ -62,9 +62,11 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
 
 def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
     """
-    THERE'S SOMETHING WRONG WITH THIS FUNCTION. REMOVES TOO MUCH DATA!
-
     Apply exponential decay filter to remove unrealistically low values.
+
+    Warning
+    -------
+    THERE'S SOMETHING WRONG WITH THIS FUNCTION. REMOVES TOO MUCH DATA!
 
     Parameters
     ----------
@@ -115,20 +117,21 @@ def read_data(data_file, dataformat, name_mode):
         sub-dictionary in dataformat. If any other str, uses this
         str as the sample name.
 
-    Example dataformat
-    -------------------
-        {'genfromtext_args': {'delimiter': ',',
-                              'skip_header': 4},  # passed directly to np.genfromtxt
-         'column_id': {'name_row': 3,  # which row contains the column names
-                       'delimiter': ',',  # delimeter between column names
-                       'timecolumn': 0,  # which column contains the 'time' variable
-                       'pattern': '([A-z]{1,2}[0-9]{1,3})'},  # a regex pattern which captures the column names
-         'meta_regex': {  # a dict of (line_no: ([descriptors], [regexs])) pairs
-                        0: (['path'], '(.*)'),
-                        2: (['date', 'method'],  # MUST include date
-                            '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\.m)')
-                        }
-        }
+    Example
+    -------
+    >>>
+    {'genfromtext_args': {'delimiter': ',',
+                          'skip_header': 4},  # passed directly to np.genfromtxt
+     'column_id': {'name_row': 3,  # which row contains the column names
+                   'delimiter': ',',  # delimeter between column names
+                   'timecolumn': 0,  # which column contains the 'time' variable
+                   'pattern': '([A-z]{1,2}[0-9]{1,3})'},  # a regex pattern which captures the column names
+     'meta_regex': {  # a dict of (line_no: ([descriptors], [regexs])) pairs
+                    0: (['path'], '(.*)'),
+                    2: (['date', 'method'],  # MUST include date
+                     '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\.m)')
+                   }
+    }
 
     Returns
     -------
@@ -200,7 +203,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
     """
     Automatically separates signal and background in an on/off data stream.
 
-    Step 1: Thresholding
+    **Step 1: Thresholding.**
     The background signal is determined using a gaussian kernel density
     estimator (kde) of all the data. Under normal circumstances, this
     kde should find two distinct data distributions, corresponding to
@@ -209,7 +212,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
     regions. Any point where the trace crosses this thrshold is identified
     as a 'transition'.
 
-    Step 2: Transition Removal
+    **Step 2: Transition Removal.**
     The width of the transition regions between signal and background are
     then determined, and the transitions are excluded from analysis. The
     width of the transitions is determined by fitting a gaussian to the
@@ -231,7 +234,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
         The window used for calculating first derivative.
         Defaults to 7.
     swin : int
-        The window ised for signal smoothing. If None, gwin // 2.
+        The window ised for signal smoothing. If None, ``gwin // 2``.
     win : int
         The width (c +/- win) of the transition data subsets.
         Defaults to 20.
@@ -246,7 +249,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
         Defaults to (1.5, 1) and (1, 1.5).
     nbin : ind
         Used to calculate the number of bins in the data histogram.
-        bins = len(sig) // nbin
+        ``bins = len(sig) // nbin``
 
     Returns
     -------

@@ -2058,7 +2058,7 @@ class analyse(object):
         for s in tqdm(samples, desc='Threshold Filter'):
             self.data[s].filt.filter_new(name, filter_string)
 
-    def filter_status(self, samples=None, subset=None, stds=False):
+    def filter_status(self, sample=None, subset=None, stds=False):
         """
         Prints the current status of filters for specified samples.
 
@@ -2072,7 +2072,7 @@ class analyse(object):
             Whether or not to include standards.
         """
         s = ''
-        if samples is None and subset is None:
+        if sample is None and subset is None:
             if not self._has_subsets:
                 s += 'Subset: All Samples\n\n'
                 s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()

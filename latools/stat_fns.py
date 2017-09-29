@@ -131,9 +131,7 @@ def gauss(x, *p):
     x : array_like
         Independent variable.
     *p : parameters unpacked to A, mu, sigma
-        A: amplitude
-        mu: centre
-        sigma: width
+        A = amplitude, mu = centre, sigma = width
 
     Return
     ------

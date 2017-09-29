@@ -147,21 +147,25 @@ class classifier(object):
             items with the same name as analytes used for
             clustering.
         method : str
-            A string defining the clustering method used:
-            kmeans : K-Means clustering algorithm
-                n_clusters : int
-                    the numebr of clusters to identify
-            meanshift : Meanshift algorithm
-                bandwidth : float
-                    The bandwidth value used during clustering.
-                    If none, determined automatically. Note:
-                    the data are scaled before clutering, so
-                    this is not in the same units as the data.
-                bin_seeding : bool
-                    Whether or not to use 'bin_seeding'. See
-                    documentation for `sklearn.cluster.MeanShift`.
-                **kwargs :
-                    passed to `sklearn.cluster.MeanShift`.
+            A string defining the clustering method used. Can be:
+
+            * 'kmeans' : K-Means clustering algorithm
+            * 'meanshift' : Meanshift algorithm
+
+        n_clusters : int
+            *K-Means only*. The numebr of clusters to identify
+        bandwidth : float
+            *Meanshift only.*
+            The bandwidth value used during clustering.
+            If none, determined automatically. Note:
+            the data are scaled before clutering, so
+            this is not in the same units as the data.
+        bin_seeding : bool
+            *Meanshift only.*
+            Whether or not to use 'bin_seeding'. See
+            documentation for `sklearn.cluster.MeanShift`.
+        **kwargs :
+            passed to `sklearn.cluster.MeanShift`.
 
         Returns
         -------

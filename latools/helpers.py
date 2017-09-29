@@ -147,6 +147,9 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
 
 
 def bool_2_indices(a):
+    """
+    Convert boolean array into a 2D array of (start, stop) pairs.
+    """
     if any(a):
         lims = []
         lims.append(np.where(a[:-1] != a[1:])[0])
@@ -291,6 +294,7 @@ def add_config(config_name, params, config_file=None, make_default=True):
         A (parameter, value) dict defining non - default parameters
         associated with the new configuration.
         Possible parameters include:
+
         srmfile : str
             Path to srm file used in calibration. Defaults to GeoRem
             values for NIST610, NIST612 and NIST614 provided with latools.
