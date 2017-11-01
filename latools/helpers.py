@@ -2,8 +2,8 @@ import os
 import shutil
 import re
 import configparser
-import numpy as np
 import datetime as dt
+import numpy as np
 import dateutil as du
 import pkg_resources as pkgrs
 import uncertainties.unumpy as un
