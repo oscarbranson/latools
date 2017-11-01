@@ -7,8 +7,8 @@ from scipy.optimize import curve_fit
 
 from tqdm import tqdm
 
-from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker
-from.stat_fns import nominal_values, gauss
+from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element
+from.stat_fns import nominal_values, gauss, R2calc
 
 
 def crossplot(dat, keys=None, lognorm=True,
@@ -443,3 +443,198 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
+
+def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
+    """
+    Plot the calibration lines between measured and known SRM values.
+
+    Parameters
+    ----------
+    analytes : optional, array_like or str
+        The analyte(s) to plot. Defaults to all analytes.
+    datarange : boolean
+        Whether or not to show the distribution of the measured data
+        alongside the calibration curve.
+    loglog : boolean
+        Whether or not to plot the data on a log - log scale. This is
+        useful if you have two low standards very close together,
+        and want to check whether your data are between them, or
+        below them.
+
+    Returns
+    -------
+    (fig, axes)
+    """
+
+    if analytes is None:
+        analytes = [a for a in self.analytes if self.internal_standard not in a]
+
+    n = len(analytes)
+    if n % 3 is 0:
+        nrow = n / 3
+    else:
+        nrow = n // 3 + 1
+
+    axes = []
+
+    if not datarange:
+        fig = plt.figure(figsize=[12, 3 * nrow])
+    else:
+        fig = plt.figure(figsize=[14, 3 * nrow])
+        self.get_focus()
+
+    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
+                               hspace=0.3, wspace=0.3)
+
+    i = 0
+    for a in analytes:
+        if not datarange:
+            ax = fig.add_axes(gs[i].get_position(fig))
+            axes.append(ax)
+            i += 1
+        else:
+            f = 0.8
+            p0 = gs[i].get_position(fig)
+            p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
+            p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
+            ax = fig.add_axes(p1)
+            axh = fig.add_axes(p2)
+            axes.append((ax, axh))
+            i += 1
+
+        # plot calibration data
+        ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
+                    self.srmtabs.loc[a, 'srm_mean'].values,
+                    xerr=self.srmtabs.loc[a, 'meas_err'].values,
+                    yerr=self.srmtabs.loc[a, 'srm_err'].values,
+                    color=self.cmaps[a], alpha=0.6,
+                    lw=0, elinewidth=1, marker='o',
+                    capsize=0, markersize=5)
+
+        # work out axis scaling
+        if not loglog:
+            xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
+                                nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
+            ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
+                                nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
+            xlim = [0, 1.05 * xmax]
+            ylim = [0, 1.05 * ymax]
+        else:
+            xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
+            yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
+
+            xlim = [10**np.floor(np.log10(np.nanmin(xd))),
+                    10**np.ceil(np.log10(np.nanmax(xd)))]
+            ylim = [10**np.floor(np.log10(np.nanmin(yd))),
+                    10**np.ceil(np.log10(np.nanmax(yd)))]
+
+            # scale sanity checks
+            if xlim[0] == xlim[1]:
+                xlim[0] = ylim[0]
+            if ylim[0] == ylim[1]:
+                ylim[0] = xlim[0]
+
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+
+        # calculate line and R2
+        if loglog:
+            x = np.logspace(*np.log10(xlim), 100)
+        else:
+            x = np.array(xlim)
+
+        coefs = self.calib_params[a]
+        m = coefs.m.values.mean()
+        m_nom = nominal_values(m)
+        # calculate case-specific paramers
+        if 'c' in coefs:
+            c = coefs.c.values.mean()
+            c_nom = nominal_values(c)
+            # calculate R2
+            ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
+            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=False)
+            # generate line and label
+            line = x * m_nom + c_nom
+            label = 'y = {:.2e} x'.format(m)
+            if c > 0:
+                label += '\n+ {:.2e}'.format(c)
+            else:
+                label += '\n {:.2e}'.format(c)
+        else:
+            # calculate R2
+            ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom
+            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=True)
+            # generate line and label
+            line = x * m_nom
+            label = 'y = {:.2e} x'.format(m)
+
+        # plot line of best fit
+        ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
+
+        # add R2 to label
+        if round(R2, 3) == 1:
+            label = '$R^2$: >0.999\n' + label
+        else:
+            label = '$R^2$: {:.3f}\n'.format(R2) + label
+
+        ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+                weight='bold', va='top', ha='left', size=12)
+        ax.set_xlabel('counts/counts ' + self.internal_standard)
+        ax.set_ylabel('mol/mol ' + self.internal_standard)
+        # write calibration equation on graph happens after data distribution
+
+        # plot data distribution historgram alongside calibration plot
+        if datarange:
+            # isolate data
+            meas = nominal_values(self.focus[a])
+            meas = meas[~np.isnan(meas)]
+
+            # check and set y scale
+            if np.nanmin(meas) < ylim[0]:
+                if loglog:
+                    mmeas = meas[meas > 0]
+                    ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
+                else:
+                    ylim[0] = 0
+                ax.set_ylim(ylim)
+
+            m95 = np.percentile(meas[~np.isnan(meas)], 95) * 1.05
+            if m95 > ylim[1]:
+                if loglog:
+                    ylim[1] = 10**np.ceil(np.log10(m95))
+                else:
+                    ylim[1] = m95
+
+            # hist
+            if loglog:
+                bins = np.logspace(*np.log10(ylim), 30)
+            else:
+                bins = np.linspace(*ylim, 30)
+
+            axh.hist(meas, bins=bins, orientation='horizontal',
+                        color=self.cmaps[a], lw=0.5, alpha=0.5)
+
+            if loglog:
+                axh.set_yscale('log')
+            axh.set_ylim(ylim)  # ylim of histogram axis
+            ax.set_ylim(ylim)  # ylim of calibration axis
+            axh.set_xticks([])
+            axh.set_yticklabels([])
+    
+        # write calibration equation on graph
+        cmax = np.nanmean(self.srmtabs.loc[a, 'srm_mean'].values)
+        if cmax / ylim[1] > 0.5:
+            ax.text(0.98, 0.04, label, transform=ax.transAxes,
+                    va='bottom', ha='right')
+        else:
+            ax.text(0.02, 0.75, label, transform=ax.transAxes,
+                    va='top', ha='left')
+
+
+    if save:
+        fig.savefig(self.report_dir + '/calibration.pdf')
+
+    return fig, axes
