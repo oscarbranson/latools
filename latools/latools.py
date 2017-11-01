@@ -27,7 +27,7 @@ from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
-from .plots import crossplot, histograms
+from .plots import crossplot, histograms, calibration_plot
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1504,7 +1504,7 @@ class analyse(object):
             self.data[s].filter_threshold(analyte, threshold, filt=False)
 
     @_log
-    def filter_threshold_percentile(self, analyte, percentiles, filt=False,
+    def filter_threshold_percentile(self, analyte, percentiles, level='population', filt=False,
                                     samples=None, subset=None):
         """
         Applies a threshold filter to the data.
@@ -1518,6 +1518,9 @@ class analyse(object):
             The analyte that the filter applies to.
         percentiles : float or iterable of len=2
             The percentile values.
+        level : str
+            Whether to calculate percentiles from the entire dataset
+            ('population') or for each individual sample ('individual')
         filt : bool
             Whether or not to apply existing filters to the data before
             calculating this filter.
@@ -1542,23 +1545,27 @@ class analyse(object):
 
         self.minimal_analytes.update([analyte])
 
-        # for s in tqdm(samples, desc='Threshold Filter'):
-        #     self.data[s].filter_threshold_percentile(analyte, percentiles, filt=False)
-
-        # Get all samples
-        self.get_focus(analytes=[analyte], filt=filt, subset=subset)
-        dat = self.focus[analyte][~np.isnan(self.focus[analyte])]
-
-        # calculate filter limits
         if isinstance(percentiles, (int, float)):
             percentiles = [percentiles]
-        lims = np.percentile(dat, percentiles)
+
+        if level == 'population':
+            # Get all samples
+            self.get_focus(filt=filt, subset=subset, nominal=True)
+            dat = self.focus[analyte][~np.isnan(self.focus[analyte])]
+
+            # calculate filter limits
+            lims = np.percentile(dat, percentiles)
 
         # Calculate filter for individual samples
         for s in tqdm(samples, desc='Percentile theshold filter'):
             d = self.data[s]
             setn = d.filt.maxset + 1
             g = d.focus[analyte]
+
+            if level == 'individual':
+                gt = nominal_values(g)
+                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+
             if len(lims) == 1:
                 above = g >= lims[0]
                 below = g < lims[0]
@@ -1630,7 +1637,7 @@ class analyse(object):
             self.data[s].filter_gradient_threshold(analyte, win, threshold, filt=filt)
 
     @_log
-    def filter_gradient_threshold_percentile(self, analyte, percentiles, win=15, filt=False,
+    def filter_gradient_threshold_percentile(self, analyte, percentiles, level='population', win=15, filt=False,
                                              samples=None, subset=None):
         """
         Calculate a gradient threshold filter to the data.
@@ -1673,16 +1680,24 @@ class analyse(object):
         # Calculate gradients of all samples
         self.get_gradients(analytes=[analyte], win=win, filt=filt, subset=subset)
         grad = self.gradients[analyte][~np.isnan(self.gradients[analyte])]
-        # calculate filter limits
+
         if isinstance(percentiles, (int, float)):
             percentiles = [percentiles]
-        lims = np.percentile(grad, percentiles)
+
+        if level == 'population':
+            # calculate filter limits
+            lims = np.percentile(grad, percentiles)
 
         # Calculate filter for individual samples
         for s in tqdm(samples, desc='Percentile theshold filter'):
             d = self.data[s]
             setn = d.filt.maxset + 1
             g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
+
+            if level == 'individual':
+                gt = nominal_values(g)
+                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+
             if len(lims) == 1:
                 above = g >= lims[0]
                 below = g < lims[0]
@@ -1960,7 +1975,7 @@ class analyse(object):
                                             filt=filt)
 
     @_log
-    def filter_on(self, filt=None, analyte=None, samples=None, subset=None):
+    def filter_on(self, filt=None, analyte=None, samples=None, subset=None, silent=False):
         """
         Turns data filters on for particular analytes and samples.
 
@@ -1992,11 +2007,12 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
-        self.filter_status(subset=subset)
+        if not silent:
+            self.filter_status(subset=subset)
         return
 
     @_log
-    def filter_off(self, filt=None, analyte=None, samples=None, subset=None):
+    def filter_off(self, filt=None, analyte=None, samples=None, subset=None, silent=False):
         """
         Turns data filters off for particular analytes and samples.
 
@@ -2028,7 +2044,8 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
-        self.filter_status(subset=subset)
+        if not silent:
+            self.filter_status(subset=subset)
         return
 
     @_log
@@ -2251,185 +2268,194 @@ class analyse(object):
         return name
 
     # plot calibrations
-    @_log
     def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
-        """
-        Plot the calibration lines between measured and known SRM values.
+        return calibration_plot(self, analytes, datarange, loglog, save)
 
-        Parameters
-        ----------
-        analytes : optional, array_like or str
-            The analyte(s) to plot. Defaults to all analytes.
-        datarange : boolean
-            Whether or not to show the distribution of the measured data
-            alongside the calibration curve.
-        loglog : boolean
-            Whether or not to plot the data on a log - log scale. This is
-            useful if you have two low standards very close together,
-            and want to check whether your data are between them, or
-            below them.
+    # @_log
+    # def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
+    #     """
+    #     Plot the calibration lines between measured and known SRM values.
 
-        Returns
-        -------
-        (fig, axes)
-        """
+    #     Parameters
+    #     ----------
+    #     analytes : optional, array_like or str
+    #         The analyte(s) to plot. Defaults to all analytes.
+    #     datarange : boolean
+    #         Whether or not to show the distribution of the measured data
+    #         alongside the calibration curve.
+    #     loglog : boolean
+    #         Whether or not to plot the data on a log - log scale. This is
+    #         useful if you have two low standards very close together,
+    #         and want to check whether your data are between them, or
+    #         below them.
 
-        if analytes is None:
-            analytes = [a for a in self.analytes if self.internal_standard not in a]
+    #     Returns
+    #     -------
+    #     (fig, axes)
+    #     """
 
-        n = len(analytes)
-        if n % 3 is 0:
-            nrow = n / 3
-        else:
-            nrow = n // 3 + 1
+    #     if analytes is None:
+    #         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
-        axes = []
+    #     n = len(analytes)
+    #     if n % 3 is 0:
+    #         nrow = n / 3
+    #     else:
+    #         nrow = n // 3 + 1
 
-        if not datarange:
-            fig = plt.figure(figsize=[12, 3 * nrow])
-        else:
-            fig = plt.figure(figsize=[14, 3 * nrow])
-            self.get_focus()
+    #     axes = []
 
-        gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
-                                   hspace=0.3, wspace=0.3)
+    #     if not datarange:
+    #         fig = plt.figure(figsize=[12, 3 * nrow])
+    #     else:
+    #         fig = plt.figure(figsize=[14, 3 * nrow])
+    #         self.get_focus()
 
-        i = 0
-        for a in analytes:
-            if not datarange:
-                ax = fig.add_axes(gs[i].get_position(fig))
-                axes.append(ax)
-                i += 1
-            else:
-                f = 0.8
-                p0 = gs[i].get_position(fig)
-                p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
-                p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
-                ax = fig.add_axes(p1)
-                axh = fig.add_axes(p2)
-                axes.append((ax, axh))
-                i += 1
+    #     gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
+    #                                hspace=0.3, wspace=0.3)
 
-            # plot calibration data
-            ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
-                        self.srmtabs.loc[a, 'srm_mean'].values,
-                        xerr=self.srmtabs.loc[a, 'meas_err'].values,
-                        yerr=self.srmtabs.loc[a, 'srm_err'].values,
-                        color=self.cmaps[a], alpha=0.6,
-                        lw=0, elinewidth=1, marker='o',
-                        capsize=0, markersize=5)
+    #     i = 0
+    #     for a in analytes:
+    #         if not datarange:
+    #             ax = fig.add_axes(gs[i].get_position(fig))
+    #             axes.append(ax)
+    #             i += 1
+    #         else:
+    #             f = 0.8
+    #             p0 = gs[i].get_position(fig)
+    #             p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
+    #             p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
+    #             ax = fig.add_axes(p1)
+    #             axh = fig.add_axes(p2)
+    #             axes.append((ax, axh))
+    #             i += 1
 
-            # work out axis scaling
-            if not loglog:
-                xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
-                                 nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
-                ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
-                                 nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
-                xlim = [0, 1.05 * xmax]
-                ylim = [0, 1.05 * ymax]
-            else:
-                xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
-                yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
+    #         # plot calibration data
+    #         ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
+    #                     self.srmtabs.loc[a, 'srm_mean'].values,
+    #                     xerr=self.srmtabs.loc[a, 'meas_err'].values,
+    #                     yerr=self.srmtabs.loc[a, 'srm_err'].values,
+    #                     color=self.cmaps[a], alpha=0.6,
+    #                     lw=0, elinewidth=1, marker='o',
+    #                     capsize=0, markersize=5)
 
-                xlim = [10**np.floor(np.log10(np.nanmin(xd))),
-                        10**np.ceil(np.log10(np.nanmax(xd)))]
-                ylim = [10**np.floor(np.log10(np.nanmin(yd))),
-                        10**np.ceil(np.log10(np.nanmax(yd)))]
+    #         # work out axis scaling
+    #         if not loglog:
+    #             xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
+    #                              nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
+    #             ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
+    #                              nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
+    #             xlim = [0, 1.05 * xmax]
+    #             ylim = [0, 1.05 * ymax]
+    #         else:
+    #             xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
+    #             yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
 
-                # scale sanity checks
-                if xlim[0] == xlim[1]:
-                    xlim[0] = ylim[0]
-                if ylim[0] == ylim[1]:
-                    ylim[0] = xlim[0]
+    #             xlim = [10**np.floor(np.log10(np.nanmin(xd))),
+    #                     10**np.ceil(np.log10(np.nanmax(xd)))]
+    #             ylim = [10**np.floor(np.log10(np.nanmin(yd))),
+    #                     10**np.ceil(np.log10(np.nanmax(yd)))]
 
-                ax.set_xscale('log')
-                ax.set_yscale('log')
+    #             # scale sanity checks
+    #             if xlim[0] == xlim[1]:
+    #                 xlim[0] = ylim[0]
+    #             if ylim[0] == ylim[1]:
+    #                 ylim[0] = xlim[0]
 
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
+    #             ax.set_xscale('log')
+    #             ax.set_yscale('log')
 
-            # calculate line and R2
-            if loglog:
-                x = np.logspace(*np.log10(xlim), 100)
-            else:
-                x = np.array(xlim)
+    #         ax.set_xlim(xlim)
+    #         ax.set_ylim(ylim)
 
-            coefs = self.calib_params[a]
-            m = coefs.m.values.mean()
-            m_nom = nominal_values(m)
-            # calculate case-specific paramers
-            if 'c' in coefs:
-                c = coefs.c.values.mean()
-                c_nom = nominal_values(c)
-                # calculate R2
-                ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
-                R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=False)
-                # generate line and label
-                line = x * m_nom + c_nom
-                label = 'y = {:.2e} x'.format(m)
-                if c > 0:
-                    label += '\n+ {:.2e}'.format(c)
-                else:
-                    label += '\n {:.2e}'.format(c)
-            else:
-                # calculate R2
-                ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom
-                R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=True)
-                # generate line and label
-                line = x * m_nom
-                label = 'y = {:.2e} x'.format(m)
+    #         # calculate line and R2
+    #         if loglog:
+    #             x = np.logspace(*np.log10(xlim), 100)
+    #         else:
+    #             x = np.array(xlim)
 
-            # plot line of best fit
-            ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
+    #         coefs = self.calib_params[a]
+    #         m = coefs.m.values.mean()
+    #         m_nom = nominal_values(m)
+    #         # calculate case-specific paramers
+    #         if 'c' in coefs:
+    #             c = coefs.c.values.mean()
+    #             c_nom = nominal_values(c)
+    #             # calculate R2
+    #             ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
+    #             R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=False)
+    #             # generate line and label
+    #             line = x * m_nom + c_nom
+    #             label = 'y = {:.2e} x'.format(m)
+    #             if c > 0:
+    #                 label += '\n+ {:.2e}'.format(c)
+    #             else:
+    #                 label += '\n {:.2e}'.format(c)
+    #         else:
+    #             # calculate R2
+    #             ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom
+    #             R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=True)
+    #             # generate line and label
+    #             line = x * m_nom
+    #             label = 'y = {:.2e} x'.format(m)
 
-            # add R2 to label
-            if round(R2, 3) == 1:
-                label += '\n$R^2$: >0.999'
-            else:
-                label += '\n$R^2$: {:.3f}'.format(R2)
+    #         # plot line of best fit
+    #         ax.plot(x, line, color=(0, 0, 0, 0.5), ls='dashed')
 
-            ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
-                    weight='bold', va='top', ha='left', size=12)
-            ax.set_xlabel('counts/counts ' + self.internal_standard)
-            ax.set_ylabel('mol/mol ' + self.internal_standard)
-            # write calibration equation on graph
-            ax.text(0.98, 0.04, label, transform=ax.transAxes,
-                    va='bottom', ha='right')
+    #         # add R2 to label
+    #         if round(R2, 3) == 1:
+    #             label += '\n$R^2$: >0.999'
+    #         else:
+    #             label += '\n$R^2$: {:.3f}'.format(R2)
 
-            # plot data distribution historgram alongside calibration plot
-            if datarange:
-                # isolate data
-                meas = nominal_values(self.focus[a])
-                meas = meas[~np.isnan(meas)]
+    #         ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+    #                 weight='bold', va='top', ha='left', size=12)
+    #         ax.set_xlabel('counts/counts ' + self.internal_standard)
+    #         ax.set_ylabel('mol/mol ' + self.internal_standard)
+    #         # write calibration equation on graph
+    #         ax.text(0.98, 0.04, label, transform=ax.transAxes,
+    #                 va='bottom', ha='right')
 
-                # check and set y scale
-                if np.nanmin(meas) < ylim[0]:
-                    if loglog:
-                        mmeas = meas[meas > 0]
-                        ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
-                    else:
-                        ylim[0] = 0
-                    ax.set_ylim(ylim)
+    #         # plot data distribution historgram alongside calibration plot
+    #         if datarange:
+    #             # isolate data
+    #             meas = nominal_values(self.focus[a])
+    #             meas = meas[~np.isnan(meas)]
 
-                # hist
-                if loglog:
-                    bins = np.logspace(*np.log10(ylim), 30)
-                else:
-                    bins = np.linspace(*ylim, 30)
+    #             # check and set y scale
+    #             if np.nanmin(meas) < ylim[0]:
+    #                 if loglog:
+    #                     mmeas = meas[meas > 0]
+    #                     ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
+    #                 else:
+    #                     ylim[0] = 0
+    #                 ax.set_ylim(ylim)
+    #             if np.nanmax(meas) > ylim[1]:
+    #                 if loglog:
+    #                     ylim[1] = 10**np.ceil(np.log10(np.nanmax(meas)))
+    #                 else:
+    #                     ylim[1] = np.nanmax(meas) * 1.05
 
-                axh.hist(meas, bins=bins, orientation='horizontal',
-                         color=self.cmaps[a], lw=0.5, alpha=0.5)
+    #             # hist
+    #             if loglog:
+    #                 bins = np.logspace(*np.log10(ylim), 30)
+    #             else:
+    #                 bins = np.linspace(*ylim, 30)
 
-                if loglog:
-                    axh.set_yscale('log')
-                axh.set_ylim(ylim)
-                axh.set_xticks([])
-                axh.set_yticklabels([])
+    #             axh.hist(meas, bins=bins, orientation='horizontal',
+    #                      color=self.cmaps[a], lw=0.5, alpha=0.5)
 
-        if save:
-            fig.savefig(self.report_dir + '/calibration.pdf')
+    #             if loglog:
+    #                 axh.set_yscale('log')
+    #             axh.set_ylim(ylim)  # ylim of histogram axis
+    #             ax.set_ylim(ylim)  # ylim of calibration axis
+    #             axh.set_xticks([])
+    #             axh.set_yticklabels([])
 
-        return fig, axes
+    #     if save:
+    #         fig.savefig(self.report_dir + '/calibration.pdf')
+
+    #     return fig, axes
 
     # set the focus attribute for specified samples
     @_log
@@ -2480,7 +2506,7 @@ class analyse(object):
             self.data[s].setfocus(focus_stage)
 
     # fetch all the data from the data objects
-    def get_focus(self, filt=False, samples=None, subset=None):
+    def get_focus(self, filt=False, samples=None, subset=None, nominal=False):
         """
         Collect all data from all samples into a single array.
         Data from standards is not collected.
@@ -2519,7 +2545,10 @@ class analyse(object):
                 tmp[~ind] = np.nan
                 focus[a].append(tmp)
 
-        self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
+        if nominal:
+            self.focus.update({k: nominal_values(np.concatenate(v)) for k, v, in focus.items()})
+        else:
+            self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         return
 
