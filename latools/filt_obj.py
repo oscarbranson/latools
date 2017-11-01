@@ -523,3 +523,76 @@ class filt(object):
 
     #     return(ax)
 
+
+
+## Re-write filt object to use pandas
+
+# class filt(object):
+    
+#     def __init__(self, size, analytes):
+#         self.size = size
+#         self.analytes = analytes
+        
+#         self.filter_table = pd.DataFrame(index=pd.MultiIndex(levels=[[], []], labels=[[], []], names=['N', 'desc']),
+#                                          columns=self.analytes)
+        
+#         self.filters = Bunch()
+#         self.param = Bunch()
+#         self.info = Bunch()
+        
+#         self.N = 0
+
+#     def __repr__(self):
+#         pass
+
+#     def add(self, name, filt, info='', params=()):
+        
+#         self.filters[self.N] = filt
+#         self.param[self.N] = params
+#         self.info[self.N] = info
+        
+#         self.filter_table.loc[(self.N, name), :] = False
+        
+#         self.N += 1
+    
+#     def remove(self):
+#         pass
+
+#     def clear(self):
+#         self.__init__(self.size, self.analytes)
+        
+
+    
+
+    
+    
+#     def clean(self):
+#         pass
+    
+#     def on(self):
+#         pass
+    
+#     def off(self):
+#         pass
+    
+#     def make(self):
+#         pass
+    
+#     def fuzzmatch(self):
+#         pass
+    
+#     def make_fromkey(self):
+#         pass
+    
+#     def make_keydict(self):
+#         pass
+    
+#     def grab_filt(self):
+#         pass
+    
+#     def get_components(self):
+#         pass
+    
+#     def get_info(self):
+#         pass
+    
