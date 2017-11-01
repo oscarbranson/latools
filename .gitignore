@@ -20,3 +20,4 @@ data
 *.bkup
 *docs_source*
 .vscode
+.eggs/*
