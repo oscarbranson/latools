@@ -13,13 +13,13 @@ from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
 from functools import wraps
-from mpld3 import enable_notebook, disable_notebook, plugins
 
 import latools.process_fns as proc
 from .filt_obj import filt
 from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
 from .helpers import unitpicker, pretty_element, findmins, stack_keys
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
+from .plots import tplot
 import latools.plots as plots
 
 
@@ -1610,141 +1610,145 @@ class D(object):
         figure, axis
         """
 
-        if interactive:
-            enable_notebook()  # make the plot interactive
+        return tplot(self, analytes, figsize, scale, filt,
+                     ranges, stats, stat, err,
+                     interactive, focus_stage, err_envelope)
 
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
+    #     if interactive:
+    #         enable_notebook()  # make the plot interactive
 
-        if focus_stage is None:
-            focus_stage = self.focus_stage
+    #     if type(analytes) is str:
+    #         analytes = [analytes]
+    #     if analytes is None:
+    #         analytes = self.analytes
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_axes([.1, .12, .77, .8])
+    #     if focus_stage is None:
+    #         focus_stage = self.focus_stage
 
-        for a in analytes:
-            x = self.Time
-            y, yerr = unpack_uncertainties(self.data[focus_stage][a])
+    #     fig = plt.figure(figsize=figsize)
+    #     ax = fig.add_axes([.1, .12, .77, .8])
 
-            if scale is 'log':
-                ax.set_yscale('log')
-                y[y == 0] = np.nan
+    #     for a in analytes:
+    #         x = self.Time
+    #         y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
-            if filt:
-                ind = self.filt.grab_filt(filt, a)
-                xf = x.copy()
-                yf = y.copy()
-                yerrf = yerr.copy()
-                if any(~ind):
-                    xf[~ind] = np.nan
-                    yf[~ind] = np.nan
-                    yerrf[~ind] = np.nan
-                if any(~ind):
-                    ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
-                ax.plot(xf, yf, color=self.cmap[a], label=a)
-                if err_envelope:
-                    ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
-                                    alpha=0.2, zorder=-1)
-            else:
-                ax.plot(x, y, color=self.cmap[a], label=a)
-                if err_envelope:
-                    ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
-                                    alpha=0.2, zorder=-1)
+    #         if scale is 'log':
+    #             ax.set_yscale('log')
+    #             y[y == 0] = np.nan
 
-            # Plot averages and error envelopes
-            if stats and hasattr(self, 'stats'):
-                warnings.warn('Stat plot is broken.')
-                pass
-                # sts = self.stats[sig][0].size
-                # if sts > 1:
-                #     for n in np.arange(self.n):
-                #         n_ind = ind & (self.ns == n + 1)
-                #         if sum(n_ind) > 2:
-                #             x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
-                #             y = [self.stats[sig][self.stats['analytes'] == a][0][n]] * 2
+    #         if filt:
+    #             ind = self.filt.grab_filt(filt, a)
+    #             xf = x.copy()
+    #             yf = y.copy()
+    #             yerrf = yerr.copy()
+    #             if any(~ind):
+    #                 xf[~ind] = np.nan
+    #                 yf[~ind] = np.nan
+    #                 yerrf[~ind] = np.nan
+    #             if any(~ind):
+    #                 ax.plot(x, y, color=self.cmap[a], alpha=.4, lw=0.6)
+    #             ax.plot(xf, yf, color=self.cmap[a], label=a)
+    #             if err_envelope:
+    #                 ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
+    #                                 alpha=0.2, zorder=-1)
+    #         else:
+    #             ax.plot(x, y, color=self.cmap[a], label=a)
+    #             if err_envelope:
+    #                 ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
+    #                                 alpha=0.2, zorder=-1)
 
-                #             yp = ([self.stats[sig][self.stats['analytes'] == a][0][n] +
-                #                   self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
-                #             yn = ([self.stats[sig][self.stats['analytes'] == a][0][n] -
-                #                   self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
+    #         # Plot averages and error envelopes
+    #         if stats and hasattr(self, 'stats'):
+    #             warnings.warn('Stat plot is broken.')
+    #             pass
+    #             # sts = self.stats[sig][0].size
+    #             # if sts > 1:
+    #             #     for n in np.arange(self.n):
+    #             #         n_ind = ind & (self.ns == n + 1)
+    #             #         if sum(n_ind) > 2:
+    #             #             x = [self.Time[n_ind][0], self.Time[n_ind][-1]]
+    #             #             y = [self.stats[sig][self.stats['analytes'] == a][0][n]] * 2
 
-                #             ax.plot(x, y, color=self.cmap[a], lw=2)
-                #             ax.fill_between(x + x[::-1], yp + yn,
-                #                             color=self.cmap[a], alpha=0.4,
-                #                             linewidth=0)
-                # else:
-                #     x = [self.Time[0], self.Time[-1]]
-                #     y = [self.stats[sig][self.stats['analytes'] == a][0]] * 2
-                #     yp = ([self.stats[sig][self.stats['analytes'] == a][0] +
-                #           self.stats[err][self.stats['analytes'] == a][0]] * 2)
-                #     yn = ([self.stats[sig][self.stats['analytes'] == a][0] -
-                #           self.stats[err][self.stats['analytes'] == a][0]] * 2)
+    #             #             yp = ([self.stats[sig][self.stats['analytes'] == a][0][n] +
+    #             #                   self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
+    #             #             yn = ([self.stats[sig][self.stats['analytes'] == a][0][n] -
+    #             #                   self.stats[err][self.stats['analytes'] == a][0][n]] * 2)
 
-                #     ax.plot(x, y, color=self.cmap[a], lw=2)
-                #     ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a],
-                #                     alpha=0.4, linewidth=0)
+    #             #             ax.plot(x, y, color=self.cmap[a], lw=2)
+    #             #             ax.fill_between(x + x[::-1], yp + yn,
+    #             #                             color=self.cmap[a], alpha=0.4,
+    #             #                             linewidth=0)
+    #             # else:
+    #             #     x = [self.Time[0], self.Time[-1]]
+    #             #     y = [self.stats[sig][self.stats['analytes'] == a][0]] * 2
+    #             #     yp = ([self.stats[sig][self.stats['analytes'] == a][0] +
+    #             #           self.stats[err][self.stats['analytes'] == a][0]] * 2)
+    #             #     yn = ([self.stats[sig][self.stats['analytes'] == a][0] -
+    #             #           self.stats[err][self.stats['analytes'] == a][0]] * 2)
 
-        if ranges:
-            for lims in self.bkgrng:
-                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
-            for lims in self.sigrng:
-                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
+    #             #     ax.plot(x, y, color=self.cmap[a], lw=2)
+    #             #     ax.fill_between(x + x[::-1], yp + yn, color=self.cmap[a],
+    #             #                     alpha=0.4, linewidth=0)
 
-        if filt is not None:
-            ind = self.filt.grab_filt(filt)
-            if any(~ind):
-                lims = bool_2_indices(~ind)
-                for lo, u in lims:
-                    if abs(u) >= len(self.Time):
-                        u = -1
-                    if lo < 0:
-                        lo = 0
-                    ax.axvspan(self.Time[lo], self.Time[u], color='k',
-                               alpha=0.05, lw=0)
-            else:
-                ax.axvspan(self.Time[0], self.Time[-1], color='k',
-                           alpha=0.05, lw=0)
+    #     if ranges:
+    #         for lims in self.bkgrng:
+    #             ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+    #         for lims in self.sigrng:
+    #             ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-            # drawn = []
-            # for k, v in self.filt.switches.items():
-            #     for f, s in v.items():
-            #         if s & (f not in drawn):
-            #             lims = bool_2_indices(~self.filt.components[f])
-            #             for u, l in lims:
-            #                 ax.axvspan(self.Time[u-1], self.Time[l], color='k',
-            #                            alpha=0.05, lw=0)
-            #             drawn.append(f)
+    #     if filt is not None:
+    #         ind = self.filt.grab_filt(filt)
+    #         if any(~ind):
+    #             lims = bool_2_indices(~ind)
+    #             for lo, u in lims:
+    #                 if abs(u) >= len(self.Time):
+    #                     u = -1
+    #                 if lo < 0:
+    #                     lo = 0
+    #                 ax.axvspan(self.Time[lo], self.Time[u], color='k',
+    #                            alpha=0.05, lw=0)
+    #         else:
+    #             ax.axvspan(self.Time[0], self.Time[-1], color='k',
+    #                        alpha=0.05, lw=0)
 
-        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage,
-                transform=ax.transAxes,
-                ha='left', va='top')
+    #         # drawn = []
+    #         # for k, v in self.filt.switches.items():
+    #         #     for f, s in v.items():
+    #         #         if s & (f not in drawn):
+    #         #             lims = bool_2_indices(~self.filt.components[f])
+    #         #             for u, l in lims:
+    #         #                 ax.axvspan(self.Time[u-1], self.Time[l], color='k',
+    #         #                            alpha=0.05, lw=0)
+    #         #             drawn.append(f)
 
-        ax.set_xlabel('Time (s)')
-        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+    #     ax.text(0.01, 0.99, self.sample + ' : ' + focus_stage,
+    #             transform=ax.transAxes,
+    #             ha='left', va='top')
 
-        # y label
-        ud = {'rawdata': 'counts',
-              'despiked': 'counts',
-              'bkgsub': 'background corrected counts',
-              'ratios': 'counts/{:s} count',
-              'calibrated': 'mol/mol {:s}'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
-        ax.set_ylabel(ud[focus_stage])
+    #     ax.set_xlabel('Time (s)')
+    #     ax.set_xlim(np.nanmin(x), np.nanmax(x))
 
-        if interactive:
-            ax.legend()
-            plugins.connect(fig, plugins.MousePosition(fontsize=14))
-            display.clear_output(wait=True)
-            display.display(fig)
-            input('Press [Return] when finished.')
-            disable_notebook()  # stop the interactivity
-        else:
-            ax.legend(bbox_to_anchor=(1.15, 1))
+    #     # y label
+    #     ud = {'rawdata': 'counts',
+    #           'despiked': 'counts',
+    #           'bkgsub': 'background corrected counts',
+    #           'ratios': 'counts/{:s} count',
+    #           'calibrated': 'mol/mol {:s}'}
+    #     if focus_stage in ['ratios', 'calibrated']:
+    #         ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+    #     ax.set_ylabel(ud[focus_stage])
 
-        return fig, ax
+    #     if interactive:
+    #         ax.legend()
+    #         plugins.connect(fig, plugins.MousePosition(fontsize=14))
+    #         display.clear_output(wait=True)
+    #         display.display(fig)
+    #         input('Press [Return] when finished.')
+    #         disable_notebook()  # stop the interactivity
+    #     else:
+    #         ax.legend(bbox_to_anchor=(1.15, 1))
+
+    #     return fig, ax
 
     @_log
     def gplot(self, analytes=None, win=5, figsize=[10, 4],
