@@ -28,6 +28,7 @@ from .helpers import (rolling_window, enumerate_bool,
                       unitpicker, rangecalc, Bunch, calc_grads)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
 from .plots import crossplot, histograms, calibration_plot
+from .filt_obj import filter_defrag, filter_exclude_downhole
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1975,7 +1976,7 @@ class analyse(object):
                                             filt=filt)
 
     @_log
-    def filter_on(self, filt=None, analyte=None, samples=None, subset=None, silent=False):
+    def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
         """
         Turns data filters on for particular analytes and samples.
 
@@ -2007,12 +2008,12 @@ class analyse(object):
             except:
                 warnings.warn("filt.on failure in sample " + s)
 
-        if not silent:
+        if show_status:
             self.filter_status(subset=subset)
         return
 
     @_log
-    def filter_off(self, filt=None, analyte=None, samples=None, subset=None, silent=False):
+    def filter_off(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
         """
         Turns data filters off for particular analytes and samples.
 
@@ -2044,7 +2045,7 @@ class analyse(object):
             except:
                 warnings.warn("filt.off failure in sample " + s)
 
-        if not silent:
+        if show_status:
             self.filter_status(subset=subset)
         return
 
@@ -2133,6 +2134,42 @@ class analyse(object):
 
         for s in samples:
             self.data[s].filt.clear()
+    
+    @_log
+    def filter_defragment(self, threshold, mode='include', filt=True, samples=None, subset=None):
+        """
+        Remove 'fragments' from the calculated filter
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        for s in samples:
+            f = self.data[s].filt.grab_filt(filt)
+            df = filter_defrag(f, threshold, mode)
+            self.data[s].filt.add(name='defrag_{:s}_{:.0f}'.format(mode, threshold),
+                                  filt=df,
+                                  info='Defrag {:s} filter with threshold {:.0f}'.format(mode, threshold),
+                                  params=(threshold, mode, filt, samples, subset))
+    
+    @_log
+    def filter_exclude_downhole(self, threshold, filt=True, samples=None, subset=None):
+        """
+        Remove 'fragments' from the calculated filter
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        for s in samples:
+            f = self.data[s].filt.grab_filt(filt)
+            df = filter_exclude_downhole(f, threshold)
+            self.data[s].filt.add(name='downhole_excl_{:.0f}'.format(threshold),
+                                  filt=df,
+                                  info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),
+                                  params=(threshold, filt, samples, subset))
 
     # def filter_status(self, sample=None):
     #     if sample is not None:
