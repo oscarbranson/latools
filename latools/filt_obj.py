@@ -1,6 +1,7 @@
 import re
 import numpy as np
 from fuzzywuzzy import fuzz
+from .helpers import bool_2_indices
 
 
 class filt(object):
@@ -479,6 +480,77 @@ class filt(object):
         for k in sorted(self.components.keys()):
             out += '{:s}: {:s}'.format(k, self.info[k]) + '\n'
         return(out)
+
+# Additional filter functions
+def filter_exclude_downhole(filt, threshold=2):
+    """
+    Exclude all data after the first excluded portion.
+
+    This makes sense for spot measurements where, because
+    of the signal mixing inherent in LA-ICPMS, once a
+    contaminant is ablated, it will always be present to
+    some degree in signals from further down the ablation
+    pit.
+
+    Parameters
+    ----------
+    filt : boolean array
+    threshold : int
+
+    Returns
+    -------
+    filter : boolean array
+    """
+    cfilt = filt.copy()
+
+    inds = bool_2_indices(~filt)
+
+    rem = (np.diff(inds) >= threshold)[:,0]
+
+    if any(rem):
+        if inds[rem].shape[0] > 1:
+            limit = inds[rem][1, 0]
+            cfilt[limit:] = False
+    
+    return cfilt
+
+def filter_defrag(filt, threshold=3, mode='include'):
+    """
+    'Defragment' a filter.
+
+    Parameters
+    ----------
+    filt : boolean array
+        A filter
+    threshold : int
+        Consecutive values equal to or below this threshold
+        length are considered fragments, and will be removed.
+    mode : str
+        Wheter to change False fragments to True ('include')
+        or True fragments to False ('exclude')
+
+    Returns
+    -------
+    defragmented filter : boolean array
+    """
+    if mode == 'include':
+        inds = bool_2_indices(~filt) + 1
+        rep = True
+    if mode == 'exclude':
+        inds = bool_2_indices(filt) + 1
+        rep = False
+
+    rem = (np.diff(inds) <= threshold)[:, 0]
+
+    cfilt = filt.copy()
+    if any(rem):
+        for lo, hi in inds[rem]:
+            cfilt[lo:hi] = rep
+
+    return cfilt
+
+
+
 
     # def plot(self, ax=None, analyte=None):
     #     if ax is None:
