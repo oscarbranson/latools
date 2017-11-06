@@ -2197,6 +2197,98 @@ class analyse(object):
                       '{percent:4.0f}'.format(percent=pcrm))
 
         return rminfo
+    
+    @_log
+    def signal_optimiser(self, analytes, min_points=5,
+                         threshold_mode='bayes_mvs',
+                         weights=None, samples=None, subset=None):
+        """
+        Optimise data selection based on specified analytes.
+
+        Identifies the longest possible contiguous data region in
+        the signal where the relative standard deviation (std) and 
+        concentration of all analytes is minimised.
+
+        Optimisation is performed via a grid search of all possible
+        contiguous data regions. For each region, the mean std and
+        mean scaled analyte concentration ('amplitude') are calculated. 
+        
+        The size and position of the optimal data region are identified 
+        using threshold std and amplitude values. Thresholds are derived
+        from all calculated stds and amplitudes using the method specified
+        by `threshold_mode`. For example, using the 'kde_max' method, a
+        probability density function (PDF) is calculated for std and
+        amplitude values, and the threshold is set as the maximum of the
+        PDF. These thresholds are then used to identify the size and position
+        of the longest contiguous region where the std is below the threshold, 
+        and the amplitude is either below the threshold.
+
+        All possible regions of the data that have at least
+        `min_points` are considered.
+
+        For a graphical demonstration of the action of signal_optimiser, 
+        use `optimisation_plot`. 
+
+        Parameters
+        ----------
+        d : latools.D object
+            An latools data object.
+        analytes : str or array-like
+            Which analytes to consider.
+        min_points : int
+            The minimum number of contiguous points to
+            consider.
+        threshold_mode : str
+            The method used to calculate the optimisation
+            thresholds. Can be 'mean', 'median', 'kde_max'
+            or 'bayes_mvs', or a custom function. If a
+            function, must take a 1D array, and return a
+            single, real number.
+        weights : array-like of length len(analytes)
+            An array of numbers specifying the importance of
+            each analyte considered. Larger number makes the
+            analyte have a greater effect on the optimisation.
+            Default is None.
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+        samples = self._get_samples(subset)
+
+        for s in tqdm(samples, desc='Optimising'):
+            self.data[s].signal_optimiser(analytes, min_points,
+                                          threshold_mode,
+                                          weights)
+    
+    def optimisation_plots(self, overlay_alpha=0.5, samples=None, subset=None, **kwargs):
+        """
+        Plot the result of signal_optimise.
+
+        `signal_optimiser` must be run first, and the output
+        stored in the `opt` attribute of the latools.D object.
+
+        Parameters
+        ----------
+        d : latools.D object
+            A latools data object.
+        overlay_alpha : float
+            The opacity of the threshold overlays. Between 0 and 1.
+        **kwargs
+            Passed to `tplot`
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+        samples = self._get_samples(subset)
+
+        outdir=self.report_dir + '/optimisation_plots/'
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+        
+        for s in tqdm(samples, desc='Drawing Plots'):
+            f, a = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
+
+            f.savefig(outdir + '/' + s + '_optim.pdf')
+            plt.close(f)
+        return
 
     @_log
     def fit_classifier(self, name, analytes, method, samples=None,
