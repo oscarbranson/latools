@@ -467,25 +467,32 @@ def rolling_window(a, window, pad=None):
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
     strides = a.strides + (a.strides[-1], )
     out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    # pad shape
+    if window % 2 == 0:
+        npre = window // 2 - 1
+        npost = window // 2
+    else:
+        npre = npost = window // 2
     if isinstance(pad, str):
-        shape = (window // 2, window)
         if pad == 'ends':
-            prepad = np.full(shape, a[0])
-            postpad = np.full(shape, a[-1])
+            prepad = np.full((npre, window), a[0])
+            postpad = np.full((npost, window), a[-1])
         elif pad == 'mean_ends':
-            prepad = np.full(shape, np.mean(a[:(window // 2)]))
-            postpad = np.full(shape, np.mean(a[-(window // 2):]))
+            prepad = np.full((npre, window), np.mean(a[:(window // 2)]))
+            postpad = np.full((npost, window), np.mean(a[-(window // 2):]))
         elif pad == 'repeat_ends':
-            prepad = np.full((window // 2, window), out[0])
-            postpad = np.full((window // 2, window), out[0])
+            prepad = np.full((npre, window), out[0])
+            postpad = np.full((npost, window), out[0])
         else:
             raise ValueError("If pad is a string, it must be either 'ends', 'mean_ends' or 'repeat_ends'.")
 
         return np.concatenate((prepad, out, postpad))
     elif pad is not None:
-        blankpad = np.empty((window // 2, window))
-        blankpad[:] = pad
-        return np.concatenate([blankpad, out, blankpad])
+        pre_blankpad = np.empty(((npre, window)))
+        pre_blankpad[:] = pad
+        post_blankpad = np.empty(((npost, window)))
+        post_blankpad[:] = pad
+        return np.concatenate([pre_blankpad, out, post_blankpad])
     else:
         return out
 
