@@ -4,13 +4,13 @@ Functions used for filtering data, or modifying existing filters.
 import numpy as np
 from latools.helpers.helpers import bool_2_indices, nominal_values
 
-def threshold(a, threshold):
+def threshold(values, threshold):
     """
     Return boolean arrays where a >= and < threshold.
 
     Parameters
     ----------
-    a : array-like
+    values : array-like
         Array of real values.
     threshold : float
         Threshold value
@@ -19,8 +19,8 @@ def threshold(a, threshold):
     -------
     (below, above) : tuple or boolean arrays
     """
-    a = nominal_values(a)
-    return (a < threshold, a >= threshold)
+    values = nominal_values(values)
+    return (values < threshold, values >= threshold)
 
 # Additional filter functions
 def exclude_downhole(filt, threshold=2):
@@ -92,3 +92,19 @@ def defrag(filt, threshold=3, mode='include'):
             cfilt[lo:hi] = rep
 
     return cfilt
+
+def trim(ind, start=1, end=0):
+    """
+    Remove points from the start and end of True regions.
+    
+    Parameters
+    ----------
+    start, end : int
+        The number of points to remove from the start and end of
+        the specified filter.
+    ind : boolean array
+        Which filter to trim. If True, applies to currently active
+        filters.
+    """
+
+    return np.roll(ind, start) & np.roll(ind, -end)
