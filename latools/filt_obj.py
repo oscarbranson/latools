@@ -3,7 +3,6 @@ import numpy as np
 from fuzzywuzzy import fuzz
 from .helpers import bool_2_indices
 
-
 class filt(object):
     """
     Container for creating, storing and selecting data filters.
@@ -533,6 +532,9 @@ def filter_defrag(filt, threshold=3, mode='include'):
     -------
     defragmented filter : boolean array
     """
+    if bool_2_indices(filt) is None:
+        return filt
+
     if mode == 'include':
         inds = bool_2_indices(~filt) + 1
         rep = True
@@ -548,7 +550,6 @@ def filter_defrag(filt, threshold=3, mode='include'):
             cfilt[lo:hi] = rep
 
     return cfilt
-
 
 
 
