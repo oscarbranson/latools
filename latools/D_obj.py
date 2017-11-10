@@ -136,16 +136,6 @@ class D(object):
 
         return
 
-    # def _log(fn):
-    #     """
-    #     Function for logging method calls and parameters
-    #     """
-    #     @wraps(fn)
-    #     def wrapper(self, *args, **kwargs):
-    #         self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-    #         return fn(self, *args, **kwargs)
-    #     return wrapper
-
     def setfocus(self, focus):
         """
         Set the 'focus' attribute of the data file.
@@ -505,14 +495,6 @@ class D(object):
             self.data['calibrated'][self.internal_standard] = \
                 np.empty(len(self.data['ratios'][self.internal_standard]))
 
-            # coefs = calib_params[a]
-            # if len(coefs) == 1:
-            #     self.data['calibrated'][a] = \
-            #         self.data['ratios'][a] * coefs
-            # else:
-            #     self.data['calibrated'][a] = \
-            #         np.polyval(coefs, self.data['ratios'][a])
-            #         self.data['ratios'][a] * coefs[0] + coefs[1]
         self.setfocus('calibrated')
         return
 
@@ -1006,21 +988,6 @@ class D(object):
             # apply filter, and get nominal values
             ds = nominal_values(ds[ind, :])
 
-            # if len(analytes) == 1:
-            #     # if single analyte
-            #     d = nominal_values(self.focus[analytes[0]][ind])
-            #     if include_time:
-            #         t = self.Time[ind]
-            #         ds = np.vstack([d, t]).T
-            #     else:
-            #         ds = np.array(list(zip(d, np.zeros(len(d)))))
-            # else:
-            #     # package multiple analytes
-            #     d = [nominal_values(self.focus[a][ind]) for a in analytes]
-            #     if include_time:
-            #         d.append(self.Time[ind])
-            #     ds = np.vstack(d).T
-
             if normalise | (len(analytes) > 1):
                 ds = preprocessing.scale(ds)
 
@@ -1437,26 +1404,6 @@ class D(object):
             Passed to `tplot`
         """
         return optimisation_plot(self, overlay_alpha=0.5, **kwargs)
-
-    # Plotting Functions
-    # def genaxes(self, n, ncol=4, panelsize=[3, 3], tight_layout=True,
-    #             **kwargs):
-    #     """
-    #     Function to generate a grid of subplots for a given set of plots.
-    #     """
-    #     if n % ncol is 0:
-    #         nrow = int(n/ncol)
-    #     else:
-    #         nrow = int(n//ncol + 1)
-
-    #     fig, axes = plt.subplots(nrow, ncol, figsize=[panelsize[0] * ncol,
-    #                              panelsize[1] * nrow],
-    #                              tight_layout=tight_layout,
-    #                              **kwargs)
-    #     for ax in axes.flat[n:]:
-    #         fig.delaxes(ax)
-
-    #     return fig, axes
 
     @_log
     def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
