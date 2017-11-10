@@ -10,7 +10,7 @@ from IPython import display
 from tqdm import tqdm
 
 from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element
-from.stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
+from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 
 def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,

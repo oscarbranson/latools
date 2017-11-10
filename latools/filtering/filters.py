@@ -2,7 +2,25 @@
 Functions used for filtering data, or modifying existing filters.
 """
 import numpy as np
-from ..helpers import bool_2_indices
+from latools.helpers.helpers import bool_2_indices, nominal_values
+
+def threshold(a, threshold):
+    """
+    Return boolean arrays where a >= and < threshold.
+
+    Parameters
+    ----------
+    a : array-like
+        Array of real values.
+    threshold : float
+        Threshold value
+    
+    Returns
+    -------
+    (below, above) : tuple or boolean arrays
+    """
+    a = nominal_values(a)
+    return (a < threshold, a >= threshold)
 
 # Additional filter functions
 def exclude_downhole(filt, threshold=2):

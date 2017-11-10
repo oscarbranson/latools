@@ -2,7 +2,7 @@ import numpy as np
 from sklearn import preprocessing
 import sklearn.cluster as cl
 
-from .stat_fns import nominal_values
+from latools.helpers.stat_fns import nominal_values
 
 class classifier(object):
     def __init__(self, analytes, sort_by=0):

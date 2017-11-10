@@ -5,7 +5,7 @@ An object used for storing, manipulating and modifying data filters.
 import re
 import numpy as np
 from fuzzywuzzy import fuzz
-from ..helpers import bool_2_indices
+from latools.helpers.helpers import bool_2_indices
 
 class filt(object):
     """

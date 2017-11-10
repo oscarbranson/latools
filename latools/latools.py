@@ -20,16 +20,15 @@ from sklearn.preprocessing import minmax_scale
 from scipy.optimize import curve_fit
 from tqdm import tqdm  # status bars!
 
-import latools.plots as plot
-from latools.filtering import filters
+from .helpers import plot
+from .filtering import filters
+from .filtering.classifier_obj import classifier
 
 from .D_obj import D
-from .classifier_obj import classifier
-from .stat_fns import *
-from .helpers import (rolling_window, enumerate_bool,
+from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads, _log)
-from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
+from .helpers.stat_fns import *
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1399,7 +1398,7 @@ class analyse(object):
         return
 
     @_log
-    def filter_threshold(self, analyte, threshold, filt=False,
+    def filter_threshold(self, analyte, threshold,
                          samples=None, subset=None):
         """
         Applies a threshold filter to the data.
@@ -1435,7 +1434,7 @@ class analyse(object):
         self.minimal_analytes.update([analyte])
 
         for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_threshold(analyte, threshold, filt=False)
+            self.data[s].filter_threshold(analyte, threshold)
 
     @_log
     def filter_threshold_percentile(self, analyte, percentiles, level='population', filt=False,

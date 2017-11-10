@@ -7,8 +7,8 @@ from io import BytesIO
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit
 
-from .helpers import Bunch, fastgrad, fastsmooth, findmins, bool_2_indices
-from .stat_fns import gauss
+from latools.helpers.helpers import Bunch, fastgrad, fastsmooth, findmins, bool_2_indices
+from latools.helpers.stat_fns import gauss
 
 
 # Functions to work with laser ablation signals

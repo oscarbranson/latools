@@ -6,8 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import bayes_mvs
 from scipy.stats.kde import gaussian_kde
-from .helpers import Bunch, rolling_window, nominal_values, bool_2_indices, _warning
-from .plots import tplot
+from latools.helpers.helpers import Bunch, rolling_window, nominal_values, bool_2_indices, _warning
+from latools.helpers.plot import tplot
 
 warnings.showwarning = _warning
 

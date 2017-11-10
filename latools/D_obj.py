@@ -1,3 +1,6 @@
+"""
+The Data object, used to contain single laser ablation data files.
+"""
 import re
 import itertools
 import numpy as np
@@ -13,14 +16,16 @@ from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
 
-import latools.process_fns as proc
-import latools.plots as plot
-from latools.filtering.filt_obj import filt
+from .filtering import filters
+from .filtering.filt_obj import filt
+from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
-from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads, _log
-from .helpers import unitpicker, pretty_element, findmins, stack_keys
-from .stat_fns import nominal_values, std_devs, unpack_uncertainties
-from .signal_optimiser import signal_optimiser, optimisation_plot
+from .helpers import plot
+from .helpers import process_fns as proc
+from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
+                              calc_grads, _log, unitpicker, pretty_element,
+                              findmins, stack_keys)
+from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties
 
 class D(object):
     """
@@ -334,7 +339,6 @@ class D(object):
         """
         Plot a detailed autorange report for this sample.
         """
-
         if analyte is None:
             sig = self.focus[self.internal_standard]
         elif analyte == 'total_counts':
@@ -347,9 +351,9 @@ class D(object):
         if transform == 'log':
             sig = np.log10(sig)
 
-        fig, axs = plots.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
-                                        swin=swin, win=win, on_mult=on_mult,
-                                        off_mult=off_mult)
+        fig, axs = plot.autorange_plot(t=self.Time, sig=sig, gwin=gwin,
+                                       swin=swin, win=win, on_mult=on_mult,
+                                       off_mult=off_mult)
 
         return fig, axs
 
@@ -439,22 +443,22 @@ class D(object):
         self.setfocus('ratios')
         return
 
-    def drift_params(self, pout, a):
-        p_nom = list(zip(*pout.loc[:, a].apply(nominal_values)))
-        p_err = list(zip(*pout.loc[:, a].apply(std_devs)))
+    # def drift_params(self, pout, a):
+    #     p_nom = list(zip(*pout.loc[:, a].apply(nominal_values)))
+    #     p_err = list(zip(*pout.loc[:, a].apply(std_devs)))
 
-        if len(p_nom) > 1:
-            npar = len(p_nom)
+    #     if len(p_nom) > 1:
+    #         npar = len(p_nom)
 
-            ps = []
-            for i in range(npar):
-                p_est = interp.interp1d(pout.index.values, p_nom[i])
-                e_est = interp.interp1d(pout.index.values, p_err[i])
-                ps.append(un.uarray(p_est(self.uTime), e_est(self.uTime)))
+    #         ps = []
+    #         for i in range(npar):
+    #             p_est = interp.interp1d(pout.index.values, p_nom[i])
+    #             e_est = interp.interp1d(pout.index.values, p_err[i])
+    #             ps.append(un.uarray(p_est(self.uTime), e_est(self.uTime)))
 
-            return ps
-        else:
-            return pout[a]
+    #         return ps
+    #     else:
+    #         return pout[a]
 
     @_log
     def calibrate(self, calib_ps, analytes=None):
@@ -503,8 +507,6 @@ class D(object):
                      stat_fns={},
                      eachtrace=True):
         """
-        TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!
-
         Calculate sample statistics
 
         Returns samples, analytes, and arrays of statistics
@@ -555,13 +557,6 @@ class D(object):
                     else:
                         self.stats[n].append(f(dat[ind]))
                 self.stats[n] = np.array(self.stats[n])
-
-        # try:
-            # self.unstats = un.uarray(self.stats['nanmean'],
-            #                          self.stats['nanstd'])
-        # except:
-            # pass
-
         return
 
     @_log
@@ -582,7 +577,7 @@ class D(object):
 
     # Data Selections Tools
     @_log
-    def filter_threshold(self, analyte, threshold, filt=False):
+    def filter_threshold(self, analyte, threshold):
         """
         Apply threshold filter.
 
@@ -613,30 +608,18 @@ class D(object):
         del(params['self'])
 
         # generate filter
-        vals = nominal_values(self.focus[analyte])
-        if filt is not False:
-            ind = (self.filt.grab_filt(filt, analyte) & ~np.isnan(vals))
-        else:
-            ind = ~np.isnan(vals)
+        below, above = filters.threshold(self.focus[analyte], threshold)
 
         setn = self.filt.maxset + 1
 
-        if any(ind):
-            self.filt.add(analyte + '_thresh_below',
-                          vals <= threshold,
-                          'Keep below {:.3e} '.format(threshold) + analyte,
-                          params, setn=setn)
-            self.filt.add(analyte + '_thresh_above',
-                          vals >= threshold,
-                          'Keep above {:.3e} '.format(threshold) + analyte,
-                          params, setn=setn)
-        else:
-            # if there are no data
-            name = analyte + '_thresh_nodata'
-            info = analyte + ' threshold filter (no data)'
-
-            self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-                          info=info, params=params, setn=setn)
+        self.filt.add(analyte + '_thresh_below',
+                        below,
+                        'Keep below {:.3e} '.format(threshold) + analyte,
+                        params, setn=setn)
+        self.filt.add(analyte + '_thresh_above',
+                        above,
+                        'Keep above {:.3e} '.format(threshold) + analyte,
+                        params, setn=setn)
 
     @_log
     def filter_gradient_threshold(self, analyte, win, threshold, filt=False):
