@@ -8,6 +8,7 @@ import dateutil as du
 import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
+from functools import wraps
 from tqdm import tqdm
 from .stat_fns import nominal_values
 
@@ -18,6 +19,65 @@ class Bunch(dict):
         super(Bunch, self).__init__(*args, **kwds)
         self.__dict__ = self
 
+# functions for converting between mass fraction and molar ratio
+def to_molar_ratio(massfrac_numerator, massfrac_denominator, numerator_mass, denominator_mass):
+    """
+    Converts per-mass concentrations to molar elemental ratios.
+    
+    Be careful with units.
+    
+    Parameters
+    ----------
+    numerator_mass, denominator_mass : float or array-like
+        The atomic mass of the numerator and denominator.
+    massfrac_numerator, massfrac_denominator : float or array-like
+        The per-mass fraction of the numnerator and denominator.
+    
+    Returns
+    -------
+    float or array-like : The molar ratio of elements in the material
+    """
+    return (massfrac_numerator / numerator_mass) / (massfrac_denominator / denominator_mass)
+
+def to_mass_fraction(molar_ratio, massfrac_denominator, numerator_mass, denominator_mass):
+    """
+    Converts per-mass concentrations to molar elemental ratios.
+    
+    Be careful with units.
+    
+    Parameters
+    ----------
+    molar_ratio : float or array-like
+        The molar ratio of elements.
+    massfrac_denominator : float or array-like
+        The mass fraction of the denominator element
+    numerator_mass, denominator_mass : float or array-like
+        The atomic mass of the numerator and denominator.
+        
+    Returns
+    -------
+    float or array-like : The mass fraction of the numerator element.
+    """
+    return molar_ratio * massfrac_denominator * numerator_mass / denominator_mass
+
+# warnings monkeypatch
+# https://stackoverflow.com/questions/2187269/python-print-only-the-message-on-warnings
+def _warning(message, category=UserWarning,
+             filename='', lineno=-1,
+             file=None, line=None):
+    print(message)
+
+# Logging Functions
+def _log(func):
+    """
+    Function for logging method calls and parameters
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        a = func(self, *args, **kwargs)
+        self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+        return a
+    return wrapper
 
 def get_date(datetime, time_format=None):
     """
