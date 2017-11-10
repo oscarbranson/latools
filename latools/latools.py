@@ -21,6 +21,7 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm  # status bars!
 
 import latools.plots as plot
+from latools.filtering import filters
 
 from .D_obj import D
 from .classifier_obj import classifier
@@ -29,7 +30,6 @@ from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads, _log)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
-from .filt_obj import filter_defrag, filter_exclude_downhole
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -2080,7 +2080,7 @@ class analyse(object):
 
         for s in samples:
             f = self.data[s].filt.grab_filt(filt)
-            df = filter_defrag(f, threshold, mode)
+            df = filters.defrag(f, threshold, mode)
             self.data[s].filt.add(name='defrag_{:s}_{:.0f}'.format(mode, threshold),
                                   filt=df,
                                   info='Defrag {:s} filter with threshold {:.0f}'.format(mode, threshold),
@@ -2107,7 +2107,7 @@ class analyse(object):
 
         for s in samples:
             f = self.data[s].filt.grab_filt(filt)
-            df = filter_exclude_downhole(f, threshold)
+            df = filters.exclude_downhole(f, threshold)
             self.data[s].filt.add(name='downhole_excl_{:.0f}'.format(threshold),
                                   filt=df,
                                   info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),

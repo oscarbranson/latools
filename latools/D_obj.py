@@ -14,14 +14,13 @@ from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
 
 import latools.process_fns as proc
-from .filt_obj import filt
+import latools.plots as plot
+from latools.filtering.filt_obj import filt
+
 from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads, _log
 from .helpers import unitpicker, pretty_element, findmins, stack_keys
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
-from .plots import tplot
 from .signal_optimiser import signal_optimiser, optimisation_plot
-import latools.plots as plots
-
 
 class D(object):
     """
@@ -1444,9 +1443,9 @@ class D(object):
         figure, axis
         """
 
-        return tplot(self, analytes, figsize, scale, filt,
-                     ranges, stats, stat, err,
-                     interactive, focus_stage, err_envelope, ax)
+        return plot.tplot(self, analytes, figsize, scale, filt,
+                          ranges, stats, stat, err,
+                          interactive, focus_stage, err_envelope, ax)
 
     @_log
     def gplot(self, analytes=None, win=5, figsize=[10, 4],
