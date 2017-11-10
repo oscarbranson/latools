@@ -1,3 +1,6 @@
+"""
+Helper functions used by multiple parts of LAtools.
+"""
 import os
 import shutil
 import re
