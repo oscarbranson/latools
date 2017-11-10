@@ -6,6 +6,7 @@ import os
 import re
 import time
 import warnings
+import dateutil
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -17,7 +18,6 @@ import uncertainties.unumpy as un
 from sklearn.preprocessing import minmax_scale
 
 from scipy.optimize import curve_fit
-from functools import wraps
 from tqdm import tqdm  # status bars!
 
 from .D_obj import D
@@ -25,7 +25,7 @@ from .classifier_obj import classifier
 from .stat_fns import *
 from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads)
+                      unitpicker, rangecalc, Bunch, calc_grads, _log)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
 from .plots import crossplot, histograms, calibration_plot
 from .filt_obj import filter_defrag, filter_exclude_downhole
@@ -329,16 +329,16 @@ class analyse(object):
         print('  Internal Standard: {}'.format(self.internal_standard))
 
     # Helper Functions
-    def _log(func):
-        """
-        Function for logging method calls and parameters
-        """
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            a = func(self, *args, **kwargs)
-            self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-            return a
-        return wrapper
+    # def _log(func):
+    #     """
+    #     Function for logging method calls and parameters
+    #     """
+    #     @wraps(func)
+    #     def wrapper(self, *args, **kwargs):
+    #         a = func(self, *args, **kwargs)
+    #         self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+    #         return a
+    #     return wrapper
 
     def _get_samples(self, subset=None):
         """
@@ -956,7 +956,7 @@ class analyse(object):
 
         ax = fig.add_axes([.07, .1, .84, .8])
 
-        for a in tqdm(analytes, desc='Plotting backgrounds:',
+        for a in tqdm(analytes, desc='Plotting backgrounds',
                       leave=True, total=len(analytes)):
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
                        alpha=0.5, s=3, c=self.cmaps[a],
@@ -2156,7 +2156,16 @@ class analyse(object):
     @_log
     def filter_exclude_downhole(self, threshold, filt=True, samples=None, subset=None):
         """
-        Remove 'fragments' from the calculated filter
+        Exclude all points down-hole (after) the first excluded data.
+
+        Parameters
+        ----------
+        threhold : int
+            The minimum number of contiguous excluded data points
+            that must exist before downhole exclusion occurs.
+        file : valid filter string or bool
+            Which filter to consider. If True, applies to currently active
+            filters.
         """
         if samples is not None:
             subset = self.make_subset(samples)
@@ -2170,6 +2179,28 @@ class analyse(object):
                                   filt=df,
                                   info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),
                                   params=(threshold, filt, samples, subset))
+
+    @_log
+    def filter_trim(self, start=1, end=1, filt=True, samples=None, subset=None):
+        """
+        Remove points from the start and end of filter regions.
+        
+        Parameters
+        ----------
+        start, end : int
+            The number of points to remove from the start and end of
+            the specified filter.
+        filt : valid filter string or bool
+            Which filter to trim. If True, applies to currently active
+            filters.
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        for s in samples:
+            self.data[s].filter_trim(start, end, filt)
 
     # def filter_status(self, sample=None):
     #     if sample is not None:
@@ -2186,12 +2217,12 @@ class analyse(object):
             rminfo[n] = s.filt_nremoved(filt)
         if not quiet:
             maxL = max([len(s) for s in rminfo.keys()])
-            print('{string:{number}s}'.format(string='Sample', number=maxL + 2) +
+            print('{string:{number}s}'.format(string='Sample ', number=maxL + 3) +
                   '{total:4s}'.format(total='tot') +
                   '{removed:4s}'.format(removed='flt') +
                   '{percent:4s}'.format(percent='%rm'))
             for k, (ntot, nfilt, pcrm) in rminfo.items():
-                print('{string:{number}s}'.format(string=k, number=maxL + 2) +
+                print('{string:{number}s}'.format(string=k, number=maxL + 3) +
                       '{total:4.0f}'.format(total=ntot) +
                       '{removed:4.0f}'.format(removed=nfilt) +
                       '{percent:4.0f}'.format(percent=pcrm))
@@ -2199,9 +2230,10 @@ class analyse(object):
         return rminfo
     
     @_log
-    def signal_optimiser(self, analytes, min_points=5,
-                         threshold_mode='bayes_mvs',
-                         weights=None, samples=None, subset=None):
+    def optimise_signal(self, analytes, min_points=5,
+                        threshold_mode='kde_max', 
+                        threshold_mult=1., filt=True,
+                        weights=None, samples=None, subset=None):
         """
         Optimise data selection based on specified analytes.
 
@@ -2254,10 +2286,15 @@ class analyse(object):
             subset = self.make_subset(samples)
         samples = self._get_samples(subset)
 
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
+        self.minimal_analytes.update(analytes)
+
         for s in tqdm(samples, desc='Optimising'):
             self.data[s].signal_optimiser(analytes, min_points,
-                                          threshold_mode,
-                                          weights)
+                                          threshold_mode, threshold_mult,
+                                          weights, filt)
     
     def optimisation_plots(self, overlay_alpha=0.5, samples=None, subset=None, **kwargs):
         """
@@ -2286,8 +2323,9 @@ class analyse(object):
         for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
 
-            f.savefig(outdir + '/' + s + '_optim.pdf')
-            plt.close(f)
+            if f is not None:
+                f.savefig(outdir + '/' + s + '_optim.pdf')
+                plt.close(f)
         return
 
     @_log
@@ -2893,6 +2931,69 @@ class analyse(object):
                                bins=bins, logy=logy, cmap=cmap)
 
         return fig, axes
+    
+    def filter_effect(self, analytes=None, stats=['mean', 'std'], filt=True):
+        """
+        Quantify the effects of the active filters.
+        
+        Parameters
+        ----------
+        analytes : str or list
+            Which analytes to consider.
+        stats : list
+            Which statistics to calculate.
+        file : valid filter string or bool
+            Which filter to consider. If True, applies all
+            active filters.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Contains statistics calculated for filtered and
+            unfiltered data, and the filtered/unfiltered ratio.
+        """
+        if analytes is None:
+            analytes = self.analytes
+        if isinstance(analytes, str):
+            analytes = [analytes]
+        
+        # calculate filtered and unfiltered stats
+        self.sample_stats(['La139', 'Ti49'], stats=stats, filt=False)
+        suf = self.stats.copy()
+        self.sample_stats(['La139', 'Ti49'], stats=stats, filt=filt)
+        sf = self.stats.copy()
+        
+        # create dataframe for results
+        cols = []
+        for s in self.stats_calced:
+            cols += ['unfiltered_{:}'.format(s), 'filtered_{:}'.format(s)] 
+
+        comp = pd.DataFrame(index=self.samples,
+                            columns=pd.MultiIndex.from_arrays([cols, [None] * len(cols)]))
+
+        # collate stats
+        for k, v in suf.items():
+            vf = sf[k]
+            for i, a in enumerate(v['analytes']):
+                for s in self.stats_calced:
+                    comp.loc[k, ('unfiltered_{:}'.format(s), a)] = v[s][i,0]
+                    comp.loc[k, ('filtered_{:}'.format(s), a)] = vf[s][i,0]
+        comp.dropna(0, 'all', inplace=True)
+        comp.dropna(1, 'all', inplace=True)
+        comp.sort_index(1, inplace=True)
+
+        # calculate filtered/unfiltered ratios
+        rats = []
+        for s in self.stats_calced:
+            rat = comp.loc[:, 'filtered_{:}'.format(s)] / comp.loc[:, 'unfiltered_{:}'.format(s)]
+            rat.columns = pd.MultiIndex.from_product([['{:}_ratio'.format(s)], rat.columns])
+            rats.append(rat)
+        
+        # join it all up
+        comp = comp.join(pd.concat(rats, 1))
+        comp.sort_index(1, inplace=True)
+        
+        return comp.loc[:, (pd.IndexSlice[:], pd.IndexSlice[analytes])]
 
     def crossplot_filters(self, filter_string, analytes=None,
                           samples=None, subset=None, filt=None):
@@ -3067,7 +3168,7 @@ class analyse(object):
             samples = self.subsets['All_Analyses']
         elif isinstance(samples, str):
             samples = [samples]
-
+        
         for s in tqdm(samples, desc='Drawing Plots'):
             f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
                                       scale=scale, filt=filt,
@@ -3247,8 +3348,8 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         stats : array_like
-            list of functions or names (see above) or functions that
             take a single array_like input, and return a single statistic. 
+            list of functions or names (see above) or functions that
             Function should be able to cope with NaN values.
         eachtrace : bool
             Whether to calculate the statistics for each analysis
@@ -3512,13 +3613,14 @@ class analyse(object):
             out = pd.DataFrame(out, index=self.data[s].Time)
             out.index.name = 'Time'
 
+            d = dateutil.parser.parse(self.data[s].meta['date'])
             header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
                       "# Analysis described in '../analysis.log'",
                       '# Run latools.reproduce to import analysis.',
                       '#',
                       '# Sample: %s' % (s),
-                      '# Analysis Time: ' + self.data[s].meta['date']]
+                      '# Analysis Time: ' + d.strftime('%Y-%m-%d %H:%M:%S')]
 
             header = '\n'.join(header) + '\n'
 
@@ -3744,6 +3846,7 @@ def reproduce(log_file, plotting=False, data_folder=None,
 
     init_kwargs = eval(logread.match(rlog[hashind[1] + 1]).groups()[-1])
     init_kwargs['config'] = 'REPRODUCE'
+    init_kwargs['dataformat'] = None
     init_kwargs['data_folder'] = data_folder
 
     dat = analyse(**init_kwargs)
