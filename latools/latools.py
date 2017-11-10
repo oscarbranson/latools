@@ -20,6 +20,8 @@ from sklearn.preprocessing import minmax_scale
 from scipy.optimize import curve_fit
 from tqdm import tqdm  # status bars!
 
+import latools.plots as plot
+
 from .D_obj import D
 from .classifier_obj import classifier
 from .stat_fns import *
@@ -27,7 +29,6 @@ from .helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads, _log)
 from .stat_fns import R2calc, gauss_weighted_stats, nominal_values, std_devs
-from .plots import crossplot, histograms, calibration_plot
 from .filt_obj import filter_defrag, filter_exclude_downhole
 
 idx = pd.IndexSlice  # multi-index slicing!
@@ -2369,7 +2370,7 @@ class analyse(object):
     # plot calibrations
     @_log
     def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
-        return calibration_plot(self, analytes, datarange, loglog, save)
+        return plot.calibration_plot(self, analytes, datarange, loglog, save)
 
     # set the focus attribute for specified samples
     @_log
@@ -2564,10 +2565,10 @@ class analyse(object):
 
         self.get_focus(filt=filt, samples=samples, subset=subset)
 
-        fig, axes = crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
-                              bins=bins, figsize=figsize, colourful=colourful,
-                              focus_stage=self.focus_stage, cmap=self.cmaps,
-                              denominator=self.internal_standard, mode=mode)
+        fig, axes = plot.crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
+                                   bins=bins, figsize=figsize, colourful=colourful,
+                                   focus_stage=self.focus_stage, cmap=self.cmaps,
+                                   denominator=self.internal_standard, mode=mode)
 
         if save or isinstance(save, str):
             if isinstance(save, str):
@@ -2630,10 +2631,10 @@ class analyse(object):
         # self.get_focus(filt=filt, samples=samples, subset=subset)
         # grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
 
-        fig, axes = crossplot(dat=self.gradients, keys=analytes, lognorm=lognorm,
-                              bins=bins, figsize=figsize, colourful=colourful,
-                              focus_stage=self.focus_stage, cmap=self.cmaps,
-                              denominator=self.internal_standard, mode=mode)
+        fig, axes = plot.crossplot(dat=self.gradients, keys=analytes, lognorm=lognorm,
+                                   bins=bins, figsize=figsize, colourful=colourful,
+                                   focus_stage=self.focus_stage, cmap=self.cmaps,
+                                   denominator=self.internal_standard, mode=mode)
 
         if save:
             fig.savefig(self.report_dir + '/g_crossplot.png', dpi=200)
@@ -2674,8 +2675,8 @@ class analyse(object):
             cmap = None
 
         self.get_focus(filt=filt)
-        fig, axes = histograms(self.focus, keys=analytes,
-                               bins=bins, logy=logy, cmap=cmap)
+        fig, axes = plot.histograms(self.focus, keys=analytes,
+                                    bins=bins, logy=logy, cmap=cmap)
 
         return fig, axes
     
