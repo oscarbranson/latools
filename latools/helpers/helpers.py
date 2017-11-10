@@ -64,27 +64,6 @@ def to_mass_fraction(molar_ratio, massfrac_denominator, numerator_mass, denomina
     """
     return molar_ratio * massfrac_denominator * numerator_mass / denominator_mass
 
-# masses of all elements.
-def elements(all_isotopes=True):
-    """
-    Loads a DataFrame of all elements and isotopes.
-
-    Scraped from https://www.webelements.com/
-
-    Returns
-    -------
-    pandas DataFrame with columns (element, atomic_number, isotope, atomic_weight, percent)
-    """
-    el = pd.read_pickle(pkgrs.resource_filename('latools', 'resources/elements.pkl'))
-    if all_isotopes:
-        return el.set_index('element')
-    else:
-        def wmean(g):
-            return (g.atomic_weight * g.percent).sum() / 100
-        iel = el.groupby('element').apply(wmean)
-        iel.name = 'atomic_weight'
-        return iel.set_index('element')
-
 
 # warnings monkeypatch
 # https://stackoverflow.com/questions/2187269/python-print-only-the-message-on-warnings
