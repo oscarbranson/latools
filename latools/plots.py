@@ -15,7 +15,7 @@ from.stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None, err_envelope=False):
+              interactive=False, focus_stage=None, err_envelope=False, ax=None):
         """
         Plot analytes as a function of Time.
 
@@ -62,8 +62,12 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         if focus_stage is None:
             focus_stage = self.focus_stage
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_axes([.1, .12, .77, .8])
+        if ax is None:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_axes([.1, .12, .77, .8])
+            ret = True
+        else:
+            ret = False
 
         for a in analytes:
             x = self.Time
@@ -185,7 +189,8 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         else:
             ax.legend(bbox_to_anchor=(1.15, 1))
 
-        return fig, ax
+        if ret:
+            return fig, ax
 
 def crossplot(dat, keys=None, lognorm=True,
               bins=25, figsize=(12, 12),
