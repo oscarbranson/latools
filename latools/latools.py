@@ -1529,7 +1529,7 @@ class analyse(object):
 
 
     @_log
-    def filter_gradient_threshold(self, analyte, threshold, win=15, filt=False,
+    def filter_gradient_threshold(self, analyte, threshold, win=15,
                                   samples=None, subset=None):
         """
         Calculate a gradient threshold filter to the data.
@@ -1567,7 +1567,7 @@ class analyse(object):
         self.minimal_analytes.update([analyte])
 
         for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_gradient_threshold(analyte, win, threshold, filt=filt)
+            self.data[s].filter_gradient_threshold(analyte, win, threshold)
 
     @_log
     def filter_gradient_threshold_percentile(self, analyte, percentiles, level='population', win=15, filt=False,
@@ -1659,92 +1659,92 @@ class analyse(object):
                            params, setn=setn)
         return
 
-    @_log
-    def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
-                                  on_mult=(1., 1.), off_mult=(1., 1.), nbin=5,
-                                  filt=False, samples=None, subset=None):
-        """
-        Find inclusions in profile based on specific analytes.
+    # @_log
+    # def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
+    #                               on_mult=(1., 1.), off_mult=(1., 1.), nbin=5,
+    #                               filt=False, samples=None, subset=None):
+    #     """
+    #     Find inclusions in profile based on specific analytes.
 
-        Identifies anomalously high / low regions of a specific analyte or analytes
-        and returns two filters of the 'low' and 'high' regions, excluding the
-        the transition between them.
+    #     Identifies anomalously high / low regions of a specific analyte or analytes
+    #     and returns two filters of the 'low' and 'high' regions, excluding the
+    #     the transition between them.
 
-        The mechanics of the filter is identical to the `autorange` function.
+    #     The mechanics of the filter is identical to the `autorange` function.
 
-        Parameters
-        ----------
-        analytes : str or list
-            Which analytes to use to identify inclusions.
-        gwin : int
-            The size of the window used for smoothing and calculating the derivative.
-        win : int
-            The region either side of lo-hi transitions to consider for exclusion.
-        log : bool
-            Whether or not to log-transform the data
-        on_mult, off_mult : tuple
-            The width (multiples of FWHM) either side of identified matierla transitions to exclude.
-        """
-        if isinstance(analytes, str):
-            analytes = [analytes]
+    #     Parameters
+    #     ----------
+    #     analytes : str or list
+    #         Which analytes to use to identify inclusions.
+    #     gwin : int
+    #         The size of the window used for smoothing and calculating the derivative.
+    #     win : int
+    #         The region either side of lo-hi transitions to consider for exclusion.
+    #     log : bool
+    #         Whether or not to log-transform the data
+    #     on_mult, off_mult : tuple
+    #         The width (multiples of FWHM) either side of identified matierla transitions to exclude.
+    #     """
+    #     if isinstance(analytes, str):
+    #         analytes = [analytes]
 
-        if samples is not None:
-            subset = self.make_subset(samples)
+    #     if samples is not None:
+    #         subset = self.make_subset(samples)
 
-        samples = self._get_samples(subset)
+    #     samples = self._get_samples(subset)
 
-        self.minimal_analytes.update(analytes)
+    #     self.minimal_analytes.update(analytes)
 
-        for s in tqdm(samples, desc='Finding Inclusions'):
-            self.data[s].filter_inclusion_excluder(analytes, gwin=gwin, swin=swin, win=win, log=log,
-                                                   on_mult=on_mult, off_mult=off_mult,
-                                                   filt=filt, nbin=nbin)
-        return
+    #     for s in tqdm(samples, desc='Finding Inclusions'):
+    #         self.data[s].filter_inclusion_excluder(analytes, gwin=gwin, swin=swin, win=win, log=log,
+    #                                                on_mult=on_mult, off_mult=off_mult,
+    #                                                filt=filt, nbin=nbin)
+    #     return
 
-    @_log
-    def filter_distribution(self, analyte, binwidth='scott', filt=False,
-                            transform=None, samples=None, subset=None,
-                            min_data=10):
-        """
-        Applies a distribution filter to the data.
+    # @_log
+    # def filter_distribution(self, analyte, binwidth='scott', filt=False,
+    #                         transform=None, samples=None, subset=None,
+    #                         min_data=10):
+    #     """
+    #     Applies a distribution filter to the data.
 
-        Parameters
-        ----------
-        analyte : str
-            The analyte that the filter applies to.
-        binwidth : str of float
-            Specify the bin width of the kernel density estimator.
-            Passed to `scipy.stats.gaussian_kde`.
-            If 'scott' or 'silverman', the method used to automatically 
-            estimate bin width. If float, it manually sets the binwidth.
-        filt : bool
-            Whether or not to apply existing filters to the data before
-            calculating this filter.
-        transform : str
-            If 'log', applies a log transform to the data before calculating
-            the distribution.
-        samples : array_like or None
-            Which samples to apply this filter to. If None, applies to all
-            samples.
-        min_data : int
-            The minimum number of data points that should be considered by
-            the filter. Default = 10.
+    #     Parameters
+    #     ----------
+    #     analyte : str
+    #         The analyte that the filter applies to.
+    #     binwidth : str of float
+    #         Specify the bin width of the kernel density estimator.
+    #         Passed to `scipy.stats.gaussian_kde`.
+    #         If 'scott' or 'silverman', the method used to automatically 
+    #         estimate bin width. If float, it manually sets the binwidth.
+    #     filt : bool
+    #         Whether or not to apply existing filters to the data before
+    #         calculating this filter.
+    #     transform : str
+    #         If 'log', applies a log transform to the data before calculating
+    #         the distribution.
+    #     samples : array_like or None
+    #         Which samples to apply this filter to. If None, applies to all
+    #         samples.
+    #     min_data : int
+    #         The minimum number of data points that should be considered by
+    #         the filter. Default = 10.
 
-        Returns
-        -------
-        None
-        """
-        if samples is not None:
-            subset = self.make_subset(samples)
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     if samples is not None:
+    #         subset = self.make_subset(samples)
 
-        samples = self._get_samples(subset)
+    #     samples = self._get_samples(subset)
 
-        self.minimal_analytes.update([analyte])
+    #     self.minimal_analytes.update([analyte])
 
-        for s in tqdm(samples, desc='Distribution Filter'):
-            self.data[s].filter_distribution(analyte, binwidth='scott',
-                                             filt=filt, transform=None,
-                                             min_data=min_data)
+    #     for s in tqdm(samples, desc='Distribution Filter'):
+    #         self.data[s].filter_distribution(analyte, binwidth='scott',
+    #                                          filt=filt, transform=None,
+    #                                          min_data=min_data)
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
@@ -1981,32 +1981,32 @@ class analyse(object):
             self.filter_status(subset=subset)
         return
 
-    @_log
-    def filter_combine(self, name, filt_str, samples=None, subset=None):
-        """
-        Make new filter from combination of other filters.
+    # @_log
+    # def filter_combine(self, name, filt_str, samples=None, subset=None):
+    #     """
+    #     Make new filter from combination of other filters.
 
-        Parameters
-        ----------
-        name : str
-            The name of the new filter. Should be unique.
-        filt_str : str
-            A logical combination of partial strings which will create
-            the new filter. For example, 'Albelow & Mnbelow' will combine
-            all filters that partially match 'Albelow' with those that
-            partially match 'Mnbelow' using the 'AND' logical operator.
+    #     Parameters
+    #     ----------
+    #     name : str
+    #         The name of the new filter. Should be unique.
+    #     filt_str : str
+    #         A logical combination of partial strings which will create
+    #         the new filter. For example, 'Albelow & Mnbelow' will combine
+    #         all filters that partially match 'Albelow' with those that
+    #         partially match 'Mnbelow' using the 'AND' logical operator.
 
-        Returns
-        -------
-        None
-        """
-        if samples is not None:
-            subset = self.make_subset(samples)
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #     if samples is not None:
+    #         subset = self.make_subset(samples)
 
-        samples = self._get_samples(subset)
+    #     samples = self._get_samples(subset)
 
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filt.filter_new(name, filter_string)
+    #     for s in tqdm(samples, desc='Threshold Filter'):
+    #         self.data[s].filt.filter_new(name, filter_string)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         """
@@ -2079,9 +2079,8 @@ class analyse(object):
 
         for s in samples:
             f = self.data[s].filt.grab_filt(filt)
-            df = filters.defrag(f, threshold, mode)
             self.data[s].filt.add(name='defrag_{:s}_{:.0f}'.format(mode, threshold),
-                                  filt=df,
+                                  filt=filters.defrag(f, threshold, mode),
                                   info='Defrag {:s} filter with threshold {:.0f}'.format(mode, threshold),
                                   params=(threshold, mode, filt, samples, subset))
     
@@ -2106,9 +2105,8 @@ class analyse(object):
 
         for s in samples:
             f = self.data[s].filt.grab_filt(filt)
-            df = filters.exclude_downhole(f, threshold)
             self.data[s].filt.add(name='downhole_excl_{:.0f}'.format(threshold),
-                                  filt=df,
+                                  filt=filters.exclude_downhole(f, threshold),
                                   info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),
                                   params=(threshold, filt, samples, subset))
 
@@ -2133,11 +2131,6 @@ class analyse(object):
 
         for s in samples:
             self.data[s].filter_trim(start, end, filt)
-
-    # def filter_status(self, sample=None):
-    #     if sample is not None:
-    #         print(self.data[sample].filt)
-    #     else:
 
     def filter_nremoved(self, filt=True, quiet=False):
         """
@@ -2228,6 +2221,7 @@ class analyse(object):
                                           threshold_mode, threshold_mult,
                                           weights, filt)
     
+    @_log
     def optimisation_plots(self, overlay_alpha=0.5, samples=None, subset=None, **kwargs):
         """
         Plot the result of signal_optimise.
@@ -3036,33 +3030,33 @@ class analyse(object):
             # plt.close(fig)
         return
 
-    def _stat_boostrap(self, analytes=None, filt=True,
-                       stat_fn=np.nanmean, ci=95):
-        """
-        Calculate sample statistics with bootstrapped confidence intervals.
+    # def _stat_boostrap(self, analytes=None, filt=True,
+    #                    stat_fn=np.nanmean, ci=95):
+    #     """
+    #     Calculate sample statistics with bootstrapped confidence intervals.
 
-        Parameters
-        ----------
-        analytes : optional, array_like or str
-            The analyte(s) to calculate statistics for. Defaults to
-            all analytes.
-        filt : str, dict or bool
-            Either logical filter expression contained in a str,
-            a dict of expressions specifying the filter string to
-            use for each analyte or a boolean. Passed to `grab_filt`.
-        stat_fns : array_like
-            list of functions that take a single array_like input,
-            and return a single statistic. Function should be able
-            to cope with numpy NaN values.
-        ci : float
-            Confidence interval to calculate.
+    #     Parameters
+    #     ----------
+    #     analytes : optional, array_like or str
+    #         The analyte(s) to calculate statistics for. Defaults to
+    #         all analytes.
+    #     filt : str, dict or bool
+    #         Either logical filter expression contained in a str,
+    #         a dict of expressions specifying the filter string to
+    #         use for each analyte or a boolean. Passed to `grab_filt`.
+    #     stat_fns : array_like
+    #         list of functions that take a single array_like input,
+    #         and return a single statistic. Function should be able
+    #         to cope with numpy NaN values.
+    #     ci : float
+    #         Confidence interval to calculate.
 
-        Returns
-        -------
-        None
-        """
+    #     Returns
+    #     -------
+    #     None
+    #     """
 
-        return
+    #     return
 
     @_log
     def sample_stats(self, analytes=None, filt=True,
@@ -3617,8 +3611,3 @@ def reproduce(log_file, plotting=False, data_folder=None,
 
 
 analyze = analyse  # for the yanks
-
-
-
-
-
