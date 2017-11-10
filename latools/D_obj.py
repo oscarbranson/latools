@@ -12,11 +12,10 @@ import uncertainties.unumpy as un
 from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
-from functools import wraps
 
 import latools.process_fns as proc
 from .filt_obj import filt
-from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads
+from .helpers import bool_2_indices, rolling_window, Bunch, calc_grads, _log
 from .helpers import unitpicker, pretty_element, findmins, stack_keys
 from .stat_fns import nominal_values, std_devs, unpack_uncertainties
 from .plots import tplot
@@ -137,15 +136,15 @@ class D(object):
 
         return
 
-    def _log(fn):
-        """
-        Function for logging method calls and parameters
-        """
-        @wraps(fn)
-        def wrapper(self, *args, **kwargs):
-            self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-            return fn(self, *args, **kwargs)
-        return wrapper
+    # def _log(fn):
+    #     """
+    #     Function for logging method calls and parameters
+    #     """
+    #     @wraps(fn)
+    #     def wrapper(self, *args, **kwargs):
+    #         self.log.append(fn.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
+    #         return fn(self, *args, **kwargs)
+    #     return wrapper
 
     def setfocus(self, focus):
         """
@@ -1551,12 +1550,38 @@ class D(object):
         filt = self.filt.grab_filt(filt=filt_str)
         self.filt.add(name, filt, info=filt_str)
         return
+    
+    @_log
+    def filter_trim(self, start=1, end=0, filt=True):
+        """
+        Remove points from the start and end of filter regions.
+        
+        Parameters
+        ----------
+        start, end : int
+            The number of points to remove from the start and end of
+            the specified filter.
+        filt : valid filter string or bool
+            Which filter to trim. If True, applies to currently active
+            filters.
+        """
+        params = locals()
+        del(params['self'])
+            
+        f = self.filt.grab_filt(filt)
+        nf = np.roll(f, start) & np.roll(f, -end)
+        
+        self.filt.add('trimmed_filter',
+                    nf,
+                    'Trimmed Filter ({:.0f} start, {:.0f} end)'.format(start, end),
+                    params, setn=self.filt.maxset + 1)
 
     # Signal optimiser
     @_log
     def signal_optimiser(self, analytes, min_points=5,
-                         threshold_mode='bayes_mvs',
-                         weights=None):
+                         threshold_mode='kde_max',
+                         threshold_mult=1.,
+                         weights=None, filt=True):
         """
         Optimise data selection based on specified analytes.
 
@@ -1611,9 +1636,17 @@ class D(object):
 
         if isinstance(analytes, str):
             analytes = [analytes]
+
+        # get filter
+        if filt is not False:
+            ind = (self.filt.grab_filt(filt, analytes))
+        else:
+            ind = None
+
         self.opt = signal_optimiser(self, analytes, min_points,
                                     threshold_mode,
-                                    weights)
+                                    threshold_mult,
+                                    weights, ind)
         
         name = 'optimise_' + '_'.join(analytes)
         self.filt.add(name=name,
