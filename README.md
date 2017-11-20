@@ -1,3 +1,9 @@
+<div align="right">
+  <a href="https://travis-ci.org/oscarbranson/latools"><img src="https://travis-ci.org/oscarbranson/latools.svg?branch=master" alt="TravisCI build" height="18"></a>
+  <a href="https://badge.fury.io/py/latools"><img src="https://badge.fury.io/py/latools.svg" alt="PyPI version" height="18"></a>
+</div>
+
+
 # latools
 **Python tools for processing Laser Ablation mass spectrometry data**
 
