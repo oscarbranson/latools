@@ -11,10 +11,12 @@ Two de-spiking methods are available:
 * :meth:`~latools.D.expdecay_despiker` removes low outliers, based on the signal washout time of your laser cell. The signal washout is described using an exponential decay function. If the measured signal decreases faster than physically possible based on your laser setup, these points are removed, and replaced with the average of the adjacent values.
 * :meth:`~latools.D.noise_despiker` removes high outliers by calculating a rolling mean and standard deviation, and replacing points that are greater than `n` standard deviations above the mean with the mean of the adjacent data points.
 
-These functions can both be applied at once, using :meth:`~latools.analyse.despike`::
+These functions can both be applied at once, using :meth:`~latools.analyse.despike`:
 
-    eg.despike(expdecay_despiker=True, 
-               noise_despiker=True)
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 21-22
 
 By default, this applies :meth:`~latools.D.expdecay_despiker` followed by :meth:`~latools.D.noise_despiker` to all samples. 
 You can specify several parameters that change the behaviour of these de-spiking routines.

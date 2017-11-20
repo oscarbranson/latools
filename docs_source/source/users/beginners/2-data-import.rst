@@ -5,12 +5,13 @@ Importing Data
 ##############
 
 Once you have Python running in your ``latools_demo/`` directory and have unpacked the :ref:`example_data`, you're ready to start an ``latools`` analysis session.
-To do this, run::
+To do this, run:
 
-    eg = la.analyse(data_folder='./data/', 
-                    config='DEFAULT', 
-                    internal_standard='Ca43', 
-                    srm_identifier='STD')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 15-18
+
 
 This imports all the data files within the ``data/`` folder into an :class:`latools.analyse` object called ``eg``, along with several parameters describing the dataset and how it should be imported:
 

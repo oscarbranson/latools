@@ -1,0 +1,21 @@
+{
+    "genfromtext_args": {
+        "delimiter": ",",
+        "skip_header": 7
+    },
+    "meta_regex": {
+        "5": [
+            [
+                "date"
+            ],
+            "# Analysis Time: ([0-9-: ]+)"
+        ]
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timekey": "time",
+        "timecolumn": 0,
+        "name_row": 6,
+        "pattern": "([A-z]{1,2}[0-9]{1,3})"
+    }
+}
