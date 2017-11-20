@@ -12,6 +12,7 @@ To do this, run:
    :dedent: 4
    :lines: 15-18
 
+
 This imports all the data files within the ``data/`` folder into an :class:`latools.analyse` object called ``eg``, along with several parameters describing the dataset and how it should be imported:
 
 * ``config='DEFAULT'``: The configuration contains information about the data file format and the location of the SRM table. Multiple configurations can be set up and chosen during data import, allowing ``latools`` to flexibly work with data from different instruments.

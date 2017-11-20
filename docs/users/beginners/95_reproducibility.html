@@ -1,0 +1,255 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Reproducibility &mdash; latools 0.2.2a documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../genindex.html"/>
+        <link rel="search" title="Search" href="../../search.html"/>
+    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.2a
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">User Guide</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">latools</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+      <li>Reproducibility</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/users/beginners/95_reproducibility.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="reproducibility">
+<span id="id1"></span><h1>Reproducibility<a class="headerlink" href="#reproducibility" title="Permalink to this headline">¶</a></h1>
+<p>A key new feature of <code class="docutils literal"><span class="pre">latools</span></code> is making your analysis quantitatively reproducible.
+As you go through your analysis, <code class="docutils literal"><span class="pre">latools</span></code> keeps track of everything you&#8217;re doing in a command log, which stores the sequence and parameters of every step in your data analysis.
+These can be exported, alongside an SRM table and your raw data, and be imported and reproduced by an independent user.</p>
+<p>If you are unwilling to make your entire raw dataset available, it is also possible to export a &#8216;minimal&#8217; dataset, which only includes the elements required for your analyses (i.e. any analyte used during filtering or processing, combined with the analytes of interest that are the focus of the reduction).</p>
+<div class="section" id="minimal-export">
+<h2>Minimal Export<a class="headerlink" href="#minimal-export" title="Permalink to this headline">¶</a></h2>
+<p>The minimum parameters and data to reproduce you&#8217;re analysis can be exported by:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">minimal_export</span><span class="p">(</span><span class="n">ks</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will create a new folder inside the <code class="docutils literal"><span class="pre">data_export</span></code> folder, called <code class="docutils literal"><span class="pre">minimal</span> <span class="pre">export</span></code>. This will contain your complete dataset, or a subset of your dataset containing only the analytes you specify, the SRM values used to calibrate your data, and a <code class="docutils literal"><span class="pre">.log</span></code> file that contains a record of everything you&#8217;ve done to your data.</p>
+<p>This entire folder should be compressed (e.g. .zip), and included alongside your publication.</p>
+<div class="admonition tip">
+<p class="first admonition-title">Tip</p>
+<p class="last">When someone else goes to reproduce your analysis, <cite>everything</cite> you&#8217;ve done to your data will be re-calculated. However, analysis is often an iterative process, and an external user does not need to experience <cite>all</cite> these iterations. We therefore recommend that after you&#8217;ve identified all the processing and filtering steps you want to apply to the data, you reprocess your entire dataset using <cite>only</cite> these steps, before performing a minimal export.</p>
+</div>
+</div>
+<div class="section" id="import-and-reproduction">
+<h2>Import and Reproduction<a class="headerlink" href="#import-and-reproduction" title="Permalink to this headline">¶</a></h2>
+<p>To reproduce someone else&#8217;s analysis, download a compressed minimal_export folder, and unzip it.
+Next, in a new python window, run:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">latools</span> <span class="k">as</span> <span class="nn">la</span>
+
+<span class="n">rep</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">reproduce</span><span class="p">(</span><span class="s1">&#39;path/to/analysis.log&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will reproduce the entire analysis, and call it &#8216;rep&#8217;. You can then experiment with different data filters and processing techniques to see how it modifies their results.</p>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'0.2.2a',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

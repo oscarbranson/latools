@@ -1,0 +1,3582 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Latools Documentation &mdash; latools 0.2.2a documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="latools 0.2.2a documentation" href="../index.html"/>
+        <link rel="prev" title="Automatic SRM Identification" href="../users/advanced/srm-id.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.2a
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../users/index.html">User Guide</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Latools Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#latools-analyse"><code class="docutils literal"><span class="pre">latools.analyse</span></code></a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#latools-d"><code class="docutils literal"><span class="pre">latools.D</span></code></a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#latools-filt"><code class="docutils literal"><span class="pre">latools.filt</span></code></a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#other-functions">Other Functions</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">latools</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Latools Documentation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/docs/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="latools-documentation">
+<span id="latools-docs"></span><h1>Latools Documentation<a class="headerlink" href="#latools-documentation" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse" title="latools.analyse"><code class="xref py py-obj docutils literal"><span class="pre">analyse</span></code></a>(data_folder[,&nbsp;errorhunt,&nbsp;config,&nbsp;...])</td>
+<td>For processing and analysing whole LA - ICPMS datasets.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D" title="latools.D"><code class="xref py py-obj docutils literal"><span class="pre">D</span></code></a>(data_file[,&nbsp;dataformat,&nbsp;errorhunt,&nbsp;cmap,&nbsp;...])</td>
+<td>Container for data from a single laser ablation analysis.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt" title="latools.filt"><code class="xref py py-obj docutils literal"><span class="pre">filt</span></code></a>(size,&nbsp;analytes)</td>
+<td>Container for creating, storing and selecting data filters.</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="latools-analyse">
+<h2><a class="reference internal" href="#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a><a class="headerlink" href="#latools-analyse" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="latools.analyse">
+<em class="property">class </em><code class="descclassname">latools.</code><code class="descname">analyse</code><span class="sig-paren">(</span><em>data_folder</em>, <em>errorhunt=False</em>, <em>config='DEFAULT'</em>, <em>dataformat=None</em>, <em>extension='.csv'</em>, <em>srm_identifier='STD'</em>, <em>cmap=None</em>, <em>time_format=None</em>, <em>internal_standard='Ca43'</em>, <em>names='file_names'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For processing and analysing whole LA - ICPMS datasets.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data_folder</strong> : str</p>
+<blockquote>
+<div><p>The path to a directory containing multiple data files.</p>
+</div></blockquote>
+<p><strong>errorhunt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to print each data file name before
+import. This is useful for tracing which data file
+is causing the import to fail.</p>
+</div></blockquote>
+<p><strong>config</strong> : str</p>
+<blockquote>
+<div><p>The name of the configuration to use for the analysis.
+This determines which configuration set from the
+latools.cfg file is used, and overrides the default
+configuration setup. You might sepcify this if your lab
+routinely uses two different instruments.</p>
+</div></blockquote>
+<p><strong>dataformat</strong> : str or dict</p>
+<blockquote>
+<div><p>Either a path to a data format file, or a
+dataformat dict. See documentation for more details.</p>
+</div></blockquote>
+<p><strong>extension</strong> : str</p>
+<blockquote>
+<div><p>The file extension of your data files. Defaults to
+&#8216;.csv&#8217;.</p>
+</div></blockquote>
+<p><strong>srm_identifier</strong> : str</p>
+<blockquote>
+<div><p>A string used to separate samples and standards. srm_identifier
+must be present in all standard measurements. Defaults to
+&#8216;STD&#8217;.</p>
+</div></blockquote>
+<p><strong>cmap</strong> : dict</p>
+<blockquote>
+<div><p>A dictionary of {analyte: colour} pairs. Colour can be any valid
+matplotlib colour string, RGB or RGBA sequence, or hex string.</p>
+</div></blockquote>
+<p><strong>time_format</strong> : str</p>
+<blockquote>
+<div><p>A regex string identifying the time format, used by pandas when
+created a universal time scale. If unspecified (None), pandas
+attempts to infer the time format, but in some cases this might
+not work.</p>
+</div></blockquote>
+<p><strong>internal_standard</strong> : str</p>
+<blockquote>
+<div><p>The name of the analyte used as an internal standard throughout
+analysis.</p>
+</div></blockquote>
+<p><strong>names</strong> : str</p>
+<blockquote class="last">
+<div><p>&#8216;file_names&#8217; : use the file names as labels
+&#8216;metadata_names&#8217; : used the &#8216;names&#8217; attribute of metadata as the name
+anything else : use numbers.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>folder</td>
+<td>(str) Path to the directory containing the data files, as specified by <cite>data_folder</cite>.</td>
+</tr>
+<tr class="row-even"><td>dirname</td>
+<td>(str) The name of the directory containing the data files, without the entire path.</td>
+</tr>
+<tr class="row-odd"><td>files</td>
+<td>(array_like) A list of all files in <cite>folder</cite>.</td>
+</tr>
+<tr class="row-even"><td>param_dir</td>
+<td>(str) The directory where parameters are stored.</td>
+</tr>
+<tr class="row-odd"><td>report_dir</td>
+<td>(str) The directory where plots are saved.</td>
+</tr>
+<tr class="row-even"><td>data</td>
+<td>(array_like) A list of <cite>latools.D</cite> data objects.</td>
+</tr>
+<tr class="row-odd"><td>data_dict</td>
+<td>(dict) A dict of <cite>latools.D</cite> data objects, labelled by sample name.</td>
+</tr>
+<tr class="row-even"><td>samples</td>
+<td>(array_like) A list of samples.</td>
+</tr>
+<tr class="row-odd"><td>analytes</td>
+<td>(array_like) A list of analytes measured.</td>
+</tr>
+<tr class="row-even"><td>stds</td>
+<td>(array_like) A list of the <cite>latools.D</cite> objects containing hte SRM data. These must contain srm_identifier in the file name.</td>
+</tr>
+<tr class="row-odd"><td>srm_identifier</td>
+<td>(str) A string present in the file names of all standards.</td>
+</tr>
+<tr class="row-even"><td>cmaps</td>
+<td>(dict) An analyte - specific colour map, used for plotting.</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.autorange" title="latools.analyse.autorange"><code class="xref py py-obj docutils literal"><span class="pre">autorange</span></code></a>([analyte,&nbsp;gwin,&nbsp;win,&nbsp;smwin,&nbsp;conf,&nbsp;...])</td>
+<td>Automatically separates signal and background data regions.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.bkg_calc_interp1d" title="latools.analyse.bkg_calc_interp1d"><code class="xref py py-obj docutils literal"><span class="pre">bkg_calc_interp1d</span></code></a>([analytes,&nbsp;kind,&nbsp;n_min,&nbsp;...])</td>
+<td>Background calculation using a 1D interpolation.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.bkg_calc_weightedmean" title="latools.analyse.bkg_calc_weightedmean"><code class="xref py py-obj docutils literal"><span class="pre">bkg_calc_weightedmean</span></code></a>([analytes,&nbsp;...])</td>
+<td>Background calculation using a gaussian weighted mean.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.bkg_subtract" title="latools.analyse.bkg_subtract"><code class="xref py py-obj docutils literal"><span class="pre">bkg_subtract</span></code></a>([analytes,&nbsp;errtype])</td>
+<td>Subtract calculated background from data.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.calibrate" title="latools.analyse.calibrate"><code class="xref py py-obj docutils literal"><span class="pre">calibrate</span></code></a>([poly_n,&nbsp;analytes,&nbsp;drift_correct,&nbsp;...])</td>
+<td>Calibrates the data to measured SRM values.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.calibration_plot" title="latools.analyse.calibration_plot"><code class="xref py py-obj docutils literal"><span class="pre">calibration_plot</span></code></a>([analytes,&nbsp;datarange,&nbsp;...])</td>
+<td>Plot the calibration lines between measured and known SRM values.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.crossplot" title="latools.analyse.crossplot"><code class="xref py py-obj docutils literal"><span class="pre">crossplot</span></code></a>([analytes,&nbsp;lognorm,&nbsp;bins,&nbsp;filt,&nbsp;...])</td>
+<td>Plot analytes against each other as 2D histograms.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.despike" title="latools.analyse.despike"><code class="xref py py-obj docutils literal"><span class="pre">despike</span></code></a>([expdecay_despiker,&nbsp;exponent,&nbsp;...])</td>
+<td>Despikes data with exponential decay and noise filters.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.export_traces" title="latools.analyse.export_traces"><code class="xref py py-obj docutils literal"><span class="pre">export_traces</span></code></a>([outdir,&nbsp;focus_stage,&nbsp;...])</td>
+<td>Function to export raw data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.filter_clear" title="latools.analyse.filter_clear"><code class="xref py py-obj docutils literal"><span class="pre">filter_clear</span></code></a>([samples,&nbsp;subset])</td>
+<td>Clears (deletes) all data filters.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-obj docutils literal"><span class="pre">filter_clustering</span></code></a>(analytes[,&nbsp;filt,&nbsp;...])</td>
+<td>Applies an n - dimensional clustering filter to the data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-obj docutils literal"><span class="pre">filter_correlation</span></code></a>(x_analyte,&nbsp;y_analyte[,&nbsp;...])</td>
+<td>Applies a correlation filter to the data.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-obj docutils literal"><span class="pre">filter_distribution</span></code></a>(analyte[,&nbsp;binwidth,&nbsp;...])</td>
+<td>Applies a distribution filter to the data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.filter_off" title="latools.analyse.filter_off"><code class="xref py py-obj docutils literal"><span class="pre">filter_off</span></code></a>([filt,&nbsp;analyte,&nbsp;samples,&nbsp;subset])</td>
+<td>Turns data filters off for particular analytes and samples.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.filter_on" title="latools.analyse.filter_on"><code class="xref py py-obj docutils literal"><span class="pre">filter_on</span></code></a>([filt,&nbsp;analyte,&nbsp;samples,&nbsp;subset])</td>
+<td>Turns data filters on for particular analytes and samples.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.filter_reports" title="latools.analyse.filter_reports"><code class="xref py py-obj docutils literal"><span class="pre">filter_reports</span></code></a>(analytes[,&nbsp;filt_str,&nbsp;...])</td>
+<td>Plot filter reports for all filters that contain <code class="docutils literal"><span class="pre">filt_str</span></code> in the name.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-obj docutils literal"><span class="pre">filter_threshold</span></code></a>(analyte,&nbsp;threshold[,&nbsp;filt,&nbsp;...])</td>
+<td>Applies a threshold filter to the data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.find_expcoef" title="latools.analyse.find_expcoef"><code class="xref py py-obj docutils literal"><span class="pre">find_expcoef</span></code></a>([nsd_below,&nbsp;analyte,&nbsp;plot,&nbsp;...])</td>
+<td>Determines exponential decay coefficient for despike filter.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.get_background" title="latools.analyse.get_background"><code class="xref py py-obj docutils literal"><span class="pre">get_background</span></code></a>([n_min,&nbsp;n_max,&nbsp;focus_stage,&nbsp;...])</td>
+<td>Extract all background data from all samples on universal time scale.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.get_focus" title="latools.analyse.get_focus"><code class="xref py py-obj docutils literal"><span class="pre">get_focus</span></code></a>([filt,&nbsp;samples,&nbsp;subset])</td>
+<td>Collect all data from all samples into a single array.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.get_starttimes" title="latools.analyse.get_starttimes"><code class="xref py py-obj docutils literal"><span class="pre">get_starttimes</span></code></a>([time_format])</td>
+<td></td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.getstats" title="latools.analyse.getstats"><code class="xref py py-obj docutils literal"><span class="pre">getstats</span></code></a>([save,&nbsp;filename,&nbsp;samples,&nbsp;subset,&nbsp;...])</td>
+<td>Return pandas dataframe of all sample statistics.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.make_subset" title="latools.analyse.make_subset"><code class="xref py py-obj docutils literal"><span class="pre">make_subset</span></code></a>([samples,&nbsp;name])</td>
+<td>Creates a subset of samples, which can be treated independently.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.minimal_export" title="latools.analyse.minimal_export"><code class="xref py py-obj docutils literal"><span class="pre">minimal_export</span></code></a>([target_analytes,&nbsp;override,&nbsp;path])</td>
+<td>Exports a analysis parameters, standard info and a minimal dataset, which can be imported by another user.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.ratio" title="latools.analyse.ratio"><code class="xref py py-obj docutils literal"><span class="pre">ratio</span></code></a>([internal_standard,&nbsp;focus])</td>
+<td>Calculates the ratio of all analytes to a single analyte.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.sample_stats" title="latools.analyse.sample_stats"><code class="xref py py-obj docutils literal"><span class="pre">sample_stats</span></code></a>([analytes,&nbsp;filt,&nbsp;stats,&nbsp;...])</td>
+<td>Calculate sample statistics.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.analyse.trace_plots" title="latools.analyse.trace_plots"><code class="xref py py-obj docutils literal"><span class="pre">trace_plots</span></code></a>([analytes,&nbsp;samples,&nbsp;ranges,&nbsp;...])</td>
+<td>Plot analytes as a function of time.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.analyse.zeroscreen" title="latools.analyse.zeroscreen"><code class="xref py py-obj docutils literal"><span class="pre">zeroscreen</span></code></a>([focus_stage])</td>
+<td>Remove all points containing data below zero (impossible)</td>
+</tr>
+</tbody>
+</table>
+<table border="1" class="docutils">
+<colgroup>
+<col width="58%" />
+<col width="42%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>ablation_times</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>bkg_plot</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>filter_status</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>set_focus</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>srm_id_auto</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>statplot</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="latools.analyse.ablation_times">
+<code class="descname">ablation_times</code><span class="sig-paren">(</span><em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.ablation_times" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.apply_classifier">
+<code class="descname">apply_classifier</code><span class="sig-paren">(</span><em>name</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.apply_classifier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a clustering classifier based on all samples, or a subset.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>The name of the classifier to apply.</p>
+</div></blockquote>
+<p><strong>subset</strong> : str</p>
+<blockquote>
+<div><p>The subset of samples to apply the classifier to.</p>
+</div></blockquote>
+<p><strong>Returns</strong></p>
+<p><strong>&#8212;&#8212;-</strong></p>
+<p class="last"><strong>name</strong> : str</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.autorange">
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2, transform='log', thresh_n=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.autorange" title="Permalink to this definition">¶</a></dt>
+<dd><p>Automatically separates signal and background data regions.</p>
+<p>Automatically detect signal and background regions in the laser
+data, based on the behaviour of a single analyte. The analyte used
+should be abundant and homogenous in the sample.</p>
+<p>Step 1: Thresholding
+The background signal is determined using a gaussian kernel density
+estimator (kde) of all the data. Under normal circumstances, this
+kde should find two distinct data distributions, corresponding to
+&#8216;signal&#8217; and &#8216;background&#8217;. The minima between these two distributions
+is taken as a rough threshold to identify signal and background
+regions. Any point where the trace crosses this thrshold is identified
+as a &#8216;transition&#8217;.</p>
+<p>Step 2: Transition Removal
+The width of the transition regions between signal and background are
+then determined, and the transitions are excluded from analysis. The
+width of the transitions is determined by fitting a gaussian to the
+smoothed first derivative of the analyte trace, and determining its
+width at a point where the gaussian intensity is at at <cite>conf</cite> time the
+gaussian maximum. These gaussians are fit to subsets of the data
+centered around the transitions regions determined in Step 1, +/- <cite>win</cite>
+data points. The peak is further isolated by finding the minima and
+maxima of a second derivative within this window, and the gaussian is
+fit to the isolated peak.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>The analyte that autorange should consider. For best results,
+choose an analyte that is present homogeneously in high
+concentrations.</p>
+</div></blockquote>
+<p><strong>gwin</strong> : int</p>
+<blockquote>
+<div><p>The smoothing window used for calculating the first derivative.
+Must be odd.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>Determines the width (c +/- win) of the transition data subsets.</p>
+</div></blockquote>
+<p><strong>smwin</strong> : int</p>
+<blockquote>
+<div><p>The smoothing window used for calculating the second derivative.
+Must be odd.</p>
+</div></blockquote>
+<p><strong>conf</strong> : float</p>
+<blockquote>
+<div><p>The proportional intensity of the fitted gaussian tails that
+determines the transition width cutoff (lower = wider transition
+regions excluded).</p>
+</div></blockquote>
+<p><strong>trans_mult</strong> : array_like, len=2</p>
+<blockquote>
+<div><p>Multiples of the peak FWHM to add to the transition cutoffs, e.g.
+if the transitions consistently leave some bad data proceeding the
+transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
+right hand side of the limit.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.bkg_calc_interp1d">
+<code class="descname">bkg_calc_interp1d</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>kind=1</em>, <em>n_min=10</em>, <em>n_max=None</em>, <em>cstep=None</em>, <em>filter=False</em>, <em>f_win=7</em>, <em>f_n_lim=3</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.bkg_calc_interp1d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Background calculation using a 1D interpolation.</p>
+<p>scipy.interpolate.interp1D is used for interpolation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : str or array - like</p>
+<p><strong>kind</strong> : str or int</p>
+<blockquote>
+<div><p>Integer specifying the order of the spline interpolation
+used, or string specifying a type of interpolation.
+Passed to <cite>scipy.interpolate.interp1D</cite></p>
+</div></blockquote>
+<p><strong>n_min</strong> : int</p>
+<blockquote>
+<div><p>Background regions with fewer than n_min points
+will not be included in the fit.</p>
+</div></blockquote>
+<p><strong>cstep</strong> : float or None</p>
+<blockquote>
+<div><p>The interval between calculated background points.</p>
+</div></blockquote>
+<p><strong>filter</strong> : bool</p>
+<blockquote class="last">
+<div><p>If true, apply a rolling filter to the isolated background regions
+to exclude regions with anomalously high values. If True, two parameters
+alter the filter&#8217;s behaviour:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>f_win <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">The size of the rolling window</p>
+</dd>
+<dt>f_n_lim <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">The number of standard deviations above the rolling mean
+to set the threshold.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.bkg_calc_weightedmean">
+<code class="descname">bkg_calc_weightedmean</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>weight_fwhm=300.0</em>, <em>n_min=20</em>, <em>n_max=None</em>, <em>cstep=None</em>, <em>filter=False</em>, <em>f_win=7</em>, <em>f_n_lim=3</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.bkg_calc_weightedmean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Background calculation using a gaussian weighted mean.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : str or array - like</p>
+<p><strong>weight_fwhm</strong> : float</p>
+<blockquote>
+<div><p>The full - width - at - half - maximum of the gaussian used
+to calculate the weighted average.</p>
+</div></blockquote>
+<p><strong>n_min</strong> : int</p>
+<blockquote>
+<div><p>Background regions with fewer than n_min points
+will not be included in the fit.</p>
+</div></blockquote>
+<p><strong>cstep</strong> : float or None</p>
+<blockquote>
+<div><p>The interval between calculated background points.</p>
+</div></blockquote>
+<p><strong>filter</strong> : bool</p>
+<blockquote class="last">
+<div><p>If true, apply a rolling filter to the isolated background regions
+to exclude regions with anomalously high values. If True, two parameters
+alter the filter&#8217;s behaviour:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>f_win <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">The size of the rolling window</p>
+</dd>
+<dt>f_n_lim <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">The number of standard deviations above the rolling mean
+to set the threshold.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.bkg_plot">
+<code class="descname">bkg_plot</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>figsize=None</em>, <em>yscale='log'</em>, <em>ylim=None</em>, <em>err='stderr'</em>, <em>save=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.bkg_plot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.bkg_subtract">
+<code class="descname">bkg_subtract</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>errtype='stderr'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.bkg_subtract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subtract calculated background from data.</p>
+<p>Must run bkg_calc first!</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.calibrate">
+<code class="descname">calibrate</code><span class="sig-paren">(</span><em>poly_n=0, analytes=None, drift_correct=False, srm_errors=False, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.calibrate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calibrates the data to measured SRM values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>poly_n</strong> : int</p>
+<blockquote>
+<div><p>Specifies the type of function used to map
+known SRM values to SRM measurements.
+0: A linear function, forced through 0.
+1 or more: An nth order polynomial.</p>
+</div></blockquote>
+<p><strong>focus</strong> : str</p>
+<blockquote>
+<div><p>The <cite>focus</cite> stage of the data used to calculating the
+ratios.</p>
+</div></blockquote>
+<p><strong>srmfile</strong> : str or None</p>
+<blockquote>
+<div><p>Path the the file containing the known SRM values.
+If None, the default file specified in the <cite>latools.cfg</cite>
+is used. Refer to the documentation for more information
+on the srmfile format.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.calibration_plot">
+<code class="descname">calibration_plot</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>datarange=True</em>, <em>loglog=False</em>, <em>save=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.calibration_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the calibration lines between measured and known SRM values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>datarange</strong> : boolean</p>
+<blockquote>
+<div><p>Whether or not to show the distribution of the measured data
+alongside the calibration curve.</p>
+</div></blockquote>
+<p><strong>loglog</strong> : boolean</p>
+<blockquote>
+<div><p>Whether or not to plot the data on a log - log scale. This is
+useful if you have two low standards very close together,
+and want to check whether your data are between them, or
+below them.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(fig, axes)</p>
+<blockquote class="last">
+<div><p>matplotlib objects</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.crossplot">
+<code class="descname">crossplot</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>lognorm=True</em>, <em>bins=25</em>, <em>filt=False</em>, <em>samples=None</em>, <em>subset=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.crossplot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot analytes against each other as 2D histograms.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>lognorm</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to log normalise the colour scale
+of the 2D histogram.</p>
+</div></blockquote>
+<p><strong>bins</strong> : int</p>
+<blockquote>
+<div><p>The number of bins in the 2D histogram.</p>
+</div></blockquote>
+<p><strong>filt</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.crossplot_filters">
+<code class="descname">crossplot_filters</code><span class="sig-paren">(</span><em>filter_string</em>, <em>analytes=None</em>, <em>samples=None</em>, <em>subset=None</em>, <em>filt=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.crossplot_filters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the results of a group of filters in a crossplot.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filter_string</strong> : str</p>
+<blockquote>
+<div><p>A string that identifies a group of filters.
+e.g. &#8216;test&#8217; would plot all filters with &#8216;test&#8217; in the
+name.</p>
+</div></blockquote>
+<p><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">fig, axes objects</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.despike">
+<code class="descname">despike</code><span class="sig-paren">(</span><em>expdecay_despiker=True</em>, <em>exponent=None</em>, <em>tstep=None</em>, <em>noise_despiker=True</em>, <em>win=3</em>, <em>nlim=12.0</em>, <em>exponentplot=False</em>, <em>autorange_kwargs={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.despike" title="Permalink to this definition">¶</a></dt>
+<dd><p>Despikes data with exponential decay and noise filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>expdecay_despiker</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply the exponential decay filter.</p>
+</div></blockquote>
+<p><strong>exponent</strong> : None or float</p>
+<blockquote>
+<div><p>The exponent for the exponential decay filter. If None,
+it is determined automatically using <cite>find_expocoef</cite>.</p>
+</div></blockquote>
+<p><strong>tstep</strong> : None or float</p>
+<blockquote>
+<div><p>The timeinterval between measurements. If None, it is
+determined automatically from the Time variable.</p>
+</div></blockquote>
+<p><strong>noise_despiker</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply the standard deviation spike filter.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>The rolling window over which the spike filter calculates
+the trace statistics.</p>
+</div></blockquote>
+<p><strong>nlim</strong> : float</p>
+<blockquote>
+<div><p>The number of standard deviations above the rolling mean
+that data are excluded.</p>
+</div></blockquote>
+<p><strong>exponentplot</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to show a plot of the automatically determined
+exponential decay exponent.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.export_traces">
+<code class="descname">export_traces</code><span class="sig-paren">(</span><em>outdir=None</em>, <em>focus_stage=None</em>, <em>analytes=None</em>, <em>samples=None</em>, <em>subset='All_Analyses'</em>, <em>filt=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.export_traces" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to export raw data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>outdir</strong> : str</p>
+<p><strong>focus_stage</strong> : str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>The name of the analysis stage desired:</dt>
+<dd><p class="first">&#8216;rawdata&#8217;: raw data, loaded from csv file.
+&#8216;despiked&#8217;: despiked data.
+&#8216;signal&#8217;/&#8217;background&#8217;: isolated signal and background data.</p>
+<blockquote>
+<div><p>Created by self.separate, after signal and background
+regions have been identified by self.autorange.</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>&#8216;bkgsub&#8217;: background subtracted data, created by</dt>
+<dd><p class="first last">self.bkg_correct</p>
+</dd>
+</dl>
+<p>&#8216;ratios&#8217;: element ratio data, created by self.ratio.
+&#8216;calibrated&#8217;: ratio data calibrated to standards, created by</p>
+<blockquote class="last">
+<div><p>self.calibrate.</p>
+</div></blockquote>
+</dd>
+</dl>
+<p>Defaults to the most recent stage of analysis.</p>
+</div></blockquote>
+<p><strong>analytes</strong> : str or array - like</p>
+<blockquote>
+<div><p>Either a single analyte, or list of analytes to export.
+Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>samples</strong> : str or array - like</p>
+<blockquote>
+<div><p>Either a single sample name, or list of samples to export.
+Defaults to all samples.</p>
+</div></blockquote>
+<p><strong>filt</strong> : str, dict or bool</p>
+<blockquote class="last">
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_clear">
+<code class="descname">filter_clear</code><span class="sig-paren">(</span><em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clears (deletes) all data filters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_clustering">
+<code class="descname">filter_clustering</code><span class="sig-paren">(</span><em>analytes</em>, <em>filt=False</em>, <em>normalise=True</em>, <em>method='meanshift'</em>, <em>include_time=False</em>, <em>samples=None</em>, <em>sort=True</em>, <em>subset=None</em>, <em>min_data=10</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_clustering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies an n - dimensional clustering filter to the data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : str</p>
+<blockquote>
+<div><p>The analyte(s) that the filter applies to.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+<p><strong>normalise</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to normalise the data to zero mean and unit
+variance. Reccomended if clustering based on more than 1 analyte.
+Uses <cite>sklearn.preprocessing.scale</cite>.</p>
+</div></blockquote>
+<p><strong>method</strong> : str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Which clustering algorithm to use. Can be:</dt>
+<dd><dl class="first docutils">
+<dt>&#8216;meanshift&#8217;: The <cite>sklearn.cluster.MeanShift</cite> algorithm.</dt>
+<dd><p class="first last">Automatically determines number of clusters
+in data based on the <cite>bandwidth</cite> of expected
+variation.</p>
+</dd>
+<dt>&#8216;kmeans&#8217;: The <cite>sklearn.cluster.KMeans</cite> algorithm. Determines</dt>
+<dd><p class="first last">the characteristics of a known number of clusters
+within the data. Must provide <cite>n_clusters</cite> to specify
+the expected number of clusters.</p>
+</dd>
+<dt>&#8216;DBSCAN&#8217;: The <cite>sklearn.cluster.DBSCAN</cite> algorithm. Automatically</dt>
+<dd><p class="first last">determines the number and characteristics of clusters
+within the data based on the &#8216;connectivity&#8217; of the
+data (i.e. how far apart each data point is in a
+multi - dimensional parameter space). Requires you to
+set <cite>eps</cite>, the minimum distance point must be from
+another point to be considered in the same cluster,
+and <cite>min_samples</cite>, the minimum number of points that
+must be within the minimum distance for it to be
+considered a cluster. It may also be run in automatic
+mode by specifying <cite>n_clusters</cite> alongside
+<cite>min_samples</cite>, where eps is decreased until the
+desired number of clusters is obtained.</p>
+</dd>
+</dl>
+<p class="last">For more information on these algorithms, refer to the
+documentation.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>include_time</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to include the Time variable in the clustering
+analysis. Useful if you&#8217;re looking for spatially continuous
+clusters in your data, i.e. this will identify each spot in your
+analysis as an individual cluster.</p>
+</div></blockquote>
+<p><strong>samples</strong> : optional, array_like or None</p>
+<blockquote>
+<div><p>Which samples to apply this filter to. If None, applies to all
+samples.</p>
+</div></blockquote>
+<p><strong>sort</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not you want the cluster labels to
+be sorted by the mean magnitude of the signals
+they are based on (0 = lowest)</p>
+</div></blockquote>
+<p><strong>min_data</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of data points that should be considered by
+the filter. Default = 10.</p>
+</div></blockquote>
+<p><strong>**kwargs</strong></p>
+<blockquote>
+<div><p>Parameters passed to the clustering algorithm specified by
+<cite>method</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_combine">
+<code class="descname">filter_combine</code><span class="sig-paren">(</span><em>name</em>, <em>filt_str</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_combine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make new filter from combination of other filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>The name of the new filter. Should be unique.</p>
+</div></blockquote>
+<p><strong>filt_str</strong> : str</p>
+<blockquote>
+<div><p>A logical combination of partial strings which will create
+the new filter. For example, &#8216;Albelow &amp; Mnbelow&#8217; will combine
+all filters that partially match &#8216;Albelow&#8217; with those that
+partially match &#8216;Mnbelow&#8217; using the &#8216;AND&#8217; logical operator.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_correlation">
+<code class="descname">filter_correlation</code><span class="sig-paren">(</span><em>x_analyte</em>, <em>y_analyte</em>, <em>window=None</em>, <em>r_threshold=0.9</em>, <em>p_threshold=0.05</em>, <em>filt=True</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a correlation filter to the data.</p>
+<p>Calculates a rolling correlation between every <cite>window</cite> points of
+two analytes, and excludes data where their Pearson&#8217;s R value is
+above <cite>r_threshold</cite> and statistically significant.</p>
+<p>Data will be excluded where their absolute R value is greater than
+<cite>r_threshold</cite> AND the p - value associated with the correlation is
+less than <cite>p_threshold</cite>. i.e. only correlations that are statistically
+significant are considered.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>x_analyte, y_analyte</strong> : str</p>
+<blockquote>
+<div><p>The names of the x and y analytes to correlate.</p>
+</div></blockquote>
+<p><strong>window</strong> : int, None</p>
+<blockquote>
+<div><p>The rolling window used when calculating the correlation.</p>
+</div></blockquote>
+<p><strong>r_threshold</strong> : float</p>
+<blockquote>
+<div><p>The correlation index above which to exclude data.
+Note: the absolute pearson R value is considered, so
+negative correlations below -<cite>r_threshold</cite> will also
+be excluded.</p>
+</div></blockquote>
+<p><strong>p_threshold</strong> : float</p>
+<blockquote>
+<div><p>The significant level below which data are excluded.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_distribution">
+<code class="descname">filter_distribution</code><span class="sig-paren">(</span><em>analyte</em>, <em>binwidth='scott'</em>, <em>filt=False</em>, <em>transform=None</em>, <em>samples=None</em>, <em>subset=None</em>, <em>min_data=10</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a distribution filter to the data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>The analyte that the filter applies to.</p>
+</div></blockquote>
+<p><strong>binwidth</strong> : str of float</p>
+<blockquote>
+<div><p>Specify the bin width of the kernel density estimator.
+Passed to <cite>scipy.stats.gaussian_kde</cite>.
+str: The method used to automatically estimate bin width.</p>
+<blockquote>
+<div><p>Can be &#8216;scott&#8217; or &#8216;silverman&#8217;.</p>
+</div></blockquote>
+<p>float: Manually specify the binwidth of the data.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+<p><strong>transform</strong> : str</p>
+<blockquote>
+<div><p>If &#8216;log&#8217;, applies a log transform to the data before calculating
+the distribution.</p>
+</div></blockquote>
+<p><strong>samples</strong> : array_like or None</p>
+<blockquote>
+<div><p>Which samples to apply this filter to. If None, applies to all
+samples.</p>
+</div></blockquote>
+<p><strong>min_data</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of data points that should be considered by
+the filter. Default = 10.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_off">
+<code class="descname">filter_off</code><span class="sig-paren">(</span><em>filt=None</em>, <em>analyte=None</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_off" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns data filters off for particular analytes and samples.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filt</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name, partial name or list of names of filters. Supports
+partial matching. i.e. if &#8216;cluster&#8217; is specified, all
+filters with &#8216;cluster&#8217; in the name are activated.
+Defaults to all filters.</p>
+</div></blockquote>
+<p><strong>analyte</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>samples</strong> : optional, array_like or None</p>
+<blockquote>
+<div><p>Which samples to apply this filter to. If None, applies to all
+samples.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_on">
+<code class="descname">filter_on</code><span class="sig-paren">(</span><em>filt=None</em>, <em>analyte=None</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_on" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns data filters on for particular analytes and samples.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filt</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name, partial name or list of names of filters. Supports
+partial matching. i.e. if &#8216;cluster&#8217; is specified, all
+filters with &#8216;cluster&#8217; in the name are activated.
+Defaults to all filters.</p>
+</div></blockquote>
+<p><strong>analyte</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>samples</strong> : optional, array_like or None</p>
+<blockquote>
+<div><p>Which samples to apply this filter to. If None, applies to all
+samples.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_reports">
+<code class="descname">filter_reports</code><span class="sig-paren">(</span><em>analytes</em>, <em>filt_str='all'</em>, <em>samples=None</em>, <em>outdir=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_reports" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot filter reports for all filters that contain <code class="docutils literal"><span class="pre">filt_str</span></code>
+in the name.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_status">
+<code class="descname">filter_status</code><span class="sig-paren">(</span><em>sample=None</em>, <em>subset=None</em>, <em>stds=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_status" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.filter_threshold">
+<code class="descname">filter_threshold</code><span class="sig-paren">(</span><em>analyte</em>, <em>threshold</em>, <em>filt=False</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.filter_threshold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a threshold filter to the data.</p>
+<p>Generates two filters above and below the threshold value for a
+given analyte.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>The analyte that the filter applies to.</p>
+</div></blockquote>
+<p><strong>threshold</strong> : float</p>
+<blockquote>
+<div><p>The threshold value.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+<p><strong>samples</strong> : array_like or None</p>
+<blockquote>
+<div><p>Which samples to apply this filter to. If None, applies to all
+samples.</p>
+</div></blockquote>
+<p><strong>subset</strong> : str or number</p>
+<blockquote>
+<div><p>The subset of samples (defined by make_subset) you want to apply
+the filter to.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.find_expcoef">
+<code class="descname">find_expcoef</code><span class="sig-paren">(</span><em>nsd_below=0.0</em>, <em>analyte=None</em>, <em>plot=False</em>, <em>trimlim=None</em>, <em>autorange_kwargs={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.find_expcoef" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines exponential decay coefficient for despike filter.</p>
+<p>Fits an exponential decay function to the washout phase of standards
+to determine the washout time of your laser cell. The exponential
+coefficient reported is <cite>nsd_below</cite> standard deviations below the
+fitted exponent, to ensure that no real data is removed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>nsd_below</strong> : float</p>
+<blockquote>
+<div><p>The number of standard deviations to subtract from the fitted
+coefficient when calculating the filter exponent.</p>
+</div></blockquote>
+<p><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>The analyte to consider when determining the coefficient.
+Use high - concentration analyte for best estimates.</p>
+</div></blockquote>
+<p><strong>plot</strong> : bool or str</p>
+<blockquote>
+<div><p>bool: Creates a plot of the fit if True.
+str: Creates a plot, and saves it to the location</p>
+<blockquote>
+<div><p>specified in the str.</p>
+</div></blockquote>
+</div></blockquote>
+<p><strong>trimlim</strong> : float</p>
+<blockquote>
+<div><p>A threshold limit used in determining the start of the
+exponential decay region of the washout. Defaults to half
+the increase in signal over background. If the data in
+the plot don&#8217;t fall on an exponential decay line, change
+this number. Normally you&#8217;ll need to increase it.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.fit_classifier">
+<code class="descname">fit_classifier</code><span class="sig-paren">(</span><em>name</em>, <em>analytes</em>, <em>method</em>, <em>samples=None</em>, <em>subset=None</em>, <em>filt=True</em>, <em>sort_by=0</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.fit_classifier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a clustering classifier based on all samples, or a subset.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>The name of the classifier.</p>
+</div></blockquote>
+<p><strong>analytes</strong> : str or array-like</p>
+<blockquote>
+<div><p>Which analytes the clustering algorithm should consider.</p>
+</div></blockquote>
+<p><strong>method</strong> : str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Which clustering algorithm to use. Can be:</dt>
+<dd><dl class="first last docutils">
+<dt>&#8216;meanshift&#8217;: The <cite>sklearn.cluster.MeanShift</cite> algorithm.</dt>
+<dd><p class="first last">Automatically determines number of clusters
+in data based on the <cite>bandwidth</cite> of expected
+variation.</p>
+</dd>
+<dt>&#8216;kmeans&#8217;: The <cite>sklearn.cluster.KMeans</cite> algorithm. Determines</dt>
+<dd><p class="first last">the characteristics of a known number of clusters
+within the data. Must provide <cite>n_clusters</cite> to specify
+the expected number of clusters.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>samples</strong> : array-like</p>
+<blockquote>
+<div><p>list of samples to consider. Overrides &#8216;subset&#8217;.</p>
+</div></blockquote>
+<p><strong>subset</strong> : str</p>
+<blockquote>
+<div><p>The subset of samples used to fit the classifier. Ignored if
+&#8216;samples&#8217; is specified.</p>
+</div></blockquote>
+<p><strong>sort_by</strong> : int</p>
+<blockquote>
+<div><p>Which analyte the resulting clusters should be sorted
+by - defaults to 0, which is the first analyte.</p>
+</div></blockquote>
+<p><strong>**kwargs :</strong></p>
+<blockquote>
+<div><p>method-specific keyword parameters - see below.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>name</strong> : str</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.get_background">
+<code class="descname">get_background</code><span class="sig-paren">(</span><em>n_min=10</em>, <em>n_max=None</em>, <em>focus_stage='despiked'</em>, <em>filter=False</em>, <em>f_win=5</em>, <em>f_n_lim=3</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.get_background" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract all background data from all samples on universal time scale.
+Used by both &#8216;polynomial&#8217; and &#8216;weightedmean&#8217; methods.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>n_min</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of points a background region must
+have to be included in calculation.</p>
+</div></blockquote>
+<p><strong>n_max</strong> : int</p>
+<blockquote>
+<div><p>The maximum number of points a background region must
+have to be included in calculation.</p>
+</div></blockquote>
+<p><strong>filter</strong> : bool</p>
+<blockquote>
+<div><p>If true, apply a rolling filter to the isolated background regions
+to exclude regions with anomalously high values. If True, two parameters
+alter the filter&#8217;s behaviour:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>f_win <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">The size of the rolling window</p>
+</dd>
+<dt>f_n_lim <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">The number of standard deviations above the rolling mean
+to set the threshold.</p>
+</dd>
+</dl>
+</div></blockquote>
+</div></blockquote>
+<p><strong>Returns</strong></p>
+<p><strong>&#8212;&#8212;-</strong></p>
+<p class="last"><strong>pandas.DataFrame object containing background data.</strong></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.get_focus">
+<code class="descname">get_focus</code><span class="sig-paren">(</span><em>filt=False</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.get_focus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect all data from all samples into a single array.
+Data from standards is not collected.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filt</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+<p><strong>samples</strong> : str or list</p>
+<p><strong>subset</strong> : str or int</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.get_starttimes">
+<code class="descname">get_starttimes</code><span class="sig-paren">(</span><em>time_format=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.get_starttimes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.getstats">
+<code class="descname">getstats</code><span class="sig-paren">(</span><em>save=True</em>, <em>filename=None</em>, <em>samples=None</em>, <em>subset=None</em>, <em>ablation_time=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.getstats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return pandas dataframe of all sample statistics.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.make_subset">
+<code class="descname">make_subset</code><span class="sig-paren">(</span><em>samples=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.make_subset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a subset of samples, which can be treated independently.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>samples</strong> : str or array - like</p>
+<blockquote>
+<div><p>Name of sample, or list of sample names.</p>
+</div></blockquote>
+<p><strong>name</strong> : (optional) str or number</p>
+<blockquote class="last">
+<div><p>The name of the sample group. Defaults to n + 1, where n is
+the highest existing group number</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.minimal_export">
+<code class="descname">minimal_export</code><span class="sig-paren">(</span><em>target_analytes=None</em>, <em>override=False</em>, <em>path=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.minimal_export" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exports a analysis parameters, standard info and a minimal dataset,
+which can be imported by another user.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.ratio">
+<code class="descname">ratio</code><span class="sig-paren">(</span><em>internal_standard=None</em>, <em>focus='bkgsub'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the ratio of all analytes to a single analyte.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>internal_standard</strong> : str</p>
+<blockquote>
+<div><p>The name of the analyte to divide all other analytes
+by.</p>
+</div></blockquote>
+<p><strong>focus</strong> : str</p>
+<blockquote>
+<div><p>The <cite>focus</cite> stage of the data used to calculating the
+ratios.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.sample_stats">
+<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None, filt=True, stats=['mean', 'std'], eachtrace=True, csf_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.sample_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate sample statistics.</p>
+<p>Returns samples, analytes, and arrays of statistics
+of shape (samples, analytes). Statistics are calculated
+from the &#8216;focus&#8217; data variable, so output depends on how
+the data have been processed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to calculate statistics for. Defaults to
+all analytes.</p>
+</div></blockquote>
+<p><strong>filt</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+<p><strong>stats</strong> : array_like</p>
+<blockquote>
+<div><p>list of functions or names of functions that take a single
+array_like input, and return a single statistic. Function
+should be able to cope with NaN values. Built-in functions:</p>
+<blockquote>
+<div><p>&#8216;mean&#8217;: arithmetic mean
+&#8216;std&#8217;: arithmetic standard deviation
+&#8216;se&#8217;: arithmetic standard error
+&#8216;H15_mean&#8217;: Huber mean (outlier removal)
+&#8216;H15_std&#8217;: Huber standard deviation (outlier removal)
+&#8216;H15_se&#8217;: Huber standard error (outlier removal)</p>
+</div></blockquote>
+</div></blockquote>
+<p><strong>eachtrace</strong> : bool</p>
+<blockquote>
+<div><p>Whether to calculate the statistics for each analysis
+spot individually, or to produce per - sample means.
+Default is True.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None</p>
+<blockquote class="last">
+<div><p>Adds dict to analyse object containing samples, analytes and
+functions and data.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.set_focus">
+<code class="descname">set_focus</code><span class="sig-paren">(</span><em>focus_stage=None</em>, <em>samples=None</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.set_focus" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.srm_id_auto">
+<code class="descname">srm_id_auto</code><span class="sig-paren">(</span><em>srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.srm_id_auto" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.statplot">
+<code class="descname">statplot</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>samples=None</em>, <em>figsize=None</em>, <em>stat='nanmean'</em>, <em>err='nanstd'</em>, <em>subset=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.statplot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.trace_plots">
+<code class="descname">trace_plots</code><span class="sig-paren">(</span><em>analytes=None, samples=None, ranges=False, focus=None, outdir=None, filt=None, scale='log', figsize=[10, 4], stats=False, stat='nanmean', err='nanstd', subset='All_Analyses'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.trace_plots" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot analytes as a function of time.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>samples: optional, array_like or str</strong></p>
+<blockquote>
+<div><p>The sample(s) to plot. Defaults to all samples.</p>
+</div></blockquote>
+<p><strong>ranges</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to show the signal/backgroudn regions
+identified by &#8216;autorange&#8217;.</p>
+</div></blockquote>
+<p><strong>focus</strong> : str</p>
+<blockquote>
+<div><p>The focus &#8216;stage&#8217; of the analysis to plot. Can be
+&#8216;rawdata&#8217;, &#8216;despiked&#8217;:, &#8216;signal&#8217;, &#8216;background&#8217;,
+&#8216;bkgsub&#8217;, &#8216;ratios&#8217; or &#8216;calibrated&#8217;.</p>
+</div></blockquote>
+<p><strong>outdir</strong> : str</p>
+<blockquote>
+<div><p>Path to a directory where you&#8217;d like the plots to be
+saved. Defaults to &#8216;reports/[focus]&#8217; in your data directory.</p>
+</div></blockquote>
+<p><strong>filt</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+<p><strong>scale</strong> : str</p>
+<blockquote>
+<div><p>If &#8216;log&#8217;, plots the data on a log scale.</p>
+</div></blockquote>
+<p><strong>figsize</strong> : array_like</p>
+<blockquote>
+<div><p>Array of length 2 specifying figure [width, height] in
+inches.</p>
+</div></blockquote>
+<p><strong>stats</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to overlay the mean and standard deviations
+for each trace.</p>
+</div></blockquote>
+<p><strong>stat, err: str</strong></p>
+<blockquote>
+<div><p>The names of the statistic and error components to plot.
+Deafaults to &#8216;nanmean&#8217; and &#8216;nanstd&#8217;.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.analyse.zeroscreen">
+<code class="descname">zeroscreen</code><span class="sig-paren">(</span><em>focus_stage=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.analyse.zeroscreen" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove all points containing data below zero (impossible)</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="latools-d">
+<h2><a class="reference internal" href="#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a><a class="headerlink" href="#latools-d" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="latools.D">
+<em class="property">class </em><code class="descclassname">latools.</code><code class="descname">D</code><span class="sig-paren">(</span><em>data_file</em>, <em>dataformat=None</em>, <em>errorhunt=False</em>, <em>cmap=None</em>, <em>internal_standard='Ca43'</em>, <em>name='file_names'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Container for data from a single laser ablation analysis.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data_file</strong> : str</p>
+<blockquote>
+<div><p>The path to a data file.</p>
+</div></blockquote>
+<p><strong>errorhunt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to print each data file name before
+import. This is useful for tracing which data file
+is causing the import to fail.</p>
+</div></blockquote>
+<p><strong>dataformat</strong> : str or dict</p>
+<blockquote class="last">
+<div><p>Either a path to a data format file, or a
+dataformat dict. See documentation for more details.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="6%" />
+<col width="94%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>sample</td>
+<td>(str) Sample name.</td>
+</tr>
+<tr class="row-even"><td>meta</td>
+<td>(dict) Metadata extracted from the csv header. Contents varies, depending on your <cite>dataformat</cite>.</td>
+</tr>
+<tr class="row-odd"><td>analytes</td>
+<td>(array_like) A list of analytes measured.</td>
+</tr>
+<tr class="row-even"><td>data</td>
+<td>(dict) A dictionary containing the raw data, and modified data from each processing stage. Entries can be: rawdata: created during initialisation. despiked: created by <cite>despike</cite> signal: created by <cite>autorange</cite> background: created by <cite>autorange</cite> bkgsub: created by <cite>bkg_correct</cite> ratios: created by <cite>ratio</cite> calibrated: created by <cite>calibrate</cite></td>
+</tr>
+<tr class="row-odd"><td>focus</td>
+<td>(dict) A dictionary containing one item from <cite>data</cite>. This is the currently &#8216;active&#8217; data that processing functions will work on. This data is also directly available as class attributes with the same names as the items in <cite>focus</cite>.</td>
+</tr>
+<tr class="row-even"><td>focus_stage</td>
+<td>(str) Identifies which item in <cite>data</cite> is currently assigned to <cite>focus</cite>.</td>
+</tr>
+<tr class="row-odd"><td>cmap</td>
+<td>(dict) A dictionary containing hex colour strings corresponding to each measured analyte.</td>
+</tr>
+<tr class="row-even"><td>bkg, sig, trn</td>
+<td>(array_like, bool) Boolean arrays identifying signal, background and transition regions. Created by <cite>autorange</cite>.</td>
+</tr>
+<tr class="row-odd"><td>bkgrng, sigrng, trnrng</td>
+<td>(array_like) An array of shape (n, 2) containing pairs of values that describe the Time limits of background, signal and transition regions.</td>
+</tr>
+<tr class="row-even"><td>ns</td>
+<td>(array_like) An integer array the same length as the data, where each analysis spot is labelled with a unique number. Used for separating analysys spots when calculating sample statistics.</td>
+</tr>
+<tr class="row-odd"><td>filt</td>
+<td>(filt object) An object for storing, selecting and creating data filters.</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.ablation_times" title="latools.D.ablation_times"><code class="xref py py-obj docutils literal"><span class="pre">ablation_times</span></code></a>()</td>
+<td>Function for calculating the ablation time for each ablation.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.autorange" title="latools.D.autorange"><code class="xref py py-obj docutils literal"><span class="pre">autorange</span></code></a>([analyte,&nbsp;gwin,&nbsp;win,&nbsp;smwin,&nbsp;conf,&nbsp;...])</td>
+<td>Automatically separates signal and background data regions.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.bkg_subtract" title="latools.D.bkg_subtract"><code class="xref py py-obj docutils literal"><span class="pre">bkg_subtract</span></code></a>(analyte,&nbsp;bkg[,&nbsp;ind])</td>
+<td>Subtract provided background from signal (focus stage).</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.calibrate" title="latools.D.calibrate"><code class="xref py py-obj docutils literal"><span class="pre">calibrate</span></code></a>(calib_fns,&nbsp;calib_params[,&nbsp;...])</td>
+<td>Apply calibration to data.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.cluster_DBSCAN" title="latools.D.cluster_DBSCAN"><code class="xref py py-obj docutils literal"><span class="pre">cluster_DBSCAN</span></code></a>(data[,&nbsp;eps,&nbsp;min_samples,&nbsp;...])</td>
+<td>Identify clusters using DBSCAN algorithm.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.cluster_kmeans" title="latools.D.cluster_kmeans"><code class="xref py py-obj docutils literal"><span class="pre">cluster_kmeans</span></code></a>(data,&nbsp;n_clusters)</td>
+<td>Identify clusters using K - Means algorithm.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.cluster_meanshift" title="latools.D.cluster_meanshift"><code class="xref py py-obj docutils literal"><span class="pre">cluster_meanshift</span></code></a>(data[,&nbsp;bandwidth,&nbsp;bin_seeding])</td>
+<td>Identify clusters using Meanshift algorithm.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.crossplot" title="latools.D.crossplot"><code class="xref py py-obj docutils literal"><span class="pre">crossplot</span></code></a>([analytes,&nbsp;bins,&nbsp;lognorm,&nbsp;filt])</td>
+<td>Plot analytes against each other.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.despike" title="latools.D.despike"><code class="xref py py-obj docutils literal"><span class="pre">despike</span></code></a>([expdecay_despiker,&nbsp;exponent,&nbsp;...])</td>
+<td>Applies expdecay_despiker and noise_despiker to data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-obj docutils literal"><span class="pre">expdecay_despiker</span></code></a>([exponent,&nbsp;tstep])</td>
+<td>Apply exponential decay filter to remove unrealistically low values.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.filt_report" title="latools.D.filt_report"><code class="xref py py-obj docutils literal"><span class="pre">filt_report</span></code></a>([filt,&nbsp;analytes,&nbsp;savedir])</td>
+<td>Visualise effect of data filters.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.filter_clustering" title="latools.D.filter_clustering"><code class="xref py py-obj docutils literal"><span class="pre">filter_clustering</span></code></a>(analytes[,&nbsp;filt,&nbsp;...])</td>
+<td>Applies an n - dimensional clustering filter to the data.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.filter_correlation" title="latools.D.filter_correlation"><code class="xref py py-obj docutils literal"><span class="pre">filter_correlation</span></code></a>(x_analyte,&nbsp;y_analyte[,&nbsp;...])</td>
+<td>Apply correlation filter.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.filter_distribution" title="latools.D.filter_distribution"><code class="xref py py-obj docutils literal"><span class="pre">filter_distribution</span></code></a>(analytes[,&nbsp;binwidth,&nbsp;...])</td>
+<td>Apply a Distribution Filter</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.filter_threshold" title="latools.D.filter_threshold"><code class="xref py py-obj docutils literal"><span class="pre">filter_threshold</span></code></a>(analyte,&nbsp;threshold[,&nbsp;filt])</td>
+<td>Apply threshold filter.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.findmins" title="latools.D.findmins"><code class="xref py py-obj docutils literal"><span class="pre">findmins</span></code></a>(x,&nbsp;y)</td>
+<td>Function to find local minima.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.get_params" title="latools.D.get_params"><code class="xref py py-obj docutils literal"><span class="pre">get_params</span></code></a>()</td>
+<td>Returns paramters used to process data.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.mkrngs" title="latools.D.mkrngs"><code class="xref py py-obj docutils literal"><span class="pre">mkrngs</span></code></a>()</td>
+<td>Transform boolean arrays into list of limit pairs.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.noise_despiker" title="latools.D.noise_despiker"><code class="xref py py-obj docutils literal"><span class="pre">noise_despiker</span></code></a>([win,&nbsp;nlim])</td>
+<td>Apply standard deviation filter to remove anomalous high values.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.ratio" title="latools.D.ratio"><code class="xref py py-obj docutils literal"><span class="pre">ratio</span></code></a>([internal_standard,&nbsp;focus])</td>
+<td>Divide all analytes by a specified internal_standard analyte.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.sample_stats" title="latools.D.sample_stats"><code class="xref py py-obj docutils literal"><span class="pre">sample_stats</span></code></a>([analytes,&nbsp;filt,&nbsp;stat_fns,&nbsp;...])</td>
+<td>TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.D.setfocus" title="latools.D.setfocus"><code class="xref py py-obj docutils literal"><span class="pre">setfocus</span></code></a>(focus)</td>
+<td>Set the &#8216;focus&#8217; attribute of the data file.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.D.tplot" title="latools.D.tplot"><code class="xref py py-obj docutils literal"><span class="pre">tplot</span></code></a>([analytes,&nbsp;figsize,&nbsp;scale,&nbsp;filt,&nbsp;...])</td>
+<td>Plot analytes as a function of Time.</td>
+</tr>
+</tbody>
+</table>
+<table border="1" class="docutils">
+<colgroup>
+<col width="55%" />
+<col width="45%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>drift_params</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="latools.D.ablation_times">
+<code class="descname">ablation_times</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.ablation_times" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function for calculating the ablation time for each
+ablation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">dict of times for each ablation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.autorange">
+<code class="descname">autorange</code><span class="sig-paren">(</span><em>analyte=None, gwin=11, win=40, smwin=5, conf=0.01, on_mult=[1.0, 1.0], off_mult=None, d_mult=1.2, transform='log', bkg_thresh=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.autorange" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div>Automatically separates signal and background data regions.</div></blockquote>
+<p>Automatically detect signal and background regions in the laser
+data, based on the behaviour of a single analyte. The analyte used
+should be abundant and homogenous in the sample.</p>
+<p>Step 1: Thresholding
+The background signal is determined using a gaussian kernel density
+estimator (kde) of all the data. Under normal circumstances, this
+kde should find two distinct data distributions, corresponding to
+&#8216;signal&#8217; and &#8216;background&#8217;. The minima between these two distributions
+is taken as a rough threshold to identify signal and background
+regions. Any point where the trace crosses this thrshold is identified
+as a &#8216;transition&#8217;.</p>
+<p>Step 2: Transition Removal
+The width of the transition regions between signal and background are
+then determined, and the transitions are excluded from analysis. The
+width of the transitions is determined by fitting a gaussian to the
+smoothed first derivative of the analyte trace, and determining its
+width at a point where the gaussian intensity is at at <cite>conf</cite> time the
+gaussian maximum. These gaussians are fit to subsets of the data
+centered around the transitions regions determined in Step 1, +/- <cite>win</cite>
+data points. The peak is further isolated by finding the minima and
+maxima of a second derivative within this window, and the gaussian is
+fit to the isolated peak.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>The analyte that autorange should consider. For best results,
+choose an analyte that is present homogeneously in high
+concentrations.</p>
+</div></blockquote>
+<p><strong>gwin</strong> : int</p>
+<blockquote>
+<div><p>The smoothing window used for calculating the first derivative.
+Must be odd.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>Determines the width (c +/- win) of the transition data subsets.</p>
+</div></blockquote>
+<p><strong>smwin</strong> : int</p>
+<blockquote>
+<div><p>The smoothing window used for calculating the second derivative.
+Must be odd.</p>
+</div></blockquote>
+<p><strong>on_mult and off_mult</strong> : tuple, len=2</p>
+<blockquote>
+<div><p>Factors to control the width of the excluded transition regions.
+A region n times the full - width - half - maximum of the transition
+gradient will be removed either side of the transition center.
+<cite>on_mult</cite> and <cite>off_mult</cite> refer to the laser - on and laser - off
+transitions, respectively. See manual for full explanation.
+Defaults to (1.5, 1) and (1, 1.5).</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.bkg_subtract">
+<code class="descname">bkg_subtract</code><span class="sig-paren">(</span><em>analyte</em>, <em>bkg</em>, <em>ind=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.bkg_subtract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subtract provided background from signal (focus stage).</p>
+<p>Results is saved in new &#8216;bkgsub&#8217; focus stage</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.calibrate">
+<code class="descname">calibrate</code><span class="sig-paren">(</span><em>calib_fns</em>, <em>calib_params</em>, <em>analytes=None</em>, <em>drift_correct=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.calibrate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply calibration to data.</p>
+<p>The <cite>calib_dict</cite> must be calculated at the <cite>analyse</cite> level,
+and passed to this calibrate function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>calib_dict</strong> : dict</p>
+<blockquote>
+<div><p>A dict of calibration values to apply to each analyte.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.cluster_DBSCAN">
+<code class="descname">cluster_DBSCAN</code><span class="sig-paren">(</span><em>data</em>, <em>eps=None</em>, <em>min_samples=None</em>, <em>n_clusters=None</em>, <em>maxiter=200</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.cluster_DBSCAN" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identify clusters using DBSCAN algorithm.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data</strong> : array_like</p>
+<blockquote>
+<div><p>array of size [n_samples, n_features].</p>
+</div></blockquote>
+<p><strong>eps</strong> : float</p>
+<blockquote>
+<div><p>The minimum &#8216;distance&#8217; points must be apart for them to be in the
+same cluster. Defaults to 0.3. Note: If the data are normalised
+(they should be for DBSCAN) this is in terms of total sample
+variance.  Normalised data have a mean of 0 and a variance of 1.</p>
+</div></blockquote>
+<p><strong>min_samples</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of samples within distance <cite>eps</cite> required
+to be considered as an independent cluster.</p>
+</div></blockquote>
+<p><strong>n_clusters</strong> : int</p>
+<blockquote>
+<div><p>The number of clusters expected. If specified, <cite>eps</cite> will be
+incrementally reduced until the expected number of clusters is
+found.</p>
+</div></blockquote>
+<p><strong>maxiter</strong> : int</p>
+<blockquote>
+<div><p>The maximum number of iterations DBSCAN will run.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dict</p>
+<blockquote class="last">
+<div><p>boolean array for each identified cluster and core samples.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.cluster_kmeans">
+<code class="descname">cluster_kmeans</code><span class="sig-paren">(</span><em>data</em>, <em>n_clusters</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.cluster_kmeans" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identify clusters using K - Means algorithm.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data</strong> : array_like</p>
+<blockquote>
+<div><p>array of size [n_samples, n_features].</p>
+</div></blockquote>
+<p><strong>n_clusters</strong> : int</p>
+<blockquote>
+<div><p>The number of clusters expected in the data.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dict</p>
+<blockquote class="last">
+<div><p>boolean array for each identified cluster.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.cluster_meanshift">
+<code class="descname">cluster_meanshift</code><span class="sig-paren">(</span><em>data</em>, <em>bandwidth=None</em>, <em>bin_seeding=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.cluster_meanshift" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identify clusters using Meanshift algorithm.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data</strong> : array_like</p>
+<blockquote>
+<div><p>array of size [n_samples, n_features].</p>
+</div></blockquote>
+<p><strong>bandwidth</strong> : float or None</p>
+<blockquote>
+<div><p>If None, bandwidth is estimated automatically using
+sklean.cluster.estimate_bandwidth</p>
+</div></blockquote>
+<p><strong>bin_seeding</strong> : bool</p>
+<blockquote>
+<div><p>Setting this option to True will speed up the algorithm.
+See sklearn documentation for full description.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dict</p>
+<blockquote class="last">
+<div><p>boolean array for each identified cluster.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.crossplot">
+<code class="descname">crossplot</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>bins=25</em>, <em>lognorm=True</em>, <em>filt=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.crossplot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot analytes against each other.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>lognorm</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to log normalise the colour scale
+of the 2D histogram.</p>
+</div></blockquote>
+<p><strong>bins</strong> : int</p>
+<blockquote>
+<div><p>The number of bins in the 2D histogram.</p>
+</div></blockquote>
+<p><strong>filt</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>Either logical filter expression contained in a str,
+a dict of expressions specifying the filter string to
+use for each analyte or a boolean. Passed to <cite>grab_filt</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(fig, axes)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.crossplot_filters">
+<code class="descname">crossplot_filters</code><span class="sig-paren">(</span><em>filter_string</em>, <em>analytes=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.crossplot_filters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the results of a group of filters in a crossplot.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filter_string</strong> : str</p>
+<blockquote>
+<div><p>A string that identifies a group of filters.
+e.g. &#8216;test&#8217; would plot all filters with &#8216;test&#8217; in the
+name.</p>
+</div></blockquote>
+<p><strong>analytes</strong> : optional, array_like or str</p>
+<blockquote>
+<div><p>The analyte(s) to plot. Defaults to all analytes.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">fig, axes objects</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.despike">
+<code class="descname">despike</code><span class="sig-paren">(</span><em>expdecay_despiker=True</em>, <em>exponent=None</em>, <em>tstep=None</em>, <em>noise_despiker=True</em>, <em>win=3</em>, <em>nlim=12.0</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.despike" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies expdecay_despiker and noise_despiker to data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>expdecay_despiker</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply the exponential decay filter.</p>
+</div></blockquote>
+<p><strong>exponent</strong> : None or float</p>
+<blockquote>
+<div><p>The exponent for the exponential decay filter. If None,
+it is determined automatically using <cite>find_expocoef</cite>.</p>
+</div></blockquote>
+<p><strong>tstep</strong> : None or float</p>
+<blockquote>
+<div><p>The timeinterval between measurements. If None, it is
+determined automatically from the Time variable.</p>
+</div></blockquote>
+<p><strong>noise_despiker</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply the standard deviation spike filter.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>The rolling window over which the spike filter calculates
+the trace statistics.</p>
+</div></blockquote>
+<p><strong>nlim</strong> : float</p>
+<blockquote>
+<div><p>The number of standard deviations above the rolling mean
+that data are excluded.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.drift_params">
+<code class="descname">drift_params</code><span class="sig-paren">(</span><em>pout</em>, <em>a</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.drift_params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="latools.D.expdecay_despiker">
+<code class="descname">expdecay_despiker</code><span class="sig-paren">(</span><em>exponent=None</em>, <em>tstep=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.expdecay_despiker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply exponential decay filter to remove unrealistically low values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>exponent</strong> : float</p>
+<blockquote>
+<div><p>Expinent used in filter</p>
+</div></blockquote>
+<p><strong>tstep</strong> : float</p>
+<blockquote>
+<div><p>The time increment between data points.
+Calculated from Time variable if None.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filt_report">
+<code class="descname">filt_report</code><span class="sig-paren">(</span><em>filt=None</em>, <em>analytes=None</em>, <em>savedir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filt_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Visualise effect of data filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>filt</strong> : str</p>
+<blockquote>
+<div><p>Exact or partial name of filter to plot. Supports
+partial matching. i.e. if &#8216;cluster&#8217; is specified, all
+filters with &#8216;cluster&#8217; in the name will be plotted.
+Defaults to all filters.</p>
+</div></blockquote>
+<p><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>Name of analyte to plot.</p>
+</div></blockquote>
+<p><strong>save</strong> : str</p>
+<blockquote>
+<div><p>file path to save the plot</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(fig, axes)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filter_clustering">
+<code class="descname">filter_clustering</code><span class="sig-paren">(</span><em>analytes</em>, <em>filt=False</em>, <em>normalise=True</em>, <em>method='meanshift'</em>, <em>include_time=False</em>, <em>sort=None</em>, <em>min_data=10</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filter_clustering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies an n - dimensional clustering filter to the data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : str</p>
+<blockquote>
+<div><p>The analyte(s) that the filter applies to.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+<p><strong>normalise</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to normalise the data to zero mean and unit
+variance. Reccomended if clustering based on more than 1 analyte.
+Uses <cite>sklearn.preprocessing.scale</cite>.</p>
+</div></blockquote>
+<p><strong>method</strong> : str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Which clustering algorithm to use. Can be:</dt>
+<dd><dl class="first docutils">
+<dt>&#8216;meanshift&#8217;: The <cite>sklearn.cluster.MeanShift</cite> algorithm.</dt>
+<dd><p class="first last">Automatically determines number of clusters
+in data based on the <cite>bandwidth</cite> of expected
+variation.</p>
+</dd>
+<dt>&#8216;kmeans&#8217;: The <cite>sklearn.cluster.KMeans</cite> algorithm. Determines</dt>
+<dd><p class="first last">the characteristics of a known number of clusters
+within the data. Must provide <cite>n_clusters</cite> to specify
+the expected number of clusters.</p>
+</dd>
+<dt>&#8216;DBSCAN&#8217;: The <cite>sklearn.cluster.DBSCAN</cite> algorithm. Automatically</dt>
+<dd><p class="first last">determines the number and characteristics of clusters
+within the data based on the &#8216;connectivity&#8217; of the
+data (i.e. how far apart each data point is in a
+multi - dimensional parameter space). Requires you to
+set <cite>eps</cite>, the minimum distance point must be from
+another point to be considered in the same cluster,
+and <cite>min_samples</cite>, the minimum number of points that
+must be within the minimum distance for it to be
+considered a cluster. It may also be run in automatic
+mode by specifying <cite>n_clusters</cite> alongside
+<cite>min_samples</cite>, where eps is decreased until the
+desired number of clusters is obtained.</p>
+</dd>
+</dl>
+<p class="last">For more information on these algorithms, refer to the
+documentation.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>include_time</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to include the Time variable in the clustering
+analysis. Useful if you&#8217;re looking for spatially continuous
+clusters in your data, i.e. this will identify each spot in your
+analysis as an individual cluster.</p>
+</div></blockquote>
+<p><strong>sort</strong> : bool, str or array-like</p>
+<blockquote>
+<div><p>Whether or not to label the resulting clusters according to their
+contents. If used, the cluster with the lowest values will be
+labelled from 0, in order of increasing cluster mean value.analytes</p>
+<blockquote>
+<div><p>True: Sort by all analytes used to generate the cluster.
+str: Sort by a single specified analyte
+array-like: Sort by a number of specified analytes.</p>
+</div></blockquote>
+</div></blockquote>
+<p><strong>min_data</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of data points that should be considered by
+the filter. Default = 10.</p>
+</div></blockquote>
+<p><strong>**kwargs</strong></p>
+<blockquote>
+<div><p>Parameters passed to the clustering algorithm specified by
+<cite>method</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filter_correlation">
+<code class="descname">filter_correlation</code><span class="sig-paren">(</span><em>x_analyte</em>, <em>y_analyte</em>, <em>window=None</em>, <em>r_threshold=0.9</em>, <em>p_threshold=0.05</em>, <em>filt=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filter_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply correlation filter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>x_analyte, y_analyte</strong> : str</p>
+<blockquote>
+<div><p>The names of the x and y analytes to correlate.</p>
+</div></blockquote>
+<p><strong>window</strong> : int, None</p>
+<blockquote>
+<div><p>The rolling window used when calculating the correlation.</p>
+</div></blockquote>
+<p><strong>r_threshold</strong> : float</p>
+<blockquote>
+<div><p>The correlation index above which to exclude data.
+Note: the absolute pearson R value is considered, so
+negative correlations below -<cite>r_threshold</cite> will also
+be excluded.</p>
+</div></blockquote>
+<p><strong>p_threshold</strong> : float</p>
+<blockquote>
+<div><p>The significant level below which data are excluded.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filter_distribution">
+<code class="descname">filter_distribution</code><span class="sig-paren">(</span><em>analytes</em>, <em>binwidth='scott'</em>, <em>filt=False</em>, <em>transform=None</em>, <em>min_data=10</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filter_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a Distribution Filter</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : str or list</p>
+<blockquote>
+<div><p>The analyte that the filter applies to.</p>
+</div></blockquote>
+<p><strong>binwidth</strong> : str of float</p>
+<blockquote>
+<div><p>Specify the bin width of the kernel density estimator.
+Passed to <cite>scipy.stats.gaussian_kde</cite>.
+str: The method used to automatically estimate bin width.</p>
+<blockquote>
+<div><p>Can be &#8216;scott&#8217; or &#8216;silverman&#8217;.</p>
+</div></blockquote>
+<p>float: Manually specify the binwidth of the data.</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to apply existing filters to the data before
+calculating this filter.</p>
+</div></blockquote>
+<p><strong>transform</strong> : str</p>
+<blockquote>
+<div><p>If &#8216;log&#8217;, applies a log transform to the data before calculating
+the distribution.</p>
+</div></blockquote>
+<p><strong>min_data</strong> : int</p>
+<blockquote>
+<div><p>The minimum number of data points that should be considered by
+the filter. Default = 10.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filter_new">
+<code class="descname">filter_new</code><span class="sig-paren">(</span><em>name</em>, <em>filt_str</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filter_new" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make new filter from combination of other filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>The name of the new filter. Should be unique.</p>
+</div></blockquote>
+<p><strong>filt_str</strong> : str</p>
+<blockquote>
+<div><p>A logical combination of partial strings which will create
+the new filter. For example, &#8216;Albelow &amp; Mnbelow&#8217; will combine
+all filters that partially match &#8216;Albelow&#8217; with those that
+partially match &#8216;Mnbelow&#8217; using the &#8216;AND&#8217; logical operator.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.filter_threshold">
+<code class="descname">filter_threshold</code><span class="sig-paren">(</span><em>analyte</em>, <em>threshold</em>, <em>filt=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.filter_threshold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply threshold filter.</p>
+<p>Generates threshold filters for the given analytes above and below
+the specified threshold.</p>
+<dl class="docutils">
+<dt>Two filters are created with prefixes &#8216;_above&#8217; and &#8216;_below&#8217;.</dt>
+<dd>&#8216;_above&#8217; keeps all the data above the threshold.
+&#8216;_below&#8217; keeps all the data below the threshold.</dd>
+</dl>
+<p>i.e. to select data below the threshold value, you should turn the
+&#8216;_above&#8217; filter off.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : TYPE</p>
+<blockquote>
+<div><p>Description of <cite>analyte</cite>.</p>
+</div></blockquote>
+<p><strong>threshold</strong> : TYPE</p>
+<blockquote>
+<div><p>Description of <cite>threshold</cite>.</p>
+</div></blockquote>
+<p><strong>filt</strong> : TYPE</p>
+<blockquote>
+<div><p>Description of <cite>filt</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.findmins">
+<code class="descname">findmins</code><span class="sig-paren">(</span><em>x</em>, <em>y</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.findmins" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to find local minima.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>x, y</strong> : array_like</p>
+<blockquote>
+<div><p>1D arrays of the independent (x) and dependent (y) variables.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>Array of points in x where y has a local minimum.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.get_params">
+<code class="descname">get_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.get_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns paramters used to process data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dict</p>
+<blockquote class="last">
+<div><p>dict of analysis parameters</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.mkrngs">
+<code class="descname">mkrngs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.mkrngs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform boolean arrays into list of limit pairs.</p>
+<p>Gets Time limits of signal/background boolean arrays and stores them as
+sigrng and bkgrng arrays. These arrays can be saved by &#8216;save_ranges&#8217; in
+the analyse object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.noise_despiker">
+<code class="descname">noise_despiker</code><span class="sig-paren">(</span><em>win=3</em>, <em>nlim=12.0</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.noise_despiker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply standard deviation filter to remove anomalous high values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>win</strong> : int</p>
+<blockquote>
+<div><p>The window used to calculate rolling statistics.</p>
+</div></blockquote>
+<p><strong>nlim</strong> : float</p>
+<blockquote>
+<div><p>The number of standard deviations above the rolling
+mean above which data are considered outliers.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.ratio">
+<code class="descname">ratio</code><span class="sig-paren">(</span><em>internal_standard=None</em>, <em>focus='bkgsub'</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Divide all analytes by a specified internal_standard analyte.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>internal_standard</strong> : str</p>
+<blockquote>
+<div><p>The analyte used as the internal_standard.</p>
+</div></blockquote>
+<p><strong>focus</strong> : str</p>
+<blockquote>
+<div><p>The analysis stage to perform the ratio calculation on.
+Defaults to &#8216;signal&#8217;.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.sample_stats">
+<code class="descname">sample_stats</code><span class="sig-paren">(</span><em>analytes=None</em>, <em>filt=True</em>, <em>stat_fns={}</em>, <em>eachtrace=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.sample_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>TODO: WORK OUT HOW TO HANDLE ERRORS PROPERLY!</p>
+<p>Calculate sample statistics</p>
+<p>Returns samples, analytes, and arrays of statistics
+of shape (samples, analytes). Statistics are calculated
+from the &#8216;focus&#8217; data variable, so output depends on how
+the data have been processed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : array_like</p>
+<blockquote>
+<div><p>List of analytes to calculate the statistic on</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool or str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>The filter to apply to the data when calculating sample statistics.</dt>
+<dd><p class="first last">bool: True applies filter specified in filt.switches.
+str: logical string specifying a partucular filter</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>stat_fns</strong> : dict</p>
+<blockquote>
+<div><p>Dict of {name: function} pairs. Functions that take a single
+array_like input, and return a single statistic. Function should
+be able to cope with NaN values.</p>
+</div></blockquote>
+<p><strong>eachtrace</strong> : bool</p>
+<blockquote>
+<div><p>True: per - ablation statistics
+False: whole sample statistics</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.setfocus">
+<code class="descname">setfocus</code><span class="sig-paren">(</span><em>focus</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.setfocus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the &#8216;focus&#8217; attribute of the data file.</p>
+<p>The &#8216;focus&#8217; attribute of the object points towards data from a
+particular stage of analysis. It is used to identify the &#8216;working
+stage&#8217; of the data. Processing functions operate on the &#8216;focus&#8217;
+stage, so if steps are done out of sequence, things will break.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>focus</strong> : str</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>The name of the analysis stage desired:</dt>
+<dd><dl class="first docutils">
+<dt>&#8216;rawdata&#8217;: raw data, loaded from csv file when object</dt>
+<dd><p class="first last">is initialised.</p>
+</dd>
+</dl>
+<p>&#8216;despiked&#8217;: despiked data.
+&#8216;signal&#8217;/&#8217;background&#8217;: isolated signal and background data,</p>
+<blockquote>
+<div><p>padded with np.nan. Created by self.separate, after
+signal and background regions have been identified by
+self.autorange.</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>&#8216;bkgsub&#8217;: background subtracted data, created by</dt>
+<dd><p class="first last">self.bkg_correct</p>
+</dd>
+</dl>
+<p>&#8216;ratios&#8217;: element ratio data, created by self.ratio.
+&#8216;calibrated&#8217;: ratio data calibrated to standards, created by</p>
+<blockquote class="last">
+<div><p>self.calibrate.</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.D.tplot">
+<code class="descname">tplot</code><span class="sig-paren">(</span><em>analytes=None, figsize=[10, 4], scale='log', filt=None, ranges=False, stats=False, stat='nanmean', err='nanstd', interactive=False, focus_stage=None, err_envelope=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.D.tplot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot analytes as a function of Time.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analytes</strong> : array_like</p>
+<blockquote>
+<div><p>list of strings containing names of analytes to plot.
+None = all analytes.</p>
+</div></blockquote>
+<p><strong>figsize</strong> : tuple</p>
+<blockquote>
+<div><p>size of final figure.</p>
+</div></blockquote>
+<p><strong>scale</strong> : str or None</p>
+<blockquote>
+<div><p>&#8216;log&#8217; = plot data on log scale</p>
+</div></blockquote>
+<p><strong>filt</strong> : bool, str or dict</p>
+<blockquote>
+<div><p>False: plot unfiltered data.
+True: plot filtered data over unfiltered data.
+str: apply filter key to all analytes
+dict: apply key to each analyte in dict. Must contain all
+analytes plotted. Can use self.filt.keydict.</p>
+</div></blockquote>
+<p><strong>ranges</strong> : bool</p>
+<blockquote>
+<div><p>show signal/background regions.</p>
+</div></blockquote>
+<p><strong>stats</strong> : bool</p>
+<blockquote>
+<div><p>plot average and error of each trace, as specified by <cite>stat</cite> and
+<cite>err</cite>.</p>
+</div></blockquote>
+<p><strong>stat</strong> : str</p>
+<blockquote>
+<div><p>average statistic to plot.</p>
+</div></blockquote>
+<p><strong>err</strong> : str</p>
+<blockquote>
+<div><p>error statistic to plot.</p>
+</div></blockquote>
+<p><strong>interactive</strong> : bool</p>
+<blockquote>
+<div><p>Make the plot interactive.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">figure</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="latools-filt">
+<h2><a class="reference internal" href="#latools.filt" title="latools.filt"><code class="xref py py-class docutils literal"><span class="pre">latools.filt</span></code></a><a class="headerlink" href="#latools-filt" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="latools.filt">
+<em class="property">class </em><code class="descclassname">latools.</code><code class="descname">filt</code><span class="sig-paren">(</span><em>size</em>, <em>analytes</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Container for creating, storing and selecting data filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>size</strong> : int</p>
+<blockquote>
+<div><p>The length that the filters need to be (should be
+the same as your data).</p>
+</div></blockquote>
+<p><strong>analytes</strong> : array_like</p>
+<blockquote class="last">
+<div><p>A list of the analytes measured in your data.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="6%" />
+<col width="94%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>size</td>
+<td>(int) The length that the filters need to be (should be the same as your data).</td>
+</tr>
+<tr class="row-even"><td>analytes</td>
+<td>(array_like) A list of the analytes measured in your data.</td>
+</tr>
+<tr class="row-odd"><td>components</td>
+<td>(dict) A dict containing each individual filter that has been created.</td>
+</tr>
+<tr class="row-even"><td>info</td>
+<td>(dict) A dict containing descriptive information about each filter in <cite>components</cite>.</td>
+</tr>
+<tr class="row-odd"><td>params</td>
+<td>(dict) A dict containing the parameters used to create each filter, which can be passed directly to the corresponding filter function to recreate the filter.</td>
+</tr>
+<tr class="row-even"><td>switches</td>
+<td>(dict) A dict of boolean switches specifying which filters are active for each analyte.</td>
+</tr>
+<tr class="row-odd"><td>keys</td>
+<td>(dict) A dict of logical strings specifying which filters are applied to each analyte.</td>
+</tr>
+<tr class="row-even"><td>sequence</td>
+<td>(dict) A numbered dict specifying what order the filters were applied in (for some filters, order matters).</td>
+</tr>
+<tr class="row-odd"><td>n</td>
+<td>(int) The number of filters applied to the data.</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods</p>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.add" title="latools.filt.add"><code class="xref py py-obj docutils literal"><span class="pre">add</span></code></a>(name,&nbsp;filt[,&nbsp;info,&nbsp;params,&nbsp;setn])</td>
+<td>Add filter.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.clean" title="latools.filt.clean"><code class="xref py py-obj docutils literal"><span class="pre">clean</span></code></a>()</td>
+<td>Remove unused filters.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.clear" title="latools.filt.clear"><code class="xref py py-obj docutils literal"><span class="pre">clear</span></code></a>()</td>
+<td>Clear all filters.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.get_components" title="latools.filt.get_components"><code class="xref py py-obj docutils literal"><span class="pre">get_components</span></code></a>(key[,&nbsp;analyte])</td>
+<td>Extract filter components for specific analyte(s).</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.get_info" title="latools.filt.get_info"><code class="xref py py-obj docutils literal"><span class="pre">get_info</span></code></a>()</td>
+<td>Get info for all filters.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.grab_filt" title="latools.filt.grab_filt"><code class="xref py py-obj docutils literal"><span class="pre">grab_filt</span></code></a>(filt[,&nbsp;analyte])</td>
+<td>Flexible access to specific filter using any key format.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.make" title="latools.filt.make"><code class="xref py py-obj docutils literal"><span class="pre">make</span></code></a>(analyte)</td>
+<td>Make filter for specified analyte(s).</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.make_fromkey" title="latools.filt.make_fromkey"><code class="xref py py-obj docutils literal"><span class="pre">make_fromkey</span></code></a>(key)</td>
+<td>Make filter from logical expression.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.make_keydict" title="latools.filt.make_keydict"><code class="xref py py-obj docutils literal"><span class="pre">make_keydict</span></code></a>([analyte])</td>
+<td>Make logical expressions describing the filter(s) for specified analyte(s).</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.off" title="latools.filt.off"><code class="xref py py-obj docutils literal"><span class="pre">off</span></code></a>([analyte,&nbsp;filt])</td>
+<td>Turn off specified filter(s) for specified analyte(s).</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#latools.filt.on" title="latools.filt.on"><code class="xref py py-obj docutils literal"><span class="pre">on</span></code></a>([analyte,&nbsp;filt])</td>
+<td>Turn on specified filter(s) for specified analyte(s).</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#latools.filt.remove" title="latools.filt.remove"><code class="xref py py-obj docutils literal"><span class="pre">remove</span></code></a>([name,&nbsp;setn])</td>
+<td>Remove filter.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="latools.filt.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>name</em>, <em>filt</em>, <em>info=''</em>, <em>params=()</em>, <em>setn=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add filter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>filter name</p>
+</div></blockquote>
+<p><strong>filt</strong> : array_like</p>
+<blockquote>
+<div><p>boolean filter array</p>
+</div></blockquote>
+<p><strong>info</strong> : str</p>
+<blockquote>
+<div><p>informative description of the filter</p>
+</div></blockquote>
+<p><strong>params</strong> : tuple</p>
+<blockquote>
+<div><p>parameters used to make the filter</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.clean">
+<code class="descname">clean</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.clean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove unused filters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.clear">
+<code class="descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all filters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.fuzzmatch">
+<code class="descname">fuzzmatch</code><span class="sig-paren">(</span><em>fuzzkey</em>, <em>multi=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.fuzzmatch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identify a filter by fuzzy string matching.</p>
+<p>Partial (&#8216;fuzzy&#8217;) matching performed by <cite>fuzzywuzzy.fuzzy.ratio</cite></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>fuzzkey</strong> : str</p>
+<blockquote>
+<div><p>A string that partially matches one filter name more than the others.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The name of the most closely matched filter.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.get_components">
+<code class="descname">get_components</code><span class="sig-paren">(</span><em>key</em>, <em>analyte=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.get_components" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract filter components for specific analyte(s).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>key</strong> : str</p>
+<blockquote>
+<div><p>string present in one or more filter names.
+e.g. &#8216;Al27&#8217; will return all filters with
+&#8216;Al27&#8217; in their names.</p>
+</div></blockquote>
+<p><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>name of analyte the filter is for</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>boolean filter</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.get_info">
+<code class="descname">get_info</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.get_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get info for all filters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.grab_filt">
+<code class="descname">grab_filt</code><span class="sig-paren">(</span><em>filt</em>, <em>analyte=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.grab_filt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Flexible access to specific filter using any key format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>f</strong> : str, dict or bool</p>
+<blockquote>
+<div><p>either logical filter expression, dict of expressions,
+or a boolean</p>
+</div></blockquote>
+<p><strong>analyte</strong> : str</p>
+<blockquote>
+<div><p>name of analyte the filter is for.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>boolean filter</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.make">
+<code class="descname">make</code><span class="sig-paren">(</span><em>analyte</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.make" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make filter for specified analyte(s).</p>
+<p>Filter specified in filt.switches.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>boolean filter</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.make_fromkey">
+<code class="descname">make_fromkey</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.make_fromkey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make filter from logical expression.</p>
+<p>Takes a logical expression as an input, and returns a filter. Used for advanced
+filtering, where combinations of nested and/or filters are desired. Filter names must
+exactly match the names listed by print(filt).</p>
+<dl class="docutils">
+<dt>Example:</dt>
+<dd>key = &#8216;(Filter_1 | Filter_2) &amp; Filter_3&#8217;</dd>
+<dt>is equivalent to:</dt>
+<dd>(Filter_1 OR Filter_2) AND Filter_3</dd>
+</dl>
+<p>statements in parentheses are evaluated first.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>key</strong> : str</p>
+<blockquote>
+<div><p>logical expression describing filter construction.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>boolean filter</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.make_keydict">
+<code class="descname">make_keydict</code><span class="sig-paren">(</span><em>analyte=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.make_keydict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make logical expressions describing the filter(s) for specified analyte(s).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes.
+Defaults to all analytes.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dict</p>
+<blockquote class="last">
+<div><p>containing the logical filter expression for each analyte.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.off">
+<code class="descname">off</code><span class="sig-paren">(</span><em>analyte=None</em>, <em>filt=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.off" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turn off specified filter(s) for specified analyte(s).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes.
+Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>filt</strong> : optional. int, list of int or str</p>
+<blockquote>
+<div><p>Number(s) or partial string that corresponds to filter name(s).</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.on">
+<code class="descname">on</code><span class="sig-paren">(</span><em>analyte=None</em>, <em>filt=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.on" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turn on specified filter(s) for specified analyte(s).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>analyte</strong> : optional, str or array_like</p>
+<blockquote>
+<div><p>Name or list of names of analytes.
+Defaults to all analytes.</p>
+</div></blockquote>
+<p><strong>filt</strong> : optional. int, str or array_like</p>
+<blockquote>
+<div><p>Name/number or iterable names/numbers of filters.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="latools.filt.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><em>name=None</em>, <em>setn=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.filt.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove filter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str</p>
+<blockquote>
+<div><p>name of the filter to remove</p>
+</div></blockquote>
+<p><strong>setn</strong> : int or True</p>
+<blockquote>
+<div><p>int: number of set to remove
+True: remove all filters in set that &#8216;name&#8217; belongs to</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="other-functions">
+<h2>Other Functions<a class="headerlink" href="#other-functions" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="latools.R2calc">
+<code class="descclassname">latools.</code><code class="descname">R2calc</code><span class="sig-paren">(</span><em>meas</em>, <em>model</em>, <em>force_zero=False</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.R2calc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="latools.add_config">
+<code class="descclassname">latools.</code><code class="descname">add_config</code><span class="sig-paren">(</span><em>config_name</em>, <em>params</em>, <em>config_file=None</em>, <em>make_default=True</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.add_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a new configuration to latools.cfg.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>config_name</strong> : str</p>
+<blockquote>
+<div><p>The name of the new configuration. This should be descriptive
+(e.g. UC Davis Foram Group)</p>
+</div></blockquote>
+<p><strong>params</strong> : dict</p>
+<blockquote>
+<div><p>A (parameter, value) dict defining non - default parameters
+associated with the new configuration.
+Possible parameters include:
+srmfile : str</p>
+<blockquote>
+<div><p>Path to srm file used in calibration. Defaults to GeoRem
+values for NIST610, NIST612 and NIST614 provided with latools.</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>dataformat <span class="classifier-delimiter">:</span> <span class="classifier">dict (as str)</span></dt>
+<dd><p class="first last">See dataformat documentation.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><strong>config_file</strong> : str</p>
+<blockquote>
+<div><p>Path to the configuration file that will be modified. Defaults to
+latools.cfg in package install location.</p>
+</div></blockquote>
+<p><strong>make_default</strong> : bool</p>
+<blockquote>
+<div><p>Whether or not to make the new configuration the default
+for future analyses. Default = True.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.bool_2_indices">
+<code class="descclassname">latools.</code><code class="descname">bool_2_indices</code><span class="sig-paren">(</span><em>bool_array</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.bool_2_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of limit tuples from boolean array.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>bool_array</strong> : array_like</p>
+<blockquote>
+<div><p>boolean array</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>[2, n] array of (start, end) values describing True parts
+of bool_array</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.collate_data">
+<code class="descclassname">latools.</code><code class="descname">collate_data</code><span class="sig-paren">(</span><em>in_dir</em>, <em>extension='.csv'</em>, <em>out_dir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.collate_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy all csvs in nested directroy to single directory.</p>
+<p>Function to copy all csvs from a directory, and place
+them in a new directory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>in_dir</strong> : str</p>
+<blockquote>
+<div><p>Input directory containing csv files in subfolders</p>
+</div></blockquote>
+<p><strong>extension</strong> : str</p>
+<blockquote>
+<div><p>The extension that identifies your data files.
+Defaults to &#8216;.csv&#8217;.</p>
+</div></blockquote>
+<p><strong>out_dir</strong> : str</p>
+<blockquote>
+<div><p>Destination directory</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.config_locator">
+<code class="descclassname">latools.</code><code class="descname">config_locator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.config_locator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints the location of the latools.cfg file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.enumerate_bool">
+<code class="descclassname">latools.</code><code class="descname">enumerate_bool</code><span class="sig-paren">(</span><em>bool_array</em>, <em>nstart=0</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.enumerate_bool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Consecutively numbers contiguous booleans in array.</p>
+<p>i.e. a boolean sequence, and resulting numbering
+T F T T T F T F F F T T F
+0-1 1 1 - 2 &#8212;3 3 -</p>
+<p>where &#8216; - &#8216;</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>bool_array</strong> : array_like</p>
+<blockquote>
+<div><p>Array of booleans.</p>
+</div></blockquote>
+<p><strong>nstart</strong> : int</p>
+<blockquote class="last">
+<div><p>The number of the first boolean group.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.fastgrad">
+<code class="descclassname">latools.</code><code class="descname">fastgrad</code><span class="sig-paren">(</span><em>a</em>, <em>win=11</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.fastgrad" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns rolling - window gradient of a.</p>
+<p>Function to efficiently calculate the rolling gradient of a numpy
+array using &#8216;stride_tricks&#8217; to split up a 1D array into an ndarray of
+sub - sections of the original array, of dimensions [len(a) - win, win].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>a</strong> : array_like</p>
+<blockquote>
+<div><p>The 1D array to calculate the rolling gradient of.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>The width of the rolling window.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>Gradient of a, assuming as constant integer x - scale.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.fastsmooth">
+<code class="descclassname">latools.</code><code class="descname">fastsmooth</code><span class="sig-paren">(</span><em>a</em>, <em>win=11</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.fastsmooth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns rolling - window smooth of a.</p>
+<p>Function to efficiently calculate the rolling mean of a numpy
+array using &#8216;stride_tricks&#8217; to split up a 1D array into an ndarray of
+sub - sections of the original array, of dimensions [len(a) - win, win].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>a</strong> : array_like</p>
+<blockquote>
+<div><p>The 1D array to calculate the rolling gradient of.</p>
+</div></blockquote>
+<p><strong>win</strong> : int</p>
+<blockquote>
+<div><p>The width of the rolling window.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>Gradient of a, assuming as constant integer x - scale.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.gauss">
+<code class="descclassname">latools.</code><code class="descname">gauss</code><span class="sig-paren">(</span><em>x</em>, <em>*p</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.gauss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gaussian function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>x</strong> : array_like</p>
+<blockquote>
+<div><p>Independent variable.</p>
+</div></blockquote>
+<p><strong>*p</strong> : parameters unpacked to A, mu, sigma</p>
+<blockquote class="last">
+<div><p>A: area
+mu: centre
+sigma: width</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.get_example_data">
+<code class="descclassname">latools.</code><code class="descname">get_example_data</code><span class="sig-paren">(</span><em>destination_dir</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.get_example_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="latools.intial_configuration">
+<code class="descclassname">latools.</code><code class="descname">intial_configuration</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#latools.intial_configuration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function for configuring latools.</p>
+<p>Run this function when you first use <cite>latools</cite> to specify the
+location of you SRM data file and your data format file.</p>
+<p>See documentation for full details.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.nominal_values">
+<code class="descclassname">latools.</code><code class="descname">nominal_values</code><span class="sig-paren">(</span><em>a</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.nominal_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="latools.pretty_element">
+<code class="descclassname">latools.</code><code class="descname">pretty_element</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.pretty_element" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns formatted element name.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>s</strong> : str</p>
+<blockquote>
+<div><p>of format [A-Z][a-z]?[0-9]+</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">str</p>
+<blockquote class="last">
+<div><p>LaTeX formatted string with superscript numbers.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.rangecalc">
+<code class="descclassname">latools.</code><code class="descname">rangecalc</code><span class="sig-paren">(</span><em>xs</em>, <em>ys</em>, <em>pad=0.05</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.rangecalc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="latools.reproduce">
+<code class="descclassname">latools.</code><code class="descname">reproduce</code><span class="sig-paren">(</span><em>log_file</em>, <em>plotting=False</em>, <em>data_folder=None</em>, <em>srm_table=None</em>, <em>custom_stat_functions=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.reproduce" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reproduce a previous analysis exported with <cite>latools.minimal_export</cite></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.rolling_window">
+<code class="descclassname">latools.</code><code class="descname">rolling_window</code><span class="sig-paren">(</span><em>a</em>, <em>window</em>, <em>pad=None</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.rolling_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns (win, len(a)) rolling - window array of data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>a</strong> : array_like</p>
+<blockquote>
+<div><p>Array to calculate the rolling window of</p>
+</div></blockquote>
+<p><strong>window</strong> : int</p>
+<blockquote>
+<div><p>Description of <cite>window</cite>.</p>
+</div></blockquote>
+<p><strong>pad</strong> : same as dtype(a)</p>
+<blockquote>
+<div><p>Description of <cite>pad</cite>.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>An array of shape (n, window), where n is either len(a) - window
+if pad is None, or len(a) if pad is not None.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.std_devs">
+<code class="descclassname">latools.</code><code class="descname">std_devs</code><span class="sig-paren">(</span><em>a</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.std_devs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="latools.stderr">
+<code class="descclassname">latools.</code><code class="descname">stderr</code><span class="sig-paren">(</span><em>a</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.stderr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the standard error of a.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.tuples_2_bool">
+<code class="descclassname">latools.</code><code class="descname">tuples_2_bool</code><span class="sig-paren">(</span><em>tuples</em>, <em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.tuples_2_bool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate boolean array from list of limit tuples.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>tuples</strong> : array_like</p>
+<blockquote>
+<div><p>[2, n] array of (start, end) values</p>
+</div></blockquote>
+<p><strong>x</strong> : array_like</p>
+<blockquote>
+<div><p>x scale the tuples are mapped to</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">array_like</p>
+<blockquote class="last">
+<div><p>boolean array, True where x is between each pair of tuples.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.unitpicker">
+<code class="descclassname">latools.</code><code class="descname">unitpicker</code><span class="sig-paren">(</span><em>a</em>, <em>llim=0.1</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.unitpicker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the most appropriate plotting unit for data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>a</strong> : array_like</p>
+<blockquote>
+<div><p>raw data array</p>
+</div></blockquote>
+<p><strong>llim</strong> : float</p>
+<blockquote>
+<div><p>minimum allowable value in scaled data.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(float, str)</p>
+<blockquote class="last">
+<div><p>(multiplier, unit)</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.unpack_uncertainties">
+<code class="descclassname">latools.</code><code class="descname">unpack_uncertainties</code><span class="sig-paren">(</span><em>uarray</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.unpack_uncertainties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convenience function to unpack nominal values and uncertainties from an
+<code class="docutils literal"><span class="pre">uncertainties.uarray</span></code>.</p>
+<dl class="docutils">
+<dt>Returns:</dt>
+<dd>(nominal_values, std_devs)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="latools.weighted_average">
+<code class="descclassname">latools.</code><code class="descname">weighted_average</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>x_new</em>, <em>fwhm=300</em><span class="sig-paren">)</span><a class="headerlink" href="#latools.weighted_average" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate gaussian weigted moving mean, SD and SE.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>x, y</strong> : array - like</p>
+<blockquote>
+<div><p>The x and y data to smooth</p>
+</div></blockquote>
+<p><strong>x_new</strong> : array - like</p>
+<blockquote class="last">
+<div><p>The new x - scale to interpolate the data</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="../users/advanced/srm-id.html" class="btn btn-neutral" title="Automatic SRM Identification" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'0.2.2a',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

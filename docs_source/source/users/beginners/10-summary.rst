@@ -11,39 +11,6 @@ If we put all the preceding steps together:
    :dedent: 4
    :lines: 15-60
 
-The old one::
-
-	eg = la.analyse(data_folder='./data_remote/',
-                config='DEFAULT',
-                internal_standard='Ca43',
-                srm_identifier='STD')
-	eg.trace_plots()
-	eg.despike(expdecay_despiker=True,
-	           noise_despiker=True)
-	eg.autorange(on_mult=[1.5, 0.8],
-	             off_mult=[0.8, 1.5])
-	eg.bkg_calc_weightedmean(weight_fwhm=300,
-	                         n_min=10)
-	eg.bkg_plot()
-	eg.bkg_subtract()
-	eg.ratio()
-	eg.calibrate(drift_correct=False,
-	             poly_n=0,
-	             srms_used=['NIST610', 'NIST612', 'NIST614'])
-	fig, axs = eg.calibration_plot()
-	
-	# create a threshold filter at 0.1 mmol/mol Al/Ca
-	eg.filter_threshold(analyte='Al27', threshold=0.1e-3)
-	# turn off the 'above' filter, so only data below the threshold is kept.
-	eg.filter_on(filt='Albelow')
-
-	# calculate sample statistics.
-	eg.sample_stats()
-	# get statistics into a dataframe
-	stats =	eg.getstats()
-	# save statistics to a csv file
-	stats.to_csv('data_export/stats.csv')
-
 Here we processed just 3 files, but the same procedure can be applied to an entire day of analyses, and takes just a little longer.
 
 The processing stage most likely to modify your results is filtering.

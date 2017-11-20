@@ -29,6 +29,7 @@ You can specify any function that accepts an array and returns a single value he
 In combination with data subsets, and the ability to specify different combinations of filters for different subsets, this provides a flexible way to explore the impact of different filters on your integrated values.
 
 We've now calculated the statistics, but they are still trapped inside the 'analyse' data object (``eg``).
+
 To get them out into a more useful form:
 
 .. literalinclude:: ../../../../tests/test_beginnersGuide.py
