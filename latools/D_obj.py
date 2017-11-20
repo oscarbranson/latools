@@ -6,7 +6,6 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import brewer2mpl as cb  # for colours
 import warnings
 import sklearn.cluster as cl
 import scipy.interpolate as interp
@@ -109,16 +108,11 @@ class D(object):
         self.setfocus('rawdata')
 
         # make a colourmap for plotting
-        try:
-            self.cmap = dict(zip(self.analytes,
-                                 cb.get_map('Paired', 'qualitative',
-                                            len(self.analytes)).hex_colors))
-        except ValueError:
-            self.cmap = \
-                dict(zip(self.analytes,
-                         [mpl.colors.rgb2hex(c) for c
-                          in plt.cm.Dark2(np.linspace(0, 1,
-                                                      len(self.analytes)))]))
+        self.cmap = \
+            dict(zip(self.analytes,
+                        [mpl.colors.rgb2hex(c) for c
+                        in plt.cm.Dark2(np.linspace(0, 1,
+                                                    len(self.analytes)))]))
         # update colourmap with provided values
         if isinstance(cmap, dict):
             for k, v in cmap.items():

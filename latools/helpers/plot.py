@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit
-from mpld3 import enable_notebook, disable_notebook, plugins
 from IPython import display
 
 from tqdm import tqdm
@@ -50,10 +49,6 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         -------
         figure, axis
         """
-
-        if interactive:
-            enable_notebook()  # make the plot interactive
-
         if type(analytes) is str:
             analytes = [analytes]
         if analytes is None:
@@ -185,7 +180,6 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             display.clear_output(wait=True)
             display.display(fig)
             input('Press [Return] when finished.')
-            disable_notebook()  # stop the interactivity
         else:
             ax.legend(bbox_to_anchor=(1.15, 1))
 

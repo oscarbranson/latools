@@ -6,4 +6,4 @@ os: linux
 install: 
   - pip install .
 
-script: python setup.py test
+script: pytest
