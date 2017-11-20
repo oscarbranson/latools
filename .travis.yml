@@ -6,4 +6,4 @@ os: linux
 install: 
   - pip install .
 
-script: pytest
+script: pytest -s
