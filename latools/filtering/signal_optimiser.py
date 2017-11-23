@@ -49,8 +49,10 @@ def calc_window_mean_std(s, min_points, ind=None):
 
     for i, w in enumerate(range(min_points, s.size)):
         r = rolling_window(s, w, pad=np.nan)
-        mean[i, ind] = np.apply_along_axis(np.nanmean, 1, r)
-        std[i, ind] = np.apply_along_axis(np.nanstd, 1, r)
+        mean[i, ind] = r.sum(1) / w
+        std[i, ind] = (((r - mean[i, ind][:, np.newaxis])**2).sum(1) / (w - 1))**0.5
+        # mean[i, ind] = np.apply_along_axis(np.nanmean, 1, r)
+        # std[i, ind] = np.apply_along_axis(np.nanstd, 1, r)
 
     return mean, std
 
@@ -84,6 +86,38 @@ def median_scaler(s):
 
 # scaler = bayes_scale
 scaler = median_scaler
+
+def calculate_optimisation_stats(d, analytes, min_points, weights, ind):
+    # calculate statistics
+    stds = []
+    means = []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for a in analytes:
+            m, s = calc_window_mean_std(nominal_values(d.focus[a]), min_points, ind)
+            means.append(m)
+            stds.append(s)
+    # compile stats
+    stds = np.array(stds)
+    means = np.array(means)
+
+    # calculate rsd
+    sstds = stds / abs(means)
+
+    # scale means for each analyte
+    smeans = np.apply_along_axis(scaler, 2, means)
+    # sstds = np.apply_along_axis(scaler, 2, stds)
+
+    # apply weights
+    if weights is not None:
+        sstds *= np.reshape(weights, (len(analytes), 1, 1))
+        smeans *= np.reshape(weights, (len(analytes), 1, 1))
+
+    # average of all means and standard deviations
+    msstds = sstds.mean(0)
+    msmeans = smeans.mean(0)
+
+    return msmeans, msstds
 
 def signal_optimiser(d, analytes, min_points=5,
                      threshold_mode='kde_first_max',
@@ -169,34 +203,7 @@ def signal_optimiser(d, analytes, min_points=5,
                       'weights': weights,
                       'optimisation_success': False})
 
-    # calculate statistics
-    stds = []
-    means = []
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for a in analytes:
-            m, s = calc_window_mean_std(nominal_values(d.focus[a]), min_points, ind)
-            means.append(m)
-            stds.append(s)
-    # compile stats
-    stds = np.array(stds)
-    means = np.array(means)
-
-    # calculate rsd
-    sstds = stds / abs(means)
-
-    # scale means for each analyte
-    smeans = np.apply_along_axis(scaler, 2, means)
-    # sstds = np.apply_along_axis(scaler, 2, stds)
-
-    # apply weights
-    if weights is not None:
-        sstds *= np.reshape(weights, (len(analytes), 1, 1))
-        smeans *= np.reshape(weights, (len(analytes), 1, 1))
-
-    # average of all means and standard deviations
-    msstds = sstds.mean(0)
-    msmeans = smeans.mean(0)
+    msmeans, msstds = calculate_optimisation_stats(d, analytes, min_points, weights, ind)
 
     # define thresholds
     valid = ['kde_first_max', 'kde_max', 'median', 'bayes_mvs', 'mean']
@@ -331,86 +338,89 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
     if not hasattr(d, 'opt'):
         raise ValueError('Please run `signal_optimiser` before trying to plot its results.')
     
-    if not d.opt['optimisation_success']:
-        warnings.warn('Cannot plot {:}. No optimisation result.'.format(d.sample))
-        return None, None
+    out = []
+    for n, opt in d.opt.items():
+        if not opt['optimisation_success']:
+            warnings.warn('Cannot plot {:} rep {:.0f}. No optimisation result.'.format(d.sample, n))
+            return None, None
 
-    # unpack variables
-    means = d.opt['means']
-    stds = d.opt['stds']
-    min_points = d.opt['min_points']
-    mean_threshold = d.opt['mean_threshold']
-    std_threshold = d.opt['std_threshold']
-    opt_centre = d.opt['opt_centre']
-    opt_n_points = d.opt['opt_n_points']
-    
-    centres, npoints = np.meshgrid(np.arange(means.shape[1]), np.arange(min_points, min_points + means.shape[0]))
-    rind = (stds < std_threshold)
-    mind = (means < mean_threshold)
+        # unpack variables
+        means = opt['means']
+        stds = opt['stds']
+        min_points = opt['min_points']
+        mean_threshold = opt['mean_threshold']
+        std_threshold = opt['std_threshold']
+        opt_centre = opt['opt_centre']
+        opt_n_points = opt['opt_n_points']
+        
+        centres, npoints = np.meshgrid(np.arange(means.shape[1]), np.arange(min_points, min_points + means.shape[0]))
+        rind = (stds < std_threshold)
+        mind = (means < mean_threshold)
 
-    # color scale and histogram limits
-    mlim = np.percentile(means.flatten()[~np.isnan(means.flatten())], (0, 99))
-    rlim = np.percentile(stds.flatten()[~np.isnan(stds.flatten())], (0, 99))
+        # color scale and histogram limits
+        mlim = np.percentile(means.flatten()[~np.isnan(means.flatten())], (0, 99))
+        rlim = np.percentile(stds.flatten()[~np.isnan(stds.flatten())], (0, 99))
 
-    cmr = plt.cm.Blues
-    cmr.set_bad((0,0,0,0.3))
+        cmr = plt.cm.Blues
+        cmr.set_bad((0,0,0,0.3))
 
-    cmm = plt.cm.Reds
-    cmm.set_bad((0,0,0,0.3))
-    
-    # create figure
-    fig = plt.figure(figsize=[10,7])
+        cmm = plt.cm.Reds
+        cmm.set_bad((0,0,0,0.3))
+        
+        # create figure
+        fig = plt.figure(figsize=[10,7])
 
-    ma = fig.add_subplot(3, 2, 1)
-    ra = fig.add_subplot(3, 2, 2)
+        ma = fig.add_subplot(3, 2, 1)
+        ra = fig.add_subplot(3, 2, 2)
 
-    mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
-                   extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+        mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
+                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-    ma.set_ylabel('N points')
-    ma.set_xlabel('Center')
-    fig.colorbar(mm, ax=ma, label='Amplitude')
+        ma.set_ylabel('N points')
+        ma.set_xlabel('Center')
+        fig.colorbar(mm, ax=ma, label='Amplitude')
 
-    mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
-                   extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+        mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
+                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-    # ra.set_ylabel('N points')
-    ra.set_xlabel('Center')
-    fig.colorbar(mr, ax=ra, label='std')
+        # ra.set_ylabel('N points')
+        ra.set_xlabel('Center')
+        fig.colorbar(mr, ax=ra, label='std')
 
-    # view limits
-    ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-              extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
-    ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-              extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+        # view limits
+        ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+                extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+        ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+                extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-    ma.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
-    ra.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k', marker='o')
+        ma.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
+        ra.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k', marker='o')
 
-    # draw histograms
-    mah = fig.add_subplot(3, 2, 3)
-    rah = fig.add_subplot(3, 2, 4)
+        # draw histograms
+        mah = fig.add_subplot(3, 2, 3)
+        rah = fig.add_subplot(3, 2, 4)
 
-    mah.set_xlim(mlim)
-    mbin = np.linspace(*mah.get_xlim(), 50)
-    mah.hist(means.flatten()[~np.isnan(means.flatten())], mbin)
-    mah.axvspan(mean_threshold, mah.get_xlim()[1], color=(0,0,0,overlay_alpha))
+        mah.set_xlim(mlim)
+        mbin = np.linspace(*mah.get_xlim(), 50)
+        mah.hist(means.flatten()[~np.isnan(means.flatten())], mbin)
+        mah.axvspan(mean_threshold, mah.get_xlim()[1], color=(0,0,0,overlay_alpha))
 
-    mah.axvline(mean_threshold, c='r')
-    mah.set_xlabel('Scaled Mean Analyte Conc')
-    mah.set_ylabel('N')
+        mah.axvline(mean_threshold, c='r')
+        mah.set_xlabel('Scaled Mean Analyte Conc')
+        mah.set_ylabel('N')
 
-    rah.set_xlim(rlim)
-    rbin = np.linspace(*rah.get_xlim(), 50)
-    rah.hist(stds.flatten()[~np.isnan(stds.flatten())], rbin)
-    rah.axvspan(std_threshold, rah.get_xlim()[1], color=(0,0,0,0.4))
-    rah.axvline(std_threshold, c='r')
-    rah.set_xlabel('std')
-    
-    tax = fig.add_subplot(3,1,3)
-    tplot(d, d.opt.analytes, ax=tax, **kwargs)
-    tax.axvspan(*d.Time[[d.opt.lims[0], d.opt.lims[1]]], alpha=0.2)
-    
-    fig.tight_layout()
+        rah.set_xlim(rlim)
+        rbin = np.linspace(*rah.get_xlim(), 50)
+        rah.hist(stds.flatten()[~np.isnan(stds.flatten())], rbin)
+        rah.axvspan(std_threshold, rah.get_xlim()[1], color=(0,0,0,0.4))
+        rah.axvline(std_threshold, c='r')
+        rah.set_xlabel('std')
+        
+        tax = fig.add_subplot(3,1,3)
+        tplot(d, opt.analytes, ax=tax, **kwargs)
+        tax.axvspan(*d.Time[[opt.lims[0], opt.lims[1]]], alpha=0.2)
+        
+        fig.tight_layout()
 
-    return fig, (ma, ra, mah, rah, tax)
+        out.append((fig, (ma, ra, mah, rah, tax)))
+    return out
