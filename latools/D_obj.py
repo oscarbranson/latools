@@ -1274,10 +1274,41 @@ class D(object):
                     'Trimmed Filter ({:.0f} start, {:.0f} end)'.format(start, end),
                     params, setn=self.filt.maxset + 1)
 
+    @_log
+    def filter_exclude_downhole(self, threshold, filt=True):
+        """
+        Exclude all points down-hole (after) the first excluded data.
+
+        Parameters
+        ----------
+        threhold : int
+            The minimum number of contiguous excluded data points
+            that must exist before downhole exclusion occurs.
+        file : valid filter string or bool
+            Which filter to consider. If True, applies to currently active
+            filters.
+        """
+        f = self.filt.grab_filt(filt)
+
+        if self.n == 1:
+            nfilt = filters.exclude_downhole(f, threshold)
+
+        else:
+            nfilt = []
+            for i in range(self.n):
+                nf = self.ns == i + 1
+                nfilt.append(filters.exclude_downhole(f & nf, threshold))
+            nfilt = np.apply_along_axis(any, 0, nfilt)
+
+        self.filt.add(name='downhole_excl_{:.0f}'.format(threshold),
+                      filt=nfilt,
+                      info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),
+                      params=(threshold, filt))
+
     # Signal optimiser
     @_log
     def signal_optimiser(self, analytes, min_points=5,
-                         threshold_mode='kde_max',
+                         threshold_mode='kde_first_max',
                          threshold_mult=1.,
                          weights=None, filt=True):
         """
@@ -1334,23 +1365,34 @@ class D(object):
 
         if isinstance(analytes, str):
             analytes = [analytes]
-
+        
         # get filter
         if filt is not False:
             ind = (self.filt.grab_filt(filt, analytes))
         else:
-            ind = None
-
-        self.opt = signal_optimiser(self, analytes, min_points,
-                                    threshold_mode,
-                                    threshold_mult,
-                                    weights, ind)
+            ind = np.full(self.Time.shape, True)
         
+        ofilt = []
+        self.opt = {}
+        for i in range(self.n):
+            nind = ind & (self.ns == i + 1)
+
+            self.opt[i + 1] = signal_optimiser(self, analytes=analytes,
+                                               min_points=min_points, 
+                                               threshold_mode=threshold_mode,
+                                               threshold_mult=threshold_mult,
+                                               weights=weights,
+                                               ind=nind)
+
+            ofilt.append(self.opt[i + 1].filt)
+
+        ofilt = np.apply_along_axis(any, 0, ofilt)
+
         name = 'optimise_' + '_'.join(analytes)
         self.filt.add(name=name,
-                      filt=self.opt.filt,
-                      info="Optimisation filter to minimise " + ', '.join(analytes),
-                      params=params, setn=setn)
+                    filt=ofilt,
+                    info="Optimisation filter to minimise " + ', '.join(analytes),
+                    params=params, setn=setn)
     
     @_log
     def optimisation_plot(self, overlay_alpha=0.5, **kwargs):
