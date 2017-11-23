@@ -287,12 +287,18 @@ def signal_optimiser(d, analytes, min_points=5,
         warnings.warn("Optimisation failed on {:} using threshold_mode='{:}', falling back to '{:}'".format(d.sample, o_threshold_mode, threshold_mode))
 
     # identify max number of points within thresholds
-    centres, npoints = np.meshgrid(np.arange(msmeans.shape[1]),
-                                   np.arange(min_points, min_points + msmeans.shape[0]))
-    opt_n_points = npoints[ind].max()
+    passing = np.argwhere(ind)
+    opt_n_points = passing[:, 0].max()
+    opt_centre = passing[passing[:, 0] == opt_n_points, 1].min()
+
+    opt_n_points += min_points
+
+    # centres, npoints = np.meshgrid(np.arange(msmeans.shape[1]),
+    #                                np.arange(min_points, min_points + msmeans.shape[0]))
+    # opt_n_points = npoints[ind].max()
     # plus/minus one point to allow some freedom to shift selection window.
-    cind = ind & (npoints == opt_n_points)
-    opt_centre = centres[cind].min()
+    # cind = ind & (npoints == opt_n_points)
+    # opt_centre = centres[cind].min()
 
     if opt_n_points % 2 == 0:
         lims = (opt_centre - opt_n_points // 2,
@@ -373,28 +379,38 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
         ma = fig.add_subplot(3, 2, 1)
         ra = fig.add_subplot(3, 2, 2)
 
+        # work out image limits
+        nonan = np.argwhere(~np.isnan(means))
+        xdif = np.ptp(nonan[:, 1])
+        ydif = np.ptp(nonan[:, 0])
+        extent = (nonan[:, 1].min() - np.ceil(0.1 * xdif),  # x min
+                  nonan[:, 1].max() + np.ceil(0.1 * xdif),  # x max
+                  nonan[:, 0].min() + min_points,  # y min
+                  nonan[:, 0].max() + np.ceil(0.1 * ydif) + min_points)  # y max
+
         mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
-                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+                       extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
         ma.set_ylabel('N points')
         ma.set_xlabel('Center')
         fig.colorbar(mm, ax=ma, label='Amplitude')
 
         mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
-                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+                       extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-        # ra.set_ylabel('N points')
         ra.set_xlabel('Center')
         fig.colorbar(mr, ax=ra, label='std')
 
         # view limits
         ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-                extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+                  extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
         ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-                extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+                  extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-        ma.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
-        ra.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k', marker='o')
+        for ax in [ma, ra]:
+            ax.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
+            ax.set_xlim(extent[:2])
+            ax.set_ylim(extent[-2:])
 
         # draw histograms
         mah = fig.add_subplot(3, 2, 3)
@@ -420,6 +436,8 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
         tplot(d, opt.analytes, ax=tax, **kwargs)
         tax.axvspan(*d.Time[[opt.lims[0], opt.lims[1]]], alpha=0.2)
         
+        tax.set_xlim(d.Time[d.ns == n].min() - 3, d.Time[d.ns == n].max() + 3)
+
         fig.tight_layout()
 
         out.append((fig, (ma, ra, mah, rah, tax)))
