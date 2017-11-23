@@ -665,9 +665,12 @@ def calc_grads(x, dat, keys=None, win=5):
         keys = dat.keys()
 
     def grad(xy):
-        try:
-            return np.polyfit(xy[0], xy[1], 1)[0]
-        except ValueError:
+        if (~np.isnan(xy)).all():
+            try:
+                return np.polyfit(xy[0], xy[1], 1)[0]
+            except ValueError:
+                return np.nan
+        else:
             return np.nan
 
     xs = rolling_window(x, win, pad='repeat_ends')
