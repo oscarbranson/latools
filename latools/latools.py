@@ -2104,11 +2104,7 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         for s in samples:
-            f = self.data[s].filt.grab_filt(filt)
-            self.data[s].filt.add(name='downhole_excl_{:.0f}'.format(threshold),
-                                  filt=filters.exclude_downhole(f, threshold),
-                                  info='Exclude data downhole of {:.0f} consecutive filtered points.'.format(threshold),
-                                  params=(threshold, filt, samples, subset))
+            self.data[s].filter_exclude_downhole(threshold, filt)
 
     @_log
     def filter_trim(self, start=1, end=1, filt=True, samples=None, subset=None):
@@ -2156,7 +2152,7 @@ class analyse(object):
     
     @_log
     def optimise_signal(self, analytes, min_points=5,
-                        threshold_mode='kde_max', 
+                        threshold_mode='kde_first_max', 
                         threshold_mult=1., filt=True,
                         weights=None, samples=None, subset=None):
         """
@@ -2247,11 +2243,14 @@ class analyse(object):
             os.mkdir(outdir)
         
         for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
-
-            if f is not None:
-                f.savefig(outdir + '/' + s + '_optim.pdf')
-                plt.close(f)
+            figs = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
+            
+            n = 1
+            for f, _ in figs:
+                if f is not None:
+                    f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
+                    plt.close(f)
+                n += 1
         return
 
     @_log
