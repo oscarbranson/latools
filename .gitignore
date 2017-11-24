@@ -21,4 +21,4 @@ data
 *docs_source*
 .vscode
 .eggs/*
-
+.cache/*
