@@ -87,7 +87,7 @@ def median_scaler(s):
 # scaler = bayes_scale
 scaler = median_scaler
 
-def calculate_optimisation_stats(d, analytes, min_points, weights, ind):
+def calculate_optimisation_stats(d, analytes, min_points, weights, ind, x_bias=0):
     # calculate statistics
     stds = []
     means = []
@@ -117,11 +117,21 @@ def calculate_optimisation_stats(d, analytes, min_points, weights, ind):
     msstds = sstds.mean(0)
     msmeans = smeans.mean(0)
 
+    # aply bias
+    if x_bias > 0:
+        nonan = ~np.isnan(smeans[0,0])
+        fill = np.full(smeans[0,0].shape, np.nan)
+        fill[nonan] = np.linspace(1 - x_bias, 1 + x_bias, sum(nonan))
+        bias = np.full(smeans[0].shape, fill)
+        
+        msmeans *= bias
+        msstds *= bias
+
     return msmeans, msstds
 
 def signal_optimiser(d, analytes, min_points=5,
                      threshold_mode='kde_first_max',
-                     threshold_mult=1.,
+                     threshold_mult=1., x_bias=0,
                      weights=None, ind=None):
     """
     Optimise data selection based on specified analytes.
@@ -171,6 +181,10 @@ def signal_optimiser(d, analytes, min_points=5,
         to the mean threshold, and the second is applied to
         the standard deviation threshold. Reduce this to make
         data selection more stringent.
+    x_bias : float
+        If non-zero, a bias is applied to the calculated statistics
+        to prefer the beginning (if > 0) or end (if < 0) of the
+        signal. Should be between zero and 1.
     weights : array-like of length len(analytes)
         An array of numbers specifying the importance of
         each analyte considered. Larger number makes the
@@ -183,12 +197,15 @@ def signal_optimiser(d, analytes, min_points=5,
     Returns
     -------
     optimisation result : dict
-    """    
+    """
+    errmsg = ''
+
     if isinstance(analytes, str):
         analytes = [analytes]
-
+    
+    # initial catch
     if not any(ind) or (np.diff(bool_2_indices(ind)).max() < min_points):
-        warnings.warn('Optmisation failed on {:}. No contiguous data regions longer than {:.0f} points.'.format(d.sample, min_points))
+        errmsg = 'Optmisation failed. No contiguous data regions longer than {:.0f} points.'.format(min_points)
         return Bunch({'means': np.nan,
                       'stds': np.nan,
                       'mean_threshold': np.nan,
@@ -201,9 +218,28 @@ def signal_optimiser(d, analytes, min_points=5,
                       'opt_centre': np.nan,
                       'opt_n_points': np.nan,
                       'weights': weights,
-                      'optimisation_success': False})
+                      'optimisation_success': False,
+                      'errmsg': errmsg}), errmsg
 
-    msmeans, msstds = calculate_optimisation_stats(d, analytes, min_points, weights, ind)
+    msmeans, msstds = calculate_optimisation_stats(d, analytes, min_points, weights, ind, x_bias)
+    
+    # second catch
+    if all(np.isnan(msmeans).flat) or all(np.isnan(msmeans).flat):
+        errmsg = 'Optmisation failed. No contiguous data regions longer than {:.0f} points.'.format(min_points)
+        return Bunch({'means': np.nan,
+                      'stds': np.nan,
+                      'mean_threshold': np.nan,
+                      'std_threshold': np.nan,
+                      'lims': np.nan,
+                      'filt': ind,
+                      'threshold_mode': threshold_mode,
+                      'min_points': min_points,
+                      'analytes': analytes,
+                      'opt_centre': np.nan,
+                      'opt_n_points': np.nan,
+                      'weights': weights,
+                      'optimisation_success': False,
+                      'errmsg': errmsg}), errmsg
 
     # define thresholds
     valid = ['kde_first_max', 'kde_max', 'median', 'bayes_mvs', 'mean']
@@ -221,7 +257,7 @@ def signal_optimiser(d, analytes, min_points=5,
             mean_threshold = np.nanmean(msmeans)
         elif threshold_mode == 'kde_max':
             # maximum of gaussian kernel density estimator
-            mkd = gaussian_kde(msmeans[~np.isnan(msmeans)])
+            mkd = gaussian_kde(msmeans[~np.isnan(msmeans)].flat)
             xm = np.linspace(*np.percentile(msmeans.flatten()[~np.isnan(msmeans.flatten())], (1, 99)), 100)
             mdf = mkd.pdf(xm)
             mean_threshold = xm[np.argmax(mdf)]
@@ -232,7 +268,7 @@ def signal_optimiser(d, analytes, min_points=5,
             std_threshold = xr[np.argmax(rdf)]
         elif threshold_mode == 'kde_first_max':
             # first local maximum of gaussian kernel density estimator
-            mkd = gaussian_kde(msmeans[~np.isnan(msmeans)])
+            mkd = gaussian_kde(msmeans[~np.isnan(msmeans)].flat)
             xm = np.linspace(*np.percentile(msmeans.flatten()[~np.isnan(msmeans.flatten())], (1, 99)), 100)
             mdf = mkd.pdf(xm)
             inds = np.argwhere(np.r_[False, mdf[1:] > mdf[:-1]] & 
@@ -279,12 +315,29 @@ def signal_optimiser(d, analytes, min_points=5,
         ind = rind & mind
 
         n_under = ind.sum()
-        if n_under <= 0:
+        if n_under == 0:
             i += 1
-            threshold_mode = valid[i]
+            if i <= len(valid) - 1:
+                threshold_mode = valid[i]
+            else:
+                errmsg = 'Optimisation failed. No of the threshold_mode would work. Try reducting min_points.'
+                return Bunch({'means': np.nan,
+                              'stds': np.nan,
+                              'mean_threshold': np.nan,
+                              'std_threshold': np.nan,
+                              'lims': np.nan,
+                              'filt': ind,
+                              'threshold_mode': threshold_mode,
+                              'min_points': min_points,
+                              'analytes': analytes,
+                              'opt_centre': np.nan,
+                              'opt_n_points': np.nan,
+                              'weights': weights,
+                              'optimisation_success': False,
+                              'errmsg': errmsg}), errmsg
     
     if i > 0:
-        warnings.warn("Optimisation failed on {:} using threshold_mode='{:}', falling back to '{:}'".format(d.sample, o_threshold_mode, threshold_mode))
+        errmsg = "optimisation failed using threshold_mode='{:}', falling back to '{:}'".format(o_threshold_mode, threshold_mode)
 
     # identify max number of points within thresholds
     passing = np.argwhere(ind)
@@ -322,7 +375,8 @@ def signal_optimiser(d, analytes, min_points=5,
                   'opt_centre': opt_centre,
                   'opt_n_points': opt_n_points,
                   'weights': weights,
-                  'optimisation_success': True})
+                  'optimisation_success': True,
+                  'errmsg': errmsg}), errmsg
 
 
 def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
@@ -347,98 +401,98 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
     out = []
     for n, opt in d.opt.items():
         if not opt['optimisation_success']:
-            warnings.warn('Cannot plot {:} rep {:.0f}. No optimisation result.'.format(d.sample, n))
-            return None, None
-
-        # unpack variables
-        means = opt['means']
-        stds = opt['stds']
-        min_points = opt['min_points']
-        mean_threshold = opt['mean_threshold']
-        std_threshold = opt['std_threshold']
-        opt_centre = opt['opt_centre']
-        opt_n_points = opt['opt_n_points']
+            out.append((None, None))
         
-        centres, npoints = np.meshgrid(np.arange(means.shape[1]), np.arange(min_points, min_points + means.shape[0]))
-        rind = (stds < std_threshold)
-        mind = (means < mean_threshold)
+        else:
+            # unpack variables
+            means = opt['means']
+            stds = opt['stds']
+            min_points = opt['min_points']
+            mean_threshold = opt['mean_threshold']
+            std_threshold = opt['std_threshold']
+            opt_centre = opt['opt_centre']
+            opt_n_points = opt['opt_n_points']
+            
+            centres, npoints = np.meshgrid(np.arange(means.shape[1]), np.arange(min_points, min_points + means.shape[0]))
+            rind = (stds < std_threshold)
+            mind = (means < mean_threshold)
 
-        # color scale and histogram limits
-        mlim = np.percentile(means.flatten()[~np.isnan(means.flatten())], (0, 99))
-        rlim = np.percentile(stds.flatten()[~np.isnan(stds.flatten())], (0, 99))
+            # color scale and histogram limits
+            mlim = np.percentile(means.flatten()[~np.isnan(means.flatten())], (0, 99))
+            rlim = np.percentile(stds.flatten()[~np.isnan(stds.flatten())], (0, 99))
 
-        cmr = plt.cm.Blues
-        cmr.set_bad((0,0,0,0.3))
+            cmr = plt.cm.Blues
+            cmr.set_bad((0,0,0,0.3))
 
-        cmm = plt.cm.Reds
-        cmm.set_bad((0,0,0,0.3))
-        
-        # create figure
-        fig = plt.figure(figsize=[10,7])
+            cmm = plt.cm.Reds
+            cmm.set_bad((0,0,0,0.3))
+            
+            # create figure
+            fig = plt.figure(figsize=[7,7])
 
-        ma = fig.add_subplot(3, 2, 1)
-        ra = fig.add_subplot(3, 2, 2)
+            ma = fig.add_subplot(3, 2, 1)
+            ra = fig.add_subplot(3, 2, 2)
 
-        # work out image limits
-        nonan = np.argwhere(~np.isnan(means))
-        xdif = np.ptp(nonan[:, 1])
-        ydif = np.ptp(nonan[:, 0])
-        extent = (nonan[:, 1].min() - np.ceil(0.1 * xdif),  # x min
-                  nonan[:, 1].max() + np.ceil(0.1 * xdif),  # x max
-                  nonan[:, 0].min() + min_points,  # y min
-                  nonan[:, 0].max() + np.ceil(0.1 * ydif) + min_points)  # y max
+            # work out image limits
+            nonan = np.argwhere(~np.isnan(means))
+            xdif = np.ptp(nonan[:, 1])
+            ydif = np.ptp(nonan[:, 0])
+            extent = (nonan[:, 1].min() - np.ceil(0.1 * xdif),  # x min
+                    nonan[:, 1].max() + np.ceil(0.1 * xdif),  # x max
+                    nonan[:, 0].min() + min_points,  # y min
+                    nonan[:, 0].max() + np.ceil(0.1 * ydif) + min_points)  # y max
 
-        mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
-                       extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+            mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
+                        extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-        ma.set_ylabel('N points')
-        ma.set_xlabel('Center')
-        fig.colorbar(mm, ax=ma, label='Amplitude')
+            ma.set_ylabel('N points')
+            ma.set_xlabel('Center')
+            fig.colorbar(mm, ax=ma, label='Amplitude')
 
-        mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
-                       extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+            mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
+                        extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-        ra.set_xlabel('Center')
-        fig.colorbar(mr, ax=ra, label='std')
+            ra.set_xlabel('Center')
+            fig.colorbar(mr, ax=ra, label='std')
 
-        # view limits
-        ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-                  extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
-        ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
-                  extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+            # view limits
+            ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
+            ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+                    extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
-        for ax in [ma, ra]:
-            ax.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
-            ax.set_xlim(extent[:2])
-            ax.set_ylim(extent[-2:])
+            for ax in [ma, ra]:
+                ax.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
+                ax.set_xlim(extent[:2])
+                ax.set_ylim(extent[-2:])
 
-        # draw histograms
-        mah = fig.add_subplot(3, 2, 3)
-        rah = fig.add_subplot(3, 2, 4)
+            # draw histograms
+            mah = fig.add_subplot(3, 2, 3)
+            rah = fig.add_subplot(3, 2, 4)
 
-        mah.set_xlim(mlim)
-        mbin = np.linspace(*mah.get_xlim(), 50)
-        mah.hist(means.flatten()[~np.isnan(means.flatten())], mbin)
-        mah.axvspan(mean_threshold, mah.get_xlim()[1], color=(0,0,0,overlay_alpha))
+            mah.set_xlim(mlim)
+            mbin = np.linspace(*mah.get_xlim(), 50)
+            mah.hist(means.flatten()[~np.isnan(means.flatten())], mbin)
+            mah.axvspan(mean_threshold, mah.get_xlim()[1], color=(0,0,0,overlay_alpha))
 
-        mah.axvline(mean_threshold, c='r')
-        mah.set_xlabel('Scaled Mean Analyte Conc')
-        mah.set_ylabel('N')
+            mah.axvline(mean_threshold, c='r')
+            mah.set_xlabel('Scaled Mean Analyte Conc')
+            mah.set_ylabel('N')
 
-        rah.set_xlim(rlim)
-        rbin = np.linspace(*rah.get_xlim(), 50)
-        rah.hist(stds.flatten()[~np.isnan(stds.flatten())], rbin)
-        rah.axvspan(std_threshold, rah.get_xlim()[1], color=(0,0,0,0.4))
-        rah.axvline(std_threshold, c='r')
-        rah.set_xlabel('std')
-        
-        tax = fig.add_subplot(3,1,3)
-        tplot(d, opt.analytes, ax=tax, **kwargs)
-        tax.axvspan(*d.Time[[opt.lims[0], opt.lims[1]]], alpha=0.2)
-        
-        tax.set_xlim(d.Time[d.ns == n].min() - 3, d.Time[d.ns == n].max() + 3)
+            rah.set_xlim(rlim)
+            rbin = np.linspace(*rah.get_xlim(), 50)
+            rah.hist(stds.flatten()[~np.isnan(stds.flatten())], rbin)
+            rah.axvspan(std_threshold, rah.get_xlim()[1], color=(0,0,0,0.4))
+            rah.axvline(std_threshold, c='r')
+            rah.set_xlabel('std')
+            
+            tax = fig.add_subplot(3,1,3)
+            tplot(d, opt.analytes, ax=tax, **kwargs)
+            tax.axvspan(*d.Time[[opt.lims[0], opt.lims[1]]], alpha=0.2)
+            
+            tax.set_xlim(d.Time[d.ns == n].min() - 3, d.Time[d.ns == n].max() + 3)
 
-        fig.tight_layout()
+            fig.tight_layout()
 
-        out.append((fig, (ma, ra, mah, rah, tax)))
+            out.append((fig, (ma, ra, mah, rah, tax)))
     return out
