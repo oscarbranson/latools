@@ -21,7 +21,7 @@ def elements(all_isotopes=True):
             return (g.atomic_weight * g.percent).sum() / 100
         iel = el.groupby('element').apply(wmean)
         iel.name = 'atomic_weight'
-        return iel.set_index('element')
+        return iel
 
 def calc_M(molecule):
     """
