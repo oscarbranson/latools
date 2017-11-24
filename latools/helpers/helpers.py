@@ -7,13 +7,10 @@ import re
 import configparser
 import datetime as dt
 import numpy as np
-import pandas as pd
 import dateutil as du
 import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
-from functools import wraps
-from tqdm import tqdm
 from .stat_fns import nominal_values
 
 
@@ -109,8 +106,8 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
 
     Parameters
     ----------
-    a : array_like
-        raw data array
+    a : float or array-like
+        number to optimise. If array like, the 25% quantile is optimised.
     llim : float
         minimum allowable value in scaled data.
 
@@ -120,8 +117,13 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
         (multiplier, unit)
     """
 
+    if not isinstance(a, (int, float)):
+        a = np.percentile(a[~np.isnan(a)], 25)
+
     if denominator is not None:
         pd = pretty_element(denominator)
+    else:
+        pd = ''
 
     if focus_stage == 'calibrated':
         udict = {0: 'mol/mol ' + pd,
