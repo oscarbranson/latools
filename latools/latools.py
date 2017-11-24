@@ -366,35 +366,37 @@ class analyse(object):
 
     @_log
     def basic_processing(self,
-                         noise_despiker=True, despike_win=3, nlim=12.,  # despike args
-                         maxiter=4,
-                         analyte='total_counts', gwin=5, swin=3, autorange_win=20,  # autorange args
-                         on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
-                         transform='log', thresh_n=None,
-                         weight_fwhm=300.,  # bkg_calc_weightedmean
-                         bkg_n_min=20, bkg_n_max=None, cstep=None,
-                         bkg_filter=False, f_win=7, f_n_lim=3,
-                         errtype='stderr',  # bkg_sub
-                         drift_correct=True,  # calibrate
-                         srms_used=['NIST610', 'NIST612', 'NIST614'],
-                         zero_intercept=True, calib_n_min=10,
+                         noise_despiker=True, despike_win=3, despike_nlim=12.,  # despike args
+                         despike_maxiter=4,
+                         autorange_analyte='total_counts', autorange_gwin=5, autorange_swin=3, autorange_win=20,  # autorange args
+                         autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1], autorange_nbin=10,
+                         autorange_transform='log', autorange_thresh_n=None,
+                         bkg_weight_fwhm=300.,  # bkg_calc_weightedmean
+                         bkg_n_min=20, bkg_n_max=None, bkg_cstep=None,
+                         bkg_filter=False, bkg_f_win=7, bkg_f_n_lim=3,
+                         bkg_errtype='stderr',  # bkg_sub
+                         calib_drift_correct=True,  # calibrate
+                         calib_srms_used=['NIST610', 'NIST612', 'NIST614'],
+                         calib_zero_intercept=True, calib_n_min=10,
                          plots=True):
         
         self.despike(noise_despiker=noise_despiker,
-                     win=despike_win, nlim=nlim,
-                     maxiter=maxiter)
-        self.autorange(analyte=analyte, gwin=gwin, swin=swin, win=autorange_win, on_mult=on_mult,
-                       off_mult=off_mult, nbin=nbin, transform=transform, thresh_n=thresh_n)
+                     win=despike_win, nlim=despike_nlim,
+                     maxiter=despike_maxiter)
+        self.autorange(analyte=autorange_analyte, gwin=autorange_gwin, swin=autorange_swin,
+                       win=autorange_win, on_mult=autorange_on_mult,
+                       off_mult=autorange_off_mult, nbin=autorange_nbin,
+                       transform=autorange_transform, thresh_n=autorange_thresh_n)
         if plots:
             self.trace_plots(ranges=True)
-        self.bkg_calc_weightedmean(weight_fwhm=weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
-                                   cstep=cstep, bkg_filter=bkg_filter, f_win=f_win, f_n_lim=f_n_lim)
+        self.bkg_calc_weightedmean(weight_fwhm=bkg_weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
+                                   cstep=bkg_cstep, bkg_filter=bkg_filter, f_win=bkg_f_win, f_n_lim=bkg_f_n_lim)
         if plots:
             self.bkg_plot()
-        self.bkg_subtract(errtype=errtype)
+        self.bkg_subtract(errtype=bkg_errtype)
         self.ratio()
-        self.calibrate(drift_correct=drift_correct, srms_used=srms_used,
-                       zero_intercept=zero_intercept, n_min=calib_n_min)
+        self.calibrate(drift_correct=calib_drift_correct, srms_used=calib_srms_used,
+                       zero_intercept=calib_zero_intercept, n_min=calib_n_min)
         if plots:
             self.calibration_plot()
 
