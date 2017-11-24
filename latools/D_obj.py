@@ -1309,7 +1309,7 @@ class D(object):
     @_log
     def signal_optimiser(self, analytes, min_points=5,
                          threshold_mode='kde_first_max',
-                         threshold_mult=1.,
+                         threshold_mult=1., x_bias=0,
                          weights=None, filt=True):
         """
         Optimise data selection based on specified analytes.
@@ -1372,27 +1372,37 @@ class D(object):
         else:
             ind = np.full(self.Time.shape, True)
         
+        errmsg = []
         ofilt = []
         self.opt = {}
         for i in range(self.n):
             nind = ind & (self.ns == i + 1)
 
-            self.opt[i + 1] = signal_optimiser(self, analytes=analytes,
-                                               min_points=min_points, 
-                                               threshold_mode=threshold_mode,
-                                               threshold_mult=threshold_mult,
-                                               weights=weights,
-                                               ind=nind)
+            self.opt[i + 1], err = signal_optimiser(self, analytes=analytes,
+                                                    min_points=min_points, 
+                                                    threshold_mode=threshold_mode,
+                                                    threshold_mult=threshold_mult,
+                                                    weights=weights,
+                                                    ind=nind, x_bias=x_bias)
 
-            ofilt.append(self.opt[i + 1].filt)
+            if err == '':
+                ofilt.append(self.opt[i + 1].filt)
+            else:
+                errmsg.append(self.sample + '_{:.0f}: '.format(i + 1) + err)
 
-        ofilt = np.apply_along_axis(any, 0, ofilt)
+        if len(ofilt) > 0:
+            ofilt = np.apply_along_axis(any, 0, ofilt)
 
-        name = 'optimise_' + '_'.join(analytes)
-        self.filt.add(name=name,
-                    filt=ofilt,
-                    info="Optimisation filter to minimise " + ', '.join(analytes),
-                    params=params, setn=setn)
+            name = 'optimise_' + '_'.join(analytes)
+            self.filt.add(name=name,
+                        filt=ofilt,
+                        info="Optimisation filter to minimise " + ', '.join(analytes),
+                        params=params, setn=setn)            
+        
+        if len(errmsg) > 0:
+            return '\n'.join(errmsg)
+        else:
+            return ''
     
     @_log
     def optimisation_plot(self, overlay_alpha=0.5, **kwargs):
@@ -1751,7 +1761,7 @@ class D(object):
         return (ntot, nfilt, pcrm)
 
     @_log
-    def filt_report(self, filt=None, analytes=None, savedir=None, nbin=5):
+    def filter_report(self, filt=None, analytes=None, savedir=None, nbin=5):
         """
         Visualise effect of data filters.
 
@@ -1771,143 +1781,7 @@ class D(object):
         -------
         (fig, axes)
         """
-        if filt is None or filt == 'all':
-            sets = self.filt.sets
-        else:
-            sets = {k: v for k, v in self.filt.sets.items() if any(filt in f for f in self.filt.components.keys())}
-
-        regex = re.compile('^([0-9]+)_([A-Za-z0-9-]+)_'
-                           '([A-Za-z0-9-]+)[_$]?'
-                           '([a-z0-9]+)?')
-
-        cm = plt.cm.get_cmap('Spectral')
-        ngrps = len(sets)
-
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
-
-        for analyte in analytes:
-            if analyte != self.internal_standard:
-                fig = plt.figure()
-
-                for i in sorted(sets.keys()):
-                    filts = sets[i]
-                    nfilts = np.array([re.match(regex, f).groups() for f in filts])
-                    fgnames = np.array(['_'.join(a) for a in nfilts[:, 1:3]])
-                    fgrp = np.unique(fgnames)[0]
-
-                    fig.set_size_inches(10, 3.5 * ngrps)
-                    h = .8 / ngrps
-
-                    y = nominal_values(self.focus[analyte])
-                    yh = y[~np.isnan(y)]
-
-                    m, u = unitpicker(np.nanmax(y),
-                                      denominator=self.internal_standard,
-                                      focus_stage=self.focus_stage)
-
-                    axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
-                                      fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
-
-                    # get variables
-                    fg = sets[i]
-                    cs = cm(np.linspace(0, 1, len(fg)))
-                    fn = ['_'.join(x) for x in nfilts[:, (0, 3)]]
-                    an = nfilts[:, 0]
-                    bins = np.linspace(np.nanmin(y), np.nanmax(y), len(yh) // nbin) * m
-
-                    if 'DBSCAN' in fgrp:
-                        # determine data filters
-                        core_ind = self.filt.components[[f for f in fg
-                                                         if 'core' in f][0]]
-                        other = np.array([('noise' not in f) & ('core' not in f)
-                                          for f in fg])
-                        tfg = fg[other]
-                        tfn = fn[other]
-                        tcs = cm(np.linspace(0, 1, len(tfg)))
-
-                        # plot all data
-                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
-                                 color='k', lw=0)
-                        # legend markers for core/member
-                        tax.scatter([], [], s=15, label='core', c='w', lw=0.5, edgecolor='k')
-                        tax.scatter([], [], s=5, label='member', c='w', lw=0.5, edgecolor='k')
-                        # plot noise
-                        try:
-                            noise_ind = self.filt.components[[f for f in fg
-                                                              if 'noise' in f][0]]
-                            tax.scatter(self.Time[noise_ind], m * y[noise_ind],
-                                        lw=1, c='k', s=10, marker='x',
-                                        label='noise', alpha=0.6)
-                        except:
-                            pass
-
-                        # plot filtered data
-                        for f, c, lab in zip(tfg, tcs, tfn):
-                            ind = self.filt.components[f]
-                            tax.scatter(self.Time[~core_ind & ind],
-                                        m * y[~core_ind & ind], lw=.5, c=c, s=5, edgecolor='k')
-                            tax.scatter(self.Time[core_ind & ind],
-                                        m * y[core_ind & ind], lw=.5, c=c, s=15, edgecolor='k',
-                                        label=lab)
-                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                     orientation='horizontal', alpha=0.6)
-
-                    else:
-                        # plot all data
-                        tax.scatter(self.Time, m * y, c='k', alpha=0.5, lw=0.1,
-                                    s=15, label='excl')
-                        hax.hist(m * yh, bins, alpha=0.5, orientation='horizontal',
-                                 color='k', lw=0)
-
-                        # plot filtered data
-                        for f, c, lab in zip(fg, cs, fn):
-                            ind = self.filt.components[f]
-                            tax.scatter(self.Time[ind], m * y[ind], lw=.5,
-                                        edgecolor='k', c=c, s=15, label=lab)
-                            hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                     orientation='horizontal', alpha=0.6)
-
-                    if 'thresh' in fgrp and analyte in fgrp:
-                        tax.axhline(self.filt.params[fg[0]]['threshold'] * m,
-                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
-                        hax.axhline(self.filt.params[fg[0]]['threshold'] * m,
-                                    ls='dashed', zorder=-2, alpha=0.5, c='k')
-
-                    # formatting
-                    for ax in axs:
-                        mn = np.nanmin(y) * m
-                        mx = np.nanmax(y) * m
-                        rn = mx - mn
-                        ax.set_ylim(mn - .05 * rn, mx + 0.05 * rn)
-
-                    # legend
-                    hn, la = tax.get_legend_handles_labels()
-                    hax.legend(hn, la, loc='upper right', scatterpoints=1)
-
-                    tax.text(.02, .98, self.sample + ': ' + fgrp, size=12,
-                             weight='bold', ha='left', va='top',
-                             transform=tax.transAxes)
-                    tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
-                    tax.set_xticks(tax.get_xticks()[:-1])
-                    hax.set_yticklabels([])
-
-                    if i < ngrps - 1:
-                        tax.set_xticklabels([])
-                        hax.set_xticklabels([])
-                    else:
-                        tax.set_xlabel('Time (s)')
-                        hax.set_xlabel('n')
-
-            if isinstance(savedir, str):
-                fig.savefig(savedir + '/' + self.sample + '_' +
-                            analyte + '.pdf')
-                plt.close(fig)
-
-        return
-        # return fig, axes
+        return plot.filter_report(self, filt, analytes, savedir, nbin)
 
     # reporting
     def get_params(self):
