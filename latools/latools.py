@@ -365,6 +365,42 @@ class analyse(object):
         return samples
 
     @_log
+    def basic_processing(self,
+                         noise_despiker=True, despike_win=3, nlim=12.,  # despike args
+                         maxiter=4,
+                         analyte='total_counts', gwin=5, swin=3, autorange_win=20,  # autorange args
+                         on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
+                         transform='log', thresh_n=None,
+                         weight_fwhm=300.,  # bkg_calc_weightedmean
+                         bkg_n_min=20, bkg_n_max=None, cstep=None,
+                         bkg_filter=False, f_win=7, f_n_lim=3,
+                         errtype='stderr',  # bkg_sub
+                         drift_correct=True,  # calibrate
+                         srms_used=['NIST610', 'NIST612', 'NIST614'],
+                         zero_intercept=True, calib_n_min=10,
+                         plots=True):
+        
+        self.despike(noise_despiker=noise_despiker,
+                     win=despike_win, nlim=nlim,
+                     maxiter=maxiter)
+        self.autorange(analyte=analyte, gwin=gwin, swin=swin, win=autorange_win, on_mult=on_mult,
+                       off_mult=off_mult, nbin=nbin, transform=transform, thresh_n=thresh_n)
+        if plots:
+            self.trace_plots(ranges=True)
+        self.bkg_calc_weightedmean(weight_fwhm=weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
+                                   cstep=cstep, bkg_filter=bkg_filter, f_win=f_win, f_n_lim=f_n_lim)
+        if plots:
+            self.bkg_plot()
+        self.bkg_subtract(errtype=errtype)
+        self.ratio()
+        self.calibrate(drift_correct=drift_correct, srms_used=srms_used,
+                       zero_intercept=zero_intercept, n_min=calib_n_min)
+        if plots:
+            self.calibration_plot()
+
+        return
+
+    @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
                   transform='log', thresh_n=None, ploterrs=True):
@@ -633,7 +669,7 @@ class analyse(object):
         return
 
     # functions for background correction
-    def get_background(self, n_min=10, n_max=None, focus_stage='despiked', filter=False, f_win=5, f_n_lim=3):
+    def get_background(self, n_min=10, n_max=None, focus_stage='despiked', bkg_filter=False, f_win=5, f_n_lim=3):
         """
         Extract all background data from all samples on universal time scale.
         Used by both 'polynomial' and 'weightedmean' methods.
@@ -691,7 +727,7 @@ class analyse(object):
         # self.bkg['summary'].index = np.arange(self.bkg['summary'].shape[0])
         # self.bkg['summary'].index.name = 'ns'
 
-        if filter:
+        if bkg_filter:
             # calculate rolling mean and std from summary
             t = self.bkg['summary'].loc[:, idx[:, 'mean']]
             r = t.rolling(f_win).aggregate([np.nanmean, np.nanstd])
@@ -713,7 +749,7 @@ class analyse(object):
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
                               n_min=20, n_max=None, cstep=None,
-                              filter=False, f_win=7, f_n_lim=3):
+                              bkg_filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -746,7 +782,7 @@ class analyse(object):
             analytes = [analytes]
 
         self.get_background(n_min=n_min, n_max=n_max,
-                            filter=filter,
+                            bkg_filter=bkg_filter,
                             f_win=f_win, f_n_lim=f_n_lim)
 
         # Gaussian - weighted average
@@ -780,7 +816,7 @@ class analyse(object):
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
-                          filter=False, f_win=7, f_n_lim=3):
+                          bkg_filter=False, f_win=7, f_n_lim=3):
         """
         Background calculation using a 1D interpolation.
 
@@ -816,7 +852,7 @@ class analyse(object):
             analytes = [analytes]
 
         self.get_background(n_min=n_min, n_max=n_max,
-                            filter=filter,
+                            bkg_filter=bkg_filter,
                             f_win=f_win, f_n_lim=f_n_lim)
 
         def pad(a, lo=None, hi=None):
@@ -935,10 +971,12 @@ class analyse(object):
 
         for a in tqdm(analytes, desc='Plotting backgrounds',
                       leave=True, total=len(analytes)):
+            # draw data points
             ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
                        alpha=0.5, s=3, c=self.cmaps[a],
                        lw=0.5)
-
+            
+            # draw STD boxes
             for i, r in self.bkg['summary'].iterrows():
                 x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
                      r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
@@ -947,20 +985,28 @@ class analyse(object):
 
                 ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
 
-            ax.plot(self.bkg['calc']['uTime'],
-                    self.bkg['calc'][a]['mean'],
-                    c=self.cmaps[a], zorder=2, label=a)
-            ax.fill_between(self.bkg['calc']['uTime'],
-                            self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err],
-                            self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err],
-                            color=self.cmaps[a], alpha=0.3, zorder=-1)
-
         if yscale == 'log':
             ax.set_yscale('log')
         if ylim is not None:
             ax.set_ylim(ylim)
         else:
             ax.set_ylim(ax.get_ylim() * np.array([1, 10]))  # x10 to make sample names readable.
+
+        for a in analytes:
+            # draw confidence intervals of calculated
+            x = self.bkg['calc']['uTime']
+            y = self.bkg['calc'][a]['mean']
+            yl = self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err]
+            yu = self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err]
+
+            # trim values below zero if log scale=    
+            if yscale == 'log':
+                yl[yl < ax.get_ylim()[0]] = ax.get_ylim()[0]
+
+            ax.plot(x, y,
+                    c=self.cmaps[a], zorder=2, label=a)
+            ax.fill_between(x, yl, yu,
+                            color=self.cmaps[a], alpha=0.3, zorder=-1)
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Background Counts')
@@ -2153,7 +2199,7 @@ class analyse(object):
     @_log
     def optimise_signal(self, analytes, min_points=5,
                         threshold_mode='kde_first_max', 
-                        threshold_mult=1., filt=True,
+                        threshold_mult=1., x_bias=0, filt=True,
                         weights=None, samples=None, subset=None):
         """
         Optimise data selection based on specified analytes.
@@ -2212,10 +2258,17 @@ class analyse(object):
 
         self.minimal_analytes.update(analytes)
 
+        errs = []
+
         for s in tqdm(samples, desc='Optimising'):
-            self.data[s].signal_optimiser(analytes, min_points,
-                                          threshold_mode, threshold_mult,
-                                          weights, filt)
+            e = self.data[s].signal_optimiser(analytes, min_points,
+                                              threshold_mode, threshold_mult,
+                                              x_bias, weights, filt)
+            if e != '':
+                errs.append(e)
+        
+        if len(errs) > 0:
+            print('\nA Few Problems:\n' + '\n'.join(errs) + '\n\n  *** Check Optimisation Plots ***')
     
     @_log
     def optimisation_plots(self, overlay_alpha=0.5, samples=None, subset=None, **kwargs):
@@ -2507,6 +2560,67 @@ class analyse(object):
         self.gradients.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         return
+
+    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None):
+        """
+        Plot a histogram of the gradients in all samples.
+
+        Parameters
+        ----------
+        filt : str, dict or bool
+            Either logical filter expression contained in a str,
+            a dict of expressions specifying the filter string to
+            use for each analyte or a boolean. Passed to `grab_filt`.
+        bins : None or array-like
+            The bins to use in the histogram
+        samples : str or list
+            which samples to get
+        subset : str or int
+            which subset to get
+
+        Returns
+        -------
+        fig, ax
+        """
+        if analytes is None:
+            analytes = self.analytes
+        if not hasattr(self, 'gradients'):
+            self.gradients = Bunch()
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        self.get_gradients(analytes, win, filt, subset=subset)
+
+        fig, axs = plt.subplots(1, len(analytes), figsize=[3 * len(analytes), 2.5])
+
+        if not isinstance(axs, np.ndarray):
+            axs = [axs]
+
+        for a, ax in zip(analytes, axs):
+            d = nominal_values(self.gradients[a])
+            d = d[~np.isnan(d)]
+
+            m, u = unitpicker(d, focus_stage=self.focus_stage, denominator=self.internal_standard)
+
+            if bins is None:
+                ibins = np.linspace(*np.percentile(d * m, [2.5, 97.5]), 50)
+            else:
+                ibins = bins
+
+            ax.hist(d * m, bins=ibins, color=self.cmaps[a])
+            ax.axvline(0, ls='dashed', lw=1, c=(0,0,0,0.7))
+
+            ax.set_title(a, loc='left')
+            if ax.is_first_col():
+                ax.set_ylabel('N')
+            ax.set_xlabel(u + '/s')
+        
+        fig.tight_layout()
+
+        return fig, axs
 
     # crossplot of all data
     @_log
@@ -3022,10 +3136,10 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         for s in tqdm(samples, desc='Drawing Plots'):
-            self.data[s].filt_report(filt=filt_str,
-                                     analytes=analytes,
-                                     savedir=outdir,
-                                     nbin=nbin)
+            _ = self.data[s].filter_report(filt=filt_str,
+                                           analytes=analytes,
+                                           savedir=outdir,
+                                           nbin=nbin)
             # plt.close(fig)
         return
 
