@@ -28,8 +28,10 @@ Installing ``latools``
 There are two ways to install ``latools``. We recommend the first method, which will allow you to easily keep your installation of ``latools`` up to date with new developments.
 
 ------------------------------------------------------
-1. Using [PyPi](https://pypi.python.org/pypi/latools/)
+1. Using `PyPi<https://pypi.python.org/pypi/latools/>`_
 ------------------------------------------------------
+
+.. code-block:: bash
 
     pip install latools
 

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Laser Ablation Tools (latools) &mdash; latools 0.2.4-dev documentation</title>
+  <title>Laser Ablation Tools (latools) &mdash; latools 0.3.1 documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="genindex.html"/>
         <link rel="search" title="Search" href="search.html"/>
-    <link rel="top" title="latools 0.2.4-dev documentation" href="#"/>
+    <link rel="top" title="latools 0.3.1 documentation" href="#"/>
         <link rel="next" title="User Guide" href="users/index.html"/> 
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.2.4-dev
+                0.3.1
               </div>
             
           
@@ -169,45 +169,99 @@
 <li class="toctree-l2"><a class="reference internal" href="users/intro.html">Introduction</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="users/intro.html#why-use-latools">Why Use latools?</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/intro.html#very-important-warning">Very Important Warning</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/intro.html#overview-understand-latools">Overview: Understand <code class="docutils literal"><span class="pre">latools</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/intro.html#overview-understand-latools">Overview: Understand <code class="docutils literal"><span class="pre">latools</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/intro.html#architecture">Architecture</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/intro.html#how-it-works">How it works</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/intro.html#filtering">Filtering</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/intro.html#where-next">Where next?</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="users/installing.html">Installation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="users/installing.html#prerequisite-python">Prerequisite: Python</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/installing.html#installing-latools">Installing <code class="docutils literal"><span class="pre">latools</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/installing.html#installing-latools">Installing <code class="docutils literal"><span class="pre">latools</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/installing.html#using-pypi-https-pypi-python-org-pypi-latools">1. Using `PyPi&lt;https://pypi.python.org/pypi/latools/&gt;`_</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/installing.html#using-conda">2. Using Conda</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/installing.html#next-steps">Next Steps</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="users/beginners/index.html">Beginner’s Guide</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/1-getting-started.html">Getting Started</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/1-getting-started.html">Getting Started</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/1-getting-started.html#the-fundamentals-python">The Fundamentals: Python</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/1-getting-started.html#preparation">Preparation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/1-getting-started.html#starting-latools">Starting <cite>latools</cite></a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/1-getting-started.html#example-data">Example Data</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/2-data-import.html">Importing Data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/3-plotting.html">Plotting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/4-despiking.html">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/5-signal-background.html">Background Correction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/5-signal-background.html">Background Correction</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/5-signal-background.html#signal-background-separation">Signal / Background Separation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/5-signal-background.html#background-calculation">Background Calculation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/5-signal-background.html#background-subtraction">Background Subtraction</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/6-ratios.html">Ratio Calculation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/7-calibration.html">Calibration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/8-filtering.html">Data Selection and Filtering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/8-filtering.html">Data Selection and Filtering</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/8-filtering.html#what-is-data-filtering">What is Data Filtering?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/8-filtering.html#data-filters">Data Filters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/8-filtering.html#simple-demonstration">Simple Demonstration</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/beginners/9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/95-reproducibility.html">Reproducibility</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/beginners/11-FAQ.html">FAQs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/95-reproducibility.html">Reproducibility</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/95-reproducibility.html#minimal-export">Minimal Export</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/95-reproducibility.html#import-and-reproduction">Import and Reproduction</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/10-summary.html">Summary</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/10-summary.html#before-you-go">Before You Go</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="users/beginners/11-FAQ.html">FAQs</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/11-FAQ.html#i-can-t-get-my-data-to-import">I can’t get my data to import…</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/11-FAQ.html#your-software-is-broken-it-doesn-t-work">Your software is broken. It doesn’t work!</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/beginners/11-FAQ.html#i-want-to-do-x-can-you-add-this-feature">I want to do X, can you add this feature?</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="users/config/index.html">Configuration Guide</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="users/config/customising.html">Lab-Specific Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/config/customising.html">Lab-Specific Configuration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/config/customising.html#defining-srm-materials">Defining SRM Materials</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="users/advanced/index.html">Advanced Topics</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/structure.html">Package Structure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/advanced-filtering.html">Filtering &amp; Data Selection</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/advanced-plotting.html">Plotting and Data Exploration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/advanced/data-formats.html">Data Import</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/advanced/cfg-file.html">The .cfg file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/advanced/data-formats.html">Data Import</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/data-formats.html#file-structure">File Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/data-formats.html#data-format">Data Format</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="users/advanced/cfg-file.html">The .cfg file</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/cfg-file.html#location">Location</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/cfg-file.html#structure">Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/cfg-file.html#modification">Modification</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/autorange-fn.html">The <code class="docutils literal"><span class="pre">autorange()</span></code> Function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/latools-alternatives.html">Alternative LA-MS Reduction Software</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users/advanced/srm-id.html">Automatic SRM Identification</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users/advanced/srm-file.html">The SRM file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users/advanced/srm-file.html">The SRM file</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/srm-file.html#location">Location</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/srm-file.html#structure">Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="users/advanced/srm-file.html#modification">Modification</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -279,7 +333,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.2.4-dev',
+            VERSION:'0.3.1',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,

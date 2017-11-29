@@ -10,7 +10,7 @@ To get your data into ``latools``, you need to think about two things:
   2. Data format
 
 File Structure
-==========
+==============
 ``latools`` is designed for data that is collected so that each text file contains ablations of a single sample or a (set of) standards, with a name corresponding to the identity of the sample.
 The ideal data structure would look something like this:
 
