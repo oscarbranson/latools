@@ -35,9 +35,9 @@ There are two ways to install ``latools``. We recommend the first method, which 
 
     pip install latools
 
---------------
-2. Using Conda
---------------
+------------------
+2. Using ``conda``
+------------------
 
 Coming soon...
 
