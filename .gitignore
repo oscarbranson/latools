@@ -4,7 +4,7 @@ test_data/A1-5.csv
 test_data/STD-3.csv
 latools.pro.user
 latools.egg-info
-*.ipynb
+./*.ipynb
 comparison*
 Training
 *__pycache__*
@@ -22,3 +22,4 @@ data
 .vscode
 .eggs/*
 .cache/*
+*.ipynb_checkpoints
