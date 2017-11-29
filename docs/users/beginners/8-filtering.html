@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data Selection and Filtering &mdash; latools 0.2.2a documentation</title>
+  <title>Data Selection and Filtering &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Sample Statistics" href="9-statistics.html"/>
         <link rel="prev" title="Calibration" href="7-calibration.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,32 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner&#8217;s Guide</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
-<li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Data Selection and Filtering</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#what-is-data-filtering">What is Data Filtering?</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#data-filters">Data Filters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#simple-demonstration">Simple Demonstration</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="11-FAQ.html">FAQs</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -167,7 +149,7 @@
         
           <li><a href="../index.html">User Guide</a> &raquo;</li>
         
-          <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
+          <li><a href="index.html">Beginner’s Guide</a> &raquo;</li>
         
       <li>Data Selection and Filtering</li>
     
@@ -199,14 +181,14 @@ In heterogeneous samples, this means that the concentrations of different analyt
 This compositional heterogeneity can either be natural and expected (e.g. Mg/Ca variability in foraminifera), or caused by compositionally distinct contaminant phases included in the sample structure.
 If the end goal of your analysis is to get integrated compositional estimates for each ablation analysis, how you deal with sample heterogeneity becomes central to data processing, and can have a profound effect on the resulting integrated values.
 So far, heterogeneous samples tend to be processed manually, by choosing regions to integrate by eye, based on a set of criteria and knowledge of the sample material.
-While this is a valid approach to data reduction, it is not reproducible: if two &#8216;expert analysts&#8217; were to process the data, the resulting values would not be quantitatively identical.
+While this is a valid approach to data reduction, it is not reproducible: if two ‘expert analysts’ were to process the data, the resulting values would not be quantitatively identical.
 Reproducibility is fundamental to sound science, and the inability to reproduce integrated values from identical raw data is a fundamental flaw in Laser Ablation studies.
 In short, this is a serious problem.</p>
-<p>To get round this, we have developed &#8216;Data Filters&#8217;.
+<p>To get round this, we have developed ‘Data Filters’.
 Data Filters are systematic selection criteria, which can be applied to all samples to select specific regions of ablation data for integration.
 For example, the analyst might apply a filter that removes all regions where a particular analyte exceeds a threshold concentration, or exclude regions where two contaminant elements co-vary through the ablation.
 Ultimately, the choice of selection criteria remains entirely subjective, but because these criteria are quantitative they can be uniformly applied to all specimens, and most importantly, reported and reproduced by an independent researcher.
-This removes significant possibilities for &#8216;human error&#8217; from data analysis, and solves the long-standing problem of reproducibility in LA-MS data processing.</p>
+This removes significant possibilities for ‘human error’ from data analysis, and solves the long-standing problem of reproducibility in LA-MS data processing.</p>
 </div>
 <div class="section" id="data-filters">
 <h2>Data Filters<a class="headerlink" href="#data-filters" title="Permalink to this headline">¶</a></h2>
@@ -214,16 +196,16 @@ This removes significant possibilities for &#8216;human error&#8217; from data a
 By their combined application, it should be possible to isolate any specific region within the data that is systematically identified by patterns in the ablation profile.
 These filter are (in order of increasing complexity):</p>
 <ul class="simple">
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_threshold" title="latools.analyse.filter_threshold"><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code></a>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_clustering" title="latools.analyse.filter_clustering"><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code></a>: A more sophisticated version of <a class="reference internal" href="../../docs/index.html#latools.analyse.filter_distribution" title="latools.analyse.filter_distribution"><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code></a>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct &#8216;populations&#8217; in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.filter_correlation" title="latools.analyse.filter_correlation"><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code></a>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_threshold()</span></code>: Creates two filter keys identifying where a specific analyte is above or below a given threshold.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>: Finds separate <cite>populations</cite> within the measured concentration of a single analyte within by creating a Probability Distribution Function (PDF) of the analyte within each sample. Local minima in the PDF identify the boundaries between distinct concentrations of that analyte within your sample.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_clustering()</span></code>: A more sophisticated version of <code class="xref py py-meth docutils literal"><span class="pre">filter_distribution()</span></code>, which uses data clustering algorithms from the <a class="reference external" href="http://scikit-learn.org/">sklearn</a> module to identify compositionally distinct ‘populations’ in your data. This can consider multiple analytes at once, allowing for the robust detection of distinct compositional zones in your data using n-dimensional clustering algorithms.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">filter_correlation()</span></code>: Finds regions in your data where two analytes correlate locally. For example, if your analyte of interest strongly co-varies with an analyte that is a known contaminant indicator, the signal is likely contaminated, and should be discarded.</li>
 </ul>
-<p>It is also possible to &#8216;train&#8217; a clustering algorithm based on analyte concentrations from <em>all</em> samples, and then apply it to individual filters.
+<p>It is also possible to ‘train’ a clustering algorithm based on analyte concentrations from <em>all</em> samples, and then apply it to individual filters.
 To do this, use:</p>
 <ul class="simple">
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.fit_classifier" title="latools.analyse.fit_classifier"><code class="xref py py-meth docutils literal"><span class="pre">fit_classifier()</span></code></a>: Uses a clustering algorithm based on specified analytes in <em>all</em> samples (or a subset) to identify separate compositions within the entire dataset. This is particularly useful if (for example) all samples are affected by a contaminant with a unique composition, or the samples contain a chemical &#8216;label&#8217; that identifies a particular material. This will be most robustly identified at the whole-analysis level, rather than the individual-sample level.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.analyse.apply_classifier" title="latools.analyse.apply_classifier"><code class="xref py py-meth docutils literal"><span class="pre">apply_classifier()</span></code></a>: Applies the classifier fitted to the entire dataset to all samples individually. Creates a sample-level filter using the classifier based on all data.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">fit_classifier()</span></code>: Uses a clustering algorithm based on specified analytes in <em>all</em> samples (or a subset) to identify separate compositions within the entire dataset. This is particularly useful if (for example) all samples are affected by a contaminant with a unique composition, or the samples contain a chemical ‘label’ that identifies a particular material. This will be most robustly identified at the whole-analysis level, rather than the individual-sample level.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">apply_classifier()</span></code>: Applies the classifier fitted to the entire dataset to all samples individually. Creates a sample-level filter using the classifier based on all data.</li>
 </ul>
 <p>For a full account of these filters, how they work and how they can be used, see <a class="reference internal" href="../advanced/advanced-filtering.html#advanced-filtering"><span class="std std-ref">Filtering &amp; Data Selection</span></a>.</p>
 </div>
@@ -236,10 +218,10 @@ There should not be any contaminants in these samples, and filtering is relative
 The first step in choosing a filter is to <em>look</em> at the data.
 You can look at the calibrated profiles manually to get a sense of the patterns in the data (using <code class="docutils literal"><span class="pre">trace_plots()</span></code>):</p>
 <img alt="../../_images/calibrated_Sample-3.png" src="../../_images/calibrated_Sample-3.png" />
-<p>Or alternatively, you can make a &#8216;crossplot&#8217; (using <code class="docutils literal"><span class="pre">eg.crossplot()</span></code>) of your data, to examine how all the trace elements in your samples relate to each other:</p>
+<p>Or alternatively, you can make a ‘crossplot’ (using <code class="docutils literal"><span class="pre">eg.crossplot()</span></code>) of your data, to examine how all the trace elements in your samples relate to each other:</p>
 <img alt="../../_images/crossplot.png" src="../../_images/crossplot.png" />
-<p>This plots every analyte in your ablation profiles, plotted against every other analyte. The axes in each panel are described by the diagonal analyte names. The colour intensity in each panel corresponds to the data density (i.e. it&#8217;s a 2D histogram!).</p>
-<p>Within these plots, you should focus on the behaviour of &#8216;contaminant indicator&#8217; elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
+<p>This plots every analyte in your ablation profiles, plotted against every other analyte. The axes in each panel are described by the diagonal analyte names. The colour intensity in each panel corresponds to the data density (i.e. it’s a 2D histogram!).</p>
+<p>Within these plots, you should focus on the behaviour of ‘contaminant indicator’ elements, i.e. elements that are normally within a known concentration range, or are known to be associated with a possible contaminant phase.
 As these are foraminifera, we will pay particularly close attention to the concentrations of Al, Mn and Ba in the ablations, which are all normally low and homogeneous in foraminifera samples, but are prone to contamination by clay particles.
 In these samples, the Ba and Mn are relatively uniform, but the Al increases towards the end of each ablation.
 This is because the tape that the specimens were mounted on contains a significant amount of Al, which is picked up by the laser as it ablates through the shell.
@@ -247,18 +229,14 @@ We know from experience that the tape tends to have very low concentration of ot
 </div>
 <div class="section" id="creating-a-filter">
 <h3>Creating a Filter<a class="headerlink" href="#creating-a-filter" title="Permalink to this headline">¶</a></h3>
-<p>We wouldn&#8217;t expect cultured foraminifera to have a Al/Ca of ~100 µmol/mol, so we therefore want to remove all data from regions with an Al/Ca above this.
-We&#8217;ll do this with a threshold filter:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">100e-6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
+<p>We wouldn’t expect cultured foraminifera to have a Al/Ca of ~100 µmol/mol, so we therefore want to remove all data from regions with an Al/Ca above this.
+We’ll do this with a threshold filter:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_threshold</span><span class="p">(</span><span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">100e-6</span><span class="p">)</span>  <span class="c1"># remember that all units are in mol/mol!</span>
 </pre></div>
 </div>
-<p>This goes through <em>all</em> the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol.
+<p>This goes through <em>all</em> the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol (remember, all units are in mol/mol at this stage).
 This function calculates the filters, but does not apply them - that happens later.
-You can check which filters have been calculated, and which are active for individual analytes by typing:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_status</span><span class="p">()</span>
-</pre></div>
-</div>
-<p>Which will return:</p>
+Once the filters are calculated, a list of filters and their current status is printed:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
 <span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>
 
@@ -267,11 +245,15 @@ You can check which filters have been calculated, and which are active for indiv
 <span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>
 </pre></div>
 </div>
+<p>You can also check this manually at any time using:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_status</span><span class="p">()</span>
+</pre></div>
+</div>
 <p>This produces a grid showing the filter numbers, names, and which analytes they are active for (for each analyte False = inactive, True = active).
 The <code class="docutils literal"><span class="pre">filter_threshold</span></code> function has generated two filters: one identifying data above the threshold, and the other below it.
-Finally, notice also that it says &#8216;Subset: All_Samples&#8217; at the top, and lists which samples they are.
-You can apply different filters to different subsets of samples... We&#8217;ll come back to this later.
-This display shows all the filters you&#8217;ve calculated, and which analytes they are applied to.</p>
+Finally, notice also that it says ‘Subset: All_Samples’ at the top, and lists which samples they are.
+You can apply different filters to different subsets of samples… We’ll come back to this later.
+This display shows all the filters you’ve calculated, and which analytes they are applied to.</p>
 <p>Before we think about applying the filter, we should check what it has actually done to the data.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -281,64 +263,63 @@ This display shows all the filters you&#8217;ve calculated, and which analytes t
 <div class="section" id="checking-a-filter">
 <h3>Checking a Filter<a class="headerlink" href="#checking-a-filter" title="Permalink to this headline">¶</a></h3>
 <p>You can do this in three ways:</p>
-<ol class="arabic">
-<li><p class="first">Plot the traces, with <code class="docutils literal"><span class="pre">filt=True</span></code>. This plots the calibrated traces, with areas excluded by the filter shaded out in grey. Specifying <code class="docutils literal"><span class="pre">filt=True</span></code> shows the net effect of all active filters. By setting <code class="docutils literal"><span class="pre">filt</span></code> as a number or filter name, the effect of one individual filter will be shown.</p>
-</li>
-<li><p class="first">Crossplot with <code class="docutils literal"><span class="pre">filt=True</span></code> will generate a new crossplot containing only data that remains after filtering. This can be useful for refining filter choices during multiple rounds of filtering. You can also set <code class="docutils literal"><span class="pre">filt</span></code> to be a filter name or a number, as with trace plotting.</p>
-</li>
-<li><p class="first">The most sophisticated way of looking at a filter is by creating a &#8216;filter_report&#8217;. This generates a plot of each analysis, showing which regions are selected by particular filters:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_reports</span><span class="p">(</span><span class="n">analytes</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">filt_str</span><span class="o">=</span><span class="s1">&#39;thresh&#39;</span><span class="p">)</span>
+<ol class="arabic simple">
+<li>Plot the traces, with <code class="docutils literal"><span class="pre">filt=True</span></code>. This plots the calibrated traces, with areas excluded by the filter shaded out in grey. Specifying <code class="docutils literal"><span class="pre">filt=True</span></code> shows the net effect of all active filters. By setting <code class="docutils literal"><span class="pre">filt</span></code> as a number or filter name, the effect of one individual filter will be shown.</li>
+<li>Crossplot with <code class="docutils literal"><span class="pre">filt=True</span></code> will generate a new crossplot containing only data that remains after filtering. This can be useful for refining filter choices during multiple rounds of filtering. You can also set <code class="docutils literal"><span class="pre">filt</span></code> to be a filter name or a number, as with trace plotting.</li>
+<li>The most sophisticated way of looking at a filter is by creating a ‘filter_report’. This generates a plot of each analysis, showing which regions are selected by particular filters:</li>
+</ol>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_reports</span><span class="p">(</span><span class="n">analytes</span><span class="o">=</span><span class="s1">&#39;Al27&#39;</span><span class="p">,</span> <span class="n">filt_str</span><span class="o">=</span><span class="s1">&#39;thresh&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-</li>
-</ol>
 <p>Where <code class="docutils literal"><span class="pre">analytes</span></code> specifies which analytes you want to see the influence of the filters on, and <code class="docutils literal"><span class="pre">filt_str</span></code> identifies which filters you want to see.
-<code class="docutils literal"><span class="pre">filt_str</span></code> supports partial filter name matching, so &#8216;thresh&#8217; will pick up any filter with &#8216;thresh&#8217; in the name - i.e. if you&#8217;d calculated multiple thresholds, it would plot each on a different plot.
+<code class="docutils literal"><span class="pre">filt_str</span></code> supports partial filter name matching, so ‘thresh’ will pick up any filter with ‘thresh’ in the name - i.e. if you’d calculated multiple thresholds, it would plot each on a different plot.
 If all has gone to plan, it will look something like this:</p>
 <img alt="../../_images/thresh_Sample-3_Al27.png" src="../../_images/thresh_Sample-3_Al27.png" />
-<p>In the case of a threshold filter report, the dashed line shows the threshold, and the legend identifies which data regions are selected by the different filters (in this case &#8216;0_below&#8217; or &#8216;1_above&#8217;).
+<p>In the case of a threshold filter report, the dashed line shows the threshold, and the legend identifies which data regions are selected by the different filters (in this case ‘0_below’ or ‘1_above’).
 The reports for different types of filter are slightly different, and often include numerous groups of data.
-In this case, the 100 µmol/mol threshold seems to do a good job of excluding extraneously high Al/Ca values, so we&#8217;ll use the &#8216;0_Al27_thresh_below&#8217; filter to select these data.</p>
+In this case, the 100 µmol/mol threshold seems to do a good job of excluding extraneously high Al/Ca values, so we’ll use the ‘0_Al27_thresh_below’ filter to select these data.</p>
 </div>
 <div class="section" id="applying-a-filter">
 <h3>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this headline">¶</a></h3>
-<p>Once you&#8217;ve identified which filter you want to apply, you must turn that filter &#8216;on&#8217; using:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">)</span>
+<p>Once you’ve identified which filter you want to apply, you must turn that filter ‘on’ using:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_on</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Where <code class="docutils literal"><span class="pre">filt</span></code> can either be the filter number (corresponding to the &#8216;n&#8217; column in the output of <code class="docutils literal"><span class="pre">filter_status()</span></code>) or a partially matching string, as here.
-For example, <code class="docutils literal"><span class="pre">'Albelow'</span></code> is most similar to <code class="docutils literal"><span class="pre">'Al27_thresh_below'</span></code>, so this filter will be turned on. You could also specify <code class="docutils literal"><span class="pre">'below'</span></code>, which would turn on all filters with &#8216;below&#8217; in the name. This is done using &#8216;fuzzy string matching&#8217;, provided by the <code class="docutils literal"><span class="pre">fuzzywuzzy</span></code> package.
+<p>Where <code class="docutils literal"><span class="pre">filt</span></code> can either be the filter number (corresponding to the ‘n’ column in the output of <code class="docutils literal"><span class="pre">filter_status()</span></code>) or a partially matching string, as here.
+For example, <code class="docutils literal"><span class="pre">'Albelow'</span></code> is most similar to <code class="docutils literal"><span class="pre">'Al27_thresh_below'</span></code>, so this filter will be turned on. You could also specify <code class="docutils literal"><span class="pre">'below'</span></code>, which would turn on all filters with ‘below’ in the name. This is done using ‘fuzzy string matching’, provided by the <code class="docutils literal"><span class="pre">fuzzywuzzy</span></code> package.
 There is also a counterpart <code class="docutils literal"><span class="pre">eg.filter_off()</span></code> function, which works in the inverse.
 These functions will turn the threshold filter on for all analytes measured in all samples, and return a report of which filters are now on or off:</p>
-<blockquote>
-<div><p>Subset All_Samples:
-Samples: Sample-1, Sample-2, Sample-3</p>
-<p>n  Filter Name          Mg24   Mg25   Al27   Ca43   Ca44   Mn55   Sr88   Ba137  Ba138
-0  Al27_thresh_below    True   True   True   True   True   True   True   True   True
-1  Al27_thresh_above    False  False  False  False  False  False  False  False  False</p>
-</div></blockquote>
-<p>In some cases, you might have a sample where one analyte is effected by a contaminant that does not alter other analytes.
-If this is the case, you can switch a filter on or off for a specific analyte:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">,</span> <span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Mg25&#39;</span><span class="p">)</span>
-
-<span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
 <span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>
 
 <span class="n">n</span>  <span class="n">Filter</span> <span class="n">Name</span>          <span class="n">Mg24</span>   <span class="n">Mg25</span>   <span class="n">Al27</span>   <span class="n">Ca43</span>   <span class="n">Ca44</span>   <span class="n">Mn55</span>   <span class="n">Sr88</span>   <span class="n">Ba137</span>  <span class="n">Ba138</span>
-<span class="mi">0</span>  <span class="n">Al27_thresh_below</span>    <span class="kc">True</span>   <span class="kc">False</span>  <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>
+<span class="mi">0</span>  <span class="n">Al27_thresh_below</span>    <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>   <span class="kc">True</span>
 <span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>  <span class="kc">False</span>
 </pre></div>
 </div>
-<p>Notice how the &#8216;Al27_thresh_below&#8217; filter is now deactivated for Mg25.</p>
+<p>In some cases, you might have a sample where one analyte is effected by a contaminant that does not alter other analytes.
+If this is the case, you can switch a filter on or off for a specific analyte:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">filter_off</span><span class="p">(</span><span class="n">filt</span><span class="o">=</span><span class="s1">&#39;Albelow&#39;</span><span class="p">,</span> <span class="n">analyte</span><span class="o">=</span><span class="s1">&#39;Mg25&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">Subset</span> <span class="n">All_Samples</span><span class="p">:</span>
+<span class="n">Samples</span><span class="p">:</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">Sample</span><span class="o">-</span><span class="mi">3</span>
+
+<span class="n">n</span>  <span class="n">Filter</span> <span class="n">Name</span>          <span class="n">Mg24</span>   <span class="n">Mg25</span>   <span class="n">Al27</span>   <span class="n">Ca43</span>   <span class="n">Ca44</span>   <span class="n">Mn55</span>   <span class="n">Sr88</span>   <span class="n">Ba137</span>  <span class="n">Ba138</span>
+<span class="mi">0</span>  <span class="n">Al27_thresh_below</span>    <span class="bp">True</span>   <span class="bp">False</span>  <span class="bp">True</span>   <span class="bp">True</span>   <span class="bp">True</span>   <span class="bp">True</span>   <span class="bp">True</span>   <span class="bp">True</span>   <span class="bp">True</span>
+<span class="mi">1</span>  <span class="n">Al27_thresh_above</span>    <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>  <span class="bp">False</span>
+</pre></div>
+</div>
+<p>Notice how the ‘Al27_thresh_below’ filter is now deactivated for Mg25.</p>
 </div>
 <div class="section" id="sample-subsets">
 <h3>Sample Subsets<a class="headerlink" href="#sample-subsets" title="Permalink to this headline">¶</a></h3>
-<p>Finally, let&#8217;s return to the &#8216;Subsets&#8217;, which we skipped over earlier.
+<p>Finally, let’s return to the ‘Subsets’, which we skipped over earlier.
 It is quite common to analyse distinct sets of samples in the same analytical session.
-To accommodate this, you can create data &#8216;subsets&#8217; during analysis, and treat them in different ways.
-For example, imagine that &#8216;Sample-1&#8217; in our test dataset was a different type of sample, that needs to be filtered in a different way.
+To accommodate this, you can create data ‘subsets’ during analysis, and treat them in different ways.
+For example, imagine that ‘Sample-1’ in our test dataset was a different type of sample, that needs to be filtered in a different way.
 We can identify this as a subset by:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">make_subset</span><span class="p">(</span><span class="n">samples</span><span class="o">=</span><span class="s1">&#39;Sample-1&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;set1&#39;</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">make_subset</span><span class="p">(</span><span class="n">samples</span><span class="o">=</span><span class="s1">&#39;Sample-1&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;set1&#39;</span><span class="p">)</span>
 <span class="n">eg</span><span class="o">.</span><span class="n">make_subset</span><span class="p">(</span><span class="n">samples</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Sample-2&#39;</span><span class="p">,</span> <span class="s1">&#39;Sample-3&#39;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;set2&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -403,7 +384,7 @@ We can identify this as a subset by:</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -425,7 +406,7 @@ We can identify this as a subset by:</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -435,7 +416,7 @@ We can identify this as a subset by:</p>
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

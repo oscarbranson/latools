@@ -18,11 +18,10 @@ Function Documentation
 .. toctree::
     :maxdepth: 2
 
-    docs/index.rst
+    latools.rst
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

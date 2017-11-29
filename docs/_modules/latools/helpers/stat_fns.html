@@ -1,0 +1,440 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>latools.helpers.stat_fns &mdash; latools 0.2.4-dev documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.4-dev
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../users/index.html">User Guide</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../latools.html">latools Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">latools</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>latools.helpers.stat_fns</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for latools.helpers.stat_fns</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">uncertainties.unumpy</span> <span class="k">as</span> <span class="nn">un</span>
+
+
+<div class="viewcode-block" id="R2calc"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.R2calc">[docs]</a><span class="k">def</span> <span class="nf">R2calc</span><span class="p">(</span><span class="n">meas</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">force_zero</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">force_zero</span><span class="p">:</span>
+        <span class="n">SStot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">meas</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">SStot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">meas</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">meas</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">SSres</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">meas</span> <span class="o">-</span> <span class="n">model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">SSres</span> <span class="o">/</span> <span class="n">SStot</span><span class="p">)</span></div>
+
+
+<span class="c1"># uncertainties unpackers</span>
+<div class="viewcode-block" id="unpack_uncertainties"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.unpack_uncertainties">[docs]</a><span class="k">def</span> <span class="nf">unpack_uncertainties</span><span class="p">(</span><span class="n">uarray</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convenience function to unpack nominal values and uncertainties from an</span>
+<span class="sd">    ``uncertainties.uarray``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        (nominal_values, std_devs)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">un</span><span class="o">.</span><span class="n">nominal_values</span><span class="p">(</span><span class="n">uarray</span><span class="p">),</span> <span class="n">un</span><span class="o">.</span><span class="n">std_devs</span><span class="p">(</span><span class="n">uarray</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">uarray</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="nominal_values"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.nominal_values">[docs]</a><span class="k">def</span> <span class="nf">nominal_values</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">un</span><span class="o">.</span><span class="n">nominal_values</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">a</span></div>
+
+
+<div class="viewcode-block" id="std_devs"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.std_devs">[docs]</a><span class="k">def</span> <span class="nf">std_devs</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">un</span><span class="o">.</span><span class="n">std_devs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">a</span></div>
+
+
+<span class="c1"># def weighted_average(x, y, x_new, fwhm=300):</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     Calculate gaussian weigted moving mean, SD and SE.</span>
+
+<span class="c1">#     Parameters</span>
+<span class="c1">#     ----------</span>
+<span class="c1">#     x, y : array - like</span>
+<span class="c1">#         The x and y data to smooth</span>
+<span class="c1">#     x_new : array - like</span>
+<span class="c1">#         The new x - scale to interpolate the data</span>
+
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     bin_avg = np.zeros(len(x_new))</span>
+<span class="c1">#     bin_std = np.zeros(len(x_new))</span>
+<span class="c1">#     bin_se = np.zeros(len(x_new))</span>
+
+<span class="c1">#     # Gaussian function as weights</span>
+<span class="c1">#     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))</span>
+
+<span class="c1">#     for index, xn in enumerate(x_new):</span>
+<span class="c1">#         weights = gauss(x, 1, xn, sigma)</span>
+<span class="c1">#         weights /= sum(weights)</span>
+<span class="c1">#         # weighted mean</span>
+<span class="c1">#         bin_avg[index] = np.average(y, weights=weights)</span>
+<span class="c1">#         # weighted standard deviation</span>
+<span class="c1">#         bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))</span>
+<span class="c1">#         # weighted standard error (mean / sqrt(n_points_in_gaussian))</span>
+<span class="c1">#         bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \</span>
+<span class="c1">#             np.sqrt(sum((x &gt; xn - 2 * sigma) &amp; (x &lt; xn + 2 * sigma)))</span>
+
+<span class="c1">#     return {&#39;mean&#39;: bin_avg,</span>
+<span class="c1">#             &#39;std&#39;: bin_std,</span>
+<span class="c1">#             &#39;stderr&#39;: bin_se}</span>
+
+
+<div class="viewcode-block" id="gauss_weighted_stats"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.gauss_weighted_stats">[docs]</a><span class="k">def</span> <span class="nf">gauss_weighted_stats</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">yarray</span><span class="p">,</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">fwhm</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate gaussian weigted moving mean, SD and SE.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : array-like</span>
+<span class="sd">        The independent variable</span>
+<span class="sd">    yarray : (n,m) array</span>
+<span class="sd">        Where n = x.size, and m is the number of</span>
+<span class="sd">        dependent variables to smooth.</span>
+<span class="sd">    x_new : array-like</span>
+<span class="sd">        The new x-scale to interpolate the data</span>
+<span class="sd">    fwhm : int</span>
+<span class="sd">        FWHM of the gaussian kernel.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    (mean, std, se) : tuple</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">fwhm</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+
+    <span class="c1"># create empty mask array</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">yarray</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x_new</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+    <span class="c1"># fill mask</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">xni</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">x_new</span><span class="p">):</span>
+        <span class="n">mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">gauss</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">xni</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+    <span class="c1"># normalise mask</span>
+    <span class="n">nmask</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">/</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># sum of each gaussian = 1</span>
+
+    <span class="c1"># calculate moving average</span>
+    <span class="n">av</span> <span class="o">=</span> <span class="p">(</span><span class="n">nmask</span> <span class="o">*</span> <span class="n">yarray</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># apply mask to data</span>
+    <span class="c1"># sum along xn axis to get means</span>
+
+    <span class="c1"># calculate moving sd</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">av</span> <span class="o">-</span> <span class="n">yarray</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">diff</span> <span class="o">*</span> <span class="n">nmask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="c1"># sqrt of weighted average of data-mean</span>
+
+    <span class="c1"># calculate moving se</span>
+    <span class="n">se</span> <span class="o">=</span> <span class="n">std</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="c1"># max amplitude of weights is 1, so sum of weights scales</span>
+    <span class="c1"># a fn of how many points are nearby. Use this as &#39;n&#39; in</span>
+    <span class="c1"># SE calculation.</span>
+
+    <span class="k">return</span> <span class="n">av</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="n">se</span></div>
+
+
+<div class="viewcode-block" id="gauss"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.gauss">[docs]</a><span class="k">def</span> <span class="nf">gauss</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">p</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Gaussian function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : array_like</span>
+<span class="sd">        Independent variable.</span>
+<span class="sd">    *p : parameters unpacked to A, mu, sigma</span>
+<span class="sd">        A = amplitude, mu = centre, sigma = width</span>
+
+<span class="sd">    Return</span>
+<span class="sd">    ------</span>
+<span class="sd">    array_like</span>
+<span class="sd">        gaussian descriped by *p.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">A</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">sigma</span> <span class="o">=</span> <span class="n">p</span>
+    <span class="k">return</span> <span class="n">A</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="n">mu</span> <span class="o">+</span> <span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<span class="c1"># Statistical Functions</span>
+<div class="viewcode-block" id="stderr"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.stderr">[docs]</a><span class="k">def</span> <span class="nf">stderr</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the standard error of a.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">a</span><span class="p">)))</span></div>
+
+
+<span class="c1"># Robust Statistics. See:</span>
+<span class="c1">#   - https://en.wikipedia.org/wiki/Robust_statistics</span>
+<span class="c1">#   - http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf</span>
+<span class="c1">#   - http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf</span>
+<span class="c1">#   - http://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/h15.htm</span>
+
+<div class="viewcode-block" id="H15_mean"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.H15_mean">[docs]</a><span class="k">def</span> <span class="nf">H15_mean</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the Huber (H15) Robust mean of x.</span>
+
+<span class="sd">    For details, see:</span>
+<span class="sd">        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf</span>
+<span class="sd">        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.134</span>
+    <span class="n">sig</span> <span class="o">=</span> <span class="mf">1.5</span>
+
+    <span class="n">hi</span> <span class="o">=</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+    <span class="n">lo</span> <span class="o">=</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">hi</span> <span class="o">|</span> <span class="n">lo</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">[</span><span class="n">hi</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+        <span class="n">x</span><span class="p">[</span><span class="n">lo</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+        <span class="k">return</span> <span class="n">H15_mean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">mu</span></div>
+
+
+<div class="viewcode-block" id="H15_std"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.H15_std">[docs]</a><span class="k">def</span> <span class="nf">H15_std</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the Huber (H15) Robust standard deviation of x.</span>
+
+<span class="sd">    For details, see:</span>
+<span class="sd">        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf</span>
+<span class="sd">        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.134</span>
+    <span class="n">sig</span> <span class="o">=</span> <span class="mf">1.5</span>
+
+    <span class="n">hi</span> <span class="o">=</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+    <span class="n">lo</span> <span class="o">=</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">hi</span> <span class="o">|</span> <span class="n">lo</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">[</span><span class="n">hi</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+        <span class="n">x</span><span class="p">[</span><span class="n">lo</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">sig</span> <span class="o">*</span> <span class="n">sd</span>
+        <span class="k">return</span> <span class="n">H15_std</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sd</span></div>
+
+
+<div class="viewcode-block" id="H15_se"><a class="viewcode-back" href="../../../latools.html#latools.helpers.stat_fns.H15_se">[docs]</a><span class="k">def</span> <span class="nf">H15_se</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the Huber (H15) Robust standard deviation of x.</span>
+
+<span class="sd">    For details, see:</span>
+<span class="sd">        http://www.cscjp.co.jp/fera/document/ANALYSTVol114Decpgs1693-97_1989.pdf</span>
+<span class="sd">        http://www.rsc.org/images/robust-statistics-technical-brief-6_tcm18-214850.pdf</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sd</span> <span class="o">=</span> <span class="n">H15_std</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sd</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.2.4-dev',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

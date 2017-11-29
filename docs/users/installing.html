@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Installation &mdash; latools 0.2.2a documentation</title>
+  <title>Installation &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../index.html"/>
         <link rel="up" title="User Guide" href="index.html"/>
         <link rel="next" title="Beginner’s Guide" href="beginners/index.html"/>
         <link rel="prev" title="Introduction" href="intro.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -94,24 +94,15 @@
               <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="intro.html">Introduction</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Installation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#prerequisite-python">Prerequisite: Python</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#installing-latools">Installing <code class="docutils literal"><span class="pre">latools</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#online-repository-recommended">1. Online Repository (Recommended)</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pre-built-binary">2. Pre-built Binary</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#next-steps">Next Steps</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="beginners/index.html">Beginner&#8217;s Guide</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beginners/index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -183,71 +174,34 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Release:</th><td class="field-body">0.2.2a</td>
+<tr class="field-odd field"><th class="field-name">Release:</th><td class="field-body">0.2.4-dev</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">Jun 04, 2017</td>
+<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">Nov 29, 2017</td>
 </tr>
 </tbody>
 </table>
 <div class="section" id="prerequisite-python">
 <h2>Prerequisite: Python<a class="headerlink" href="#prerequisite-python" title="Permalink to this headline">¶</a></h2>
-<p>Before you install <code class="docutils literal"><span class="pre">latools</span></code>, you&#8217;ll need to make sure you have a working installation of Python, preferably version 3.5+.
-If you don&#8217;t already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum&#8217;s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a>.
+<p>Before you install <code class="docutils literal"><span class="pre">latools</span></code>, you’ll need to make sure you have a working installation of Python, preferably version 3.5+.
+If you don’t already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum’s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a>.
 This provides a working copy of Python, and most of the modules that <code class="docutils literal"><span class="pre">latools</span></code> relies on.</p>
-<p>If you already have a working Python installation or don&#8217;t want to install one of the pre-packaged Python distributions, everything below <cite>should</cite> work.</p>
+<p>If you already have a working Python installation or don’t want to install one of the pre-packaged Python distributions, everything below <cite>should</cite> work.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p class="last">Make sure you set the Anaconda Python installation as the system default, or you are working in a virtual environment that uses the correct Python version. If you don&#8217;t know what a virtual environment&#8217; is, don&#8217;t worry - just make sure you check the box saying &#8216;make this my default Python&#8217; at the appropriate time when installing Anaconda.</p>
+<p class="last">Make sure you set the Anaconda Python installation as the system default, or you are working in a virtual environment that uses the correct Python version. If you don’t know what a virtual environment’ is, don’t worry - just make sure you check the box saying ‘make this my default Python’ at the appropriate time when installing Anaconda.</p>
 </div>
 </div>
 <div class="section" id="installing-latools">
 <h2>Installing <code class="docutils literal"><span class="pre">latools</span></code><a class="headerlink" href="#installing-latools" title="Permalink to this headline">¶</a></h2>
 <p>There are two ways to install <code class="docutils literal"><span class="pre">latools</span></code>. We recommend the first method, which will allow you to easily keep your installation of <code class="docutils literal"><span class="pre">latools</span></code> up to date with new developments.</p>
-<div class="section" id="online-repository-recommended">
-<h3>1. Online Repository (Recommended)<a class="headerlink" href="#online-repository-recommended" title="Permalink to this headline">¶</a></h3>
-<p>All the code for <code class="docutils literal"><span class="pre">latools</span></code> is open source, and hosted on <a class="reference external" href="https://github.com/">Github</a>. You can look at, and contribute to the code by visiting the <a class="reference external" href="https://github.com/oscarbranson/latools">latools Github page</a>.</p>
-<p>The simplest way to install the latest version of <code class="docutils literal"><span class="pre">latools</span></code> and keep it up to date with new releases, is by grabbing it directly from the the github repository. To do this, you need to <a class="reference external" href="https://git-scm.com/downloads">install git</a>. Make sure you&#8217;ve done this before continuing to the next step.</p>
-<p>Once git is installed, you can install <code class="docutils literal"><span class="pre">latools</span></code> directly from the online project repository using the <code class="docutils literal"><span class="pre">pip</span></code> package manager:</p>
-<ol class="arabic simple">
-<li>Open a terminal window.</li>
-<li>Type (or copy &amp; paste):</li>
-</ol>
-<div class="highlight-bash"><div class="highlight"><pre><span></span>pip install git+https://github.com/oscarbranson/latools.git@master
-</pre></div>
+<div class="section" id="using-pypi-https-pypi-python-org-pypi-latools">
+<h3>1. Using [PyPi](<a class="reference external" href="https://pypi.python.org/pypi/latools/">https://pypi.python.org/pypi/latools/</a>)<a class="headerlink" href="#using-pypi-https-pypi-python-org-pypi-latools" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div>pip install latools</div></blockquote>
 </div>
-<ol class="arabic simple" start="3">
-<li>Press [Return]</li>
-</ol>
-<div class="admonition important">
-<p class="first admonition-title">Important</p>
-<p class="last">If you&#8217;re one of my lucky pre-release testers, please replace <code class="docutils literal"><span class="pre">&#64;master</span></code> at the end of the installation code with <code class="docutils literal"><span class="pre">&#64;dev</span></code>.</p>
-</div>
-<p>This will download and install the latest version of <code class="docutils literal"><span class="pre">latools</span></code> from Github. In the future if you&#8217;d like to update <code class="docutils literal"><span class="pre">latools</span></code> to the latest version it&#8217;s as adding <code class="docutils literal"><span class="pre">--upgrade</span></code> to the end of the code above.</p>
-<div class="admonition tip">
-<p class="first admonition-title">Tip</p>
-<p class="last">The <code class="docutils literal"><span class="pre">&#64;master</span></code> at the end of the command installs the most up-to-date <cite>stable</cite> version of the software. If you want to install a specific version of <code class="docutils literal"><span class="pre">latools</span></code>, replace <code class="docutils literal"><span class="pre">&#64;master</span></code> with the version number (e.g. <code class="docutils literal"><span class="pre">&#64;v0.2.2-alpha</span></code> will get you the very first release of <code class="docutils literal"><span class="pre">latools</span></code>).</p>
-</div>
-</div>
-<div class="section" id="pre-built-binary">
-<h3>2. Pre-built Binary<a class="headerlink" href="#pre-built-binary" title="Permalink to this headline">¶</a></h3>
-<p>This method is more &#8216;manual&#8217;, and is really only for people who want to install a specific, past version of <code class="docutils literal"><span class="pre">latools</span></code>, or don&#8217;t want to install git.</p>
-<ol class="arabic simple">
-<li>Go to the <a class="reference external" href="https://github.com/oscarbranson/latools/tree/master/dist">Distributions</a> page of the Github project, and download a pre-built version of <code class="docutils literal"><span class="pre">latools</span></code> to a <code class="docutils literal"><span class="pre">convenient_folder/</span></code>. Download <code class="docutils literal"><span class="pre">latools-latest.tar.gz</span></code> for the most up-to-date version, or <code class="docutils literal"><span class="pre">latools-[version.number].tar.gz</span></code> for a specific, past version.</li>
-<li>Open a terminal window, and navigate to <code class="docutils literal"><span class="pre">convenient_folder/</span></code>.</li>
-<li>Type (or copy &amp; paste):</li>
-</ol>
-<div class="highlight-bash"><div class="highlight"><pre><span></span>pip install latools-latest.tar.gz
-</pre></div>
-</div>
-<p>or</p>
-<div class="highlight-bash"><div class="highlight"><pre><span></span>pip install latools-<span class="o">[</span>version.number<span class="o">]</span>.tar.gz
-</pre></div>
-</div>
-<ol class="arabic simple" start="4">
-<li>Press [Return]</li>
-</ol>
-<p>This will install the downloaded version of <code class="docutils literal"><span class="pre">latools</span></code> on your system, and you can now delete the .tar.gz file you saved to <code class="docutils literal"><span class="pre">conventient_location/</span></code>.</p>
-<p>If you want to update <code class="docutils literal"><span class="pre">latools</span></code> in future, or install a different version, you&#8217;ll have to repeat these steps, and re-download a new .tar.gz file.</p>
+<div class="section" id="using-conda">
+<h3>2. Using Conda<a class="headerlink" href="#using-conda" title="Permalink to this headline">¶</a></h3>
+<p>Coming soon…</p>
 </div>
 </div>
 <div class="section" id="next-steps">
@@ -278,7 +232,7 @@ This provides a working copy of Python, and most of the modules that <code class
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -300,7 +254,7 @@ This provides a working copy of Python, and most of the modules that <code class
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -310,7 +264,7 @@ This provides a working copy of Python, and most of the modules that <code class
       <script type="text/javascript" src="../_static/jquery.js"></script>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

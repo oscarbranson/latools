@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data De-spiking &mdash; latools 0.2.2a documentation</title>
+  <title>Data De-spiking &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Background Correction" href="5-signal-background.html"/>
         <link rel="prev" title="Plotting" href="3-plotting.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,27 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner&#8217;s Guide</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
-<li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="8-filtering.html">Data Selection and Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="11-FAQ.html">FAQs</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -162,7 +149,7 @@
         
           <li><a href="../index.html">User Guide</a> &raquo;</li>
         
-          <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
+          <li><a href="index.html">Beginner’s Guide</a> &raquo;</li>
         
       <li>Data De-spiking</li>
     
@@ -185,20 +172,20 @@
             
   <div class="section" id="data-de-spiking">
 <span id="despiking"></span><h1>Data De-spiking<a class="headerlink" href="#data-de-spiking" title="Permalink to this headline">¶</a></h1>
-<p>The first step in data reduction is the &#8216;de-spike&#8217; the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).</p>
+<p>The first step in data reduction is the ‘de-spike’ the raw data to remove physically unrealistic outliers from the data (i.e. higher than is physically possible based on your system setup).</p>
 <p>Two de-spiking methods are available:</p>
 <ul class="simple">
-<li><a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> removes low outliers, based on the signal washout time of your laser cell. The signal washout is described using an exponential decay function. If the measured signal decreases faster than physically possible based on your laser setup, these points are removed, and replaced with the average of the adjacent values.</li>
-<li><a class="reference internal" href="../../docs/index.html#latools.D.noise_despiker" title="latools.D.noise_despiker"><code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code></a> removes high outliers by calculating a rolling mean and standard deviation, and replacing points that are greater than <cite>n</cite> standard deviations above the mean with the mean of the adjacent data points.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code> removes low outliers, based on the signal washout time of your laser cell. The signal washout is described using an exponential decay function. If the measured signal decreases faster than physically possible based on your laser setup, these points are removed, and replaced with the average of the adjacent values.</li>
+<li><code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code> removes high outliers by calculating a rolling mean and standard deviation, and replacing points that are greater than <cite>n</cite> standard deviations above the mean with the mean of the adjacent data points.</li>
 </ul>
-<p>These functions can both be applied at once, using <a class="reference internal" href="../../docs/index.html#latools.analyse.despike" title="latools.analyse.despike"><code class="xref py py-meth docutils literal"><span class="pre">despike()</span></code></a>:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">despike</span><span class="p">(</span><span class="n">expdecay_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-           <span class="n">noise_despiker</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<p>These functions can both be applied at once, using <code class="xref py py-meth docutils literal"><span class="pre">despike()</span></code>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">despike</span><span class="p">(</span><span class="n">expdecay_despiker</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+           <span class="n">noise_despiker</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>By default, this applies <a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> followed by <a class="reference internal" href="../../docs/index.html#latools.D.noise_despiker" title="latools.D.noise_despiker"><code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code></a> to all samples.
+<p>By default, this applies <code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code> followed by <code class="xref py py-meth docutils literal"><span class="pre">noise_despiker()</span></code> to all samples.
 You can specify several parameters that change the behaviour of these de-spiking routines.</p>
-<p>The <a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> relies on knowing the exponential decay constant that describes the washout characteristics of your laser ablation cell.
+<p>The <code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code> relies on knowing the exponential decay constant that describes the washout characteristics of your laser ablation cell.
 If this values is missing (as here), <code class="docutils literal"><span class="pre">latools</span></code> calculates it by fitting an exponential decay function to the internal standard at the on-off laser transition at the end of ablations of standards.
 If this has been done, you will be informed.
 In this case, it should look like:</p>
@@ -209,7 +196,7 @@ In this case, it should look like:</p>
 </div>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p class="last">The exponential decay constant used by <a class="reference internal" href="../../docs/index.html#latools.D.expdecay_despiker" title="latools.D.expdecay_despiker"><code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code></a> will be specific to your laser setup. If you don&#8217;t know what this is, <a class="reference internal" href="../../docs/index.html#latools.analyse.despike" title="latools.analyse.despike"><code class="xref py py-meth docutils literal"><span class="pre">despike()</span></code></a> determines it automatically by fitting an exponential decay function to the washout phase of measured SRMs in your data. You can look at this fit by passing <code class="docutils literal"><span class="pre">exponent_plot=True</span></code> to the function.</p>
+<p class="last">The exponential decay constant used by <code class="xref py py-meth docutils literal"><span class="pre">expdecay_despiker()</span></code> will be specific to your laser setup. If you don’t know what this is, <code class="xref py py-meth docutils literal"><span class="pre">despike()</span></code> determines it automatically by fitting an exponential decay function to the washout phase of measured SRMs in your data. You can look at this fit by passing <code class="docutils literal"><span class="pre">exponent_plot=True</span></code> to the function.</p>
 </div>
 </div>
 
@@ -235,7 +222,7 @@ In this case, it should look like:</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -257,7 +244,7 @@ In this case, it should look like:</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -267,7 +254,7 @@ In this case, it should look like:</p>
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

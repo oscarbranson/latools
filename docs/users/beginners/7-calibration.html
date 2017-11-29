@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Calibration &mdash; latools 0.2.2a documentation</title>
+  <title>Calibration &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Data Selection and Filtering" href="8-filtering.html"/>
         <link rel="prev" title="Ratio Calculation" href="6-ratios.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,27 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner&#8217;s Guide</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
-<li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Calibration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="8-filtering.html">Data Selection and Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="11-FAQ.html">FAQs</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -162,7 +149,7 @@
         
           <li><a href="../index.html">User Guide</a> &raquo;</li>
         
-          <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
+          <li><a href="index.html">Beginner’s Guide</a> &raquo;</li>
         
       <li>Calibration</li>
     
@@ -185,37 +172,29 @@
             
   <div class="section" id="calibration">
 <span id="id1"></span><h1>Calibration<a class="headerlink" href="#calibration" title="Permalink to this headline">¶</a></h1>
-<p>Once all your data are normalised to an internal standard, you&#8217;re ready to calibrate the data.
+<p>Once all your data are normalised to an internal standard, you’re ready to calibrate the data.
 This is done by creating a calibration curve for each element based on SRMs measured throughout your analysis session, and a table of known SRM values.
 You can either calculate a single calibration from a combination of all your measured standards, or generate a time-sensitive calibration to account for sensitivity drift through an analytical session.
 The latter is achieved by creating a separate calibration curve for each element in each SRM measurement, and linearly extrapolating these calibrations between neighbouring standards.</p>
-<p>Calibration is performed using the <a class="reference internal" href="../../docs/index.html#latools.analyse.calibrate" title="latools.analyse.calibrate"><code class="xref py py-meth docutils literal"><span class="pre">calibrate()</span></code></a> method:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">drift_correct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-             <span class="n">poly_n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<p>Calibration is performed using the <code class="xref py py-meth docutils literal"><span class="pre">calibrate()</span></code> method:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">drift_correct</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
              <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>In this simple example case, our analytical session is very short, so we are not worried about sensitivity drift (<code class="docutils literal"><span class="pre">drift_correct=False</span></code>). <code class="docutils literal"><span class="pre">poly_n=0</span></code> is fitting a polynomial calibration line to the data that is forced through zero. Changing this number alters the order of polynomial used during calibration. Because of the wide-scale linearity of ICPM-MS detectors, <code class="docutils literal"><span class="pre">poly_n=0</span></code> should normally provide an adequate calibration line. If it does not, it suggests that either one of your &#8216;known&#8217; SRM values may be incorrect, or there is some analytical problem that needs to be investigated (e.g. interferences from other elements). Finally, <code class="docutils literal"><span class="pre">srms_used</span></code> contains the names of the SRMs measured throughout analysis. The SRM names you give must <em>exactly</em> (case sensitive) match the SRM names in the SRM table.</p>
+<p>In this simple example case, our analytical session is very short, so we are not worried about sensitivity drift (<code class="docutils literal"><span class="pre">drift_correct=False</span></code>). <code class="docutils literal"><span class="pre">poly_n=0</span></code> is fitting a polynomial calibration line to the data that is forced through zero. Changing this number alters the order of polynomial used during calibration. Because of the wide-scale linearity of ICPM-MS detectors, <code class="docutils literal"><span class="pre">poly_n=0</span></code> should normally provide an adequate calibration line. If it does not, it suggests that either one of your ‘known’ SRM values may be incorrect, or there is some analytical problem that needs to be investigated (e.g. interferences from other elements). Finally, <code class="docutils literal"><span class="pre">srms_used</span></code> contains the names of the SRMs measured throughout analysis. The SRM names you give must <em>exactly</em> (case sensitive) match the SRM names in the SRM table.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">For calibration to work, you must have an SRM table containing the element/internal_standard ratios of the standards you&#8217;ve measured, whose location is specified in the latools configuration. You should only need to do this once for your lab, but it&#8217;s important to ensure that this is done correctly. For more information, see the <a class="reference internal" href="../config/customising.html#configuration"><span class="std std-ref">Lab-Specific Configuration</span></a> section.</p>
+<p class="last">For calibration to work, you must have an SRM table containing the element/internal_standard ratios of the standards you’ve measured, whose location is specified in the latools configuration. You should only need to do this once for your lab, but it’s important to ensure that this is done correctly. For more information, see the <a class="reference internal" href="../config/customising.html#configuration"><span class="std std-ref">Lab-Specific Configuration</span></a> section.</p>
 </div>
 <p>First, <code class="docutils literal"><span class="pre">latools</span></code> will automatically determine the identity of measured SRMs throughout your analysis session using a relative concentration matrix (see <a class="reference internal" href="../advanced/srm-id.html#srm-id"><span class="std std-ref">SRM Identification</span></a> section for details).
 Once you have identified the SRMs in your standards, <code class="docutils literal"><span class="pre">latools</span></code> will import your SRM data table (defined in the <a class="reference internal" href="../advanced/cfg-file.html#cfg-file"><span class="std std-ref">configuration file</span></a>), calculate a calibration curve for each analyte based on your measured and known SRM values, and apply the calibration to all samples.</p>
 <p>The calibration lines for each analyte can be plotted using:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibration_plot</span><span class="p">()</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibration_plot</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>Which should look something like this:</p>
 <img alt="../../_images/calibration.png" src="../../_images/calibration.png" />
 <p>Where each panel shows the measured counts/count (x axis) vs. known mol/mol (y axis) for each analyte with associated errors, with the fitted calibration line, equation and R2 of the fit. The axis on the right of each panel contains a histogram of the raw data from each sample, showing where your sample measurements lie compared to the range of the standards.</p>
-<p>If, on viewing the calibration, it becomes apparent that one analyte does not have a zero intercept, you may wish to re-calculate the calibration for that analyte using <code class="docutils literal"><span class="pre">poly_n=1</span></code>. For example, to calculate a calibration with a non-zero intercept for Mn55 alone:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span><span class="o">.</span><span class="n">calibrate</span><span class="p">(</span><span class="n">analytes</span><span class="o">=</span><span class="s1">&#39;Mn55&#39;</span>
-             <span class="n">drift_correct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-             <span class="n">poly_n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-             <span class="n">srms_used</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;NIST610&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST612&#39;</span><span class="p">,</span> <span class="s1">&#39;NIST614&#39;</span><span class="p">])</span>
-</pre></div>
-</div>
 </div>
 
 
@@ -240,7 +219,7 @@ Once you have identified the SRMs in your standards, <code class="docutils liter
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -262,7 +241,7 @@ Once you have identified the SRMs in your standards, <code class="docutils liter
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -272,7 +251,7 @@ Once you have identified the SRMs in your standards, <code class="docutils liter
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

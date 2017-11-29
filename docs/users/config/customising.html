@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Lab-Specific Configuration &mdash; latools 0.2.2a documentation</title>
+  <title>Lab-Specific Configuration &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Configuration Guide" href="index.html"/>
         <link rel="next" title="Advanced Topics" href="../advanced/index.html"/>
         <link rel="prev" title="Configuration Guide" href="index.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,20 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner&#8217;s Guide</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Configuration Guide</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Lab-Specific Configuration</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#defining-srm-materials">Defining SRM Materials</a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner’s Guide</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -183,13 +177,13 @@
 <p class="last"><code class="docutils literal"><span class="pre">latools</span></code> will not work if incorrectly configured. Follow the instructions below carefully.</p>
 </div>
 <p>Before use, <code class="docutils literal"><span class="pre">latools</span></code> must be configured to work with your particular set up.
-When you first install latools, you should run <a class="reference internal" href="../../docs/index.html#latools.intial_configuration" title="latools.intial_configuration"><code class="xref py py-func docutils literal"><span class="pre">latools.intial_configuration()</span></code></a></p>
-<p>Initial lab-specific configuration can be set up using the <a class="reference internal" href="../../docs/index.html#latools.intial_configuration" title="latools.intial_configuration"><code class="xref py py-func docutils literal"><span class="pre">latools.intial_configuration()</span></code></a>, which prompts the user for the required parameters.</p>
-<p><code class="docutils literal"><span class="pre">latools</span></code> supports multiple simultaneous configurations, which can be specified at the start of data analysis using the <code class="docutils literal"><span class="pre">config</span></code> parameter of <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a>.
-These configurations are stored in the &#8216;latools.cfg&#8217; file, which can be found in the latools install location.
+When you first install latools, you should run <code class="xref py py-func docutils literal"><span class="pre">latools.intial_configuration()</span></code></p>
+<p>Initial lab-specific configuration can be set up using the <code class="xref py py-func docutils literal"><span class="pre">latools.intial_configuration()</span></code>, which prompts the user for the required parameters.</p>
+<p><code class="docutils literal"><span class="pre">latools</span></code> supports multiple simultaneous configurations, which can be specified at the start of data analysis using the <code class="docutils literal"><span class="pre">config</span></code> parameter of <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code>.
+These configurations are stored in the ‘latools.cfg’ file, which can be found in the latools install location.
 The <code class="xref py py-func docutils literal"><span class="pre">config_locator()</span></code> can be used to find this file on your computer.</p>
 <p>The configuration file is formatted following the <a class="reference external" href="https://wiki.python.org/moin/ConfigParserExamples">configparser</a> syntax, with default and customisable parameters.
-Further configuration additions and modifications can be made with the <a class="reference internal" href="../../docs/index.html#latools.add_config" title="latools.add_config"><code class="xref py py-func docutils literal"><span class="pre">latools.add_config()</span></code></a> function, or by manually editing the <cite>latools.cfg</cite> file (not recommended unless you know what you&#8217;re doing).</p>
+Further configuration additions and modifications can be made with the <code class="xref py py-func docutils literal"><span class="pre">latools.add_config()</span></code> function, or by manually editing the <cite>latools.cfg</cite> file (not recommended unless you know what you’re doing).</p>
 <div class="section" id="defining-srm-materials">
 <h2>Defining SRM Materials<a class="headerlink" href="#defining-srm-materials" title="Permalink to this headline">¶</a></h2>
 <p><code class="docutils literal"><span class="pre">latools</span></code> comes with <a class="reference external" href="http://georem.mpch-mainz.gwdg.de/">GeoRem</a> M/Ca ratio values for NIST610, NIST612 and NIST614 glasses.
@@ -202,7 +196,7 @@ If you wish to use other SRMs, you must create data tables that <code class="doc
 </div>
 <p>Note that all SRM values must be presented in elemental ratios, and that the denominator in these ratios must match the ratio denominator you choose when analysing your data.</p>
 <p>The included SRM table can be found within the <cite>resources</cite> subdirectory in the <code class="docutils literal"><span class="pre">latools</span></code> install directory.
-<a class="reference internal" href="../../docs/index.html#latools.config_locator" title="latools.config_locator"><code class="xref py py-func docutils literal"><span class="pre">latools.config_locator()</span></code></a> can be used to identify the location of this directory.</p>
+<code class="xref py py-func docutils literal"><span class="pre">latools.config_locator()</span></code> can be used to identify the location of this directory.</p>
 <p>If you wish to use a different SRM table, the path to the new table must be specified in the configuration file, or on a case-by-case basis when calibrating your data.</p>
 </div>
 </div>
@@ -229,7 +223,7 @@ If you wish to use other SRMs, you must create data tables that <code class="doc
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -251,7 +245,7 @@ If you wish to use other SRMs, you must create data tables that <code class="doc
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -261,7 +255,7 @@ If you wish to use other SRMs, you must create data tables that <code class="doc
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

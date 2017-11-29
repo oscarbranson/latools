@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Package Structure &mdash; latools 0.2.2a documentation</title>
+  <title>Package Structure &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Advanced Topics" href="index.html"/>
         <link rel="next" title="Filtering &amp; Data Selection" href="advanced-filtering.html"/>
         <link rel="prev" title="Advanced Topics" href="index.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,24 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner&#8217;s Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Topics</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Package Structure</a></li>
-<li class="toctree-l3"><a class="reference internal" href="advanced-filtering.html">Filtering &amp; Data Selection</a></li>
-<li class="toctree-l3"><a class="reference internal" href="advanced-plotting.html">Plotting and Data Exploration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="data-formats.html">Data Import</a></li>
-<li class="toctree-l3"><a class="reference internal" href="cfg-file.html">The .cfg file</a></li>
-<li class="toctree-l3"><a class="reference internal" href="autorange-fn.html">The <code class="docutils literal"><span class="pre">autorange()</span></code> Function</a></li>
-<li class="toctree-l3"><a class="reference internal" href="latools-alternatives.html">Alternative LA-MS Reduction Software</a></li>
-<li class="toctree-l3"><a class="reference internal" href="srm-id.html">Automatic SRM Identification</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -182,39 +172,39 @@
             
   <div class="section" id="package-structure">
 <span id="structure"></span><h1>Package Structure<a class="headerlink" href="#package-structure" title="Permalink to this headline">¶</a></h1>
-<p><code class="docutils literal"><span class="pre">latools</span></code> consists of three interlinked &#8216;objects&#8217; (classes), which contain all your data, the functions necessary to process it and a record of all processing done to the data:</p>
+<p><code class="docutils literal"><span class="pre">latools</span></code> consists of three interlinked ‘objects’ (classes), which contain all your data, the functions necessary to process it and a record of all processing done to the data:</p>
 <ul class="simple">
 <li><dl class="first docutils">
-<dt><a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a></dt>
+<dt><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></dt>
 <dd>This is a high-level container for processing entire datasets.
 It is designed to facilitate the simultaneous importing and processing of numerous samples with corresponding standards.
-Each data file loaded into an <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> instance is contained in a <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> class.
-Calls to data processing <cite>methods</cite> are passed directly to corresponding methods of the data-containing <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> class, where the work actually happens.
-Only two <cite>methods</cite> in the <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> class are not contained within the <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> class: <a class="reference internal" href="../../docs/index.html#latools.analyse.calibrate" title="latools.analyse.calibrate"><code class="xref py py-meth docutils literal"><span class="pre">latools.analyse.calibrate()</span></code></a>, which pulls together multiple standards and applies it to the data, and <a class="reference internal" href="../../docs/index.html#latools.analyse.sample_stats" title="latools.analyse.sample_stats"><code class="xref py py-meth docutils literal"><span class="pre">latools.analyse.sample_stats()</span></code></a>, which collates statistics for all samples.</dd>
+Each data file loaded into an <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> instance is contained in a <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> class.
+Calls to data processing <cite>methods</cite> are passed directly to corresponding methods of the data-containing <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> class, where the work actually happens.
+Only two <cite>methods</cite> in the <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> class are not contained within the <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> class: <code class="xref py py-meth docutils literal"><span class="pre">latools.analyse.calibrate()</span></code>, which pulls together multiple standards and applies it to the data, and <code class="xref py py-meth docutils literal"><span class="pre">latools.analyse.sample_stats()</span></code>, which collates statistics for all samples.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt><a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a></dt>
+<dt><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></dt>
 <dd>This contains an individual data file, and all the required <cite>methods</cite> to process that data.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt><a class="reference internal" href="../../docs/index.html#latools.filt" title="latools.filt"><code class="xref py py-mod docutils literal"><span class="pre">latools.filt</span></code></a></dt>
-<dd>This class contains all the data selection filters created for a particular sample, information about the filter, and a record of whether it is &#8216;on&#8217; or &#8216;off&#8217;. These individual components can then be combined to generate a data mask from the selected filters. This class comes into play then creating data filters (any <code class="docutils literal"><span class="pre">filter_</span></code> command), and is used when any function with a <code class="docutils literal"><span class="pre">filt</span></code> parameter is called.</dd>
+<dt><code class="xref py py-mod docutils literal"><span class="pre">latools.filt</span></code></dt>
+<dd>This class contains all the data selection filters created for a particular sample, information about the filter, and a record of whether it is ‘on’ or ‘off’. These individual components can then be combined to generate a data mask from the selected filters. This class comes into play then creating data filters (any <code class="docutils literal"><span class="pre">filter_</span></code> command), and is used when any function with a <code class="docutils literal"><span class="pre">filt</span></code> parameter is called.</dd>
 </dl>
 </li>
 </ul>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">All of the above are python &#8216;classes&#8217;. Each has <cite>attributes</cite> (variables stored inside it) and <cite>methods</cite> (functions that take inputs, and act on the attributes). When you create a variable from one of these classes, you are making a <cite>class instance</cite> - a version of that class with a particular set of inputs.</p>
+<p class="last">All of the above are python ‘classes’. Each has <cite>attributes</cite> (variables stored inside it) and <cite>methods</cite> (functions that take inputs, and act on the attributes). When you create a variable from one of these classes, you are making a <cite>class instance</cite> - a version of that class with a particular set of inputs.</p>
 </div>
-<p>When an an instance of <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> is created, you give it a path to a <code class="docutils literal"><span class="pre">data_folder</span></code>.
-The class searches this folder for data files, and creates a <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> instance for each data file that it finds.
-These <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> instances are stored within the in <code class="docutils literal"><span class="pre">data_dict</span></code> within <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a>.
-When creating a <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> instance it also reads the <a class="reference internal" href="cfg-file.html#cfg-file"><span class="std std-ref">configuration file</span></a>, which contains the paths to the <a class="reference internal" href="srm-file.html#srm-file"><span class="std std-ref">SRM data table</span></a> and <a class="reference internal" href="data-formats.html#advanced-data-formats"><span class="std std-ref">data format description</span></a> that are essential for analysis.</p>
-<p>The <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> class is essentially a &#8216;wrapper&#8217; for dealing with numerous data files at once.
+<p>When an an instance of <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> is created, you give it a path to a <code class="docutils literal"><span class="pre">data_folder</span></code>.
+The class searches this folder for data files, and creates a <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> instance for each data file that it finds.
+These <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> instances are stored within the in <code class="docutils literal"><span class="pre">data_dict</span></code> within <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code>.
+When creating a <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> instance it also reads the <a class="reference internal" href="cfg-file.html#cfg-file"><span class="std std-ref">configuration file</span></a>, which contains the paths to the <a class="reference internal" href="srm-file.html#srm-file"><span class="std std-ref">SRM data table</span></a> and <a class="reference internal" href="data-formats.html#advanced-data-formats"><span class="std std-ref">data format description</span></a> that are essential for analysis.</p>
+<p>The <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> class is essentially a ‘wrapper’ for dealing with numerous data files at once.
 The ability to process multiple data files is essential if you wish to calibrate your data (i.e. you must have a number of samples, and at least one standard in the .</p>
-<p>When each instance of <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code></a> is created, it is given a single <code class="docutils literal"><span class="pre">data_file</span></code>, and a dict containing</p>
+<p>When each instance of <code class="xref py py-mod docutils literal"><span class="pre">latools.D</span></code> is created, it is given a single <code class="docutils literal"><span class="pre">data_file</span></code>, and a dict containing</p>
 </div>
 
 
@@ -239,7 +229,7 @@ The ability to process multiple data files is essential if you wish to calibrate
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -261,7 +251,7 @@ The ability to process multiple data files is essential if you wish to calibrate
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -271,7 +261,7 @@ The ability to process multiple data files is essential if you wish to calibrate
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

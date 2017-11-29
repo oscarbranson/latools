@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Importing Data &mdash; latools 0.2.2a documentation</title>
+  <title>Importing Data &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Plotting" href="3-plotting.html"/>
         <link rel="prev" title="Getting Started" href="1-getting-started.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,27 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner&#8217;s Guide</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="1-getting-started.html">Getting Started</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Importing Data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="8-filtering.html">Data Selection and Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="11-FAQ.html">FAQs</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -162,7 +149,7 @@
         
           <li><a href="../index.html">User Guide</a> &raquo;</li>
         
-          <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
+          <li><a href="index.html">Beginner’s Guide</a> &raquo;</li>
         
       <li>Importing Data</li>
     
@@ -185,19 +172,19 @@
             
   <div class="section" id="importing-data">
 <span id="import"></span><h1>Importing Data<a class="headerlink" href="#importing-data" title="Permalink to this headline">¶</a></h1>
-<p>Once you have Python running in your <code class="docutils literal"><span class="pre">latools_demo/</span></code> directory and have unpacked the <span class="xref std std-ref">example_data</span>, you&#8217;re ready to start an <code class="docutils literal"><span class="pre">latools</span></code> analysis session.
+<p>Once you have Python running in your <code class="docutils literal"><span class="pre">latools_demo/</span></code> directory and have unpacked the <a class="reference internal" href="1-getting-started.html#example-data"><span class="std std-ref">Example Data</span></a>, you’re ready to start an <code class="docutils literal"><span class="pre">latools</span></code> analysis session.
 To do this, run:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="s1">&#39;./data/&#39;</span><span class="p">,</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">eg</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">analyse</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="s1">&#39;./data/&#39;</span><span class="p">,</span>
                 <span class="n">config</span><span class="o">=</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span>
                 <span class="n">internal_standard</span><span class="o">=</span><span class="s1">&#39;Ca43&#39;</span><span class="p">,</span>
                 <span class="n">srm_identifier</span><span class="o">=</span><span class="s1">&#39;STD&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>This imports all the data files within the <code class="docutils literal"><span class="pre">data/</span></code> folder into an <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object called <code class="docutils literal"><span class="pre">eg</span></code>, along with several parameters describing the dataset and how it should be imported:</p>
+<p>This imports all the data files within the <code class="docutils literal"><span class="pre">data/</span></code> folder into an <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object called <code class="docutils literal"><span class="pre">eg</span></code>, along with several parameters describing the dataset and how it should be imported:</p>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">config='DEFAULT'</span></code>: The configuration contains information about the data file format and the location of the SRM table. Multiple configurations can be set up and chosen during data import, allowing <code class="docutils literal"><span class="pre">latools</span></code> to flexibly work with data from different instruments.</li>
 <li><code class="docutils literal"><span class="pre">internal_standard='Ca43'</span></code>: This specifies the internal standard element within your samples. The internal standard is used at several key stages in analysis (signal/background identification, normalisation), and should be relatively abundant and homogeneous in your samples.</li>
-<li><code class="docutils literal"><span class="pre">srm_identifier='STD'</span></code>: This identifies which of your analyses contain standard reference materials (SRMs). Any data file with &#8216;STD&#8217; in its name will be flagged as an SRM measurement.</li>
+<li><code class="docutils literal"><span class="pre">srm_identifier='STD'</span></code>: This identifies which of your analyses contain standard reference materials (SRMs). Any data file with ‘STD’ in its name will be flagged as an SRM measurement.</li>
 </ul>
 <p>If it has worked correctly, you should see the output:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">latools</span> <span class="n">analysis</span> <span class="n">using</span> <span class="s2">&quot;DEFAULT&quot;</span> <span class="n">configuration</span><span class="p">:</span>
@@ -206,11 +193,11 @@ To do this, run:</p>
   <span class="n">Internal</span> <span class="n">Standard</span><span class="p">:</span> <span class="n">Ca43</span>
 </pre></div>
 </div>
-<p>In this output, <code class="docutils literal"><span class="pre">latools</span></code> reports that 5 data files were imported from the <code class="docutils literal"><span class="pre">data/</span></code> directory, two of which were standards (names contained &#8216;STD&#8217;), and tells you which analytes are present in these data.
-Each of the imported data files is stored in a <a class="reference internal" href="../../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object, which are &#8216;managed&#8217; by the <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object that contains them.</p>
+<p>In this output, <code class="docutils literal"><span class="pre">latools</span></code> reports that 5 data files were imported from the <code class="docutils literal"><span class="pre">data/</span></code> directory, two of which were standards (names contained ‘STD’), and tells you which analytes are present in these data.
+Each of the imported data files is stored in a <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> object, which are ‘managed’ by the <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object that contains them.</p>
 <p>Check inside the <code class="docutils literal"><span class="pre">latools_demo</span></code> directory.
 There should now be two new folders called <code class="docutils literal"><span class="pre">reports_data/</span></code> and <code class="docutils literal"><span class="pre">export_data/</span></code> alongside the <code class="docutils literal"><span class="pre">data/</span></code> folder.
-Note that the &#8216;_data&#8217; suffix will be the same as the name of the folder that contains your data - i.e. the names of these folders will change, depending on the name of your data folder.
+Note that the ‘_data’ suffix will be the same as the name of the folder that contains your data - i.e. the names of these folders will change, depending on the name of your data folder.
 <code class="docutils literal"><span class="pre">latools</span></code> saves data and plots to these folders throughout analysis:</p>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">data_export</span></code> will contain exported data: traces, per-ablation averages and minimal analysis exports.</li>
@@ -240,7 +227,7 @@ Note that the &#8216;_data&#8217; suffix will be the same as the name of the fol
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -262,7 +249,7 @@ Note that the &#8216;_data&#8217; suffix will be the same as the name of the fol
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -272,7 +259,7 @@ Note that the &#8216;_data&#8217; suffix will be the same as the name of the fol
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

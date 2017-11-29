@@ -70,17 +70,16 @@ We know from experience that the tape tends to have very low concentration of ot
 Creating a Filter
 -----------------
 We wouldn't expect cultured foraminifera to have a Al/Ca of ~100 µmol/mol, so we therefore want to remove all data from regions with an Al/Ca above this.
-We'll do this with a threshold filter::
+We'll do this with a threshold filter:
 
-    eg.filter_threshold(analyte='Al27', threshold=100e-6)  # remember that all units are in mol/mol!
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 41
 
-This goes through *all* the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol.
+This goes through *all* the samples in our analysis, and works out which analyses have an Al/Ca both greater than and less than 100 µmol/mol (remember, all units are in mol/mol at this stage).
 This function calculates the filters, but does not apply them - that happens later.
-You can check which filters have been calculated, and which are active for individual analytes by typing::
-
-    eg.filter_status()
-
-Which will return::
+Once the filters are calculated, a list of filters and their current status is printed::
 
     Subset All_Samples:
     Samples: Sample-1, Sample-2, Sample-3
@@ -88,6 +87,10 @@ Which will return::
     n  Filter Name          Mg24   Mg25   Al27   Ca43   Ca44   Mn55   Sr88   Ba137  Ba138  
     0  Al27_thresh_below    False  False  False  False  False  False  False  False  False  
     1  Al27_thresh_above    False  False  False  False  False  False  False  False  False
+
+You can also check this manually at any time using::
+
+    eg.filter_status()
 
 This produces a grid showing the filter numbers, names, and which analytes they are active for (for each analyte False = inactive, True = active). 
 The ``filter_threshold`` function has generated two filters: one identifying data above the threshold, and the other below it.
@@ -105,9 +108,12 @@ You can do this in three ways:
 
 1. Plot the traces, with ``filt=True``. This plots the calibrated traces, with areas excluded by the filter shaded out in grey. Specifying ``filt=True`` shows the net effect of all active filters. By setting ``filt`` as a number or filter name, the effect of one individual filter will be shown.
 2. Crossplot with ``filt=True`` will generate a new crossplot containing only data that remains after filtering. This can be useful for refining filter choices during multiple rounds of filtering. You can also set ``filt`` to be a filter name or a number, as with trace plotting.
-3. The most sophisticated way of looking at a filter is by creating a 'filter_report'. This generates a plot of each analysis, showing which regions are selected by particular filters::
+3. The most sophisticated way of looking at a filter is by creating a 'filter_report'. This generates a plot of each analysis, showing which regions are selected by particular filters:
 
-    eg.filter_reports(analytes='Al27', filt_str='thresh')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 43
 
 Where ``analytes`` specifies which analytes you want to see the influence of the filters on, and ``filt_str`` identifies which filters you want to see.
 ``filt_str`` supports partial filter name matching, so 'thresh' will pick up any filter with 'thresh' in the name - i.e. if you'd calculated multiple thresholds, it would plot each on a different plot.
@@ -121,14 +127,17 @@ In this case, the 100 µmol/mol threshold seems to do a good job of excluding ex
 
 Applying a Filter
 -----------------
-Once you've identified which filter you want to apply, you must turn that filter 'on' using::
+Once you've identified which filter you want to apply, you must turn that filter 'on' using:
 
-    eg.filter_on(filt='Albelow')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 45
 
 Where ``filt`` can either be the filter number (corresponding to the 'n' column in the output of ``filter_status()``) or a partially matching string, as here.
 For example, ``'Albelow'`` is most similar to ``'Al27_thresh_below'``, so this filter will be turned on. You could also specify ``'below'``, which would turn on all filters with 'below' in the name. This is done using 'fuzzy string matching', provided by the ``fuzzywuzzy`` package.
 There is also a counterpart ``eg.filter_off()`` function, which works in the inverse.
-These functions will turn the threshold filter on for all analytes measured in all samples, and return a report of which filters are now on or off:
+These functions will turn the threshold filter on for all analytes measured in all samples, and return a report of which filters are now on or off::
 
     Subset All_Samples:
     Samples: Sample-1, Sample-2, Sample-3
@@ -138,9 +147,14 @@ These functions will turn the threshold filter on for all analytes measured in a
     1  Al27_thresh_above    False  False  False  False  False  False  False  False  False  
 
 In some cases, you might have a sample where one analyte is effected by a contaminant that does not alter other analytes.
-If this is the case, you can switch a filter on or off for a specific analyte::
+If this is the case, you can switch a filter on or off for a specific analyte:
 
-    eg.filter_off(filt='Albelow', analyte='Mg25')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 47
+
+.. code-block:: python
 
     Subset All_Samples:
     Samples: Sample-1, Sample-2, Sample-3
@@ -157,10 +171,12 @@ Finally, let's return to the 'Subsets', which we skipped over earlier.
 It is quite common to analyse distinct sets of samples in the same analytical session.
 To accommodate this, you can create data 'subsets' during analysis, and treat them in different ways.
 For example, imagine that 'Sample-1' in our test dataset was a different type of sample, that needs to be filtered in a different way.
-We can identify this as a subset by::
+We can identify this as a subset by:
 
-    eg.make_subset(samples='Sample-1', name='set1')
-    eg.make_subset(samples=['Sample-2', 'Sample-3'], name='set2')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 49-50
 
 And filters can be turned on and off independently for each subset::
 

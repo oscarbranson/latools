@@ -47,13 +47,15 @@ This should open a browser window, showing the Jupyter main screen.
 From here, start a new Python notebook by clicking 'New' in the top right, and selecting your Python version (preferably 3.5+).
 This will open a new browser tab containing your Jupyter notebook.
 
-Once python is running, import latools into your environment::
+Once python is running, import latools into your environment:
 
-	import latools as la
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :lines: 3
 
 All the functions of latools are now accessible from within the ``la`` prefix.
 
-.. tip:: if you want Jupyter notebook to display plots in-line (recommended), add an additional line after the import statement: `%matplotlib inline`.
+.. tip:: if you want Jupyter notebook to display plots in-line (recommended), add an additional line after the import statement: ``%matplotlib inline``.
 
 .. tip:: To run code in a Jupyter notebook, you must 'evaluate' the cell containing the code. to do this, type:
 
@@ -62,13 +64,16 @@ All the functions of latools are now accessible from within the ``la`` prefix.
 	* [alt] + [return] evaluate the selected cell, and creates a new empty cell underneath.
 
 .. _example_data:
+
 Example Data
 ============
 
-Once you've imported ``latools``, extract the example dataset to a ``data/`` folder within ``latools_demo/``::
+Once you've imported ``latools``, extract the example dataset to a ``data/`` folder within ``latools_demo/``:
 
-	# copy the example data to your current directory.
-	la.get_example_data('./data')
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 13
 
 Take a look at the contents of the directory.
 You should see four .csv files, which are raw data files from an Agilent 7700 Quadrupole mass spectrometer, outputting the counts per second of each analyte as a function of time.

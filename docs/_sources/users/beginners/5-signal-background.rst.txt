@@ -22,10 +22,12 @@ This is achieved automatically using :meth:`~latools.analyse.autorange` using th
 Several parameters within :meth:`~latools.analyse.autorange` can be modified to subtly alter the behaviour of this function.
 However, in testing the automatic separation proved remarkably robust, and you should not have to change these parameters much.
 
-The function is applied to your data by running::
+The function is applied to your data by running:
 
-    eg.autorange(on_mult=[1.5, 0.8], 
-                 off_mult=[0.8, 1.5])
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 24-25
 
 In this case, ``on_mult=[1.5, 0.8]`` signifies that a 1.5 x FWHM of the transition will be removed *before* the off-on transition (on the 'background' side), and 0.8 x FWHM will be removed *after* the transition (on the 'signal' side), and vice versa for the on-off transition. This excludes more from the background than the signal, avoiding spuriously high background values caused by the tails of the signal region.
 
@@ -44,14 +46,19 @@ At present, ``latools`` includes two background calculation algorithms:
 
 .. note:: Other background fitting functions can be easily incorporated. If you're Python-literate, we welcome your contributions. If not, get in touch!
 
-For this demonstration, we will use the :meth:`~latools.analyse.bkg_calc_weightedmean` background, with a FWHM of 5 minutes (``weight_fwhm=300`` seconds), that only considers background regions that contain greater than 10 points (``n_min=10``)::
+For this demonstration, we will use the :meth:`~latools.analyse.bkg_calc_weightedmean` background, with a FWHM of 5 minutes (``weight_fwhm=300`` seconds), that only considers background regions that contain greater than 10 points (``n_min=10``):
 
-    eg.bkg_calc_weightedmean(weight_fwhm=300, 
-                             n_min=10)
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 27-28
 
-and plot the resulting background::
+and plot the resulting background:
 
-    eg.bkg_plot()
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 30
 
 which is saved in the ``reports_data`` subdirectory, and should look like this:
 
@@ -61,8 +68,11 @@ which is saved in the ``reports_data`` subdirectory, and should look like this:
 Background Subtraction
 ======================
 
-Once the background is calculated, it subtracted from the signal regions using :meth:`~latools.analyse.bkg_correct`::
+Once the background is calculated, it subtracted from the signal regions using :meth:`~latools.analyse.bkg_correct`:
 
-	eg.bkg_subtract()
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 32
 
 .. tip:: Remember that you can plot the data and examine it at any stage of your processing. running ``eg.trace_plot()`` now would create a new subdirectory called 'bkgcorrect' in your 'reports_data' directory, and plot all the background corrected data.

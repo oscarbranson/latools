@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Getting Started &mdash; latools 0.2.2a documentation</title>
+  <title>Getting Started &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Beginner’s Guide" href="index.html"/>
         <link rel="next" title="Importing Data" href="2-data-import.html"/>
         <link rel="prev" title="Beginner’s Guide" href="index.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,33 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner&#8217;s Guide</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Getting Started</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#the-fundamentals-python">The Fundamentals: Python</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#preparation">Preparation</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#starting-latools">Starting <cite>latools</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id2">Example Data</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="2-data-import.html">Importing Data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="3-plotting.html">Plotting</a></li>
-<li class="toctree-l3"><a class="reference internal" href="4-despiking.html">Data De-spiking</a></li>
-<li class="toctree-l3"><a class="reference internal" href="5-signal-background.html">Background Correction</a></li>
-<li class="toctree-l3"><a class="reference internal" href="6-ratios.html">Ratio Calculation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="7-calibration.html">Calibration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="8-filtering.html">Data Selection and Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="9-statistics.html">Sample Statistics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="10-summary.html">Summary</a></li>
-<li class="toctree-l3"><a class="reference internal" href="11-FAQ.html">FAQs</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -168,7 +149,7 @@
         
           <li><a href="../index.html">User Guide</a> &raquo;</li>
         
-          <li><a href="index.html">Beginner&#8217;s Guide</a> &raquo;</li>
+          <li><a href="index.html">Beginner’s Guide</a> &raquo;</li>
         
       <li>Getting Started</li>
     
@@ -198,20 +179,20 @@ We recommend working through these examples to understand the mechanics of the s
 <p><a class="reference external" href="https://www.python.org/">Python</a> is an open-source (free) general purpose programming language, with growing application in science.
 <code class="docutils literal"><span class="pre">latools</span></code> is a python <cite>module</cite> - a package of code containing a number of Python <cite>objects</cite> and functions, which run within Python.
 That means that you need to have a working copy of Python to use <code class="docutils literal"><span class="pre">latools</span></code>.</p>
-<p>If you don&#8217;t already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum&#8217;s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> (recommended).
+<p>If you don’t already have this (or are unsure if you do), we recommend that you install one of the pre-packaged science-oriented Python distributions, like Continuum’s <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> (recommended).
 This provides a complete working installation of Python, and all the pre-requisites you need to run latools.</p>
 <p><code class="docutils literal"><span class="pre">latools</span></code> has been developed and tested in Python 3.5.
-It <em>should</em> also run on 2.7, but we can&#8217;t guarantee that it will behave.</p>
-<p>&#8216;&#8217;latools&#8217;&#8217; should work in any python interpreter, but we recommend either <a class="reference external" href="http://jupyter.org/">Jupyter Notebook</a> or <a class="reference external" href="https://ipython.org/">iPython</a>.
+It <em>should</em> also run on 2.7, but we can’t guarantee that it will behave.</p>
+<p>‘’latools’’ should work in any python interpreter, but we recommend either <a class="reference external" href="http://jupyter.org/">Jupyter Notebook</a> or <a class="reference external" href="https://ipython.org/">iPython</a>.
 Jupyter is a browser-based interface for ipython, which provides a nice clean interactive front-end for writing code, taking notes and viewing plots.</p>
-<p>For simplicity, the rest of this guide will assume you&#8217;re using Jupyter notebook, although it should translate directly to other Python interpreters.</p>
+<p>For simplicity, the rest of this guide will assume you’re using Jupyter notebook, although it should translate directly to other Python interpreters.</p>
 <p>For a full walk through of getting <code class="docutils literal"><span class="pre">latools</span></code> set up on your system, head on over to the <a class="reference internal" href="../installing.html#install"><span class="std std-ref">Installation</span></a> guide.</p>
 </div>
 <div class="section" id="preparation">
 <h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
-<p>Before we start <code class="docutils literal"><span class="pre">latools</span></code>, you should create a folder to contain everything we&#8217;re going to do in this guide.
-For example, you might create a folder called <code class="docutils literal"><span class="pre">latools_demo/</span></code> on your Desktop - we&#8217;ll refer to this folder as <code class="docutils literal"><span class="pre">latools_demo/</span></code> from now on, but you can call it whatever you want.
-Remember where this folder is - we&#8217;ll come back to it a lot later.</p>
+<p>Before we start <code class="docutils literal"><span class="pre">latools</span></code>, you should create a folder to contain everything we’re going to do in this guide.
+For example, you might create a folder called <code class="docutils literal"><span class="pre">latools_demo/</span></code> on your Desktop - we’ll refer to this folder as <code class="docutils literal"><span class="pre">latools_demo/</span></code> from now on, but you can call it whatever you want.
+Remember where this folder is - we’ll come back to it a lot later.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
 <p class="last">As you process data with <code class="docutils literal"><span class="pre">latools</span></code>, new folders will be created in this directory containing plots and exported data. This works best (i.e. is least cluttered) if you put your data in a single directory inside a parent directory (in this case <code class="docutils literal"><span class="pre">latools_demo</span></code>), so all the directories created during analysis will also be in the same place, without lots of other files.</p>
@@ -225,20 +206,20 @@ jupyter notebook
 </pre></div>
 </div>
 <p>This should open a browser window, showing the Jupyter main screen.
-From here, start a new Python notebook by clicking &#8216;New&#8217; in the top right, and selecting your Python version (preferably 3.5+).
+From here, start a new Python notebook by clicking ‘New’ in the top right, and selecting your Python version (preferably 3.5+).
 This will open a new browser tab containing your Jupyter notebook.</p>
 <p>Once python is running, import latools into your environment:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">latools</span> <span class="k">as</span> <span class="nn">la</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">latools</span> <span class="kn">as</span> <span class="nn">la</span>
 </pre></div>
 </div>
 <p>All the functions of latools are now accessible from within the <code class="docutils literal"><span class="pre">la</span></code> prefix.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p class="last">if you want Jupyter notebook to display plots in-line (recommended), add an additional line after the import statement: <cite>%matplotlib inline</cite>.</p>
+<p class="last">if you want Jupyter notebook to display plots in-line (recommended), add an additional line after the import statement: <code class="docutils literal"><span class="pre">%matplotlib</span> <span class="pre">inline</span></code>.</p>
 </div>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
-<p>To run code in a Jupyter notebook, you must &#8216;evaluate&#8217; the cell containing the code. to do this, type:</p>
+<p>To run code in a Jupyter notebook, you must ‘evaluate’ the cell containing the code. to do this, type:</p>
 <ul class="last simple">
 <li>[ctrl] + [return] evaluate the selected cell.</li>
 <li>[shift] + [return] evaluate the selected cell, and moves the focus to the next cell</li>
@@ -246,19 +227,18 @@ This will open a new browser tab containing your Jupyter notebook.</p>
 </ul>
 </div>
 </div>
-<div class="section" id="id2">
-<h2>Example Data<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
-<p>Once you&#8217;ve imported <code class="docutils literal"><span class="pre">latools</span></code>, extract the example dataset to a <code class="docutils literal"><span class="pre">data/</span></code> folder within <code class="docutils literal"><span class="pre">latools_demo/</span></code>:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># copy the example data to your current directory.</span>
-<span class="n">la</span><span class="o">.</span><span class="n">get_example_data</span><span class="p">(</span><span class="s1">&#39;./data&#39;</span><span class="p">)</span>
+<div class="section" id="example-data">
+<span id="id2"></span><h2>Example Data<a class="headerlink" href="#example-data" title="Permalink to this headline">¶</a></h2>
+<p>Once you’ve imported <code class="docutils literal"><span class="pre">latools</span></code>, extract the example dataset to a <code class="docutils literal"><span class="pre">data/</span></code> folder within <code class="docutils literal"><span class="pre">latools_demo/</span></code>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">la</span><span class="o">.</span><span class="n">get_example_data</span><span class="p">(</span><span class="s1">&#39;./data&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Take a look at the contents of the directory.
 You should see four .csv files, which are raw data files from an Agilent 7700 Quadrupole mass spectrometer, outputting the counts per second of each analyte as a function of time.
-Notice that each .csv file either has a sample name, or is called &#8216;STD&#8217;.</p>
+Notice that each .csv file either has a sample name, or is called ‘STD’.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Each data file should contain data from a single sample, and data files containing measurements of standards should all contain an identifying set of characters (in this case &#8216;STD&#8217;) in the name. For more information, see <a class="reference internal" href="../advanced/data-formats.html#advanced-data-formats"><span class="std std-ref">Data Import</span></a>.</p>
+<p class="last">Each data file should contain data from a single sample, and data files containing measurements of standards should all contain an identifying set of characters (in this case ‘STD’) in the name. For more information, see <a class="reference internal" href="../advanced/data-formats.html#advanced-data-formats"><span class="std std-ref">Data Import</span></a>.</p>
 </div>
 </div>
 </div>
@@ -285,7 +265,7 @@ Notice that each .csv file either has a sample name, or is called &#8216;STD&#82
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -307,7 +287,7 @@ Notice that each .csv file either has a sample name, or is called &#8216;STD&#82
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -317,7 +297,7 @@ Notice that each .csv file either has a sample name, or is called &#8216;STD&#82
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

@@ -1,0 +1,633 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>latools.helpers.process_fns &mdash; latools 0.2.4-dev documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.4-dev
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../users/index.html">User Guide</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../latools.html">latools Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">latools</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>latools.helpers.process_fns</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for latools.helpers.process_fns</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">io</span> <span class="k">import</span> <span class="n">BytesIO</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="k">import</span> <span class="n">gaussian_kde</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="k">import</span> <span class="n">curve_fit</span>
+
+<span class="kn">from</span> <span class="nn">latools.helpers.helpers</span> <span class="k">import</span> <span class="n">Bunch</span><span class="p">,</span> <span class="n">fastgrad</span><span class="p">,</span> <span class="n">fastsmooth</span><span class="p">,</span> <span class="n">findmins</span><span class="p">,</span> <span class="n">bool_2_indices</span>
+<span class="kn">from</span> <span class="nn">latools.helpers.stat_fns</span> <span class="k">import</span> <span class="n">gauss</span>
+
+
+<span class="c1"># Functions to work with laser ablation signals</span>
+
+<span class="c1"># Despiking functions</span>
+<div class="viewcode-block" id="noise_despike"><a class="viewcode-back" href="../../../latools.html#latools.helpers.process_fns.noise_despike">[docs]</a><span class="k">def</span> <span class="nf">noise_despike</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="n">win</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">nlim</span><span class="o">=</span><span class="mf">24.</span><span class="p">,</span> <span class="n">maxiter</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply standard deviation filter to remove anomalous values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    win : int</span>
+<span class="sd">        The window used to calculate rolling statistics.</span>
+<span class="sd">    nlim : float</span>
+<span class="sd">        The number of standard deviations above the rolling</span>
+<span class="sd">        mean above which data are considered outliers.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">win</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">win</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c1"># win must be odd</span>
+
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">win</span><span class="p">)</span> <span class="o">/</span> <span class="n">win</span>  <span class="c1"># make convolution kernel</span>
+    <span class="n">over</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sig</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>  <span class="c1"># initialize bool array</span>
+    <span class="c1"># pad edges to avoid edge-effects</span>
+    <span class="n">npad</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">win</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">over</span><span class="p">[:</span><span class="n">npad</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">over</span><span class="p">[</span><span class="o">-</span><span class="n">npad</span><span class="p">:]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="c1"># set up monitoring</span>
+    <span class="n">nloops</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># do the despiking</span>
+    <span class="k">while</span> <span class="nb">any</span><span class="p">(</span><span class="n">over</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nloops</span> <span class="o">&lt;</span> <span class="n">maxiter</span><span class="p">):</span>
+        <span class="n">rmean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="s1">&#39;valid&#39;</span><span class="p">)</span>  <span class="c1"># mean by convolution</span>
+        <span class="n">rstd</span> <span class="o">=</span> <span class="n">rmean</span><span class="o">**</span><span class="mf">0.5</span>  <span class="c1"># std = sqrt(signal), because count statistics</span>
+        <span class="c1"># identify where signal &gt; mean + std * nlim (OR signa &lt; mean - std *</span>
+        <span class="c1"># nlim)</span>
+        <span class="c1"># | (sig[npad:-npad] &lt; rmean - nlim * rstd)</span>
+        <span class="n">over</span><span class="p">[</span><span class="n">npad</span><span class="p">:</span><span class="o">-</span><span class="n">npad</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">sig</span><span class="p">[</span><span class="n">npad</span><span class="p">:</span><span class="o">-</span><span class="n">npad</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">rmean</span> <span class="o">+</span> <span class="n">nlim</span> <span class="o">*</span> <span class="n">rstd</span><span class="p">)</span>
+        <span class="c1"># if any are over, replace them with mean of neighbours</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">over</span><span class="p">):</span>
+            <span class="c1"># replace with values either side</span>
+            <span class="c1"># sig[over] = sig[np.roll(over, -1) | np.roll(over, 1)].reshape((sum(over), 2)).mean(1)</span>
+            <span class="c1"># replace with mean</span>
+            <span class="n">sig</span><span class="p">[</span><span class="n">npad</span><span class="p">:</span><span class="o">-</span><span class="n">npad</span><span class="p">][</span><span class="n">over</span><span class="p">[</span><span class="n">npad</span><span class="p">:</span><span class="o">-</span><span class="n">npad</span><span class="p">]]</span> <span class="o">=</span> <span class="n">rmean</span><span class="p">[</span><span class="n">over</span><span class="p">[</span><span class="n">npad</span><span class="p">:</span><span class="o">-</span><span class="n">npad</span><span class="p">]]</span>
+            <span class="n">nloops</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="c1"># repeat until no more removed.</span>
+    <span class="k">return</span> <span class="n">sig</span></div>
+
+
+<div class="viewcode-block" id="expdecay_despike"><a class="viewcode-back" href="../../../latools.html#latools.helpers.process_fns.expdecay_despike">[docs]</a><span class="k">def</span> <span class="nf">expdecay_despike</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="n">expdecay_coef</span><span class="p">,</span> <span class="n">tstep</span><span class="p">,</span> <span class="n">maxiter</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply exponential decay filter to remove unrealistically low values.</span>
+
+<span class="sd">    Warning</span>
+<span class="sd">    -------</span>
+<span class="sd">    THERE&#39;S SOMETHING WRONG WITH THIS FUNCTION. REMOVES TOO MUCH DATA!</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    exponent : float</span>
+<span class="sd">        Exponent used in filter</span>
+<span class="sd">    tstep : float</span>
+<span class="sd">        The time increment between data points.</span>
+<span class="sd">    maxiter : int</span>
+<span class="sd">        The maximum number of iterations to</span>
+<span class="sd">        apply the filter</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sig</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>  <span class="c1"># initialize bool array</span>
+    <span class="n">nloop</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># track number of iterations</span>
+    <span class="c1"># do the despiking</span>
+    <span class="k">while</span> <span class="nb">any</span><span class="p">(</span><span class="n">lo</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nloop</span> <span class="o">&lt;=</span> <span class="n">maxiter</span><span class="p">):</span>
+        <span class="c1"># find values that are lower than allowed by the washout</span>
+        <span class="c1"># characteristics of the laser cell.</span>
+        <span class="n">lo</span> <span class="o">=</span> <span class="n">sig</span> <span class="o">&lt;</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">sig</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">expdecay_coef</span> <span class="o">*</span> <span class="n">tstep</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">lo</span><span class="p">):</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+            <span class="n">sig</span><span class="p">[</span><span class="n">lo</span><span class="p">]</span> <span class="o">=</span> <span class="n">prev</span>
+            <span class="n">nloop</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">nloop</span> <span class="o">&gt;=</span> <span class="n">maxiter</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">((</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">***maxiter (</span><span class="si">{}</span><span class="s1">) exceeded during expdecay_despike***</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">maxiter</span><span class="p">)</span> <span class="o">+</span>
+                             <span class="s1">&#39;This is probably because the expdecay_coef is too small.</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">sig</span></div>
+
+
+<div class="viewcode-block" id="read_data"><a class="viewcode-back" href="../../../latools.html#latools.helpers.process_fns.read_data">[docs]</a><span class="k">def</span> <span class="nf">read_data</span><span class="p">(</span><span class="n">data_file</span><span class="p">,</span> <span class="n">dataformat</span><span class="p">,</span> <span class="n">name_mode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load data_file described by a dataformat dict.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_file : str</span>
+<span class="sd">        Path to data file, including extension.</span>
+<span class="sd">    dataformat : dict</span>
+<span class="sd">        A dataformat dict, see example below.</span>
+<span class="sd">    name_mode : str</span>
+<span class="sd">        How to identyfy sample names. If &#39;file_names&#39; uses the</span>
+<span class="sd">        input name of the file, stripped of the extension. If</span>
+<span class="sd">        &#39;metadata_names&#39; uses the &#39;name&#39; attribute of the &#39;meta&#39;</span>
+<span class="sd">        sub-dictionary in dataformat. If any other str, uses this</span>
+<span class="sd">        str as the sample name.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    {&#39;genfromtext_args&#39;: {&#39;delimiter&#39;: &#39;,&#39;,</span>
+<span class="sd">                          &#39;skip_header&#39;: 4},  # passed directly to np.genfromtxt</span>
+<span class="sd">     &#39;column_id&#39;: {&#39;name_row&#39;: 3,  # which row contains the column names</span>
+<span class="sd">                   &#39;delimiter&#39;: &#39;,&#39;,  # delimeter between column names</span>
+<span class="sd">                   &#39;timecolumn&#39;: 0,  # which column contains the &#39;time&#39; variable</span>
+<span class="sd">                   &#39;pattern&#39;: &#39;([A-z]{1,2}[0-9]{1,3})&#39;},  # a regex pattern which captures the column names</span>
+<span class="sd">     &#39;meta_regex&#39;: {  # a dict of (line_no: ([descriptors], [regexs])) pairs</span>
+<span class="sd">                    0: ([&#39;path&#39;], &#39;(.*)&#39;),</span>
+<span class="sd">                    2: ([&#39;date&#39;, &#39;method&#39;],  # MUST include date</span>
+<span class="sd">                     &#39;([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\.m)&#39;)</span>
+<span class="sd">                   }</span>
+<span class="sd">    }</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    sample, analytes, data, meta : tuple</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="s1">&#39;meta_regex&#39;</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;meta_regex&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">lines</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">)])</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+                <span class="n">meta</span><span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="c1"># sample name</span>
+    <span class="k">if</span> <span class="n">name_mode</span> <span class="o">==</span> <span class="s1">&#39;file_names&#39;</span><span class="p">:</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">name_mode</span> <span class="o">==</span> <span class="s1">&#39;metadata_names&#39;</span><span class="p">:</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="n">name_mode</span>
+
+    <span class="c1"># column and analyte names</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">][</span><span class="s1">&#39;name_row&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+        <span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">][</span><span class="s1">&#39;delimiter&#39;</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="s1">&#39;pattern&#39;</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">pr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">][</span><span class="s1">&#39;pattern&#39;</span><span class="p">])</span>
+        <span class="n">analytes</span> <span class="o">=</span> <span class="p">[</span><span class="n">pr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span> <span class="k">if</span> <span class="n">pr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">c</span><span class="p">)]</span>
+
+    <span class="c1"># do any required pre-formatting</span>
+    <span class="k">if</span> <span class="s1">&#39;preformat_replace&#39;</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">fbuffer</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;preformat_replace&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">fbuffer</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">fbuffer</span><span class="p">)</span>
+        <span class="c1"># dead data</span>
+        <span class="n">read_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">fbuffer</span><span class="o">.</span><span class="n">encode</span><span class="p">()),</span>
+                                  <span class="o">**</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;genfromtext_args&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># read data</span>
+        <span class="n">read_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">data_file</span><span class="p">,</span>
+                                  <span class="o">**</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;genfromtext_args&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="c1"># data dict</span>
+    <span class="n">dind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">read_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">dind</span><span class="p">[</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">][</span><span class="s1">&#39;timecolumn&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">()</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">read_data</span><span class="p">[</span><span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;column_id&#39;</span><span class="p">][</span><span class="s1">&#39;timecolumn&#39;</span><span class="p">]]</span>
+
+    <span class="c1"># convert raw data into counts</span>
+    <span class="c1"># TODO: Is this correct? Should actually be per-analyte dwell?</span>
+    <span class="k">if</span> <span class="s1">&#39;unit&#39;</span> <span class="ow">in</span> <span class="n">dataformat</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">dataformat</span><span class="p">[</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;cps&#39;</span><span class="p">:</span>
+            <span class="n">tstep</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">read_data</span><span class="p">[</span><span class="n">dind</span><span class="p">]</span> <span class="o">*=</span> <span class="n">tstep</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;rawdata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">analytes</span><span class="p">,</span> <span class="n">read_data</span><span class="p">[</span><span class="n">dind</span><span class="p">]))</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;total_counts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">read_data</span><span class="p">[</span><span class="n">dind</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">sample</span><span class="p">,</span> <span class="n">analytes</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">meta</span></div>
+
+
+<div class="viewcode-block" id="autorange"><a class="viewcode-back" href="../../../latools.html#latools.helpers.process_fns.autorange">[docs]</a><span class="k">def</span> <span class="nf">autorange</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="n">gwin</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">swin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">win</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+              <span class="n">on_mult</span><span class="o">=</span><span class="p">(</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.</span><span class="p">),</span> <span class="n">off_mult</span><span class="o">=</span><span class="p">(</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">),</span>
+              <span class="n">nbin</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Automatically separates signal and background in an on/off data stream.</span>
+
+<span class="sd">    **Step 1: Thresholding.**</span>
+<span class="sd">    The background signal is determined using a gaussian kernel density</span>
+<span class="sd">    estimator (kde) of all the data. Under normal circumstances, this</span>
+<span class="sd">    kde should find two distinct data distributions, corresponding to</span>
+<span class="sd">    &#39;signal&#39; and &#39;background&#39;. The minima between these two distributions</span>
+<span class="sd">    is taken as a rough threshold to identify signal and background</span>
+<span class="sd">    regions. Any point where the trace crosses this thrshold is identified</span>
+<span class="sd">    as a &#39;transition&#39;.</span>
+
+<span class="sd">    **Step 2: Transition Removal.**</span>
+<span class="sd">    The width of the transition regions between signal and background are</span>
+<span class="sd">    then determined, and the transitions are excluded from analysis. The</span>
+<span class="sd">    width of the transitions is determined by fitting a gaussian to the</span>
+<span class="sd">    smoothed first derivative of the analyte trace, and determining its</span>
+<span class="sd">    width at a point where the gaussian intensity is at at `conf` time the</span>
+<span class="sd">    gaussian maximum. These gaussians are fit to subsets of the data</span>
+<span class="sd">    centered around the transitions regions determined in Step 1, +/- `win`</span>
+<span class="sd">    data points. The peak is further isolated by finding the minima and</span>
+<span class="sd">    maxima of a second derivative within this window, and the gaussian is</span>
+<span class="sd">    fit to the isolated peak.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t : array-like</span>
+<span class="sd">        Independent variable (usually time).</span>
+<span class="sd">    sig : array-like</span>
+<span class="sd">        Dependent signal, with distinctive &#39;on&#39; and &#39;off&#39; regions.</span>
+<span class="sd">    gwin : int</span>
+<span class="sd">        The window used for calculating first derivative.</span>
+<span class="sd">        Defaults to 7.</span>
+<span class="sd">    swin : int</span>
+<span class="sd">        The window ised for signal smoothing. If None, ``gwin // 2``.</span>
+<span class="sd">    win : int</span>
+<span class="sd">        The width (c +/- win) of the transition data subsets.</span>
+<span class="sd">        Defaults to 20.</span>
+<span class="sd">    on_mult and off_mult : tuple, len=2</span>
+<span class="sd">        Control the width of the excluded transition regions, which is defined</span>
+<span class="sd">        relative to the peak full-width-half-maximum (FWHM) of the transition</span>
+<span class="sd">        gradient. The region n * FHWM below the transition, and m * FWHM above</span>
+<span class="sd">        the tranision will be excluded, where (n, m) are specified in `on_mult`</span>
+<span class="sd">        and `off_mult`.</span>
+<span class="sd">        `on_mult` and `off_mult` apply to the off-on and on-off transitions,</span>
+<span class="sd">        respectively.</span>
+<span class="sd">        Defaults to (1.5, 1) and (1, 1.5).</span>
+<span class="sd">    nbin : ind</span>
+<span class="sd">        Used to calculate the number of bins in the data histogram.</span>
+<span class="sd">        ``bins = len(sig) // nbin``</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fbkg, fsig, ftrn, failed : tuple</span>
+<span class="sd">        where fbkg, fsig and ftrn are boolean arrays the same length as sig,</span>
+<span class="sd">        that are True where sig is background, signal and transition, respecively.</span>
+<span class="sd">        failed contains a list of transition positions where gaussian fitting</span>
+<span class="sd">        has failed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">swin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">swin</span> <span class="o">=</span> <span class="n">gwin</span> <span class="o">//</span> <span class="mi">2</span>
+
+    <span class="n">failed</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># smooth signal</span>
+    <span class="n">sigs</span> <span class="o">=</span> <span class="n">fastsmooth</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="n">swin</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">thresh</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># bins = 50</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="n">sig</span><span class="o">.</span><span class="n">size</span> <span class="o">//</span> <span class="n">nbin</span>
+        <span class="n">kde_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">sig</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">bins</span><span class="p">)</span>
+
+        <span class="n">kde</span> <span class="o">=</span> <span class="n">gaussian_kde</span><span class="p">(</span><span class="n">sigs</span><span class="p">)</span>
+        <span class="n">yd</span> <span class="o">=</span> <span class="n">kde</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">kde_x</span><span class="p">)</span>
+        <span class="n">mins</span> <span class="o">=</span> <span class="n">findmins</span><span class="p">(</span><span class="n">kde_x</span><span class="p">,</span> <span class="n">yd</span><span class="p">)</span>  <span class="c1"># find minima in kde</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mins</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">bkg</span> <span class="o">=</span> <span class="n">sigs</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">mins</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># set background as lowest distribution</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bkg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="c1"># bkg[0] = True  # the first value must always be background</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bkg</span> <span class="o">=</span> <span class="n">sigs</span> <span class="o">&lt;</span> <span class="n">thresh</span>
+
+    <span class="c1"># assign rough background and signal regions based on kde minima</span>
+    <span class="n">fbkg</span> <span class="o">=</span> <span class="n">bkg</span>
+    <span class="n">fsig</span> <span class="o">=</span> <span class="o">~</span><span class="n">bkg</span>
+
+    <span class="c1"># remove transitions by fitting a gaussian to the gradients of</span>
+    <span class="c1"># each transition</span>
+    <span class="c1"># 1. calculate the absolute gradient of the target trace.</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">fastgrad</span><span class="p">(</span><span class="n">sigs</span><span class="p">,</span> <span class="n">gwin</span><span class="p">))</span>
+    <span class="c1"># 2. determine the approximate index of each transition</span>
+    <span class="n">zeros</span> <span class="o">=</span> <span class="n">bool_2_indices</span><span class="p">(</span><span class="n">fsig</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">zeros</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">zeros</span> <span class="o">=</span> <span class="n">zeros</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">zeros</span><span class="p">:</span>  <span class="c1"># for each approximate transition</span>
+            <span class="c1"># isolate the data around the transition</span>
+            <span class="k">if</span> <span class="n">z</span> <span class="o">-</span> <span class="n">win</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">lo</span> <span class="o">=</span> <span class="n">gwin</span> <span class="o">//</span> <span class="mi">2</span>
+                <span class="n">hi</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">win</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">z</span> <span class="o">+</span> <span class="n">win</span> <span class="o">&gt;</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span> <span class="o">-</span> <span class="n">gwin</span> <span class="o">//</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="n">lo</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">win</span><span class="p">)</span>
+                <span class="n">hi</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span> <span class="o">-</span> <span class="n">gwin</span> <span class="o">//</span> <span class="mi">2</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lo</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">win</span><span class="p">)</span>
+                <span class="n">hi</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span> <span class="o">+</span> <span class="n">win</span><span class="p">)</span>
+
+            <span class="n">xs</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">lo</span><span class="p">:</span><span class="n">hi</span><span class="p">]</span>
+            <span class="n">ys</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">lo</span><span class="p">:</span><span class="n">hi</span><span class="p">]</span>
+
+            <span class="c1"># determine type of transition (on/off)</span>
+            <span class="n">mid</span> <span class="o">=</span> <span class="p">(</span><span class="n">hi</span> <span class="o">+</span> <span class="n">lo</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">sigs</span><span class="p">[</span><span class="n">mid</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">sigs</span><span class="p">[</span><span class="n">mid</span> <span class="o">-</span> <span class="mi">3</span><span class="p">]</span>  <span class="c1"># True if &#39;on&#39; transition.</span>
+
+            <span class="c1"># fit a gaussian to the first derivative of each</span>
+            <span class="c1"># transition. Initial guess parameters:</span>
+            <span class="c1">#   - A: maximum gradient in data</span>
+            <span class="c1">#   - mu: c</span>
+            <span class="c1">#   - width: 2 * time step</span>
+            <span class="c1"># The &#39;sigma&#39; parameter of curve_fit:</span>
+            <span class="c1"># This weights the fit by distance from c - i.e. data closer</span>
+            <span class="c1"># to c are more important in the fit than data further away</span>
+            <span class="c1"># from c. This allows the function to fit the correct curve,</span>
+            <span class="c1"># even if the data window has captured two independent</span>
+            <span class="c1"># transitions (i.e. end of one ablation and start of next)</span>
+            <span class="c1"># ablation are &lt; win time steps apart).</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">z</span><span class="p">]</span>  <span class="c1"># center of transition</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="mi">2</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pg</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">gauss</span><span class="p">,</span> <span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span>
+                                  <span class="n">p0</span><span class="o">=</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">ys</span><span class="p">),</span>
+                                      <span class="n">c</span><span class="p">,</span>
+                                      <span class="n">width</span><span class="p">),</span>
+                                  <span class="n">sigma</span><span class="o">=</span><span class="p">(</span><span class="n">xs</span> <span class="o">-</span> <span class="n">c</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="o">.</span><span class="mi">01</span><span class="p">)</span>
+                <span class="c1"># get the x positions when the fitted gaussian is at &#39;conf&#39; of</span>
+                <span class="c1"># maximum</span>
+                <span class="c1"># determine transition FWHM</span>
+                <span class="n">fwhm</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">pg</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+                <span class="c1"># apply on_mult or off_mult, as appropriate.</span>
+                <span class="k">if</span> <span class="n">tp</span><span class="p">:</span>
+                    <span class="n">lim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">fwhm</span><span class="p">,</span> <span class="n">fwhm</span><span class="p">])</span> <span class="o">*</span> <span class="n">on_mult</span> <span class="o">+</span> <span class="n">pg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">lim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">fwhm</span><span class="p">,</span> <span class="n">fwhm</span><span class="p">])</span> <span class="o">*</span> <span class="n">off_mult</span> <span class="o">+</span> <span class="n">pg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+                <span class="n">fbkg</span><span class="p">[(</span><span class="n">t</span> <span class="o">&gt;</span> <span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;</span> <span class="n">lim</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">fsig</span><span class="p">[(</span><span class="n">t</span> <span class="o">&gt;</span> <span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;</span> <span class="n">lim</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+                <span class="n">failed</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">c</span><span class="p">,</span> <span class="n">tp</span><span class="p">])</span>
+                <span class="k">pass</span>
+
+    <span class="n">ftrn</span> <span class="o">=</span> <span class="o">~</span><span class="n">fbkg</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">fsig</span>
+
+    <span class="c1"># if there are any failed transitions, exclude the mean transition width</span>
+    <span class="c1"># either side of the failures</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">failed</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">trns</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">bool_2_indices</span><span class="p">(</span><span class="n">ftrn</span><span class="p">)]</span>
+        <span class="n">tr_mean</span> <span class="o">=</span> <span class="p">(</span><span class="n">trns</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">trns</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">tp</span> <span class="ow">in</span> <span class="n">failed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tp</span><span class="p">:</span>
+                <span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">&gt;=</span> <span class="n">f</span> <span class="o">-</span> <span class="n">tr_mean</span> <span class="o">*</span>
+                       <span class="n">on_mult</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;=</span> <span class="n">f</span> <span class="o">+</span> <span class="n">tr_mean</span> <span class="o">*</span> <span class="n">on_mult</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">&gt;=</span> <span class="n">f</span> <span class="o">-</span> <span class="n">tr_mean</span> <span class="o">*</span>
+                       <span class="n">off_mult</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;=</span> <span class="n">f</span> <span class="o">+</span> <span class="n">tr_mean</span> <span class="o">*</span> <span class="n">off_mult</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">fsig</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">fbkg</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">ftrn</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">return</span> <span class="n">fbkg</span><span class="p">,</span> <span class="n">fsig</span><span class="p">,</span> <span class="n">ftrn</span><span class="p">,</span> <span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">failed</span><span class="p">]</span></div>
+
+
+<span class="c1"># def rolling_mean_std(sig, win=3):</span>
+<span class="c1">#     npad = int((win - 1) / 2)</span>
+<span class="c1">#     sumkernel = np.ones(win)</span>
+<span class="c1">#     kernel = sumkernel / win</span>
+<span class="c1">#     mean = np.convolve(sig, kernel, &#39;same&#39;)</span>
+<span class="c1">#     mean[:npad] = sig[:npad]</span>
+<span class="c1">#     mean[-npad:] = sig[-npad:]</span>
+<span class="c1">#     # calculate sqdiff</span>
+<span class="c1">#     sqdiff = (sig - mean)**2</span>
+<span class="c1">#     sumsqdiff = np.convolve(sqdiff, sumkernel, &#39;same&#39;)</span>
+<span class="c1">#     std = np.sqrt(sumsqdiff / win)</span>
+
+<span class="c1">#     return mean[5], sqdiff[4:7], sumsqdiff[5], std[5]</span>
+
+<span class="c1">#     # print(np.convolve(a, sumkernel, &#39;valid&#39;))</span>
+
+
+<span class="c1"># if __name__ == &#39;__main__&#39;:</span>
+<span class="c1">#     a = np.random.normal(5, 1, 100)</span>
+<span class="c1">#     a[30] = 10</span>
+<span class="c1">#     print(rolling_mean_std(a))</span>
+
+<span class="c1">#     print(np.convolve(np.ones(10), np.ones(3), &#39;same&#39;))</span>
+<span class="c1">#     asub = a[4:7]</span>
+<span class="c1">#     print(asub)</span>
+<span class="c1">#     masub = np.mean(asub)</span>
+<span class="c1">#     sqdiff = (asub - masub)**2</span>
+<span class="c1">#     sumsqdiff = np.sum(sqdiff)</span>
+<span class="c1">#     std = np.sqrt(sumsqdiff / 3)</span>
+<span class="c1">#     print(masub, sumsqdiff, std)</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.2.4-dev',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

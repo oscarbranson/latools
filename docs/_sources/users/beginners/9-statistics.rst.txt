@@ -4,9 +4,12 @@
 Sample Statistics
 #################
 
-After filtering, you can calculated and export integrated compositional values for your analyses::
+After filtering, you can calculated and export integrated compositional values for your analyses:
 
-	eg.sample_stats(stats=['mean', 'std'], filt=True)
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 56
 
 Where ``stats`` specifies which functions you would like to use to calculate the statistics.
 Built in options are:
@@ -26,16 +29,17 @@ You can specify any function that accepts an array and returns a single value he
 In combination with data subsets, and the ability to specify different combinations of filters for different subsets, this provides a flexible way to explore the impact of different filters on your integrated values.
 
 We've now calculated the statistics, but they are still trapped inside the 'analyse' data object (``eg``).
-To get them out into a more useful form::
+To get them out into a more useful form:
 
-	stats =	eg.getstats()
+.. literalinclude:: ../../../../tests/test_beginnersGuide.py
+   :language: python
+   :dedent: 4
+   :lines: 58
 
 This returns a :class:`pandas.DataFrame` containing all the statistics we just calculated.
 You can either keep this data in python and continue your analysis, or export the integrated values to an external file for analysis and plotting in *your_favourite_program*.
 
-To export the data, you can either specifying the ``filename`` variable in :meth:`~latools.analyse.getstats`, which will be saved in the 'export_data' directory, or you can use the pandas built in export methods like :meth:`~pandas.DataFrame.to_csv` or :meth:`~pandas.DataFrame.to_excel` to take your data straight to a variety of formats, for example::
+The calculated statistics are saved autoatmically to 'sample_stats.csv' in the 'data_export' directory. 
+You can also specify the filename manually using the ``filename`` variable in :meth:`~latools.analyse.getstats`, which will be saved in the 'data_export' directory, or you can use the pandas built in export methods like :meth:`~pandas.DataFrame.to_csv` or :meth:`~pandas.DataFrame.to_excel` to take your data straight to a variety of formats, for example::
 
-	stats.to_csv('reports/stats.csv') # .csv format
-	stats.to_excel('reports/stats.csv') # excel format
-
-.. hint:: To use pandas :meth:`~pandas.DataFrame.to_excel` method, you must have `xlsxwriter <http://xlsxwriter.readthedocs.io/>`_ installed in python.
+	stats.to_csv('stats.csv') # .csv format

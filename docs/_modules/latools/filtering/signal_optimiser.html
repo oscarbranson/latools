@@ -1,0 +1,724 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>latools.filtering.signal_optimiser &mdash; latools 0.2.4-dev documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> latools
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2.4-dev
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../users/index.html">User Guide</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../latools.html">latools Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">latools</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>latools.filtering.signal_optimiser</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for latools.filtering.signal_optimiser</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions for automatic selection optimisation.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="k">import</span> <span class="n">bayes_mvs</span>
+<span class="kn">from</span> <span class="nn">scipy.stats.kde</span> <span class="k">import</span> <span class="n">gaussian_kde</span>
+<span class="kn">from</span> <span class="nn">latools.helpers.helpers</span> <span class="k">import</span> <span class="n">Bunch</span><span class="p">,</span> <span class="n">rolling_window</span><span class="p">,</span> <span class="n">nominal_values</span><span class="p">,</span> <span class="n">bool_2_indices</span><span class="p">,</span> <span class="n">_warning</span>
+<span class="kn">from</span> <span class="nn">latools.helpers.plot</span> <span class="k">import</span> <span class="n">tplot</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">showwarning</span> <span class="o">=</span> <span class="n">_warning</span>
+
+<div class="viewcode-block" id="calc_windows"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.calc_windows">[docs]</a><span class="k">def</span> <span class="nf">calc_windows</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">min_points</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply fn to all contiguous regions in s that have at least min_points.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="n">max_points</span> <span class="o">-</span> <span class="n">min_points</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n_points</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+    <span class="c1"># skip nans, for speed</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">min_points</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">)):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">rolling_window</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">apply_along_axis</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="calc_window_mean_std"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.calc_window_mean_std">[docs]</a><span class="k">def</span> <span class="nf">calc_window_mean_std</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">min_points</span><span class="p">,</span> <span class="n">ind</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply fn to all contiguous regions in s that have at least min_points.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="n">max_points</span> <span class="o">-</span> <span class="n">min_points</span>
+
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n_points</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n_points</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+    <span class="c1"># skip nans, for speed</span>
+    <span class="k">if</span> <span class="n">ind</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">ind</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">min_points</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">)):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">rolling_window</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">mean</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">w</span>
+        <span class="n">std</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="p">(((</span><span class="n">r</span> <span class="o">-</span> <span class="n">mean</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ind</span><span class="p">][:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">w</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="c1"># mean[i, ind] = np.apply_along_axis(np.nanmean, 1, r)</span>
+        <span class="c1"># std[i, ind] = np.apply_along_axis(np.nanstd, 1, r)</span>
+
+    <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span></div>
+
+<div class="viewcode-block" id="scale"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.scale">[docs]</a><span class="k">def</span> <span class="nf">scale</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove the mean, and divide by the standard deviation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">s</span><span class="p">))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="bayes_scale"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.bayes_scale">[docs]</a><span class="k">def</span> <span class="nf">bayes_scale</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove mean and divide by standard deviation, using bayes_kvm statistics.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">bm</span><span class="p">,</span> <span class="n">bv</span><span class="p">,</span> <span class="n">bs</span> <span class="o">=</span> <span class="n">bayes_mvs</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="n">bm</span><span class="o">.</span><span class="n">statistic</span><span class="p">)</span> <span class="o">/</span> <span class="n">bs</span><span class="o">.</span><span class="n">statistic</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="median_scaler"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.median_scaler">[docs]</a><span class="k">def</span> <span class="nf">median_scaler</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove median, divide by IQR.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">)]</span>
+        <span class="n">median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">ss</span><span class="p">)</span>
+        <span class="n">IQR</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="mi">75</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="n">median</span><span class="p">)</span> <span class="o">/</span> <span class="n">IQR</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span></div>
+
+<span class="c1"># scaler = bayes_scale</span>
+<span class="n">scaler</span> <span class="o">=</span> <span class="n">median_scaler</span>
+
+<div class="viewcode-block" id="calculate_optimisation_stats"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.calculate_optimisation_stats">[docs]</a><span class="k">def</span> <span class="nf">calculate_optimisation_stats</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">analytes</span><span class="p">,</span> <span class="n">min_points</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">ind</span><span class="p">,</span> <span class="n">x_bias</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="c1"># calculate statistics</span>
+    <span class="n">stds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">means</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">analytes</span><span class="p">:</span>
+            <span class="n">m</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">calc_window_mean_std</span><span class="p">(</span><span class="n">nominal_values</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">focus</span><span class="p">[</span><span class="n">a</span><span class="p">]),</span> <span class="n">min_points</span><span class="p">,</span> <span class="n">ind</span><span class="p">)</span>
+            <span class="n">means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+            <span class="n">stds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="c1"># compile stats</span>
+    <span class="n">stds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stds</span><span class="p">)</span>
+    <span class="n">means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">means</span><span class="p">)</span>
+
+    <span class="c1"># calculate rsd</span>
+    <span class="n">sstds</span> <span class="o">=</span> <span class="n">stds</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">means</span><span class="p">)</span>
+
+    <span class="c1"># scale means for each analyte</span>
+    <span class="n">smeans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">apply_along_axis</span><span class="p">(</span><span class="n">scaler</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">means</span><span class="p">)</span>
+    <span class="c1"># sstds = np.apply_along_axis(scaler, 2, stds)</span>
+
+    <span class="c1"># apply weights</span>
+    <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">sstds</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">analytes</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">smeans</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">analytes</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="c1"># average of all means and standard deviations</span>
+    <span class="n">msstds</span> <span class="o">=</span> <span class="n">sstds</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">msmeans</span> <span class="o">=</span> <span class="n">smeans</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># aply bias</span>
+    <span class="k">if</span> <span class="n">x_bias</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">nonan</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">smeans</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">fill</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">smeans</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">fill</span><span class="p">[</span><span class="n">nonan</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">x_bias</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">x_bias</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="n">nonan</span><span class="p">))</span>
+        <span class="n">bias</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">smeans</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">fill</span><span class="p">)</span>
+        
+        <span class="n">msmeans</span> <span class="o">*=</span> <span class="n">bias</span>
+        <span class="n">msstds</span> <span class="o">*=</span> <span class="n">bias</span>
+
+    <span class="k">return</span> <span class="n">msmeans</span><span class="p">,</span> <span class="n">msstds</span></div>
+
+<div class="viewcode-block" id="signal_optimiser"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.signal_optimiser">[docs]</a><span class="k">def</span> <span class="nf">signal_optimiser</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">analytes</span><span class="p">,</span> <span class="n">min_points</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                     <span class="n">threshold_mode</span><span class="o">=</span><span class="s1">&#39;kde_first_max&#39;</span><span class="p">,</span>
+                     <span class="n">threshold_mult</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">x_bias</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                     <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ind</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Optimise data selection based on specified analytes.</span>
+
+<span class="sd">    Identifies the longest possible contiguous data region in</span>
+<span class="sd">    the signal where the relative standard deviation (std) and </span>
+<span class="sd">    concentration of all analytes is minimised.</span>
+
+<span class="sd">    Optimisation is performed via a grid search of all possible</span>
+<span class="sd">    contiguous data regions. For each region, the mean std and</span>
+<span class="sd">    mean scaled analyte concentration (&#39;amplitude&#39;) are calculated. </span>
+<span class="sd">    </span>
+<span class="sd">    The size and position of the optimal data region are identified </span>
+<span class="sd">    using threshold std and amplitude values. Thresholds are derived</span>
+<span class="sd">    from all calculated stds and amplitudes using the method specified</span>
+<span class="sd">    by `threshold_mode`. For example, using the &#39;kde_max&#39; method, a</span>
+<span class="sd">    probability density function (PDF) is calculated for std and</span>
+<span class="sd">    amplitude values, and the threshold is set as the maximum of the</span>
+<span class="sd">    PDF. These thresholds are then used to identify the size and position</span>
+<span class="sd">    of the longest contiguous region where the std is below the threshold, </span>
+<span class="sd">    and the amplitude is either below the threshold.</span>
+
+<span class="sd">    All possible regions of the data that have at least</span>
+<span class="sd">    `min_points` are considered.</span>
+
+<span class="sd">    For a graphical demonstration of the action of signal_optimiser, </span>
+<span class="sd">    use `optimisation_plot`. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    d : latools.D object</span>
+<span class="sd">        An latools data object.</span>
+<span class="sd">    analytes : str or array-like</span>
+<span class="sd">        Which analytes to consider.</span>
+<span class="sd">    min_points : int</span>
+<span class="sd">        The minimum number of contiguous points to</span>
+<span class="sd">        consider.</span>
+<span class="sd">    threshold_mode : str</span>
+<span class="sd">        The method used to calculate the optimisation</span>
+<span class="sd">        thresholds. Can be &#39;mean&#39;, &#39;median&#39;, &#39;kde_max&#39;</span>
+<span class="sd">        or &#39;bayes_mvs&#39;, or a custom function. If a</span>
+<span class="sd">        function, must take a 1D array, and return a</span>
+<span class="sd">        single, real number.</span>
+<span class="sd">    threshood_mult : float or tuple</span>
+<span class="sd">        A multiplier applied to the calculated threshold</span>
+<span class="sd">        before use. If a tuple, the first value is applied</span>
+<span class="sd">        to the mean threshold, and the second is applied to</span>
+<span class="sd">        the standard deviation threshold. Reduce this to make</span>
+<span class="sd">        data selection more stringent.</span>
+<span class="sd">    x_bias : float</span>
+<span class="sd">        If non-zero, a bias is applied to the calculated statistics</span>
+<span class="sd">        to prefer the beginning (if &gt; 0) or end (if &lt; 0) of the</span>
+<span class="sd">        signal. Should be between zero and 1.</span>
+<span class="sd">    weights : array-like of length len(analytes)</span>
+<span class="sd">        An array of numbers specifying the importance of</span>
+<span class="sd">        each analyte considered. Larger number makes the</span>
+<span class="sd">        analyte have a greater effect on the optimisation.</span>
+<span class="sd">        Default is None.</span>
+<span class="sd">    ind : boolean array</span>
+<span class="sd">        A boolean array the same length as the data. Where</span>
+<span class="sd">        false, data will not be included.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    optimisation result : dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">errmsg</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">analytes</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">analytes</span> <span class="o">=</span> <span class="p">[</span><span class="n">analytes</span><span class="p">]</span>
+    
+    <span class="c1"># initial catch</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bool_2_indices</span><span class="p">(</span><span class="n">ind</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">min_points</span><span class="p">):</span>
+        <span class="n">errmsg</span> <span class="o">=</span> <span class="s1">&#39;Optmisation failed. No contiguous data regions longer than </span><span class="si">{:.0f}</span><span class="s1"> points.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_points</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Bunch</span><span class="p">({</span><span class="s1">&#39;means&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;stds&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;mean_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;std_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;lims&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;filt&#39;</span><span class="p">:</span> <span class="n">ind</span><span class="p">,</span>
+                      <span class="s1">&#39;threshold_mode&#39;</span><span class="p">:</span> <span class="n">threshold_mode</span><span class="p">,</span>
+                      <span class="s1">&#39;min_points&#39;</span><span class="p">:</span> <span class="n">min_points</span><span class="p">,</span>
+                      <span class="s1">&#39;analytes&#39;</span><span class="p">:</span> <span class="n">analytes</span><span class="p">,</span>
+                      <span class="s1">&#39;opt_centre&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;opt_n_points&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;weights&#39;</span><span class="p">:</span> <span class="n">weights</span><span class="p">,</span>
+                      <span class="s1">&#39;optimisation_success&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="s1">&#39;errmsg&#39;</span><span class="p">:</span> <span class="n">errmsg</span><span class="p">}),</span> <span class="n">errmsg</span>
+
+    <span class="n">msmeans</span><span class="p">,</span> <span class="n">msstds</span> <span class="o">=</span> <span class="n">calculate_optimisation_stats</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">analytes</span><span class="p">,</span> <span class="n">min_points</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">ind</span><span class="p">,</span> <span class="n">x_bias</span><span class="p">)</span>
+    
+    <span class="c1"># second catch</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)</span><span class="o">.</span><span class="n">flat</span><span class="p">):</span>
+        <span class="n">errmsg</span> <span class="o">=</span> <span class="s1">&#39;Optmisation failed. No contiguous data regions longer than </span><span class="si">{:.0f}</span><span class="s1"> points.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_points</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Bunch</span><span class="p">({</span><span class="s1">&#39;means&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;stds&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;mean_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;std_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;lims&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;filt&#39;</span><span class="p">:</span> <span class="n">ind</span><span class="p">,</span>
+                      <span class="s1">&#39;threshold_mode&#39;</span><span class="p">:</span> <span class="n">threshold_mode</span><span class="p">,</span>
+                      <span class="s1">&#39;min_points&#39;</span><span class="p">:</span> <span class="n">min_points</span><span class="p">,</span>
+                      <span class="s1">&#39;analytes&#39;</span><span class="p">:</span> <span class="n">analytes</span><span class="p">,</span>
+                      <span class="s1">&#39;opt_centre&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;opt_n_points&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                      <span class="s1">&#39;weights&#39;</span><span class="p">:</span> <span class="n">weights</span><span class="p">,</span>
+                      <span class="s1">&#39;optimisation_success&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="s1">&#39;errmsg&#39;</span><span class="p">:</span> <span class="n">errmsg</span><span class="p">}),</span> <span class="n">errmsg</span>
+
+    <span class="c1"># define thresholds</span>
+    <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;kde_first_max&#39;</span><span class="p">,</span> <span class="s1">&#39;kde_max&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;bayes_mvs&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">]</span>
+    <span class="n">n_under</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">valid</span><span class="p">)</span> <span class="o">==</span> <span class="n">threshold_mode</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">o_threshold_mode</span> <span class="o">=</span> <span class="n">threshold_mode</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">n_under</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">threshold_mode</span> <span class="o">==</span> <span class="s1">&#39;median&#39;</span><span class="p">:</span>
+            <span class="c1"># median - OK, but best?</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">msstds</span><span class="p">)</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">threshold_mode</span> <span class="o">==</span> <span class="s1">&#39;mean&#39;</span><span class="p">:</span>
+            <span class="c1"># mean</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">msstds</span><span class="p">)</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">threshold_mode</span> <span class="o">==</span> <span class="s1">&#39;kde_max&#39;</span><span class="p">:</span>
+            <span class="c1"># maximum of gaussian kernel density estimator</span>
+            <span class="n">mkd</span> <span class="o">=</span> <span class="n">gaussian_kde</span><span class="p">(</span><span class="n">msmeans</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)]</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span>
+            <span class="n">xm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">msmeans</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">)),</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="n">mdf</span> <span class="o">=</span> <span class="n">mkd</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">xm</span><span class="p">)</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">xm</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">mdf</span><span class="p">)]</span>
+
+            <span class="n">rkd</span> <span class="o">=</span> <span class="n">gaussian_kde</span><span class="p">(</span><span class="n">msstds</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="p">)])</span>
+            <span class="n">xr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">msstds</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">)),</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="n">rdf</span> <span class="o">=</span> <span class="n">rkd</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">xr</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">rdf</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="n">threshold_mode</span> <span class="o">==</span> <span class="s1">&#39;kde_first_max&#39;</span><span class="p">:</span>
+            <span class="c1"># first local maximum of gaussian kernel density estimator</span>
+            <span class="n">mkd</span> <span class="o">=</span> <span class="n">gaussian_kde</span><span class="p">(</span><span class="n">msmeans</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)]</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span>
+            <span class="n">xm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">msmeans</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">)),</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="n">mdf</span> <span class="o">=</span> <span class="n">mkd</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">xm</span><span class="p">)</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span> <span class="n">mdf</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;</span> <span class="n">mdf</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">&amp;</span> 
+                            <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">mdf</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">mdf</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="kc">False</span><span class="p">]</span> <span class="o">&amp;</span> 
+                            <span class="p">(</span><span class="n">mdf</span> <span class="o">&gt;</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">mdf</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">xm</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">inds</span><span class="p">)]</span>
+
+            <span class="n">rkd</span> <span class="o">=</span> <span class="n">gaussian_kde</span><span class="p">(</span><span class="n">msstds</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="p">)])</span>
+            <span class="n">xr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">msstds</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">99</span><span class="p">)),</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="n">rdf</span> <span class="o">=</span> <span class="n">rkd</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">xr</span><span class="p">)</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="kc">False</span><span class="p">,</span> <span class="n">rdf</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;</span> <span class="n">rdf</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">&amp;</span> 
+                            <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">rdf</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">rdf</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="kc">False</span><span class="p">]</span> <span class="o">&amp;</span> 
+                            <span class="p">(</span><span class="n">rdf</span> <span class="o">&gt;</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">rdf</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">xr</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">inds</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="n">threshold_mode</span> <span class="o">==</span> <span class="s1">&#39;bayes_mvs&#39;</span><span class="p">:</span>
+            <span class="c1"># bayesian mvs.</span>
+            <span class="n">bm</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">bs</span> <span class="o">=</span> <span class="n">bayes_mvs</span><span class="p">(</span><span class="n">msstds</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="p">)])</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">bm</span><span class="o">.</span><span class="n">statistic</span>
+
+            <span class="n">bm</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">bs</span> <span class="o">=</span> <span class="n">bayes_mvs</span><span class="p">(</span><span class="n">msmeans</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)])</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">bm</span><span class="o">.</span><span class="n">statistic</span>
+        <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">threshold_mode</span><span class="p">):</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">threshold_mode</span><span class="p">(</span><span class="n">msstds</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msstds</span><span class="p">)]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">threshold_mode</span><span class="p">(</span><span class="n">msmeans</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">msmeans</span><span class="p">)]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">mean_threshold</span><span class="p">,</span> <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">threshold_mode</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">threshold_mode must be one of:</span><span class="se">\n</span><span class="s1">   &#39;</span> <span class="o">+</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">valid</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,</span><span class="se">\n</span><span class="s1">a custom function, or a </span><span class="se">\n</span><span class="s1">(mean_threshold, std_threshold) tuple.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># apply threshold_mult</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold_mult</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="n">std_threshold</span> <span class="o">*=</span> <span class="n">threshold_mult</span>
+            <span class="n">mean_threshold</span> <span class="o">*=</span> <span class="n">threshold_mult</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">threshold_mult</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">mean_threshold</span> <span class="o">*=</span> <span class="n">threshold_mult</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">std_threshold</span> <span class="o">*=</span> <span class="n">threshold_mult</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">threshold_mult must be a float, int or tuple of length 2.&#39;</span><span class="p">)</span>
+
+        <span class="n">rind</span> <span class="o">=</span> <span class="p">(</span><span class="n">msstds</span> <span class="o">&lt;</span> <span class="n">std_threshold</span><span class="p">)</span>
+        <span class="n">mind</span> <span class="o">=</span> <span class="p">(</span><span class="n">msmeans</span> <span class="o">&lt;</span> <span class="n">mean_threshold</span><span class="p">)</span>
+
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">rind</span> <span class="o">&amp;</span> <span class="n">mind</span>
+
+        <span class="n">n_under</span> <span class="o">=</span> <span class="n">ind</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">n_under</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">threshold_mode</span> <span class="o">=</span> <span class="n">valid</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">errmsg</span> <span class="o">=</span> <span class="s1">&#39;Optimisation failed. No of the threshold_mode would work. Try reducting min_points.&#39;</span>
+                <span class="k">return</span> <span class="n">Bunch</span><span class="p">({</span><span class="s1">&#39;means&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;stds&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;mean_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;std_threshold&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;lims&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;filt&#39;</span><span class="p">:</span> <span class="n">ind</span><span class="p">,</span>
+                              <span class="s1">&#39;threshold_mode&#39;</span><span class="p">:</span> <span class="n">threshold_mode</span><span class="p">,</span>
+                              <span class="s1">&#39;min_points&#39;</span><span class="p">:</span> <span class="n">min_points</span><span class="p">,</span>
+                              <span class="s1">&#39;analytes&#39;</span><span class="p">:</span> <span class="n">analytes</span><span class="p">,</span>
+                              <span class="s1">&#39;opt_centre&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;opt_n_points&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                              <span class="s1">&#39;weights&#39;</span><span class="p">:</span> <span class="n">weights</span><span class="p">,</span>
+                              <span class="s1">&#39;optimisation_success&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                              <span class="s1">&#39;errmsg&#39;</span><span class="p">:</span> <span class="n">errmsg</span><span class="p">}),</span> <span class="n">errmsg</span>
+    
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">errmsg</span> <span class="o">=</span> <span class="s2">&quot;optimisation failed using threshold_mode=&#39;</span><span class="si">{:}</span><span class="s2">&#39;, falling back to &#39;</span><span class="si">{:}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">o_threshold_mode</span><span class="p">,</span> <span class="n">threshold_mode</span><span class="p">)</span>
+
+    <span class="c1"># identify max number of points within thresholds</span>
+    <span class="n">passing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
+    <span class="n">opt_n_points</span> <span class="o">=</span> <span class="n">passing</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">opt_centre</span> <span class="o">=</span> <span class="n">passing</span><span class="p">[</span><span class="n">passing</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">opt_n_points</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+
+    <span class="n">opt_n_points</span> <span class="o">+=</span> <span class="n">min_points</span>
+
+    <span class="c1"># centres, npoints = np.meshgrid(np.arange(msmeans.shape[1]),</span>
+    <span class="c1">#                                np.arange(min_points, min_points + msmeans.shape[0]))</span>
+    <span class="c1"># opt_n_points = npoints[ind].max()</span>
+    <span class="c1"># plus/minus one point to allow some freedom to shift selection window.</span>
+    <span class="c1"># cind = ind &amp; (npoints == opt_n_points)</span>
+    <span class="c1"># opt_centre = centres[cind].min()</span>
+
+    <span class="k">if</span> <span class="n">opt_n_points</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">lims</span> <span class="o">=</span> <span class="p">(</span><span class="n">opt_centre</span> <span class="o">-</span> <span class="n">opt_n_points</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="n">opt_centre</span> <span class="o">+</span> <span class="n">opt_n_points</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">lims</span> <span class="o">=</span> <span class="p">(</span><span class="n">opt_centre</span> <span class="o">-</span> <span class="n">opt_n_points</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="n">opt_centre</span> <span class="o">+</span> <span class="n">opt_n_points</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">filt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">filt</span><span class="p">[</span><span class="n">lims</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">lims</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="n">Bunch</span><span class="p">({</span><span class="s1">&#39;means&#39;</span><span class="p">:</span> <span class="n">msmeans</span><span class="p">,</span>
+                  <span class="s1">&#39;stds&#39;</span><span class="p">:</span> <span class="n">msstds</span><span class="p">,</span>
+                  <span class="s1">&#39;mean_threshold&#39;</span><span class="p">:</span> <span class="n">mean_threshold</span><span class="p">,</span>
+                  <span class="s1">&#39;std_threshold&#39;</span><span class="p">:</span> <span class="n">std_threshold</span><span class="p">,</span>
+                  <span class="s1">&#39;lims&#39;</span><span class="p">:</span> <span class="n">lims</span><span class="p">,</span>
+                  <span class="s1">&#39;filt&#39;</span><span class="p">:</span> <span class="n">filt</span><span class="p">,</span>
+                  <span class="s1">&#39;threshold_mode&#39;</span><span class="p">:</span> <span class="n">threshold_mode</span><span class="p">,</span>
+                  <span class="s1">&#39;min_points&#39;</span><span class="p">:</span> <span class="n">min_points</span><span class="p">,</span>
+                  <span class="s1">&#39;analytes&#39;</span><span class="p">:</span> <span class="n">analytes</span><span class="p">,</span>
+                  <span class="s1">&#39;opt_centre&#39;</span><span class="p">:</span> <span class="n">opt_centre</span><span class="p">,</span>
+                  <span class="s1">&#39;opt_n_points&#39;</span><span class="p">:</span> <span class="n">opt_n_points</span><span class="p">,</span>
+                  <span class="s1">&#39;weights&#39;</span><span class="p">:</span> <span class="n">weights</span><span class="p">,</span>
+                  <span class="s1">&#39;optimisation_success&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                  <span class="s1">&#39;errmsg&#39;</span><span class="p">:</span> <span class="n">errmsg</span><span class="p">}),</span> <span class="n">errmsg</span></div>
+
+
+<div class="viewcode-block" id="optimisation_plot"><a class="viewcode-back" href="../../../latools.html#latools.filtering.signal_optimiser.optimisation_plot">[docs]</a><span class="k">def</span> <span class="nf">optimisation_plot</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">overlay_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot the result of signal_optimise.</span>
+
+<span class="sd">    `signal_optimiser` must be run first, and the output</span>
+<span class="sd">    stored in the `opt` attribute of the latools.D object.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    d : latools.D object</span>
+<span class="sd">        A latools data object.</span>
+<span class="sd">    overlay_alpha : float</span>
+<span class="sd">        The opacity of the threshold overlays. Between 0 and 1.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Passed to `tplot`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s1">&#39;opt&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Please run `signal_optimiser` before trying to plot its results.&#39;</span><span class="p">)</span>
+    
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">opt</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">opt</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;optimisation_success&#39;</span><span class="p">]:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># unpack variables</span>
+            <span class="n">means</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;means&#39;</span><span class="p">]</span>
+            <span class="n">stds</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;stds&#39;</span><span class="p">]</span>
+            <span class="n">min_points</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;min_points&#39;</span><span class="p">]</span>
+            <span class="n">mean_threshold</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;mean_threshold&#39;</span><span class="p">]</span>
+            <span class="n">std_threshold</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;std_threshold&#39;</span><span class="p">]</span>
+            <span class="n">opt_centre</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;opt_centre&#39;</span><span class="p">]</span>
+            <span class="n">opt_n_points</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="s1">&#39;opt_n_points&#39;</span><span class="p">]</span>
+            
+            <span class="n">centres</span><span class="p">,</span> <span class="n">npoints</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">min_points</span><span class="p">,</span> <span class="n">min_points</span> <span class="o">+</span> <span class="n">means</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">rind</span> <span class="o">=</span> <span class="p">(</span><span class="n">stds</span> <span class="o">&lt;</span> <span class="n">std_threshold</span><span class="p">)</span>
+            <span class="n">mind</span> <span class="o">=</span> <span class="p">(</span><span class="n">means</span> <span class="o">&lt;</span> <span class="n">mean_threshold</span><span class="p">)</span>
+
+            <span class="c1"># color scale and histogram limits</span>
+            <span class="n">mlim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">99</span><span class="p">))</span>
+            <span class="n">rlim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">stds</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stds</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">99</span><span class="p">))</span>
+
+            <span class="n">cmr</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Blues</span>
+            <span class="n">cmr</span><span class="o">.</span><span class="n">set_bad</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.3</span><span class="p">))</span>
+
+            <span class="n">cmm</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Reds</span>
+            <span class="n">cmm</span><span class="o">.</span><span class="n">set_bad</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.3</span><span class="p">))</span>
+            
+            <span class="c1"># create figure</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">])</span>
+
+            <span class="n">ma</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">ra</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="c1"># work out image limits</span>
+            <span class="n">nonan</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">means</span><span class="p">))</span>
+            <span class="n">xdif</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">nonan</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">ydif</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">nonan</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="p">(</span><span class="n">nonan</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">xdif</span><span class="p">),</span>  <span class="c1"># x min</span>
+                    <span class="n">nonan</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">xdif</span><span class="p">),</span>  <span class="c1"># x max</span>
+                    <span class="n">nonan</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">+</span> <span class="n">min_points</span><span class="p">,</span>  <span class="c1"># y min</span>
+                    <span class="n">nonan</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">ydif</span><span class="p">)</span> <span class="o">+</span> <span class="n">min_points</span><span class="p">)</span>  <span class="c1"># y max</span>
+
+            <span class="n">mm</span> <span class="o">=</span> <span class="n">ma</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">means</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;bottomleft&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmm</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">mlim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">mlim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                        <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="n">centres</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">centres</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+            <span class="n">ma</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;N points&#39;</span><span class="p">)</span>
+            <span class="n">ma</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Center&#39;</span><span class="p">)</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">mm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ma</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Amplitude&#39;</span><span class="p">)</span>
+
+            <span class="n">mr</span> <span class="o">=</span> <span class="n">ra</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">stds</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;bottomleft&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmr</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">rlim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">rlim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                        <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="n">centres</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">centres</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+            <span class="n">ra</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Center&#39;</span><span class="p">)</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">mr</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ra</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;std&#39;</span><span class="p">)</span>
+
+            <span class="c1"># view limits</span>
+            <span class="n">ra</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">~</span><span class="n">rind</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;bottomleft&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Greys</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">overlay_alpha</span><span class="p">,</span>
+                    <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="n">centres</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">centres</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+            <span class="n">ma</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">~</span><span class="n">mind</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;bottomleft&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Greys</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">overlay_alpha</span><span class="p">,</span>
+                    <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="n">centres</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">centres</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">npoints</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="p">[</span><span class="n">ma</span><span class="p">,</span> <span class="n">ra</span><span class="p">]:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">opt_centre</span><span class="p">,</span> <span class="n">opt_n_points</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mf">0.7</span><span class="p">),</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">extent</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">extent</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span>
+
+            <span class="c1"># draw histograms</span>
+            <span class="n">mah</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="n">rah</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+
+            <span class="n">mah</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">mlim</span><span class="p">)</span>
+            <span class="n">mbin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">mah</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">(),</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="n">mah</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="n">mbin</span><span class="p">)</span>
+            <span class="n">mah</span><span class="o">.</span><span class="n">axvspan</span><span class="p">(</span><span class="n">mean_threshold</span><span class="p">,</span> <span class="n">mah</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">overlay_alpha</span><span class="p">))</span>
+
+            <span class="n">mah</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">mean_threshold</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span>
+            <span class="n">mah</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Scaled Mean Analyte Conc&#39;</span><span class="p">)</span>
+            <span class="n">mah</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;N&#39;</span><span class="p">)</span>
+
+            <span class="n">rah</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">rlim</span><span class="p">)</span>
+            <span class="n">rbin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">*</span><span class="n">rah</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">(),</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="n">rah</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">stds</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stds</span><span class="o">.</span><span class="n">flatten</span><span class="p">())],</span> <span class="n">rbin</span><span class="p">)</span>
+            <span class="n">rah</span><span class="o">.</span><span class="n">axvspan</span><span class="p">(</span><span class="n">std_threshold</span><span class="p">,</span> <span class="n">rah</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.4</span><span class="p">))</span>
+            <span class="n">rah</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">std_threshold</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span>
+            <span class="n">rah</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;std&#39;</span><span class="p">)</span>
+            
+            <span class="n">tax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">tplot</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">opt</span><span class="o">.</span><span class="n">analytes</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">tax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">tax</span><span class="o">.</span><span class="n">axvspan</span><span class="p">(</span><span class="o">*</span><span class="n">d</span><span class="o">.</span><span class="n">Time</span><span class="p">[[</span><span class="n">opt</span><span class="o">.</span><span class="n">lims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">opt</span><span class="o">.</span><span class="n">lims</span><span class="p">[</span><span class="mi">1</span><span class="p">]]],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+            
+            <span class="n">tax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">Time</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">ns</span> <span class="o">==</span> <span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">-</span> <span class="mi">3</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">Time</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">ns</span> <span class="o">==</span> <span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span>
+
+            <span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ma</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">mah</span><span class="p">,</span> <span class="n">rah</span><span class="p">,</span> <span class="n">tax</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Oscar Branson.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.2.4-dev',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

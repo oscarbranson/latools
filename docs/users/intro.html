@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Introduction &mdash; latools 0.2.2a documentation</title>
+  <title>Introduction &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../index.html"/>
         <link rel="up" title="User Guide" href="index.html"/>
         <link rel="next" title="Installation" href="installing.html"/>
         <link rel="prev" title="User Guide" href="index.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -93,27 +93,16 @@
             
               <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">User Guide</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Introduction</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#why-use-latools">Why Use latools?</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#very-important-warning">Very Important Warning</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#overview-understand-latools">Overview: Understand <code class="docutils literal"><span class="pre">latools</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#architecture">Architecture</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#how-it-works">How it works</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#filtering">Filtering</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#where-next">Where next?</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installing.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="beginners/index.html">Beginner&#8217;s Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beginners/index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="config/index.html">Configuration Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -185,9 +174,9 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Release:</th><td class="field-body">0.2.2a</td>
+<tr class="field-odd field"><th class="field-name">Release:</th><td class="field-body">0.2.4-dev</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">Jun 04, 2017</td>
+<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">Nov 29, 2017</td>
 </tr>
 </tbody>
 </table>
@@ -219,58 +208,58 @@ This is accomplished with two significant new features.</p>
 <div class="section" id="very-important-warning">
 <h2>Very Important Warning<a class="headerlink" href="#very-important-warning" title="Permalink to this headline">¶</a></h2>
 <p>If used correctly, <code class="docutils literal"><span class="pre">latools</span></code> will allow the high-throughput, semi-automated processing of LA-MS data in a systematic, reproducible manner.
-Because it is semi-automated, it is very easy to treat it as a &#8216;black box&#8217;.
+Because it is semi-automated, it is very easy to treat it as a ‘black box’.
 <strong>You must not do this.</strong>
 The data you get at the end will only be valid if processed <em>appropriately</em>.
 Because <code class="docutils literal"><span class="pre">latools</span></code> brings reproducibility to LA-MS processing, it will be very easy for peers to examine your data processing methods, and identify any shortfalls.
 In essence: to appropriately use <code class="docutils literal"><span class="pre">latools</span></code>, you must understand how it works!</p>
 <p>The best way to understand how it works will be to play around with data processing, but before you do that there are a few things you can do to start you off in the right direction:</p>
 <ol class="arabic simple">
-<li>Read and understand the following &#8216;Overview&#8217; section. This will give you a basic understanding of the architecture of <code class="docutils literal"><span class="pre">latools</span></code>, and how its various components relate to each other.</li>
-<li>Work through the &#8216;Getting Started&#8217; guide. This takes you step-by-step through the analysis of an example dataset.</li>
-<li>Be aware of the extensive <a class="reference internal" href="../docs/index.html#latools-docs"><span class="std std-ref">documentation</span></a> that describes the action of each function within <code class="docutils literal"><span class="pre">latools</span></code>, and tells you what each of the input parameters does.</li>
+<li>Read and understand the following ‘Overview’ section. This will give you a basic understanding of the architecture of <code class="docutils literal"><span class="pre">latools</span></code>, and how its various components relate to each other.</li>
+<li>Work through the ‘Getting Started’ guide. This takes you step-by-step through the analysis of an example dataset.</li>
+<li>Be aware of the extensive <span class="xref std std-ref">documentation</span> that describes the action of each function within <code class="docutils literal"><span class="pre">latools</span></code>, and tells you what each of the input parameters does.</li>
 </ol>
 </div>
 <div class="section" id="overview-understand-latools">
 <h2>Overview: Understand <code class="docutils literal"><span class="pre">latools</span></code><a class="headerlink" href="#overview-understand-latools" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal"><span class="pre">latools</span></code> is a Python &#8216;module&#8217;.
+<p><code class="docutils literal"><span class="pre">latools</span></code> is a Python ‘module’.
 You do not need to be fluent in Python to understand <code class="docutils literal"><span class="pre">latools</span></code>, as understanding <em>what</em> each processing step does to your data is more important than <em>how</em> it is done.
-That said, an understanding of Python won&#8217;t hurt!</p>
+That said, an understanding of Python won’t hurt!</p>
 <div class="section" id="architecture">
 <h3>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h3>
-<p>The <code class="docutils literal"><span class="pre">latools</span></code> module contains two core &#8216;objects&#8217; that interact to process LA-MS data:</p>
+<p>The <code class="docutils literal"><span class="pre">latools</span></code> module contains two core ‘objects’ that interact to process LA-MS data:</p>
 <ul class="simple">
-<li><a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> is the most &#8216;basic&#8217; object, and is a &#8216;container&#8217; for the data imported from a single LA-MS data file.</li>
-<li><a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> is a higher-level object, containing numerous <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects. This is the object you will interact with most when processing data, and it contains all the functions you need to perform your analysis.</li>
+<li><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> is the most ‘basic’ object, and is a ‘container’ for the data imported from a single LA-MS data file.</li>
+<li><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> is a higher-level object, containing numerous <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> objects. This is the object you will interact with most when processing data, and it contains all the functions you need to perform your analysis.</li>
 </ul>
 <p>This structure reflects the hierarchical nature of LA-MS analysis.
-Each ablation contains an measurements of a single sample (i.e. the &#8216;D&#8217; object), but data reduction requires consideration of multiple ablations of samples and standards collected over an analytical session (i.e. the &#8216;analyse&#8217; object).
-In line with this, some data processing steps (de-spiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> level).</p>
+Each ablation contains an measurements of a single sample (i.e. the ‘D’ object), but data reduction requires consideration of multiple ablations of samples and standards collected over an analytical session (i.e. the ‘analyse’ object).
+In line with this, some data processing steps (de-spiking, signal/background identification, normalisation to internal standard) can happen at the individual analysis level (i.e. within the <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> object), while others (background subtraction, calibration, filtering) require a more holistic approach that considers the entire analytical session (i.e. at the <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> level).</p>
 </div>
 <div class="section" id="how-it-works">
 <h3>How it works<a class="headerlink" href="#how-it-works" title="Permalink to this headline">¶</a></h3>
-<p>In practice, you will do all data processing using the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object, which contains all the data processing functionality you&#8217;ll need.
-To start processing data, you create an <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object and tell it which folder your data are stored in.
-<a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> then imports all the files in the data folder as <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects, and labels them by their file names.
-The <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object contains all of the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects withing a &#8216;dictionary&#8217; called <code class="docutils literal"><span class="pre">latools.analyse.data_dict</span></code>, where the each individual <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object can be accessed via its name.
+<p>In practice, you will do all data processing using the <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object, which contains all the data processing functionality you’ll need.
+To start processing data, you create an <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object and tell it which folder your data are stored in.
+<code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> then imports all the files in the data folder as <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> objects, and labels them by their file names.
+The <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object contains all of the <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> objects withing a ‘dictionary’ called <code class="docutils literal"><span class="pre">latools.analyse.data_dict</span></code>, where the each individual <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> object can be accessed via its name.
 Data processing therefore works best when ablations of each individual sample or standard are stored in a single data folder, named according to what was measured.</p>
 <div class="admonition-todo admonition" id="index-0">
 <p class="first admonition-title">Todo</p>
 <p class="last">In the near future, <code class="docutils literal"><span class="pre">latools</span></code> will also be able to cope with multiple ablations stored in a single, long data file, as long as a list of sample names is provided to identify each ablation.</p>
 </div>
-<p>When you&#8217;re performing a processing step that can happen at an individual-sample level (e.g. de-spiking), the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object passes the task directly on to the <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects,
-whereas when you&#8217;re performing a step that requires consideration of the <em>entire</em> analytical session (e.g. calibration), the <a class="reference internal" href="../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code></a> object will coordinate the interaction of the different <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> objects (i.e. calculate calibration curves from SRM measurements, and apply them to quantify the compositions of your unknown samples).</p>
+<p>When you’re performing a processing step that can happen at an individual-sample level (e.g. de-spiking), the <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object passes the task directly on to the <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> objects,
+whereas when you’re performing a step that requires consideration of the <em>entire</em> analytical session (e.g. calibration), the <code class="xref py py-class docutils literal"><span class="pre">latools.analyse</span></code> object will coordinate the interaction of the different <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> objects (i.e. calculate calibration curves from SRM measurements, and apply them to quantify the compositions of your unknown samples).</p>
 </div>
 <div class="section" id="filtering">
 <h3>Filtering<a class="headerlink" href="#filtering" title="Permalink to this headline">¶</a></h3>
-<p>Finally, there is an additional &#8216;object&#8217; attached to each <a class="reference internal" href="../docs/index.html#latools.D" title="latools.D"><code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code></a> object, specifically for handling data filtering.
-This <a class="reference internal" href="../docs/index.html#latools.filt" title="latools.filt"><code class="xref py py-class docutils literal"><span class="pre">latools.filt</span></code></a> object contains all the information about filters that have been calculated for the data, and allows you to switch filters on or off for individual samples, or subsets of samples.
-This is best demonstrated by example, so we&#8217;ll return to this in more detail in the <a class="reference internal" href="beginners/8-filtering.html#filtering"><span class="std std-ref">Data Selection and Filtering</span></a> section of the <a class="reference internal" href="beginners/index.html#beginners-guide"><span class="std std-ref">Beginner&#8217;s Guide</span></a></p>
+<p>Finally, there is an additional ‘object’ attached to each <code class="xref py py-class docutils literal"><span class="pre">latools.D</span></code> object, specifically for handling data filtering.
+This <code class="xref py py-class docutils literal"><span class="pre">latools.filt</span></code> object contains all the information about filters that have been calculated for the data, and allows you to switch filters on or off for individual samples, or subsets of samples.
+This is best demonstrated by example, so we’ll return to this in more detail in the <a class="reference internal" href="beginners/8-filtering.html#filtering"><span class="std std-ref">Data Selection and Filtering</span></a> section of the <a class="reference internal" href="beginners/index.html#beginners-guide"><span class="std std-ref">Beginner’s Guide</span></a></p>
 </div>
 </div>
 <div class="section" id="where-next">
 <h2>Where next?<a class="headerlink" href="#where-next" title="Permalink to this headline">¶</a></h2>
-<p>Hopefully, you now have a rudimentary understanding of how <code class="docutils literal"><span class="pre">latools</span></code> works, and how it&#8217;s put together. To start using <code class="docutils literal"><span class="pre">latools</span></code>, <a class="reference internal" href="installing.html#install"><span class="std std-ref">install</span></a> it on your system, then work through the step-by-step example in the <a class="reference internal" href="beginners/index.html#beginners-guide"><span class="std std-ref">Beginner&#8217;s Guide</span></a> guide to begin getting to grips with how <code class="docutils literal"><span class="pre">latools</span></code> works. If you already know what you&#8217;re doing and are looking for more in-depth information, head to <a class="reference internal" href="advanced/index.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a>, or use the search bar in the top left to find specific information.</p>
+<p>Hopefully, you now have a rudimentary understanding of how <code class="docutils literal"><span class="pre">latools</span></code> works, and how it’s put together. To start using <code class="docutils literal"><span class="pre">latools</span></code>, <a class="reference internal" href="installing.html#install"><span class="std std-ref">install</span></a> it on your system, then work through the step-by-step example in the <a class="reference internal" href="beginners/index.html#beginners-guide"><span class="std std-ref">Beginner’s Guide</span></a> guide to begin getting to grips with how <code class="docutils literal"><span class="pre">latools</span></code> works. If you already know what you’re doing and are looking for more in-depth information, head to <a class="reference internal" href="advanced/index.html#advanced-topics"><span class="std std-ref">Advanced Topics</span></a>, or use the search bar in the top left to find specific information.</p>
 </div>
 </div>
 
@@ -296,7 +285,7 @@ This is best demonstrated by example, so we&#8217;ll return to this in more deta
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -318,7 +307,7 @@ This is best demonstrated by example, so we&#8217;ll return to this in more deta
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -328,7 +317,7 @@ This is best demonstrated by example, so we&#8217;ll return to this in more deta
       <script type="text/javascript" src="../_static/jquery.js"></script>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

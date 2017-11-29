@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Data Import &mdash; latools 0.2.2a documentation</title>
+  <title>Data Import &mdash; latools 0.2.4-dev documentation</title>
   
 
   
@@ -35,7 +35,7 @@
         <link rel="index" title="Index"
               href="../../genindex.html"/>
         <link rel="search" title="Search" href="../../search.html"/>
-    <link rel="top" title="latools 0.2.2a documentation" href="../../index.html"/>
+    <link rel="top" title="latools 0.2.4-dev documentation" href="../../index.html"/>
         <link rel="up" title="Advanced Topics" href="index.html"/>
         <link rel="next" title="The .cfg file" href="cfg-file.html"/>
         <link rel="prev" title="Plotting and Data Exploration" href="advanced-plotting.html"/> 
@@ -67,7 +67,7 @@
             
             
               <div class="version">
-                0.2.2a
+                0.2.4-dev
               </div>
             
           
@@ -95,28 +95,14 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../installing.html">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner&#8217;s Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../beginners/index.html">Beginner’s Guide</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../config/index.html">Configuration Guide</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Topics</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="structure.html">Package Structure</a></li>
-<li class="toctree-l3"><a class="reference internal" href="advanced-filtering.html">Filtering &amp; Data Selection</a></li>
-<li class="toctree-l3"><a class="reference internal" href="advanced-plotting.html">Plotting and Data Exploration</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Data Import</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#file-structure">File Structure</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#data-format">Data Format</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="cfg-file.html">The .cfg file</a></li>
-<li class="toctree-l3"><a class="reference internal" href="autorange-fn.html">The <code class="docutils literal"><span class="pre">autorange()</span></code> Function</a></li>
-<li class="toctree-l3"><a class="reference internal" href="latools-alternatives.html">Alternative LA-MS Reduction Software</a></li>
-<li class="toctree-l3"><a class="reference internal" href="srm-id.html">Automatic SRM Identification</a></li>
-</ul>
-</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Topics</a></li>
 </ul>
 </li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/index.html">Latools Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../latools.html">latools Documentation</a></li>
 </ul>
 
             
@@ -206,10 +192,10 @@ The ideal data structure would look something like this:</p>
   STD-2.csv
 </pre></div>
 </div>
-<p>Where each of the .csv files within the &#8216;data/&#8217; contains one or more ablations of a single sample, or numerous standards (i.e. STD-1 could contain ablations of three different standards).
+<p>Where each of the .csv files within the ‘data/’ contains one or more ablations of a single sample, or numerous standards (i.e. STD-1 could contain ablations of three different standards).
 The names of the .csv files are used to label the data throughout analysis, so should be unique, and meaningful.
-Standards are recognised by <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> by the presence of identifying characters that are present in all standard names, in this case &#8216;STD&#8217;.</p>
-<p>When importing the data, you give <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> the <code class="docutils literal"><span class="pre">data/</span></code> folder, and some information about the SRM identifier (<code class="docutils literal"><span class="pre">srm_identifier='STD'</span></code>) and the file extension (<code class="docutils literal"><span class="pre">extension='.csv'</span></code>), and it imports all data files in the folder.</p>
+Standards are recognised by <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> by the presence of identifying characters that are present in all standard names, in this case ‘STD’.</p>
+<p>When importing the data, you give <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> the <code class="docutils literal"><span class="pre">data/</span></code> folder, and some information about the SRM identifier (<code class="docutils literal"><span class="pre">srm_identifier='STD'</span></code>) and the file extension (<code class="docutils literal"><span class="pre">extension='.csv'</span></code>), and it imports all data files in the folder.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
 <p class="last">Some labs save an entire analytical session in a single data file. To use <code class="docutils literal"><span class="pre">latools</span></code>, this data will need to be broken up into the format described above. In the near future, there will be a function to do this, where long single files can be broken into individual samples, given the analytical sequence.</p>
@@ -218,7 +204,7 @@ Standards are recognised by <a class="reference internal" href="../../docs/index
 <div class="section" id="data-format">
 <h2>Data Format<a class="headerlink" href="#data-format" title="Permalink to this headline">¶</a></h2>
 <p>We tried to make the data import mechanism as simple as possible, but because of the diversity and complexity of formats from different instruments, it can still be a bit tricky to understand. The following will hopefully give you everything you need to write your data format description.</p>
-<p><code class="docutils literal"><span class="pre">latools</span></code> uses numpy&#8217;s incredibly flexible <code class="xref py py-func docutils literal"><span class="pre">numpy.genfromtext()</span></code> function to import data.
+<p><code class="docutils literal"><span class="pre">latools</span></code> uses numpy’s incredibly flexible <code class="xref py py-func docutils literal"><span class="pre">numpy.genfromtext()</span></code> function to import data.
 This means that it should be able to deal with pretty much any delimited text data format that you can throw at it.</p>
 <p>To import your data, you need to give <code class="docutils literal"><span class="pre">latools</span></code> a description of your data format, which enables it to read the metadata and data from the text files.
 this takes the form of a python dictionary, with a number of parameters corresponding to different stages of data import.</p>
@@ -267,27 +253,27 @@ this takes the form of a python dictionary, with a number of parameters correspo
 <dl class="docutils">
 <dt>The dataformat dict has three items:</dt>
 <dd><ul class="first last simple">
-<li><code class="docutils literal"><span class="pre">genfromtext_args</span></code>: A dictionary of parameters passed directly to numpy&#8217;s <code class="docutils literal"><span class="pre">genfromtext</span></code> function, which does all the work of actually importing your data table. The key parameters here will be <code class="docutils literal"><span class="pre">skip_header</span></code>, <code class="docutils literal"><span class="pre">delimiter</span></code> and possibly <code class="docutils literal"><span class="pre">skip_footer</span></code> and <code class="docutils literal"><span class="pre">comments</span></code>. These specify how many lines of the file to skip at the start (header) and end (footer) of the data, what the delimiting character is between the data values (<code class="docutils literal"><span class="pre">','</span></code> for a csv), and whether there&#8217;s a special character that denotes a &#8216;comment&#8217; in your data, which should be skipped.</li>
-<li><code class="docutils literal"><span class="pre">column_id</span></code>: A dictionary containing a set of parameters that identify which column of the data is the &#8216;time&#8217; variable (<code class="docutils literal"><span class="pre">timecolumn</span></code>), which row contains the column names (<code class="docutils literal"><span class="pre">name_row</span></code>), the delimeter between column names (<code class="docutils literal"><span class="pre">delimiter</span></code>) and a regex pattern that <a class="reference external" href="https://regex101.com/r/gfc09X/2">identifies valid analyte names in a capture group</a>.</li>
-<li><code class="docutils literal"><span class="pre">meta_regex</span></code>: A dictionary containing information describing aspects of the file metadata that you want to import. The only <cite>essential</cite> item to import here is the <code class="docutils literal"><span class="pre">date</span></code> of the analysis, which is used by <code class="docutils literal"><span class="pre">latools</span></code> for background and drift correction. Everything else is just to preserve information about the data through analysis. The keys of this dictionary are line numbers, with associated <code class="docutils literal"><span class="pre">(labels,</span> <span class="pre">regex)</span></code> tuples, where <code class="docutils literal"><span class="pre">labels</span></code> is a list the same length as the number of match groups in the regex. If you&#8217;re struggling with this, take a look at the Regex101 breakdowns of these two entries <a class="reference external" href="https://regex101.com/r/WYcLfZ/1">here</a> and <a class="reference external" href="https://regex101.com/r/HN1OC9/2">here</a>. The resulting matches are stored in a dictionary called <code class="docutils literal"><span class="pre">meta</span></code> within the <a class="reference internal" href="../../docs/index.html#latools.analyse" title="latools.analyse"><code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code></a> object.</li>
+<li><code class="docutils literal"><span class="pre">genfromtext_args</span></code>: A dictionary of parameters passed directly to numpy’s <code class="docutils literal"><span class="pre">genfromtext</span></code> function, which does all the work of actually importing your data table. The key parameters here will be <code class="docutils literal"><span class="pre">skip_header</span></code>, <code class="docutils literal"><span class="pre">delimiter</span></code> and possibly <code class="docutils literal"><span class="pre">skip_footer</span></code> and <code class="docutils literal"><span class="pre">comments</span></code>. These specify how many lines of the file to skip at the start (header) and end (footer) of the data, what the delimiting character is between the data values (<code class="docutils literal"><span class="pre">','</span></code> for a csv), and whether there’s a special character that denotes a ‘comment’ in your data, which should be skipped.</li>
+<li><code class="docutils literal"><span class="pre">column_id</span></code>: A dictionary containing a set of parameters that identify which column of the data is the ‘time’ variable (<code class="docutils literal"><span class="pre">timecolumn</span></code>), which row contains the column names (<code class="docutils literal"><span class="pre">name_row</span></code>), the delimeter between column names (<code class="docutils literal"><span class="pre">delimiter</span></code>) and a regex pattern that <a class="reference external" href="https://regex101.com/r/gfc09X/2">identifies valid analyte names in a capture group</a>.</li>
+<li><code class="docutils literal"><span class="pre">meta_regex</span></code>: A dictionary containing information describing aspects of the file metadata that you want to import. The only <cite>essential</cite> item to import here is the <code class="docutils literal"><span class="pre">date</span></code> of the analysis, which is used by <code class="docutils literal"><span class="pre">latools</span></code> for background and drift correction. Everything else is just to preserve information about the data through analysis. The keys of this dictionary are line numbers, with associated <code class="docutils literal"><span class="pre">(labels,</span> <span class="pre">regex)</span></code> tuples, where <code class="docutils literal"><span class="pre">labels</span></code> is a list the same length as the number of match groups in the regex. If you’re struggling with this, take a look at the Regex101 breakdowns of these two entries <a class="reference external" href="https://regex101.com/r/WYcLfZ/1">here</a> and <a class="reference external" href="https://regex101.com/r/HN1OC9/2">here</a>. The resulting matches are stored in a dictionary called <code class="docutils literal"><span class="pre">meta</span></code> within the <code class="xref py py-mod docutils literal"><span class="pre">latools.analyse</span></code> object.</li>
 </ul>
 </dd>
 </dl>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">The <code class="docutils literal"><span class="pre">meta_regex</span></code> component of the dataformat description MUST contain an entry that finds the &#8216;date&#8217; of the analysis. Background and drift correction depend upon having this information. That is, it must have an entry like <code class="docutils literal"><span class="pre">{N:</span> <span class="pre">{['date'],</span> <span class="pre">'regex_string'}}</span></code>, where <code class="docutils literal"><span class="pre">N</span></code> is a line number, and <code class="docutils literal"><span class="pre">regex_string</span></code> isolates the analysis date of the file, as demonstrated <a class="reference external" href="https://regex101.com/r/jfPV3Z/1">here</a>.</p>
+<p class="last">The <code class="docutils literal"><span class="pre">meta_regex</span></code> component of the dataformat description MUST contain an entry that finds the ‘date’ of the analysis. Background and drift correction depend upon having this information. That is, it must have an entry like <code class="docutils literal"><span class="pre">{N:</span> <span class="pre">{['date'],</span> <span class="pre">'regex_string'}}</span></code>, where <code class="docutils literal"><span class="pre">N</span></code> is a line number, and <code class="docutils literal"><span class="pre">regex_string</span></code> isolates the analysis date of the file, as demonstrated <a class="reference external" href="https://regex101.com/r/jfPV3Z/1">here</a>.</p>
 </div>
-<p>Additionally, for particularly awkward data formats, you can also include a fourth entry called <code class="docutils literal"><span class="pre">preformat_replace</span></code>. This is a dictionary of <code class="docutils literal"><span class="pre">{pattern,</span> <span class="pre">replacement}</span></code> regex pairs which are applied to your data before any other import function &#8216;sees&#8217; your data. For example, an entry of <code class="docutils literal"><span class="pre">{[\t]{2,}:</span> <span class="pre">','}</span></code> would replace all instances of two tab characters in your data file with a comma.</p>
+<p>Additionally, for particularly awkward data formats, you can also include a fourth entry called <code class="docutils literal"><span class="pre">preformat_replace</span></code>. This is a dictionary of <code class="docutils literal"><span class="pre">{pattern,</span> <span class="pre">replacement}</span></code> regex pairs which are applied to your data before any other import function ‘sees’ your data. For example, an entry of <code class="docutils literal"><span class="pre">{[\t]{2,}:</span> <span class="pre">','}</span></code> would replace all instances of two tab characters in your data file with a comma.</p>
 <p>..tip:: Having trouble with Regular Expressions? We really recommend <a class="reference external" href="http://regex101.com">Regex101</a>!</p>
 </div>
 <div class="section" id="i-ve-written-my-dataformat-now-what">
-<h3>I&#8217;ve written my dataformat, now what?<a class="headerlink" href="#i-ve-written-my-dataformat-now-what" title="Permalink to this headline">¶</a></h3>
-<p>Once you&#8217;re happy with your data format description, put it in a text file, and save it as &#8216;my_dataformat.dict&#8217; (obviously replace my_dataformat with something meaningful...).
+<h3>I’ve written my dataformat, now what?<a class="headerlink" href="#i-ve-written-my-dataformat-now-what" title="Permalink to this headline">¶</a></h3>
+<p>Once you’re happy with your data format description, put it in a text file, and save it as ‘my_dataformat.dict’ (obviously replace my_dataformat with something meaningful…).
 When you want to import data using your newly defined format, you can point <code class="docutils literal"><span class="pre">latools</span></code> towards it by specifying <code class="docutils literal"><span class="pre">dataformat='my_dataformat.dict'</span></code> when starting a data analysis.
 Alternatively, you can define a new <a class="reference internal" href="../config/customising.html#configuration"><span class="std std-ref">Lab-Specific Configuration</span></a>, to make this the default data format for your setup.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">If you&#8217;re stuck on data formats, <a class="reference external" href="https://groups.google.com/forum/#!forum/latools">submit a question to the mailing list</a> and we&#8217;ll try to help. If you think you&#8217;ve found a serious problem in the software that will prevent you importing your data, <a class="reference external" href="https://github.com/oscarbranson/latools/issues/new">file an issue on the GitHub project page</a>, and we&#8217;ll look into updating the software to fix the problem.</p>
+<p class="last">If you’re stuck on data formats, <a class="reference external" href="https://groups.google.com/forum/#!forum/latools">submit a question to the mailing list</a> and we’ll try to help. If you think you’ve found a serious problem in the software that will prevent you importing your data, <a class="reference external" href="https://github.com/oscarbranson/latools/issues/new">file an issue on the GitHub project page</a>, and we’ll look into updating the software to fix the problem.</p>
 </div>
 </div>
 </div>
@@ -315,7 +301,7 @@ Alternatively, you can define a new <a class="reference internal" href="../confi
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2016, Oscar Branson.
+        &copy; Copyright 2017, Oscar Branson.
 
     </p>
   </div>
@@ -337,7 +323,7 @@ Alternatively, you can define a new <a class="reference internal" href="../confi
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.2.2a',
+            VERSION:'0.2.4-dev',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -347,7 +333,7 @@ Alternatively, you can define a new <a class="reference internal" href="../confi
       <script type="text/javascript" src="../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 

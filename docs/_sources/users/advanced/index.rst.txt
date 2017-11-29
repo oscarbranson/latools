@@ -21,3 +21,4 @@ Advanced Topics
     autorange-fn.rst
     latools-alternatives.rst
     srm-id.rst
+    srm-file.rst
