@@ -25,3 +25,4 @@ Beginner's Guide
     95-reproducibility.rst
     10-summary.rst
     11-FAQ.rst
+    12-Example-Notebooks.rst
