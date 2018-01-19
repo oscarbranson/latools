@@ -13,7 +13,7 @@ Using `pip`:
 
     pip install latools
 
-Read the [**User Guide**](http://oscarbranson.github.io/latools) for some info on how to get started. 
+Read the [**User Guide**](http://latools.readthedocs.io) for some info on how to get started. 
 
 ## Want to Contribute?
 We welcome contributors! You don't even need to be Python-literate - if you have any feedback or suggestions, please open an [issue](https://github.com/oscarbranson/latools/issues) on the GitHub pages, and we'll get to it as soon as we can.
