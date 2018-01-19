@@ -67,7 +67,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'latools'
+project = 'LAtools'
 copyright = '2017, Oscar Branson'
 author = 'Oscar Branson'
 

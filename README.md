@@ -5,7 +5,7 @@
 </div>
 
 
-# latools
+# LAtools
 **Python tools for processing Laser Ablation mass spectrometry data**
 
 ## Installation
@@ -18,6 +18,6 @@ Read the [**User Guide**](http://latools.readthedocs.io) for some info on how to
 ## Want to Contribute?
 We welcome contributors! You don't even need to be Python-literate - if you have any feedback or suggestions, please open an [issue](https://github.com/oscarbranson/latools/issues) on the GitHub pages, and we'll get to it as soon as we can.
 
-If you're feeling a bit more adventurous, we'd welcome improvements to the code and documentation - just create a fork of the project, and get coding! To work on documentation, edit the markdown documents in the [docs/source](https://github.com/oscarbranson/latools/tree/master/docs/source) directory. To edit the code itself, work on the module in the [latools](https://github.com/oscarbranson/latools/blob/master/latools/) directory.
+If you're feeling a bit more adventurous, we'd welcome improvements to the code, and particularly the documentation - just create a fork of the project, and get coding! To work on documentation, edit the markdown documents in the [docs/source](https://github.com/oscarbranson/latools/tree/master/docs/source) directory. To edit the code itself, work on the module in the [latools](https://github.com/oscarbranson/latools/blob/master/latools/) directory.
 
 *Join the [mailing list](https://groups.google.com/forum/#!forum/latools) to be kept updated.*

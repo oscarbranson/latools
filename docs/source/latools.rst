@@ -1,4 +1,4 @@
-latools Documentation
+LAtools Documentation
 =====================
 
 latools.analyse object

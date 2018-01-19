@@ -1,9 +1,9 @@
 .. latools documentation master file:
 
-Laser Ablation Tools (latools)
+Laser Ablation Tools (LAtools)
 ==============================
 
-``latools``: a Python toolbox for processing Laser Ablations Mass Spectrometry (LA-MS) data.
+``LAtools``: a Python toolbox for processing Laser Ablations Mass Spectrometry (LA-MS) data.
 
 Overview
 ========
