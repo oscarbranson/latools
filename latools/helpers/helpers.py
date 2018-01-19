@@ -58,6 +58,31 @@ def get_date(datetime, time_format=None):
         t = dt.datetime.strftime(datetime, time_format)
     return t
 
+def get_total_n_points(d):
+    """
+    Returns the total number of data points in values of dict.
+
+    Paramters
+    ---------
+    d : dict
+    """
+    n = 0
+    for di in d.values():
+        n += len(di)
+    return n
+
+def get_total_time_span(d):
+    """
+    Returns total length of analysis.
+    """
+
+    tmax = 0
+    for di in d.values():
+        if di.uTime.max() > tmax:
+            tmax = di.uTime.max()
+    
+    return tmax
+
 
 def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
     """

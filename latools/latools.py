@@ -27,7 +27,8 @@ from .filtering.classifier_obj import classifier
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads, _log)
+                      unitpicker, rangecalc, Bunch, calc_grads, _log,
+                      get_total_time_span)
 from .helpers.stat_fns import *
 
 idx = pd.IndexSlice  # multi-index slicing!
@@ -749,7 +750,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=300.,
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
                               n_min=20, n_max=None, cstep=None,
                               bkg_filter=False, f_win=7, f_n_lim=3):
         """
@@ -782,6 +783,9 @@ class analyse(object):
             self.bkg = Bunch()
         elif isinstance(analytes, str):
             analytes = [analytes]
+        
+        if weight_fwhm is None:
+            weight_fwhm = get_total_time_span(self.data) / 30
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
