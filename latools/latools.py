@@ -2123,6 +2123,27 @@ class analyse(object):
     def filter_defragment(self, threshold, mode='include', filt=True, samples=None, subset=None):
         """
         Remove 'fragments' from the calculated filter
+
+        Parameters
+        ----------
+        threshold : int
+            Contiguous data regions that contain this number
+            or fewer points are considered 'fragments'
+        mode : str
+            Specifies wither to 'include' or 'exclude' the identified
+            fragments.
+        filt : bool or filt string
+            Which filter to apply the defragmenter to. Defaults to True
+        samples : array_like or None
+            Which samples to apply this filter to. If None, applies to all
+            samples.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to apply
+            the filter to.
+        
+        Returns
+        -------
+        None
         """
         if samples is not None:
             subset = self.make_subset(samples)
