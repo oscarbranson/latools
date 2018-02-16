@@ -9,13 +9,14 @@ def read_configuration(config='DEFAULT'):
     """
     Read LAtools configuration file, and return parameters as dict.
     """
-    # create configparser object
+    # read configuration file
     conf = configparser.ConfigParser()
     conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
-
+    # if 'DEFAULT', check which is the default configuration
     if config == 'DEFAULT':
         config = conf['DEFAULT']['config']
-    
+
+    # return the chosen configuration    
     return dict(conf[config])
 
 # convenience functions for configuring LAtools
@@ -26,6 +27,35 @@ def config_locator():
     loc = pkgrs.resource_filename('latools', 'latools.cfg')
     print(loc)
     return loc
+
+def print_configs():
+    """
+    Prints all currently defined configurations.
+    """
+    # read configuration file
+    conf = configparser.ConfigParser()
+    conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
+
+    default = conf['DEFAULT']['config']
+
+    pstr = '\nCurrently defined LAtools configurations:\n\n'
+    for s in conf.sections():
+        if s == default:
+            pstr += s + ' [DEFAULT]\n'
+        elif s == 'REPRODUCE':
+            pstr += s + ' [DO NOT ALTER]\n'
+        else:
+            pstr += s + '\n'
+
+        for k, v in conf[s].items():
+            if k != 'config':
+                if v[:9] == 'resources':
+                    v = pkgrs.resource_filename('latools', v)
+                pstr += '   ' + k + ': ' + v + '\n'
+        pstr += '\n'
+
+    print(pstr)
+    return
 
 def copy_SRM_file(destination=None, config='DEFAULT'):
     """
@@ -56,8 +86,7 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
     print(src + ' copied to ' + destination)
     return
 
-
-def add_config(config_name, params, config_file=None, make_default=True):
+def new_config(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_default=False):
     """
     Adds a new configuration to latools.cfg.
 
@@ -66,42 +95,45 @@ def add_config(config_name, params, config_file=None, make_default=True):
     config_name : str
         The name of the new configuration. This should be descriptive
         (e.g. UC Davis Foram Group)
-    params : dict
-        A (parameter, value) dict defining non - default parameters
-        associated with the new configuration.
-        Possible parameters include:
-
-        srmfile : str
-            Path to srm file used in calibration. Defaults to GeoRem
-            values for NIST610, NIST612 and NIST614 provided with latools.
-        dataformat : dict (as str)
-            See dataformat documentation.
-    config_file : str
-        Path to the configuration file that will be modified. Defaults to
-        latools.cfg in package install location.
+    srmfile : str (optional)
+        The location of the srm file used for calibration.
+    dataformat : str (optional)
+        The location of the dataformat definition to use.
+    base_on : str
+        The name of the existing configuration to base the new one on.
+        If either srm_file or dataformat are not specified, the new
+        config will copy this information from the base_on config.
     make_default : bool
         Whether or not to make the new configuration the default
-        for future analyses. Default = True.
+        for future analyses. Default = False.
 
     Returns
     -------
     None
     """
 
-    if config_file is None:
-        config_file = pkgrs.resource_filename('latools', 'latools.cfg')
+    base_config = read_configuration(base_on)
+
+    # read config file
+    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
     cf = configparser.ConfigParser()
     cf.read(config_file)
 
     # if config doesn't already exist, create it.
     if config_name not in cf.sections():
         cf.add_section(config_name)
-    # iterate through parameter dict and set values
-    for k, v in params.items():
-        cf.set(config_name, k, v)
+    # set parameter values
+    if dataformat is None:
+        dataformat = base_config['dataformat']
+    cf.set(config_name, 'dataformat', dataformat)
+
+    if srmfile is None:
+        srmfile = base_config['srmfile']
+    cf.set(config_name, 'srmfile', srmfile)
+
     # make the parameter set default, if requested
     if make_default:
-        cf.set('DEFAULT', 'default_config', config_name)
+        cf.set('DEFAULT', 'config', config_name)
 
     with open(config_file, 'w') as f:
         cf.write(f)
@@ -120,7 +152,7 @@ def initial_configuration():
     """
     print(('You will be asked a few questions to configure latools\n'
            'for your specific laboratory needs.'))
-    lab_name = input('What is the name of your lab? : ')
+    lab_name = input('What would you like to call your configuration? : ')
 
     params = {}
     OK = False
