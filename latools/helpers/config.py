@@ -28,7 +28,7 @@ def locate():
     print(loc)
     return loc
 
-def print():
+def print_all():
     """
     Prints all currently defined configurations.
     """
@@ -140,3 +140,42 @@ def new(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_defa
 
     return
 
+def update(config, parameter, new_value):
+    # read config file
+    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
+    cf = configparser.ConfigParser()
+    cf.read(config_file)
+
+    pstr = 'Are you sure you want to change the {:s} parameter of the {:s} configuration?\n  It will be changed from:\n    {:s}\n  to:\n    {:s}\n> [N/y]: '
+
+    response = input(pstr.format(parameter, config, cf[config][parameter], new_value))
+
+    if response.lower() == 'y':
+        cf.set(config, parameter, new_value)
+        with open(config_file, 'w') as f:
+            cf.write(f)
+        print('Configuration updated!')
+    else:
+        print('Done nothing.')
+
+    return
+
+def delete(config):
+    # read config file
+    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
+    cf = configparser.ConfigParser()
+    cf.read(config_file)
+
+    pstr = 'Are you sure you want to delete the {:s} configuration?\n> [N/y]: '
+
+    response = input(pstr.format(config))
+
+    if response.lower() == 'y':
+        cf.remove_section(config)
+        with open(config_file, 'w') as f:
+            cf.write(f)
+        print('Configuration deleted!')
+    else:
+        print('Done nothing.')
+    
+    return
