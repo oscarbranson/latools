@@ -10,14 +10,24 @@ def read_configuration(config='DEFAULT'):
     Read LAtools configuration file, and return parameters as dict.
     """
     # read configuration file
-    conf = configparser.ConfigParser()
-    conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
+    _, conf = read_latoolscfg()
     # if 'DEFAULT', check which is the default configuration
     if config == 'DEFAULT':
         config = conf['DEFAULT']['config']
 
     # return the chosen configuration    
     return dict(conf[config])
+
+def read_latoolscfg():
+    """
+    Reads configuration, returns a ConfigParser object.
+
+    Distinct from read_configuration, which returns a dict.
+    """
+    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
+    cf = configparser.ConfigParser()
+    cf.read(config_file)
+    return config_file, cf
 
 # convenience functions for configuring LAtools
 def locate():
@@ -33,8 +43,7 @@ def print_all():
     Prints all currently defined configurations.
     """
     # read configuration file
-    conf = configparser.ConfigParser()
-    conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
+    _, conf = read_latoolscfg()
 
     default = conf['DEFAULT']['config']
 
@@ -74,8 +83,7 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
         configuration is used.
     """
     # find SRM file from configuration    
-    conf = read_configuration(config)
-    src = pkgrs.resource_filename('latools', conf['srmfile'])
+    _, conf = read_latoolscfg()
 
     # work out destination path (if not given)
     if destination is None:
@@ -115,10 +123,8 @@ def new(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_defa
     base_config = read_configuration(base_on)
 
     # read config file
-    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
-    cf = configparser.ConfigParser()
-    cf.read(config_file)
-
+    config_file, cf = read_latoolscfg()
+    
     # if config doesn't already exist, create it.
     if config_name not in cf.sections():
         cf.add_section(config_name)
@@ -142,9 +148,10 @@ def new(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_defa
 
 def update(config, parameter, new_value):
     # read config file
-    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
-    cf = configparser.ConfigParser()
-    cf.read(config_file)
+    config_file, cf = read_latoolscfg()
+
+    if config == 'REPRODUCE':
+        print("Nope. This will break LAtools. Don't do it.")
 
     pstr = 'Are you sure you want to change the {:s} parameter of the {:s} configuration?\n  It will be changed from:\n    {:s}\n  to:\n    {:s}\n> [N/y]: '
 
@@ -154,17 +161,22 @@ def update(config, parameter, new_value):
         cf.set(config, parameter, new_value)
         with open(config_file, 'w') as f:
             cf.write(f)
-        print('Configuration updated!')
+        print('  Configuration updated!')
     else:
-        print('Done nothing.')
+        print('  Done nothing.')
 
     return
 
 def delete(config):
     # read config file
-    config_file = pkgrs.resource_filename('latools', 'latools.cfg')
-    cf = configparser.ConfigParser()
-    cf.read(config_file)
+    config_file, cf = read_latoolscfg()
+
+    if config == cf['DEFAULT']['config']:
+        print("Nope. You're not allowed to delete the default configuration." + 
+              "Please change the default configuration, and then try again.")
+
+    if config == 'REPRODUCE':
+        print("Nope. This will break LAtools. Don't do it.")
 
     pstr = 'Are you sure you want to delete the {:s} configuration?\n> [N/y]: '
 
@@ -174,8 +186,34 @@ def delete(config):
         cf.remove_section(config)
         with open(config_file, 'w') as f:
             cf.write(f)
-        print('Configuration deleted!')
+        print('  Configuration deleted!')
     else:
-        print('Done nothing.')
+        print('  Done nothing.')
     
     return
+
+def change_default(config):
+    """
+    Change the default configuration.
+    """
+    config_file, cf = read_latoolscfg()
+
+    if config not in cf.sections():
+        raise ValueError("\n'{:s}' is not a defined configuration.".format(config))
+
+    if config == 'REPRODUCE':
+        pstr = ('Are you SURE you want to set REPRODUCE as your default configuration?\n' + 
+                '     ... this is an odd thing to be doing.')
+    else:
+        pstr = ('Are you sure you want to change the default configuration from {:s}'.format(cf['DEFAULT']['config']) + 
+                'to {:s}?'.format(config))
+
+    response = input(pstr + '\n> [N/y]: ')
+
+    if response.lower() == 'y':
+        cf.set('DEFAULT', 'config', config)
+        with open(config_file, 'w') as f:
+            cf.write(f)
+        print('  Default changed!')
+    else:
+        print('  Done nothing.')
