@@ -2,8 +2,13 @@ import configparser
 import os
 import pkg_resources as pkgrs
 
+from shutil import copyfile
+
 # functions used by latools to read configurations
 def read_configuration(config='DEFAULT'):
+    """
+    Read LAtools configuration file, and return parameters as dict.
+    """
     # create configparser object
     conf = configparser.ConfigParser()
     conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
@@ -13,33 +18,14 @@ def read_configuration(config='DEFAULT'):
     
     return dict(conf[config])
 
-
-# # load configuration parameters
-# conf = configparser.ConfigParser()  # read in config file
-# conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
-# # load defaults into dict
-# pconf = dict(conf.defaults())
-# # if no config is given, check to see what the default setting is
-# # if (config is None) & (pconf['config'] != 'DEFAULT'):
-# #     config = pconf['config']
-# # else:
-# #     config = 'DEFAULT'
-
-# # if there are any non - default parameters, replace defaults in
-# # the pconf dict
-# if config != 'DEFAULT':
-#     for o in conf.options(config):
-#         pconf[o] = conf.get(config, o)
-# self.config = config
-
-
 # convenience functions for configuring LAtools
 def config_locator():
     """
-    Prints the location of the latools.cfg file.
+    Prints and returns the location of the latools.cfg file.
     """
-    print(pkgrs.resource_filename('latools', 'latools.cfg'))
-    return
+    loc = pkgrs.resource_filename('latools', 'latools.cfg')
+    print(loc)
+    return loc
 
 def copy_SRM_file(destination=None, config='DEFAULT'):
     """
@@ -57,9 +43,18 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
         want to copy the SRM file from. If not specified, the 'DEFAULT'
         configuration is used.
     """
-    if destination is None:
-        destination = './LAtools_' + config + '_SRMTable.csv'
+    # find SRM file from configuration    
+    conf = read_configuration(config)
+    src = pkgrs.resource_filename('latools', conf['srmfile'])
 
+    # work out destination path (if not given)
+    if destination is None:
+        destination = './LAtools_' + conf['config'] + '_SRMTable.csv'
+
+    copyfile(src, destination)
+
+    print(src + ' copied to ' + destination)
+    return
 
 
 def add_config(config_name, params, config_file=None, make_default=True):
