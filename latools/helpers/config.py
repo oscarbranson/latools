@@ -20,7 +20,7 @@ def read_configuration(config='DEFAULT'):
     return dict(conf[config])
 
 # convenience functions for configuring LAtools
-def config_locator():
+def locate():
     """
     Prints and returns the location of the latools.cfg file.
     """
@@ -28,7 +28,7 @@ def config_locator():
     print(loc)
     return loc
 
-def print_configs():
+def print():
     """
     Prints all currently defined configurations.
     """
@@ -86,7 +86,7 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
     print(src + ' copied to ' + destination)
     return
 
-def new_config(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_default=False):
+def new(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_default=False):
     """
     Adds a new configuration to latools.cfg.
 
@@ -139,3 +139,4 @@ def new_config(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', ma
         cf.write(f)
 
     return
+
