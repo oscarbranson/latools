@@ -29,6 +29,7 @@ from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads, _log,
                       get_total_time_span)
+from .helpers.config import read_configuration
 from .helpers.stat_fns import *
 
 idx = pd.IndexSlice  # multi-index slicing!
@@ -147,23 +148,8 @@ class analyse(object):
             os.mkdir(self.export_dir)
 
         # load configuration parameters
-        conf = configparser.ConfigParser()  # read in config file
-        conf.read(pkgrs.resource_filename('latools', 'latools.cfg'))
-        # load defaults into dict
-        pconf = dict(conf.defaults())
-        # if no config is given, check to see what the default setting is
-        # if (config is None) & (pconf['config'] != 'DEFAULT'):
-        #     config = pconf['config']
-        # else:
-        #     config = 'DEFAULT'
-
-        # if there are any non - default parameters, replace defaults in
-        # the pconf dict
-        if config != 'DEFAULT':
-            for o in conf.options(config):
-                pconf[o] = conf.get(config, o)
-        self.config = config
-        print('latools analysis using "' + self.config + '" configuration:')
+        self.config = read_configuration(config)
+        print('latools analysis using "' + self.config['config'] + '" configuration:')
 
         # check srmfile exists, and store it in a class attribute.
         if srm_file is not None:
@@ -174,12 +160,12 @@ class analyse(object):
                                   srm_file +
                                   'Please check that the file location is correct.'))
         else:
-            if os.path.exists(pconf['srmfile']):
-                self.srmfile = pconf['srmfile']
+            if os.path.exists(self.config['srmfile']):
+                self.srmfile = self.config['srmfile']
             elif os.path.exists(pkgrs.resource_filename('latools',
-                                                        pconf['srmfile'])):
+                                                        self.config['srmfile'])):
                 self.srmfile = pkgrs.resource_filename('latools',
-                                                       pconf['srmfile'])
+                                                       self.config['srmfile'])
             else:
                 raise ValueError(('The SRM file specified in the ' + config +
                                   ' configuration cannot be found.\n'
@@ -187,19 +173,19 @@ class analyse(object):
                                   'path in the config file is correct.\n'
                                   'To locate the config file, run '
                                   '`latools.config_locator()`.\n\n'
-                                  '' + config + ' file: ' + pconf['srmfile']))
+                                  '' + config + ' file: ' + self.config['srmfile']))
 
         # load in dataformat information.
         # check dataformat file exists, and store it in a class attribute.
         # if dataformat is not provided during initialisation, assign it
         # from configuration file
         if dataformat is None:
-            if os.path.exists(pconf['dataformat']):
-                dataformat = pconf['dataformat']
+            if os.path.exists(self.config['dataformat']):
+                dataformat = self.config['dataformat']
             elif os.path.exists(pkgrs.resource_filename('latools',
-                                                        pconf['dataformat'])):
+                                                        self.config['dataformat'])):
                 dataformat = pkgrs.resource_filename('latools',
-                                                     pconf['dataformat'])
+                                                     self.config['dataformat'])
             else:
                 raise ValueError(('The dataformat file specified in the ' +
                                   config + ' configuration cannot be found.\n'
@@ -3594,7 +3580,7 @@ class analyse(object):
             header = ['# Sample: %s' % (s),
                       '# Data Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      '# Processed using %s configuration' % (self.config),
+                      '# Processed using %s configuration' % (self.config['config']),
                       '# Analysis Stage: %s' % (focus_stage),
                       '# Unit: %s' % ud[focus_stage]]
 
