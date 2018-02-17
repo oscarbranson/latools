@@ -185,12 +185,12 @@ def read_data(data_file, dataformat, name_mode):
 
     # convert raw data into counts
     # TODO: Is this correct? Should actually be per-analyte dwell?
-    if 'unit' in dataformat:
-        if dataformat['unit'] == 'cps':
-            tstep = data['Time'][1] - data['Time'][0]
-            read_data[dind] *= tstep
-        else:
-            pass
+    # if 'unit' in dataformat:
+    #     if dataformat['unit'] == 'cps':
+    #         tstep = data['Time'][1] - data['Time'][0]
+    #         read_data[dind] *= tstep
+    #     else:
+    #         pass
     data['rawdata'] = Bunch(zip(analytes, read_data[dind]))
     data['total_counts'] = read_data[dind].sum(0)
 
