@@ -12,8 +12,8 @@ User Guide
 .. toctree::
     :maxdepth: 2
 
+    start-here.rst
     intro.rst
     installing.rst
     beginners/index.rst
-    config/index.rst
-    advanced/index.rst
+    configuration/index.rst

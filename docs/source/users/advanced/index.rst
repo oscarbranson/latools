@@ -13,12 +13,4 @@ Advanced Topics
 .. toctree::
     :maxdepth: 2
 
-    structure.rst
-    advanced-filtering.rst
-    advanced-plotting.rst
-    data-formats.rst
-    cfg-file.rst
-    autorange-fn.rst
-    latools-alternatives.rst
-    srm-id.rst
-    srm-file.rst
+
