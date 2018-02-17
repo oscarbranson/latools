@@ -1,0 +1,22 @@
+{
+    "meta_regex": {
+        "line_number (in quotes)": [["group", "names"], "regex with same number of capture groups as items in list on left"],
+        "N": [["date"], "regex that identifies the start time of data collection in a capture group. THIS IS REQUIRED."]
+    },
+    "column_id": {
+        "delimiter": "Character that separates column headings, e.g. \t (tab) or , (comma)",
+        "timecolumn": "Numeric index of time column. Usually zero (the first column). Must be an integer, without quotations.",
+        "name_row": "The line number that contains the column headings. Must be an integer, without quotations",
+        "pattern": "A regular expression that identifies valid analyte names in a capture group. For analytes of the form 'Mg24', something like '([A-z]{1,2}[0-9]{1,3})' will work. Recommend using http://regex101.com to find the right expression."
+    },
+    "genfromtext_args": {
+        "delimiter": "Character that separates data values in rows, e.g. \t (tab) or , (comma)",
+        "skip_header": "Integer, without quotations, that specifies the number of lines at the start of the file that *don't* contain data values.",
+        "other_arguments": "Arguments in this section are passed directly to numpy.genfromtxt. You can therefore specify any valid genfromtxt argument (e.g. 'skip_footer') that might aid reading your data table: https://docs.scipy.org/doc/numpy/reference/generated/numpy.genfromtxt.html"
+    },
+    "preformat_replace": {
+        "_note": "OPTIONAL key:value pairs that modify raw data before being passed to numpy.genfromtxt. re.replace is used to substitute all occurrences of the key with the value, for example:",
+        "regular expression": "replacement text"
+    },
+    "time_format": "OPTIONAL specification of time format, of the format '%d-%b-%Y %H:%M:%S'. Normally this will be determined automatically, and won't be required. Only specify if automatic identification fails. See here for format notes: https://docs.python.org/3.6/library/datetime.html#strftime-and-strptime-behavior"
+}
