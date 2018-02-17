@@ -17,6 +17,12 @@ Filtering
 
 .. automodule:: latools.filtering.classifier_obj
 
+Configuration
+-------------
+Note: the entire config module is available at the top level (i.e. ``latools.config``).
+
+.. automodule:: latools.helpers.config
+
 Helpers
 -------
 .. automodule:: latools.helpers.helpers
