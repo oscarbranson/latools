@@ -149,7 +149,7 @@ class analyse(object):
 
         # load configuration parameters
         self.config = read_configuration(config)
-        print('latools analysis using "' + self.config['config'] + '" configuration:')
+        print('Starting analysis using "' + self.config['config'] + '" configuration:')
 
         # check srmfile exists, and store it in a class attribute.
         if srm_file is not None:
