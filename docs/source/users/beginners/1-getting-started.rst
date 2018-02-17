@@ -79,4 +79,4 @@ Take a look at the contents of the directory.
 You should see four .csv files, which are raw data files from an Agilent 7700 Quadrupole mass spectrometer, outputting the counts per second of each analyte as a function of time.
 Notice that each .csv file either has a sample name, or is called 'STD'.
 
-.. note:: Each data file should contain data from a single sample, and data files containing measurements of standards should all contain an identifying set of characters (in this case 'STD') in the name. For more information, see :ref:`advanced_data_formats`.
+.. note:: Each data file should contain data from a single sample, and data files containing measurements of standards should all contain an identifying set of characters (in this case 'STD') in the name. For more information, see :ref:`data_formats`.

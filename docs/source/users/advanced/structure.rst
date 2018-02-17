@@ -22,7 +22,7 @@ Package Structure
 When an an instance of :mod:`latools.analyse` is created, you give it a path to a ``data_folder``.
 The class searches this folder for data files, and creates a :mod:`latools.D` instance for each data file that it finds.
 These :mod:`latools.D` instances are stored within the in ``data_dict`` within :mod:`latools.analyse`.
-When creating a :mod:`latools.analyse` instance it also reads the :ref:`configuration file <cfg_file>`, which contains the paths to the :ref:`SRM data table <srm_file>` and :ref:`data format description <advanced_data_formats>` that are essential for analysis.
+When creating a :mod:`latools.analyse` instance it also reads the :ref:`configuration file <cfg_file>`, which contains the paths to the :ref:`SRM data table <srm_file>` and :ref:`data format description <data_formats>` that are essential for analysis.
 
 The :mod:`latools.analyse` class is essentially a 'wrapper' for dealing with numerous data files at once.
 The ability to process multiple data files is essential if you wish to calibrate your data (i.e. you must have a number of samples, and at least one standard in the .

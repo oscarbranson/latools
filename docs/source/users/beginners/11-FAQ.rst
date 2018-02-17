@@ -7,7 +7,7 @@ FAQs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 I can't get my data to import...
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Follow the instructions :ref:`here <advanced_data_formats>`. If you're really stuck, 
+Follow the instructions :ref:`here <data_formats>`. If you're really stuck, 
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Your software is broken. It doesn't work!
