@@ -1,0 +1,159 @@
+analyse	__init__.py	/^from .latools import analyse, analyze, reproduce$/;"	i
+analyze	__init__.py	/^from .latools import analyse, analyze, reproduce$/;"	i
+reproduce	__init__.py	/^from .latools import analyse, analyze, reproduce$/;"	i
+get_example_data	__init__.py	/^from .helpers.helpers import get_example_data, nominal_values$/;"	i
+nominal_values	__init__.py	/^from .helpers.helpers import get_example_data, nominal_values$/;"	i
+config	__init__.py	/^from .helpers import config$/;"	i
+configparser	latools.py	/^import configparser$/;"	i
+itertools	latools.py	/^import itertools$/;"	i
+inspect	latools.py	/^import inspect$/;"	i
+json	latools.py	/^import json$/;"	i
+os	latools.py	/^import os$/;"	i
+re	latools.py	/^import re$/;"	i
+time	latools.py	/^import time$/;"	i
+warnings	latools.py	/^import warnings$/;"	i
+dateutil	latools.py	/^import dateutil$/;"	i
+matplotlib	latools.py	/^import matplotlib.pyplot as plt$/;"	i
+plt	latools.py	/^import matplotlib.pyplot as plt$/;"	i
+mpl	latools.py	/^import matplotlib as mpl$/;"	i
+np	latools.py	/^import numpy as np$/;"	i
+pd	latools.py	/^import pandas as pd$/;"	i
+pkgrs	latools.py	/^import pkg_resources as pkgrs$/;"	i
+unc	latools.py	/^import uncertainties as unc$/;"	i
+uncertainties	latools.py	/^import uncertainties.unumpy as un$/;"	i
+un	latools.py	/^import uncertainties.unumpy as un$/;"	i
+minmax_scale	latools.py	/^from sklearn.preprocessing import minmax_scale$/;"	i
+curve_fit	latools.py	/^from scipy.optimize import curve_fit$/;"	i
+tqdm	latools.py	/^from tqdm import tqdm  # status bars!$/;"	i
+status	latools.py	/^from tqdm import tqdm  # status bars!$/;"	i
+bars	latools.py	/^from tqdm import tqdm  # status bars!$/;"	i
+plot	latools.py	/^from .helpers import plot$/;"	i
+filters	latools.py	/^from .filtering import filters$/;"	i
+classifier	latools.py	/^from .filtering.classifier_obj import classifier$/;"	i
+D	latools.py	/^from .D_obj import D$/;"	i
+rolling_window	latools.py	/^from .helpers.helpers import (rolling_window, enumerate_bool,$/;"	i
+enumerate_bool	latools.py	/^from .helpers.helpers import (rolling_window, enumerate_bool,$/;"	i
+read_configuration	latools.py	/^from .helpers.config import read_configuration$/;"	i
+idx	latools.py	/^idx = pd.IndexSlice  # multi-index slicing!$/;"	v
+analyse	latools.py	/^class analyse(object):$/;"	c
+__init__	latools.py	/^    def __init__(self, data_folder, errorhunt=False, config='DEFAULT',$/;"	m	class:analyse
+_get_samples	latools.py	/^    def _get_samples(self, subset=None):$/;"	m	class:analyse
+basic_processing	latools.py	/^    def basic_processing(self,$/;"	m	class:analyse
+autorange	latools.py	/^    def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,$/;"	m	class:analyse
+find_expcoef	latools.py	/^    def find_expcoef(self, nsd_below=0., analyte=None, plot=False,$/;"	m	class:analyse
+findtrim	latools.py	/^        def findtrim(tr, lim=None):$/;"	f	function:analyse.find_expcoef
+expfit	latools.py	/^        def expfit(x, e):$/;"	f	function:analyse.find_expcoef
+despike	latools.py	/^    def despike(self, expdecay_despiker=False, exponent=None, tstep=None,$/;"	m	class:analyse
+get_background	latools.py	/^    def get_background(self, n_min=10, n_max=None, focus_stage='despiked', bkg_filter=False, f_win=5, f_n_lim=3):$/;"	m	class:analyse
+bkg_calc_weightedmean	latools.py	/^    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,$/;"	m	class:analyse
+bkg_calc_interp1d	latools.py	/^    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,$/;"	m	class:analyse
+pad	latools.py	/^        def pad(a, lo=None, hi=None):$/;"	f	function:analyse.bkg_calc_interp1d
+bkg_subtract	latools.py	/^    def bkg_subtract(self, analytes=None, errtype='stderr', focus='despiked'):$/;"	m	class:analyse
+bkg_plot	latools.py	/^    def bkg_plot(self, analytes=None, figsize=None, yscale='log',$/;"	m	class:analyse
+ratio	latools.py	/^    def ratio(self, internal_standard=None, focus='bkgsub'):$/;"	m	class:analyse
+srm_id_auto	latools.py	/^    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):$/;"	m	class:analyse
+normalise	latools.py	/^        def normalise(a):$/;"	f	function:analyse.srm_id_auto
+clear_calibration	latools.py	/^    def clear_calibration(self):$/;"	m	class:analyse
+calibrate	latools.py	/^    def calibrate(self, analytes=None, drift_correct=True,$/;"	m	class:analyse
+lin	latools.py	/^                                def lin(x, m, c):$/;"	f	function:analyse.calibrate
+make_subset	latools.py	/^    def make_subset(self, samples=None, name=None):$/;"	m	class:analyse
+zeroscreen	latools.py	/^    def zeroscreen(self, focus_stage=None):$/;"	m	class:analyse
+filter_threshold	latools.py	/^    def filter_threshold(self, analyte, threshold,$/;"	m	class:analyse
+filter_threshold_percentile	latools.py	/^    def filter_threshold_percentile(self, analyte, percentiles, level='population', filt=False,$/;"	m	class:analyse
+filter_gradient_threshold	latools.py	/^    def filter_gradient_threshold(self, analyte, threshold, win=15,$/;"	m	class:analyse
+filter_gradient_threshold_percentile	latools.py	/^    def filter_gradient_threshold_percentile(self, analyte, percentiles, level='population', win=15, filt=False,$/;"	m	class:analyse
+filter_clustering	latools.py	/^    def filter_clustering(self, analytes, filt=False, normalise=True,$/;"	m	class:analyse
+filter_correlation	latools.py	/^    def filter_correlation(self, x_analyte, y_analyte, window=None,$/;"	m	class:analyse
+filter_on	latools.py	/^    def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):$/;"	m	class:analyse
+filter_off	latools.py	/^    def filter_off(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):$/;"	m	class:analyse
+filter_status	latools.py	/^    def filter_status(self, sample=None, subset=None, stds=False):$/;"	m	class:analyse
+filter_clear	latools.py	/^    def filter_clear(self, samples=None, subset=None):$/;"	m	class:analyse
+filter_defragment	latools.py	/^    def filter_defragment(self, threshold, mode='include', filt=True, samples=None, subset=None):$/;"	m	class:analyse
+filter_exclude_downhole	latools.py	/^    def filter_exclude_downhole(self, threshold, filt=True, samples=None, subset=None):$/;"	m	class:analyse
+filter_trim	latools.py	/^    def filter_trim(self, start=1, end=1, filt=True, samples=None, subset=None):$/;"	m	class:analyse
+filter_nremoved	latools.py	/^    def filter_nremoved(self, filt=True, quiet=False):$/;"	m	class:analyse
+optimise_signal	latools.py	/^    def optimise_signal(self, analytes, min_points=5,$/;"	m	class:analyse
+optimisation_plots	latools.py	/^    def optimisation_plots(self, overlay_alpha=0.5, samples=None, subset=None, **kwargs):$/;"	m	class:analyse
+fit_classifier	latools.py	/^    def fit_classifier(self, name, analytes, method, samples=None,$/;"	m	class:analyse
+apply_classifier	latools.py	/^    def apply_classifier(self, name, samples=None, subset=None):$/;"	m	class:analyse
+calibration_plot	latools.py	/^    def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):$/;"	m	class:analyse
+set_focus	latools.py	/^    def set_focus(self, focus_stage=None, samples=None, subset=None):$/;"	m	class:analyse
+get_focus	latools.py	/^    def get_focus(self, filt=False, samples=None, subset=None, nominal=False):$/;"	m	class:analyse
+get_gradients	latools.py	/^    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None):$/;"	m	class:analyse
+gradient_histogram	latools.py	/^    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None):$/;"	m	class:analyse
+crossplot	latools.py	/^    def crossplot(self, analytes=None, lognorm=True,$/;"	m	class:analyse
+gradient_crossplot	latools.py	/^    def gradient_crossplot(self, analytes=None, win=15, lognorm=True,$/;"	m	class:analyse
+histograms	latools.py	/^    def histograms(self, analytes=None, bins=25, logy=False,$/;"	m	class:analyse
+filter_effect	latools.py	/^    def filter_effect(self, analytes=None, stats=['mean', 'std'], filt=True):$/;"	m	class:analyse
+crossplot_filters	latools.py	/^    def crossplot_filters(self, filter_string, analytes=None,$/;"	m	class:analyse
+trace_plots	latools.py	/^    def trace_plots(self, analytes=None, samples=None, ranges=False,$/;"	m	class:analyse
+gradient_plots	latools.py	/^    def gradient_plots(self, analytes=None, win=15, samples=None, ranges=False,$/;"	m	class:analyse
+filter_reports	latools.py	/^    def filter_reports(self, analytes, filt_str='all', nbin=5, samples=None,$/;"	m	class:analyse
+sample_stats	latools.py	/^    def sample_stats(self, analytes=None, filt=True,$/;"	m	class:analyse
+ablation_times	latools.py	/^    def ablation_times(self, samples=None, subset=None):$/;"	m	class:analyse
+statplot	latools.py	/^    def statplot(self, analytes=None, samples=None, figsize=None,$/;"	m	class:analyse
+getstats	latools.py	/^    def getstats(self, save=True, filename=None, samples=None, subset=None, ablation_time=False):$/;"	m	class:analyse
+_minimal_export_traces	latools.py	/^    def _minimal_export_traces(self, outdir=None, analytes=None,$/;"	m	class:analyse
+export_traces	latools.py	/^    def export_traces(self, outdir=None, focus_stage=None, analytes=None,$/;"	m	class:analyse
+minimal_export	latools.py	/^    def minimal_export(self, target_analytes=None, override=False, path=None):$/;"	m	class:analyse
+reproduce	latools.py	/^def reproduce(log_file, plotting=False, data_folder=None,$/;"	f
+analyze	latools.py	/^analyze = analyse  # for the yanks$/;"	v
+re	D_obj.py	/^import re$/;"	i
+itertools	D_obj.py	/^import itertools$/;"	i
+np	D_obj.py	/^import numpy as np$/;"	i
+matplotlib	D_obj.py	/^import matplotlib.pyplot as plt$/;"	i
+plt	D_obj.py	/^import matplotlib.pyplot as plt$/;"	i
+mpl	D_obj.py	/^import matplotlib as mpl$/;"	i
+warnings	D_obj.py	/^import warnings$/;"	i
+sklearn	D_obj.py	/^import sklearn.cluster as cl$/;"	i
+cl	D_obj.py	/^import sklearn.cluster as cl$/;"	i
+scipy	D_obj.py	/^import scipy.interpolate as interp$/;"	i
+interp	D_obj.py	/^import scipy.interpolate as interp$/;"	i
+uncertainties	D_obj.py	/^import uncertainties.unumpy as un$/;"	i
+un	D_obj.py	/^import uncertainties.unumpy as un$/;"	i
+display	D_obj.py	/^from IPython import display$/;"	i
+gaussian_kde	D_obj.py	/^from scipy.stats import gaussian_kde, pearsonr$/;"	i
+pearsonr	D_obj.py	/^from scipy.stats import gaussian_kde, pearsonr$/;"	i
+preprocessing	D_obj.py	/^from sklearn import preprocessing$/;"	i
+filters	D_obj.py	/^from .filtering import filters$/;"	i
+clustering	D_obj.py	/^from .filtering import clustering$/;"	i
+filt	D_obj.py	/^from .filtering.filt_obj import filt$/;"	i
+signal_optimiser	D_obj.py	/^from .filtering.signal_optimiser import signal_optimiser, optimisation_plot$/;"	i
+optimisation_plot	D_obj.py	/^from .filtering.signal_optimiser import signal_optimiser, optimisation_plot$/;"	i
+plot	D_obj.py	/^from .helpers import plot$/;"	i
+proc	D_obj.py	/^from .helpers import process_fns as proc$/;"	i
+bool_2_indices	D_obj.py	/^from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,$/;"	i
+rolling_window	D_obj.py	/^from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,$/;"	i
+Bunch	D_obj.py	/^from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,$/;"	i
+nominal_values	D_obj.py	/^from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties$/;"	i
+std_devs	D_obj.py	/^from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties$/;"	i
+unpack_uncertainties	D_obj.py	/^from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties$/;"	i
+D	D_obj.py	/^class D(object):$/;"	c
+__init__	D_obj.py	/^    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):$/;"	m	class:D
+setfocus	D_obj.py	/^    def setfocus(self, focus):$/;"	m	class:D
+despike	D_obj.py	/^    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,$/;"	m	class:D
+autorange	D_obj.py	/^    def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,$/;"	m	class:D
+autorange_plot	D_obj.py	/^    def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,$/;"	m	class:D
+mkrngs	D_obj.py	/^    def mkrngs(self):$/;"	m	class:D
+bkg_subtract	D_obj.py	/^    def bkg_subtract(self, analyte, bkg, ind=None, focus_stage='despiked'):$/;"	m	class:D
+ratio	D_obj.py	/^    def ratio(self, internal_standard=None, focus='bkgsub'):$/;"	m	class:D
+calibrate	D_obj.py	/^    def calibrate(self, calib_ps, analytes=None):$/;"	m	class:D
+sample_stats	D_obj.py	/^    def sample_stats(self, analytes=None, filt=True,$/;"	m	class:D
+ablation_times	D_obj.py	/^    def ablation_times(self):$/;"	m	class:D
+filter_threshold	D_obj.py	/^    def filter_threshold(self, analyte, threshold):$/;"	m	class:D
+filter_gradient_threshold	D_obj.py	/^    def filter_gradient_threshold(self, analyte, win, threshold):$/;"	m	class:D
+filter_clustering	D_obj.py	/^    def filter_clustering(self, analytes, filt=False, normalise=True,$/;"	m	class:D
+filter_correlation	D_obj.py	/^    def filter_correlation(self, x_analyte, y_analyte, window=None,$/;"	m	class:D
+filter_new	D_obj.py	/^    def filter_new(self, name, filt_str):$/;"	m	class:D
+filter_trim	D_obj.py	/^    def filter_trim(self, start=1, end=1, filt=True):$/;"	m	class:D
+filter_exclude_downhole	D_obj.py	/^    def filter_exclude_downhole(self, threshold, filt=True):$/;"	m	class:D
+signal_optimiser	D_obj.py	/^    def signal_optimiser(self, analytes, min_points=5,$/;"	m	class:D
+optimisation_plot	D_obj.py	/^    def optimisation_plot(self, overlay_alpha=0.5, **kwargs):$/;"	m	class:D
+tplot	D_obj.py	/^    def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,$/;"	m	class:D
+gplot	D_obj.py	/^    def gplot(self, analytes=None, win=5, figsize=[10, 4],$/;"	m	class:D
+yfmt	D_obj.py	/^        def yfmt(x, p):$/;"	f	function:D.gplot
+crossplot	D_obj.py	/^    def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True, colourful=True, figsize=(12, 12)):$/;"	m	class:D
+crossplot_filters	D_obj.py	/^    def crossplot_filters(self, filter_string, analytes=None):$/;"	m	class:D
+filt_nremoved	D_obj.py	/^    def filt_nremoved(self, filt=True):$/;"	m	class:D
+filter_report	D_obj.py	/^    def filter_report(self, filt=None, analytes=None, savedir=None, nbin=5):$/;"	m	class:D
+get_params	D_obj.py	/^    def get_params(self):$/;"	m	class:D
