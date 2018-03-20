@@ -61,6 +61,7 @@ class filt(object):
         self.keys = {}
         self.n = 0
         self.switches = {}
+        self.sequence = {}
         for a in self.analytes:
             self.switches[a] = {}
 
@@ -486,7 +487,7 @@ class filt(object):
 
 
 
-## Re-write filt object to use pandas
+## TODO: [Low Priority] Re-write filt object to use pandas?
 
 # class filt(object):
     
@@ -521,11 +522,6 @@ class filt(object):
 
 #     def clear(self):
 #         self.__init__(self.size, self.analytes)
-        
-
-    
-
-    
     
 #     def clean(self):
 #         pass
