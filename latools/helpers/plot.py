@@ -95,7 +95,7 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
 
             # Plot averages and error envelopes
             if stats and hasattr(self, 'stats'):
-                warnings.warn('Stat plot is broken.')
+                warnings.warn('\nStatistic plotting is broken.\nCheck progress here: https://github.com/oscarbranson/latools/issues/18')
                 pass
                 # sts = self.stats[sig][0].size
                 # if sts > 1:
@@ -131,31 +131,6 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
                 ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
             for lims in self.sigrng:
                 ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
-
-        # if filt is not None:
-        #     ind = self.filt.grab_filt(filt)
-        #     if any(~ind):
-        #         lims = bool_2_indices(~ind)
-        #         for lo, u in lims:
-        #             if abs(u) >= len(self.Time):
-        #                 u = -1
-        #             if lo < 0:
-        #                 lo = 0
-        #             ax.axvspan(self.Time[lo], self.Time[u], color='k',
-        #                        alpha=0.05, lw=0)
-        #     else:
-        #         ax.axvspan(self.Time[0], self.Time[-1], color='k',
-        #                    alpha=0.05, lw=0)
-
-            # drawn = []
-            # for k, v in self.filt.switches.items():
-            #     for f, s in v.items():
-            #         if s & (f not in drawn):
-            #             lims = bool_2_indices(~self.filt.components[f])
-            #             for u, l in lims:
-            #                 ax.axvspan(self.Time[u-1], self.Time[l], color='k',
-            #                            alpha=0.05, lw=0)
-            #             drawn.append(f)
 
         ax.text(0.01, 0.99, self.sample + ' : ' + focus_stage,
                 transform=ax.transAxes,

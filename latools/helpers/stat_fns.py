@@ -39,42 +39,6 @@ def std_devs(a):
     except:
         return a
 
-
-# def weighted_average(x, y, x_new, fwhm=300):
-#     """
-#     Calculate gaussian weigted moving mean, SD and SE.
-
-#     Parameters
-#     ----------
-#     x, y : array - like
-#         The x and y data to smooth
-#     x_new : array - like
-#         The new x - scale to interpolate the data
-
-#     """
-#     bin_avg = np.zeros(len(x_new))
-#     bin_std = np.zeros(len(x_new))
-#     bin_se = np.zeros(len(x_new))
-
-#     # Gaussian function as weights
-#     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-
-#     for index, xn in enumerate(x_new):
-#         weights = gauss(x, 1, xn, sigma)
-#         weights /= sum(weights)
-#         # weighted mean
-#         bin_avg[index] = np.average(y, weights=weights)
-#         # weighted standard deviation
-#         bin_std[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights))
-#         # weighted standard error (mean / sqrt(n_points_in_gaussian))
-#         bin_se[index] = np.sqrt(np.average((y - bin_avg[index])**2, weights=weights)) / \
-#             np.sqrt(sum((x > xn - 2 * sigma) & (x < xn + 2 * sigma)))
-
-#     return {'mean': bin_avg,
-#             'std': bin_std,
-#             'stderr': bin_se}
-
-
 def gauss_weighted_stats(x, yarray, x_new, fwhm):
     """
     Calculate gaussian weigted moving mean, SD and SE.
