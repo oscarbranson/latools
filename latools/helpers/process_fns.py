@@ -384,35 +384,3 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
             ftrn[ind] = False
 
     return fbkg, fsig, ftrn, [f[0] for f in failed]
-
-
-# def rolling_mean_std(sig, win=3):
-#     npad = int((win - 1) / 2)
-#     sumkernel = np.ones(win)
-#     kernel = sumkernel / win
-#     mean = np.convolve(sig, kernel, 'same')
-#     mean[:npad] = sig[:npad]
-#     mean[-npad:] = sig[-npad:]
-#     # calculate sqdiff
-#     sqdiff = (sig - mean)**2
-#     sumsqdiff = np.convolve(sqdiff, sumkernel, 'same')
-#     std = np.sqrt(sumsqdiff / win)
-
-#     return mean[5], sqdiff[4:7], sumsqdiff[5], std[5]
-
-#     # print(np.convolve(a, sumkernel, 'valid'))
-
-
-# if __name__ == '__main__':
-#     a = np.random.normal(5, 1, 100)
-#     a[30] = 10
-#     print(rolling_mean_std(a))
-
-#     print(np.convolve(np.ones(10), np.ones(3), 'same'))
-#     asub = a[4:7]
-#     print(asub)
-#     masub = np.mean(asub)
-#     sqdiff = (asub - masub)**2
-#     sumsqdiff = np.sum(sqdiff)
-#     std = np.sqrt(sumsqdiff / 3)
-#     print(masub, sumsqdiff, std)
