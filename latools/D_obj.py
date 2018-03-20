@@ -103,6 +103,7 @@ class D(object):
 
         self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
         self.Time = self.data['Time']
+        self.tstep = self.Time[1] - self.Time[0]
 
         # set focus to rawdata
         self.setfocus('rawdata')
@@ -177,7 +178,7 @@ class D(object):
         # setattr(self, k, self.focus[k])
 
     @_log
-    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+    def despike(self, expdecay_despiker=True, exponent=None,
                 noise_despiker=True, win=3, nlim=12., maxiter=3):
         """
         Applies expdecay_despiker and noise_despiker to data.
@@ -189,9 +190,6 @@ class D(object):
         exponent : None or float
             The exponent for the exponential decay filter. If None,
             it is determined automatically using `find_expocoef`.
-        tstep : None or float
-            The timeinterval between measurements. If None, it is
-            determined automatically from the Time variable.
         noise_despiker : bool
             Whether or not to apply the standard deviation spike filter.
         win : int
@@ -215,11 +213,10 @@ class D(object):
         for a, v in self.focus.items():
             if 'time' not in a.lower():
                 sig = v.copy()  # copy data
+                if expdecay_despiker:
+                    sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
                 if noise_despiker:
                     sig = proc.noise_despike(sig, int(win), nlim, maxiter)
-                if expdecay_despiker:
-                    warnings.warn('expdecay_spiker is broken... not run.')
-                    # sig = proc.expdecay_despike(v, exponent, tstep, maxiter)
                 out[a] = sig
 
         self.data['despiked'].update(out)
