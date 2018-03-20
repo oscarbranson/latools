@@ -22,9 +22,7 @@ setup(name='latools',
                         'scipy',
                         'Ipython',
                         'configparser',
-                        'tqdm',
-                        'fuzzywuzzy',
-                        'python-Levenshtein'
+                        'tqdm'
                         ],
       package_data={
         'latools': ['latools.cfg',
