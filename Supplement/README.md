@@ -1,4 +1,4 @@
-# Supplemental Data and Analysis
+# Supplementary Data and Analysis
 
 This folder contains supplementary data and data analysis information for the examples presented in Branson et al (sub.).
 
