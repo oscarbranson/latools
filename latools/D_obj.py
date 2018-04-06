@@ -89,7 +89,7 @@ class D(object):
         An object for storing, selecting and creating data filters.F
     """
 
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names'):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -290,7 +290,8 @@ class D(object):
             True regions in the boolean arrays.
         """
         if analyte is None:
-            sig = self.focus[self.internal_standard]
+            # sig = self.focus[self.internal_standard]
+            sig = self.data['total_counts']
         elif analyte == 'total_counts':
             sig = self.data['total_counts']
         elif analyte in self.analytes:
@@ -336,7 +337,8 @@ class D(object):
         Plot a detailed autorange report for this sample.
         """
         if analyte is None:
-            sig = self.focus[self.internal_standard]
+            # sig = self.focus[self.internal_standard]
+            sig = self.data['total_counts']
         elif analyte == 'total_counts':
             sig = self.data['total_counts']
         elif analyte in self.analytes:
