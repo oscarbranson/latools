@@ -24,3 +24,5 @@ data
 .cache/*
 *.ipynb_checkpoints
 support/*
+./*.ipynb
+Supplement/fossil_foram_manual.ipynb
