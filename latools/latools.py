@@ -119,7 +119,7 @@ class analyse(object):
 
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None, time_format=None, internal_standard=None,
+                 cmap=None, time_format=None, internal_standard='Ca43',
                  names='file_names', srm_file=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
@@ -274,16 +274,12 @@ class analyse(object):
 
         # get analytes
         self.analytes = np.array(data[0].analytes)
-        if internal_standard in self.analytes or internal_standard is None:
+        if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
             ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
-        # create empty set for minimal_analytes
-        self.minimal_analytes = set()
-
-        if internal_standard is not None:
-            self.minimal_analytes = set([internal_standard])
+        self.minimal_analytes = set([internal_standard])
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
@@ -361,7 +357,7 @@ class analyse(object):
                          despike_maxiter=4,
                          autorange_analyte='total_counts', autorange_gwin=5, autorange_swin=3, autorange_win=20,  # autorange args
                          autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1], autorange_nbin=10,
-                         autorange_transform='log',
+                         autorange_transform='log', autorange_thresh_n=None,
                          bkg_weight_fwhm=300.,  # bkg_calc_weightedmean
                          bkg_n_min=20, bkg_n_max=None, bkg_cstep=None,
                          bkg_filter=False, bkg_f_win=7, bkg_f_n_lim=3,
@@ -377,7 +373,7 @@ class analyse(object):
         self.autorange(analyte=autorange_analyte, gwin=autorange_gwin, swin=autorange_swin,
                        win=autorange_win, on_mult=autorange_on_mult,
                        off_mult=autorange_off_mult, nbin=autorange_nbin,
-                       transform=autorange_transform)
+                       transform=autorange_transform, thresh_n=autorange_thresh_n)
         if plots:
             self.trace_plots(ranges=True)
         self.bkg_calc_weightedmean(weight_fwhm=bkg_weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
@@ -396,7 +392,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
-                  transform='log', ploterrs=True):
+                  transform='log', thresh_n=None, ploterrs=True):
         """
         Automatically separates signal and background data regions.
 
@@ -498,7 +494,7 @@ class analyse(object):
             warnings.warn(wstr)
         return
 
-    def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
+    def find_expcoef(self, nsd_below=0., plot=False,
                      trimlim=None, autorange_kwargs={}):
         """
         Determines exponential decay coefficient for despike filter.
@@ -508,14 +504,13 @@ class analyse(object):
         coefficient reported is `nsd_below` standard deviations below the
         fitted exponent, to ensure that no real data is removed.
 
+        Total counts are used in fitting, rather than a specific analyte.
+
         Parameters
         ----------
         nsd_below : float
             The number of standard deviations to subtract from the fitted
             coefficient when calculating the filter exponent.
-        analyte : str
-            The analyte to consider when determining the coefficient.
-            Use high - concentration analyte for best estimates.
         plot : bool or str
             If True, creates a plot of the fit, if str the plot is to the
             location specified in str.
@@ -530,12 +525,7 @@ class analyse(object):
         -------
         None
         """
-        if analyte is None:
-            analyte = self.internal_standard
-
-        self.minimal_analytes.update([analyte])
-
-        print('Calculating exponential decay coefficient\nfrom SRM {} washouts...'.format(analyte))
+        print('Calculating exponential decay coefficient\nfrom SRM washouts...')
 
         def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
@@ -553,7 +543,7 @@ class analyse(object):
         times = []
         for v in self.stds:
             for trnrng in v.trnrng[-1::-2]:
-                tr = minmax_scale(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
+                tr = minmax_scale(v.data['total_counts'][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
                 sm = np.apply_along_axis(np.nanmean, 1,
                                          rolling_window(tr, 3, pad=0))
                 sm[0] = sm[1]
