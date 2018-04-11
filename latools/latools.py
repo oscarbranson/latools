@@ -279,6 +279,9 @@ class analyse(object):
         else:
             ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
+        # create empty set for minimal_analytes
+        self.minimal_analytes = set()
+
         if internal_standard is not None:
             self.minimal_analytes = set([internal_standard])
 
