@@ -281,6 +281,9 @@ class analyse(object):
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = set([internal_standard])
 
+        # keep record of which stages of processing have been performed
+        self.stages_complete = set()
+
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
 
@@ -648,6 +651,7 @@ class analyse(object):
             d.despike(expdecay_despiker, exponent,
                       noise_despiker, win, nlim, maxiter)
 
+        self.stages_complete.update('despiked')
         self.focus_stage = 'despiked'
         return
 
@@ -905,6 +909,7 @@ class analyse(object):
             [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus) for a in analytes]
             d.setfocus('bkgsub')
 
+        self.stages_complete.update('bkgsub')
         self.focus_stage = 'bkgsub'
         return
 
@@ -1045,6 +1050,7 @@ class analyse(object):
         for s in tqdm(self.data.values(), desc='Ratio Calculation'):
             s.ratio(internal_standard=self.internal_standard, focus=focus)
 
+        self.stages_complete.update('ratios')
         self.focus_stage = 'ratios'
         return
 
@@ -1361,8 +1367,8 @@ class analyse(object):
         for d in tqdm(self.data.values(), desc='Applying Calibrations'):
             d.calibrate(self.calib_ps, analytes)
 
+        self.stages_complete.update('calibrated')
         self.focus_stage = 'calibrated'
-
         return
 
     # data filtering
