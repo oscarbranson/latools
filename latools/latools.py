@@ -613,7 +613,7 @@ class analyse(object):
         return
 
     @_log
-    def despike(self, expdecay_despiker=False, exponent=None, tstep=None,
+    def despike(self, expdecay_despiker=False, exponent=None,
                 noise_despiker=True, win=3, nlim=12., exponentplot=False,
                 maxiter=4, autorange_kwargs={}):
         """
@@ -655,7 +655,7 @@ class analyse(object):
             time.sleep(0.1)
 
         for d in tqdm(self.data.values(), desc='Despiking'):
-            d.despike(expdecay_despiker, exponent, tstep,
+            d.despike(expdecay_despiker, exponent,
                       noise_despiker, win, nlim, maxiter)
 
         self.focus_stage = 'despiked'

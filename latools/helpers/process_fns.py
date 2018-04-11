@@ -60,13 +60,11 @@ def noise_despike(sig, win=3, nlim=24., maxiter=4):
     return sig
 
 
-def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
+def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3):
     """
-    Apply exponential decay filter to remove unrealistically low values.
+    Apply exponential decay filter to remove physically impossible data based on instrumental washout.
 
-    Warning
-    -------
-    THERE'S SOMETHING WRONG WITH THIS FUNCTION. REMOVES TOO MUCH DATA!
+    The filter is re-applied until no more points are removed, or maxiter is reached.
 
     Parameters
     ----------
@@ -75,28 +73,41 @@ def expdecay_despike(sig, expdecay_coef, tstep, maxiter=3, silent=True):
     tstep : float
         The time increment between data points.
     maxiter : int
-        The maximum number of iterations to
-        apply the filter
+        The maximum number of times the filter should be applied.
 
     Returns
     -------
     None
     """
-    lo = np.ones(len(sig), dtype=bool)  # initialize bool array
-    nloop = 0  # track number of iterations
-    # do the despiking
-    while any(lo) and (nloop <= maxiter):
-        # find values that are lower than allowed by the washout
-        # characteristics of the laser cell.
-        lo = sig < np.roll(sig * np.exp(expdecay_coef * tstep), 1)
-        if any(lo):
-            prev = sig[np.roll(lo, -1)]
-            sig[lo] = prev
-            nloop += 1
+    # determine rms noise of data
+    noise = np.std(sig[:5])  # initially, calculated based on first 5 points
+    # expand the selection up to 50 points, unless it dramatically increases 
+    # the std (i.e. catches the 'laser on' region)
+    for i in [10, 20, 30, 50]:
+        inoise = np.std(sig[:i])
+        if inoise < 1.5 * noise:
+            noise = inoise
+    rms_noise3 = 3 * noise
 
-    if nloop >= maxiter and not silent:
-        raise warnings.warn(('\n***maxiter ({}) exceeded during expdecay_despike***\n\n'.format(maxiter) +
-                             'This is probably because the expdecay_coef is too small.\n'))
+    i = 0
+    f = True
+    while (i < maxiter) and f:
+        # calculate low and high possibles values based on exponential decay
+        siglo = np.roll(sig * np.exp(tstep * expdecay_coef), 1)
+        sighi = np.roll(sig * np.exp(-tstep * expdecay_coef), -1)
+
+        # identify points that are outside these limits, beyond what might be explained
+        # by noise in the data
+        loind = (sig < siglo - rms_noise3) & (sig < np.roll(sig, -1) - rms_noise3)
+        hiind = (sig > sighi + rms_noise3) & (sig > np.roll(sig, 1) + rms_noise3)
+
+        # replace all such values with their preceding
+        sig[loind] = sig[np.roll(loind, -1)]
+        sig[hiind] = sig[np.roll(hiind, -1)]
+
+        f = any(np.concatenate([loind, hiind]))
+        i += 1
+
     return sig
 
 
@@ -373,35 +384,3 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
             ftrn[ind] = False
 
     return fbkg, fsig, ftrn, [f[0] for f in failed]
-
-
-# def rolling_mean_std(sig, win=3):
-#     npad = int((win - 1) / 2)
-#     sumkernel = np.ones(win)
-#     kernel = sumkernel / win
-#     mean = np.convolve(sig, kernel, 'same')
-#     mean[:npad] = sig[:npad]
-#     mean[-npad:] = sig[-npad:]
-#     # calculate sqdiff
-#     sqdiff = (sig - mean)**2
-#     sumsqdiff = np.convolve(sqdiff, sumkernel, 'same')
-#     std = np.sqrt(sumsqdiff / win)
-
-#     return mean[5], sqdiff[4:7], sumsqdiff[5], std[5]
-
-#     # print(np.convolve(a, sumkernel, 'valid'))
-
-
-# if __name__ == '__main__':
-#     a = np.random.normal(5, 1, 100)
-#     a[30] = 10
-#     print(rolling_mean_std(a))
-
-#     print(np.convolve(np.ones(10), np.ones(3), 'same'))
-#     asub = a[4:7]
-#     print(asub)
-#     masub = np.mean(asub)
-#     sqdiff = (asub - masub)**2
-#     sumsqdiff = np.sum(sqdiff)
-#     std = np.sqrt(sumsqdiff / 3)
-#     print(masub, sumsqdiff, std)

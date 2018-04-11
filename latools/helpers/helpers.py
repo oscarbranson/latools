@@ -20,7 +20,6 @@ class Bunch(dict):
         super(Bunch, self).__init__(*args, **kwds)
         self.__dict__ = self
 
-
 # warnings monkeypatch
 # https://stackoverflow.com/questions/2187269/python-print-only-the-message-on-warnings
 def _warning(message, category=UserWarning,
@@ -83,7 +82,6 @@ def get_total_time_span(d):
     
     return tmax
 
-
 def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
@@ -142,7 +140,6 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
             n += 1
     return float(1000**n), udict[n]
 
-
 def pretty_element(s):
     """
     Returns formatted element name.
@@ -160,9 +157,7 @@ def pretty_element(s):
     el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
     m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
 
-#     g = re.match('([A-Z][a-z]?)([0-9]+)', s).groups()
     return '$^{' + m + '}$' + el
-
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
     """
@@ -197,7 +192,6 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
                 shutil.copy(p + '/' + f, out_dir + '/' + f)
     return
 
-
 def bool_2_indices(a):
     """
     Convert boolean array into a 2D array of (start, stop) pairs.
@@ -216,65 +210,6 @@ def bool_2_indices(a):
         return np.reshape(lims, (lims.size // 2, 2))
     else:
         return None
-
-
-
-# def bool_2_indices(a):
-#     if any(a):
-#         lims = []
-#         d = np.where(a)[0]  # find indices of True
-#         lims.append([d[0]])  # add first
-#         lims.append([d[-1]])  # add last
-#         wnc = np.where(np.diff(d) != 1)[0]  # find where indices are non consecutive
-#         if len(wnc) > 0:
-#             lims.append(d[wnc] + 1)  # add last consecutive + 1
-#             lims.append(d[(wnc + 1)])  # add first consecutive
-#         lims = np.concatenate(lims)  # combine lims and sort
-#         lims.sort()  # sort output
-#         return np.reshape(lims, (lims.size // 2, 2))
-#     else:
-#         return None
-
-# def bool_2_indices(bool_array):
-#     """
-#     Get list of limit tuples from boolean array.
-
-#     Parameters
-#     ----------
-#     bool_array : array_like
-#         boolean array
-
-#     Returns
-#     -------
-#     array_like
-#         [2, n] array of (start, end) values describing True parts
-#         of bool_array
-#     """
-#     if ~isinstance(bool_array, np.ndarray):
-#         bool_array = np.array(bool_array)
-
-#     lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
-#     if len(lims) > 0:
-#         if bool_array[0]:
-#             lims = np.concatenate([[0], lims])
-#         if bool_array[-1]:
-#             lims = np.concatenate([lims, [bool_array.size - 1]])
-#         return np.reshape(lims, (len(lims) // 2, 2))
-#     else:
-#         return [[np.nan, np.nan]]
-
-    # if ~isinstance(bool_array, np.ndarray):
-    #     bool_array = np.array(bool_array)
-    # # if bool_array[-1]:
-    # #     bool_array[-1] = False
-    # lims = np.arange(bool_array.size)[bool_array ^ np.roll(bool_array, 1)]
-    # if len(lims) > 0:
-    #     # if lims[-1] == bool_array.size - 1:
-    #     #     lims[-1] = bool_array.size
-    #     return np.reshape(lims, (len(lims) // 2, 2))
-    # else:
-    #     return [[np.nan, np.nan]]
-
 
 def enumerate_bool(bool_array, nstart=0):
     """
@@ -298,7 +233,6 @@ def enumerate_bool(bool_array, nstart=0):
     for n, lims in enumerate(ind):
         ns[lims[0]:lims[-1] + 1] = nstart + n + 1
     return ns
-
 
 def tuples_2_bool(tuples, x):
     """
@@ -338,21 +272,11 @@ def get_example_data(destination_dir):
 
     return
 
-
-# for plotting
-# def rangecalc(xs, ys, pad=0.05):
-#     xd = max(xs)
-#     yd = max(ys)
-#     return ([0 - pad * xd, max(xs) + pad * xd],
-#             [0 - pad * yd, max(ys) + pad * yd])
-
 def rangecalc(xs, pad=0.05):
     mn = np.nanmin(xs)
     mx = np.nanmax(xs)
     xr = mx - mn
     return [mn - pad * xr, mx + pad * xr]
-
-
 class un_interp1d(object):
     """
     object for handling interpolation of values with uncertainties.
@@ -374,7 +298,6 @@ class un_interp1d(object):
 
     def new_std(self, xn):
         return self.std_interp(xn)
-
 
 def rolling_window(a, window, pad=None):
     """
@@ -427,7 +350,6 @@ def rolling_window(a, window, pad=None):
     else:
         return out
 
-
 def fastsmooth(a, win=11):
     """
     Returns rolling - window smooth of a.
@@ -456,21 +378,6 @@ def fastsmooth(a, win=11):
     spad = np.full(npad + 1, np.mean(a[:(npad + 1)]))
     epad = np.full(npad - 1, np.mean(a[-(npad - 1):]))
     return np.concatenate([spad, np.convolve(a, kernel, 'valid'), epad])
-
-    # # check to see if 'window' is odd (even does not work)
-    # if win % 2 == 0:
-    #     win -= 1  # subtract 1 from window if it is even.
-    # # trick for efficient 'rolling' computation in numpy
-    # # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
-    # # strides = a.strides + (a.strides[-1], )
-    # # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    # wins = rolling_window(a, win)
-    # # apply rolling gradient to data
-    # a = map(np.nanmean, wins)
-
-    # return np.concatenate([np.zeros(int(win / 2)), list(a),
-    #                        np.zeros(int(win / 2))])
-
 
 def fastgrad(a, win=11):
     """
@@ -504,9 +411,6 @@ def fastgrad(a, win=11):
     a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
 
     return np.array(list(a))
-    # return np.concatenate([np.zeros(int(win / 2)), list(a),
-    #                        np.zeros(int(win / 2))])
-
 
 def calc_grads(x, dat, keys=None, win=5):
     """
@@ -548,7 +452,6 @@ def calc_grads(x, dat, keys=None, win=5):
 
     return grads
 
-
 def findmins(x, y):
     """ Function to find local minima.
 
@@ -563,13 +466,6 @@ def findmins(x, y):
         Array of points in x where y has a local minimum.
     """
     return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
-
-
-# def gaus_deriv(x, *p):
-#     A, mu, sigma = p
-#     return A * ((np.exp((-(x - mu)**2)/(2*sigma**2)) * (x - mu)) /
-#                 (np.sqrt(2 * np.pi) * sigma**3))
-
 
 def stack_keys(ddict, keys, extra=None):
     """

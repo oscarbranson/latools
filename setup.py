@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='latools',
-      version='0.3.3',
+      version='0.3.4',
       description='Tools for LA-ICPMS data analysis.',
       url='https://github.com/oscarbranson/latools',
       author='Oscar Branson',
@@ -22,9 +22,7 @@ setup(name='latools',
                         'scipy',
                         'Ipython',
                         'configparser',
-                        'tqdm',
-                        'fuzzywuzzy',
-                        'python-Levenshtein'
+                        'tqdm'
                         ],
       package_data={
         'latools': ['latools.cfg',

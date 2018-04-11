@@ -19,6 +19,8 @@ The complexity of this data format description will depend on the format of your
 
 To make this process as painless as possible, we've put together a step-by-step guide on how to approach this is in the :ref:`data_formats` section. 
 
+If you get stuck, head on over to the `mailing list <https://groups.google.com/forum/#!forum/la>`_, and ask for help.
+
 2. Modify/Make a SRM database File
 ==================================
 This contains raw compositional values for the SRMs you use in analysis, and is essential for calibrating your data.

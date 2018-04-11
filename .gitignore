@@ -5,7 +5,7 @@ test_data/STD-3.csv
 latools.pro.user
 latools.egg-info
 ./*.ipynb
-comparison*
+comparison/*
 Training
 *__pycache__*
 latools_demo

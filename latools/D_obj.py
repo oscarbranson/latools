@@ -84,7 +84,7 @@ class D(object):
     ns : array_like
         An integer array the same length as the data, where each analysis
         spot is labelled with a unique number. Used for separating
-        analysys spots when calculating sample statistics.
+        analysis spots when calculating sample statistics.
     filt : filt object
         An object for storing, selecting and creating data filters.F
     """
@@ -102,7 +102,11 @@ class D(object):
         self.internal_standard = internal_standard
 
         self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+
+        # assign time information to attribute level
         self.Time = self.data['Time']
+        self.tstep = self.Time[1] - self.Time[0]
+        self.uTime = self.Time  # placeholder for uTime
 
         # set focus to rawdata
         self.setfocus('rawdata')
@@ -177,7 +181,7 @@ class D(object):
         # setattr(self, k, self.focus[k])
 
     @_log
-    def despike(self, expdecay_despiker=True, exponent=None, tstep=None,
+    def despike(self, expdecay_despiker=True, exponent=None,
                 noise_despiker=True, win=3, nlim=12., maxiter=3):
         """
         Applies expdecay_despiker and noise_despiker to data.
@@ -189,9 +193,6 @@ class D(object):
         exponent : None or float
             The exponent for the exponential decay filter. If None,
             it is determined automatically using `find_expocoef`.
-        tstep : None or float
-            The timeinterval between measurements. If None, it is
-            determined automatically from the Time variable.
         noise_despiker : bool
             Whether or not to apply the standard deviation spike filter.
         win : int
@@ -215,11 +216,10 @@ class D(object):
         for a, v in self.focus.items():
             if 'time' not in a.lower():
                 sig = v.copy()  # copy data
+                if expdecay_despiker:
+                    sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
                 if noise_despiker:
                     sig = proc.noise_despike(sig, int(win), nlim, maxiter)
-                if expdecay_despiker:
-                    warnings.warn('expdecay_spiker is broken... not run.')
-                    # sig = proc.expdecay_despike(v, exponent, tstep, maxiter)
                 out[a] = sig
 
         self.data['despiked'].update(out)
@@ -441,23 +441,6 @@ class D(object):
         self.setfocus('ratios')
         return
 
-    # def drift_params(self, pout, a):
-    #     p_nom = list(zip(*pout.loc[:, a].apply(nominal_values)))
-    #     p_err = list(zip(*pout.loc[:, a].apply(std_devs)))
-
-    #     if len(p_nom) > 1:
-    #         npar = len(p_nom)
-
-    #         ps = []
-    #         for i in range(npar):
-    #             p_est = interp.interp1d(pout.index.values, p_nom[i])
-    #             e_est = interp.interp1d(pout.index.values, p_err[i])
-    #             ps.append(un.uarray(p_est(self.uTime), e_est(self.uTime)))
-
-    #         return ps
-    #     else:
-    #         return pout[a]
-
     @_log
     def calibrate(self, calib_ps, analytes=None):
         """
@@ -662,164 +645,6 @@ class D(object):
                         above,
                         'Keep gradient above {:.3e} '.format(threshold) + analyte,
                         params, setn=setn)
-
-    # @_log
-    # def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
-    #                               on_mult=(1., 1.), off_mult=(1., 1.), filt=False,
-    #                               nbin=5):
-    #     """
-    #     Find inclusions in profile based on specific analytes.
-
-    #     Identifies anomalously high / low regions of a specific analyte or analytes
-    #     and returns two filters of the 'low' and 'high' regions, excluding the
-    #     the transition between them.
-
-    #     The mechanics of the filter is identical to the `autorange` function.
-
-    #     Parameters
-    #     ----------
-    #     analytes : str or list
-    #         Which analytes to use to identify inclusions.
-    #     gwin : int
-    #         The size of the window used for smoothing and calculating the derivative.
-    #     win : int
-    #         The region either side of lo-hi transitions to consider for exclusion.
-    #     log : bool
-    #         Whether or not to log-transform the data
-    #     on_mult, off_mult : tuple
-    #         The width (multiples of FWHM) either side of identified matierla transitions to exclude.
-    #     """
-    #     params = locals()
-    #     del(params['self'])
-
-    #     if isinstance(analytes, str):
-    #         y = nominal_values(self.focus[analytes])
-    #         analytes = analytes[analytes]
-    #     else:
-    #         ys = np.zeros((self.Time.size, len(analytes)))
-    #         for i, a in enumerate(analytes):
-    #             ys[:, i] = nominal_values(self.focus[a])
-    #         y = ys.sum(1)
-
-    #     # transform data, if specified
-    #     if log:
-    #         y = np.log10(y)
-
-    #     # generate filter, if on
-    #     if filt is not False:
-    #         ind = (self.filt.grab_filt(filt, analytes) & ~np.isnan(y))
-    #     else:
-    #         ind = ~np.isnan(y)
-
-    #     # create empy arrays for result
-    #     lo = np.zeros(y.size, dtype=bool)
-    #     hi = np.zeros(y.size, dtype=bool)
-
-    #     # calculate filter
-    #     lo[ind], hi[ind], _, _ = proc.autorange(self.Time[ind], y[ind],
-    #                                             gwin=gwin, swin=swin, win=win, on_mult=on_mult,
-    #                                             off_mult=off_mult, nbin=nbin)
-
-    #     setn = self.filt.maxset + 1
-    #     self.filt.add(name='-'.join(analytes) + '_inclusion-excluder_lo',
-    #                   filt=lo, info='Regions with low concentrations of analytes.',
-    #                   params=params, setn=setn)
-    #     self.filt.add(name='-'.join(analytes) + '_inclusion-excluder_hi',
-    #                   filt=hi, info='Regions with high concentrations of analytes.',
-    #                   params=params, setn=setn)
-    #     return
-
-    # @_log
-    # def filter_distribution(self, analytes, binwidth='scott', filt=False,
-    #                         transform=None, min_data=10):
-    #     """
-    #     Apply a Distribution Filter
-
-    #     Parameters
-    #     ----------
-    #     analytes : str or list
-    #         The analyte that the filter applies to.
-    #     binwidth : str of float
-    #         Specify the bin width of the kernel density estimator.
-    #         Passed to `scipy.stats.gaussian_kde`.
-    #         If 'scott' or 'silverman', the method used to automatically
-    #         estimate bin width. If float, it manually sets the binwidth.
-    #     filt : bool
-    #         Whether or not to apply existing filters to the data before
-    #         calculating this filter.
-    #     transform : str
-    #         If 'log', applies a log transform to the data before calculating
-    #         the distribution.
-    #     min_data : int
-    #         The minimum number of data points that should be considered by
-    #         the filter. Default = 10.
-
-    #     Returns
-    #     -------
-    #     None
-
-    #     """
-    #     params = locals()
-    #     del(params['self'])
-
-    #     if isinstance(analytes, str):
-    #         analytes = [analytes]
-
-    #     for analyte in analytes:
-    #         # generate filter
-    #         vals = np.vstack(nominal_values(list(self.focus.values())))
-    #         if filt is not None:
-    #             ind = (self.filt.grab_filt(filt, analyte) &
-    #                    np.apply_along_axis(all, 0, ~np.isnan(vals)))
-    #         else:
-    #             ind = np.apply_along_axis(all, 0, ~np.isnan(vals))
-
-    #         if sum(ind) > min_data:
-    #             # isolate data
-    #             d = nominal_values(self.focus[analyte][ind])
-    #             setn = self.filt.maxset + 1
-
-    #             if transform == 'log':
-    #                 d = np.log10(d)
-
-    #             # gaussian kde of data
-    #             kde = gaussian_kde(d, bw_method=binwidth)
-    #             x = np.linspace(np.nanmin(d), np.nanmax(d),
-    #                             kde.dataset.size // 3)
-    #             yd = kde.pdf(x)
-    #             limits = np.concatenate([findmins(x, yd), [x.max()]])
-
-    #             if transform == 'log':
-    #                 limits = 10**limits
-
-    #             if limits.size > 1:
-    #                 first = True
-    #                 for i in np.arange(limits.size):
-    #                     if first:
-    #                         filt = self.focus[analyte] < limits[i]
-    #                         info = analyte + ' distribution filter, 0 <i> {:.2e}'.format(limits[i])
-    #                         first = False
-    #                     else:
-    #                         filt = (self.focus[analyte] < limits[i]) & (self.focus[analyte] > limits[i - 1])
-    #                         info = analyte + ' distribution filter, {:.2e} <i> {:.2e}'.format(limits[i - 1], limits[i])
-
-    #                     self.filt.add(name=analyte + '_distribution_{:.0f}'.format(i),
-    #                                   filt=filt,
-    #                                   info=info,
-    #                                   params=params, setn=setn)
-    #             else:
-    #                 self.filt.add(name=analyte + '_distribution_failed',
-    #                               filt=~np.isnan(nominal_values(self.focus[analyte])),
-    #                               info=analyte + ' is within a single distribution. No data removed.',
-    #                               params=params, setn=setn)
-    #         else:
-    #             # if there are no data
-    #             name = analyte + '_distribution_0'
-    #             info = analyte + ' distribution filter (< {:.0f} data points)'.format(min_data)
-
-    #             self.filt.add(name, np.zeros(self.Time.size, dtype=bool),
-    #                           info=info, params=params, setn=setn)
-    #     return
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
@@ -1032,129 +857,6 @@ class D(object):
                           info=info, params=params, setn=setn)
 
         return
-
-    # def cluster_meanshift(self, data, bandwidth=None, bin_seeding=False):
-    #     """
-    #     Identify clusters using Meanshift algorithm.
-
-    #     Parameters
-    #     ----------
-    #     data : array_like
-    #         array of size [n_samples, n_features].
-    #     bandwidth : float or None
-    #         If None, bandwidth is estimated automatically using
-    #         sklean.cluster.estimate_bandwidth
-    #     bin_seeding : bool
-    #         Setting this option to True will speed up the algorithm.
-    #         See sklearn documentation for full description.
-
-    #     Returns
-    #     -------
-    #     dict
-    #         boolean array for each identified cluster.
-    #     """
-    #     if bandwidth is None:
-    #         bandwidth = cl.estimate_bandwidth(data)
-
-    #     ms = cl.MeanShift(bandwidth=bandwidth, bin_seeding=bin_seeding)
-    #     ms.fit(data)
-
-    #     labels = ms.labels_
-
-    #     return labels, [np.nan]
-
-    # def cluster_kmeans(self, data, n_clusters):
-    #     """
-    #     Identify clusters using K - Means algorithm.
-
-    #     Parameters
-    #     ----------
-    #     data : array_like
-    #         array of size [n_samples, n_features].
-    #     n_clusters : int
-    #         The number of clusters expected in the data.
-
-    #     Returns
-    #     -------
-    #     dict
-    #         boolean array for each identified cluster.
-    #     """
-    #     km = cl.KMeans(n_clusters)
-    #     kmf = km.fit(data)
-
-    #     labels = kmf.labels_
-
-    #     return labels, [np.nan]
-
-    # def cluster_DBSCAN(self, data, eps=None, min_samples=None,
-    #                    n_clusters=None, maxiter=200):
-    #     """
-    #     Identify clusters using DBSCAN algorithm.
-
-    #     Parameters
-    #     ----------
-    #     data : array_like
-    #         array of size [n_samples, n_features].
-    #     eps : float
-    #         The minimum 'distance' points must be apart for them to be in the
-    #         same cluster. Defaults to 0.3. Note: If the data are normalised
-    #         (they should be for DBSCAN) this is in terms of total sample
-    #         variance.  Normalised data have a mean of 0 and a variance of 1.
-    #     min_samples : int
-    #         The minimum number of samples within distance `eps` required
-    #         to be considered as an independent cluster.
-    #     n_clusters : int
-    #         The number of clusters expected. If specified, `eps` will be
-    #         incrementally reduced until the expected number of clusters is
-    #         found.
-    #     maxiter : int
-    #         The maximum number of iterations DBSCAN will run.
-
-    #     Returns
-    #     -------
-    #     dict
-    #         boolean array for each identified cluster and core samples.
-    #     """
-    #     if min_samples is None:
-    #         min_samples = self.Time.size // 20
-
-    #     if n_clusters is None:
-    #         if eps is None:
-    #             eps = 0.3
-    #         db = cl.DBSCAN(eps=eps, min_samples=min_samples).fit(data)
-    #     else:
-    #         clusters = 0
-    #         eps_temp = 1 / .95
-    #         niter = 0
-    #         while clusters < n_clusters:
-    #             clusters_last = clusters
-    #             eps_temp *= 0.95
-    #             db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-    #             clusters = (len(set(db.labels_)) -
-    #                         (1 if -1 in db.labels_ else 0))
-    #             if clusters < clusters_last:
-    #                 eps_temp *= 1 / 0.95
-    #                 db = cl.DBSCAN(eps=eps_temp, min_samples=15).fit(data)
-    #                 clusters = (len(set(db.labels_)) -
-    #                             (1 if -1 in db.labels_ else 0))
-    #                 warnings.warn(('\n\n***Unable to find {:.0f} clusters in '
-    #                                'data. Found {:.0f} with an eps of {:.2e}'
-    #                                '').format(n_clusters, clusters, eps_temp))
-    #                 break
-    #             niter += 1
-    #             if niter == maxiter:
-    #                 warnings.warn(('\n\n***Maximum iterations ({:.0f}) reached'
-    #                                ', {:.0f} clusters not found.\nDeacrease '
-    #                                'min_samples or n_clusters (or increase '
-    #                                'maxiter).').format(maxiter, n_clusters))
-    #                 break
-
-    #     labels = db.labels_
-
-    #     core_samples_mask = np.zeros_like(labels)
-    #     core_samples_mask[db.core_sample_indices_] = True
-
-    #     return labels, core_samples_mask
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,

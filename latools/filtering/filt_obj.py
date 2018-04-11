@@ -4,7 +4,7 @@ An object used for storing, manipulating and modifying data filters.
 
 import re
 import numpy as np
-from fuzzywuzzy import fuzz
+from difflib import SequenceMatcher as seqm
 from latools.helpers.helpers import bool_2_indices
 
 class filt(object):
@@ -61,6 +61,7 @@ class filt(object):
         self.keys = {}
         self.n = 0
         self.switches = {}
+        self.sequence = {}
         for a in self.analytes:
             self.switches[a] = {}
 
@@ -331,9 +332,8 @@ class filt(object):
         The name of the most closely matched filter. : str
         """
 
-        keys, ratios = np.array([(f, fuzz.ratio(fuzzkey, f)) for f in self.components.keys()]).T
-        ratios = ratios.astype(float)
-        mratio = ratios.max()
+        keys, ratios = np.array([(f, seqm(None, fuzzkey, f).ratio()) for f in self.components.keys()]).T
+        mratio = max(ratios)
 
         if multi:
             return keys[ratios == mratio]
@@ -486,7 +486,7 @@ class filt(object):
 
 
 
-## Re-write filt object to use pandas
+## TODO: [Low Priority] Re-write filt object to use pandas?
 
 # class filt(object):
     
@@ -521,11 +521,6 @@ class filt(object):
 
 #     def clear(self):
 #         self.__init__(self.size, self.analytes)
-        
-
-    
-
-    
     
 #     def clean(self):
 #         pass
