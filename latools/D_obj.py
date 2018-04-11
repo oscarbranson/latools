@@ -217,7 +217,11 @@ class D(object):
             if 'time' not in a.lower():
                 sig = v.copy()  # copy data
                 if expdecay_despiker:
-                    sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
+                    if exponent is not None:
+                        sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
+                    else:
+                        warnings.warn('exponent is None - either provide exponent, or run at `analyse`\nlevel to automatically calculate it.')
+                
                 if noise_despiker:
                     sig = proc.noise_despike(sig, int(win), nlim, maxiter)
                 out[a] = sig

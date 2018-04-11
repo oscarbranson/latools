@@ -1221,7 +1221,6 @@ class analyse(object):
     def clear_calibration(self):
         del self.srmtabs
         del self.calib_params
-        del self.calib_fns
         del self.calib_ps
 
     # apply calibration to data
