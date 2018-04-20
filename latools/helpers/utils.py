@@ -87,5 +87,6 @@ def read_logfile(log_file):
             runargs[fname]['kwargs']['config'] = 'REPRODUCE'
             runargs[fname]['kwargs']['dataformat'] = None
             runargs[fname]['kwargs']['data_folder'] = paths['data_folder']
+            runargs[fname]['kwargs']['srm_file'] = paths['srm_table']
 
     return runargs, paths

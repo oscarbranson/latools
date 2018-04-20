@@ -3718,11 +3718,8 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
 
-    # reproduce analysis
+    # create analysis object
     rep = analyse(*runargs['__init__']['args'], **runargs['__init__']['kwargs'])
-
-    rep.srmdat = pd.read_csv(paths['srm_table']).set_index('SRM')
-    print('SRM values loaded from: {}'.format(paths['srm_table']))
 
     # rest of commands
     for fname, arg in runargs.items():
@@ -3735,6 +3732,3 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
                 getattr(rep, fname)(*arg['args'], **arg['kwargs'])
 
     return rep
-
-
-analyze = analyse  # for the yanks
