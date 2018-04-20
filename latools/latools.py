@@ -3597,10 +3597,12 @@ class analyse(object):
 
         return
 
-    def save_log(self, directory, header=None):
+    def save_log(self, directory=None, header=None):
         """
         Save analysis.log in specified location
         """
+        if directory is None:
+            directory = self.export_dir
         if not os.path.isdir(directory):
             directory = os.path.dirname(directory)
 
