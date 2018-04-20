@@ -103,6 +103,9 @@ class D(object):
 
         self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
 
+        # calculate total counts
+        self.data['total_counts'] = sum(self.data['rawdata'].values())
+
         # assign time information to attribute level
         self.Time = self.data['Time']
         self.tstep = self.Time[1] - self.Time[0]
@@ -227,6 +230,7 @@ class D(object):
                 out[a] = sig
 
         self.data['despiked'].update(out)
+        # recalculate total counts
         self.data['total_counts'] = sum(self.data['despiked'].values())
         self.setfocus('despiked')
         return
@@ -401,12 +405,10 @@ class D(object):
 
         Results is saved in new 'bkgsub' focus stage
 
-
         Returns
         -------
         None
         """
-
         if 'bkgsub' not in self.data.keys():
             self.data['bkgsub'] = Bunch()
 
@@ -418,7 +420,7 @@ class D(object):
         return
 
     @_log
-    def ratio(self, internal_standard=None, focus='bkgsub'):
+    def ratio(self, internal_standard=None):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -426,9 +428,6 @@ class D(object):
         ----------
         internal_standard : str
             The analyte used as the internal_standard.
-        focus : str
-            The analysis stage to perform the ratio calculation on.
-            Defaults to 'signal'.
 
         Returns
         -------
@@ -437,11 +436,10 @@ class D(object):
         if internal_standard is not None:
             self.internal_standard = internal_standard
 
-        self.setfocus(focus)
         self.data['ratios'] = Bunch()
         for a in self.analytes:
-            self.data['ratios'][a] = (self.focus[a] /
-                                      self.focus[self.internal_standard])
+            self.data['ratios'][a] = (self.data['bkgsub'][a] /
+                                      self.data['bkgsub'][self.internal_standard])
         self.setfocus('ratios')
         return
 
