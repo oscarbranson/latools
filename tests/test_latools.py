@@ -13,7 +13,7 @@ class test_latools(unittest.TestCase):
     d = la.analyse('./tests/test_dir/test_data', internal_standard="Ca43")
 
     # despike
-    d.despike(expdecay_despiker=False, noise_despiker=True)
+    d.despike(expdecay_despiker=True, noise_despiker=True)
 
     # autorange
     d.autorange(on_mult=[1.5, 0.8],
