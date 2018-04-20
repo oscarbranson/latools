@@ -1,12 +1,15 @@
 language: python
 python:
   - "3.6"
-os: linux
+os: 
+  - linux
+  - osx
 
 install: 
   - pip install .
 
-script: pytest -s
+script: 
+  - pytest -s
 
 before_install:
     # Tricks to avoid matplotlib error about X11:
