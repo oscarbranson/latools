@@ -31,6 +31,7 @@ from .helpers.helpers import (rolling_window, enumerate_bool,
                       get_total_time_span)
 from .helpers.config import read_configuration
 from .helpers.stat_fns import *
+from .helpers import utils
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -3592,7 +3593,7 @@ class analyse(object):
                 f.write(csv)
         return
 
-    def minimal_export(self, target_analytes=None, override=False, path=None):
+    def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=False):
         """
         Exports a analysis parameters, standard info and a minimal dataset,
         which can be imported by another user.
@@ -3649,8 +3650,13 @@ class analyse(object):
         with open(path + '/srm.table', 'w') as f:
             f.write(srmdat.to_csv())
 
+        if zip_archive:
+            utils.zipdir(path, delete=True)
+        
+        return
 
-def reproduce(log_file, plotting=False, data_folder=None,
+
+def reproduce(past_analysis, plotting=False, data_folder=None,
               srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
@@ -3680,25 +3686,30 @@ def reproduce(log_file, plotting=False, data_folder=None,
         stat functions should normally be included in the
         same folder as the log file.
     """
-    dirname = os.path.dirname(log_file) + '/'
+    if '.zip' in past_analysis:
+        utils.extract_zipdir(past_analysis)
+        logpath = os.path.join(os.path.dirname(past_analysis),
+                               os.path.basename(past_analysis).replace('.zip', ''),
+                               'analysis.log')
+    elif os.path.isdir(past_analysis):
+        if os.path.exists(os.path.join(past_analysis, 'analysis.log')):
+            logpath = os.path.join(past_analysis, 'analysis.log')
+    elif 'analysis.log' in past_analysis:
+        logpath = past_analysis
+    else:
+        raise ValueError(('\n\n{} is not a valid input.\n\n' + 
+                          'Must be one of:\n' +
+                          '  - A .zip file exported by latools\n' + 
+                          '  - An analysis.log file\n' +
+                          '  - A directory containing an analysis.log files\n'))
 
-    with open(log_file, 'r') as f:
-        rlog = f.readlines()
+    runargs, paths = utils.read_logfile(logpath)
 
-    hashind = [i for i, n in enumerate(rlog) if '#' in n]
-
-    pathread = re.compile('(.*) :: (.*)\n')
-    paths = dict([pathread.match(l).groups() for l in rlog[hashind[0] + 1:hashind[-1]] if pathread.match(l)])
-
-    if data_folder is None:
-        data_folder = dirname + paths['data_folder']
-    if srm_table is None:
-        srm_table = dirname + paths['srm_table']
-
+    # parse custom stat functions
     csfs = Bunch()
     if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
         # load custom functions as a dict
-        with open(dirname + paths['custom_stat_functions'], 'r') as f:
+        with open(paths['custom_stat_functions'], 'r') as f:
             csf = f.read()
 
         fname = re.compile('def (.*)\(.*')
@@ -3708,31 +3719,22 @@ def reproduce(log_file, plotting=False, data_folder=None,
                 csfs[fname.match(c).groups()[0]] = c
 
     # reproduce analysis
-    logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
+    rep = analyse(*runargs['__init__']['args'], **runargs['__init__']['kwargs'])
 
-    init_kwargs = eval(logread.match(rlog[hashind[1] + 1]).groups()[-1])
-    init_kwargs['config'] = 'REPRODUCE'
-    init_kwargs['dataformat'] = None
-    init_kwargs['data_folder'] = data_folder
-
-    dat = analyse(**init_kwargs)
-
-    dat.srmdat = pd.read_csv(srm_table).set_index('SRM')
-    print('SRM values loaded from: {}'.format(srm_table))
+    rep.srmdat = pd.read_csv(paths['srm_table']).set_index('SRM')
+    print('SRM values loaded from: {}'.format(paths['srm_table']))
 
     # rest of commands
-    for l in rlog[hashind[1] + 2:]:
-        fname, args, kwargs = logread.match(l).groups()
-        if 'sample_stats' in fname:
-            dat.sample_stats(*eval(args), csf_dict=csfs, **eval(kwargs))
-        elif 'plot' not in fname.lower():
-            getattr(dat, fname)(*eval(args), **eval(kwargs))
-        elif plotting:
-            getattr(dat, fname)(*eval(args), **eval(kwargs))
-        else:
-            pass
+    for fname, arg in runargs.items():
+        if fname != '__init__':
+            if 'plot' in fname.lower() and plotting:
+                getattr(rep, fname)(*arg['args'], **arg['kwargs'])
+            elif 'sample_stats' in fname.lower():
+                rep.sample_stats(*arg['args'], csf_dict=csfs, **arg['kwargs'])
+            else:
+                getattr(rep, fname)(*arg['args'], **arg['kwargs'])
 
-    return dat
+    return rep
 
 
 analyze = analyse  # for the yanks
