@@ -1,4 +1,8 @@
+import sys
 from setuptools import setup, find_packages
+
+if sys.version_info < (3,6):
+    sys.exit('Sorry, Python < 3,6 is not supported. Please upgrade Python, and try again.')
 
 setup(name='latools',
       version='0.3.4',
