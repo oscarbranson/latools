@@ -65,6 +65,21 @@ def extract_zipdir(zip_file):
     return None
 
 def read_logfile(log_file):
+    """
+    Reads an latools analysis.log file, and returns dicts of arguments.
+
+    Parameters
+    ----------
+    log_file : str
+        Path to an analysis.log file produced by latools.
+    
+    Returns
+    -------
+    runargs, paths : tuple
+        Two dictionaries. runargs contains all the arguments required to run each step
+        of analysis in the form (function_name, {'args': (), 'kwargs': {}}). paths contains
+        the locations of the data directory and the SRM database used for analysis.
+    """
     dirname = os.path.dirname(log_file) + '/'
     
     with open(log_file, 'r') as f:
