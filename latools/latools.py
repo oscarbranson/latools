@@ -3500,7 +3500,7 @@ class analyse(object):
 
     @_log
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
-                      samples=None, subset='All_Analyses', filt=False):
+                      samples=None, subset='All_Analyses', filt=False, zip_archive=False):
         """
         Function to export raw data.
 
@@ -3550,7 +3550,7 @@ class analyse(object):
             analytes = analytes[analytes != self.internal_standard]
 
         if outdir is None:
-            outdir = self.export_dir
+            outdir = os.path.join(self.export_dir, 'trace_export')
 
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
@@ -3591,7 +3591,29 @@ class analyse(object):
             with open('%s/%s_%s.csv' % (outdir, s, focus_stage), 'w') as f:
                 f.write(header)
                 f.write(csv)
+        
+        if zip_archive:
+            utils.zipdir(outdir, delete=True)
+
         return
+
+    def save_log(self, directory, header=None):
+        """
+        Save analysis.log in specified location
+        """
+        if not os.path.isdir(directory):
+            directory = os.path.dirname(directory)
+
+        if header is None:
+            log_header = ['# LATOOLS analysis log exported on {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
+                          'data_folder :: {}'.format(self.folder),
+                          '# Analysis Log Start: \n'
+                         ]
+        with open(os.path.join(directory, 'analysis.log'), 'w') as f:
+            f.write('\n'.join(header))
+            f.write('\n'.join(self.log))
+        
+        return 
 
     def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=False):
         """
@@ -3614,7 +3636,7 @@ class analyse(object):
         # export data
         self._minimal_export_traces(path + '/data', analytes=self.minimal_analytes)
 
-        # define analysis_log header
+         # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
                       'data_folder :: ./data/',
@@ -3636,9 +3658,7 @@ class analyse(object):
             self.log[i] = rep.sub(r'\1' + str(self.stats_calced) + r'\3', l)
 
         # save log
-        with open(path + '/analysis.log', 'w') as f:
-            f.write('\n'.join(log_header))
-            f.write('\n'.join(self.log))
+        self.save_log(path, log_header)
 
         # export srm table
         els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
