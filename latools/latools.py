@@ -283,7 +283,7 @@ class analyse(object):
         self.minimal_analytes = set([internal_standard])
 
         # keep record of which stages of processing have been performed
-        self.stages_complete = set()
+        self.stages_complete = set(['rawdata'])
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
@@ -318,18 +318,6 @@ class analyse(object):
                                  len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
         print('  Internal Standard: {}'.format(self.internal_standard))
-
-    # Helper Functions
-    # def _log(func):
-    #     """
-    #     Function for logging method calls and parameters
-    #     """
-    #     @wraps(func)
-    #     def wrapper(self, *args, **kwargs):
-    #         a = func(self, *args, **kwargs)
-    #         self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-    #         return a
-    #     return wrapper
 
     def _get_samples(self, subset=None):
         """
@@ -396,7 +384,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
-                  transform='log', thresh_n=None, ploterrs=True):
+                  transform='log', thresh_n=None, ploterrs=True, focus_stage='despiked'):
         """
         Automatically separates signal and background data regions.
 
@@ -449,6 +437,18 @@ class analyse(object):
             if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked', or rawdata' if not despiked. Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
@@ -460,8 +460,9 @@ class analyse(object):
             (min, max) pairs identifying the boundaries of contiguous
             True regions in the boolean arrays.
         """
-
-        bkg_thresh = None
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         if analyte is None:
             analyte = self.internal_standard
@@ -472,7 +473,7 @@ class analyse(object):
         for s, d in tqdm(self.data.items(), desc='AutoRange'):
             f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
                             on_mult=on_mult, off_mult=off_mult, nbin=nbin,
-                            ploterrs=ploterrs, bkg_thresh=bkg_thresh)
+                            ploterrs=ploterrs, bkg_thresh=None)
             if f is not None:
                 fails[s] = f
         # handle failures
@@ -609,7 +610,7 @@ class analyse(object):
     @_log
     def despike(self, expdecay_despiker=False, exponent=None,
                 noise_despiker=True, win=3, nlim=12., exponentplot=False,
-                maxiter=4, autorange_kwargs={}):
+                maxiter=4, autorange_kwargs={}, focus_stage='rawdata'):
         """
         Despikes data with exponential decay and noise filters.
 
@@ -636,11 +637,26 @@ class analyse(object):
             exponential decay exponent.
         maxiter : int
             The max number of times that the fitler is applied.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'rawdata'. Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
         None
         """
+        if focus_stage != self.focus_stage:
+            self.set_focus(focus_stage)
+
         if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
                 self.find_expcoef(plot=exponentplot,
@@ -652,7 +668,7 @@ class analyse(object):
             d.despike(expdecay_despiker, exponent,
                       noise_despiker, win, nlim, maxiter)
 
-        self.stages_complete.update('despiked')
+        self.stages_complete.update(['despiked'])
         self.focus_stage = 'despiked'
         return
 
@@ -679,6 +695,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
@@ -686,6 +715,10 @@ class analyse(object):
         """
         allbkgs = {'uTime': [],
                    'ns': []}
+                
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         for a in self.analytes:
             allbkgs[a] = []
@@ -737,7 +770,7 @@ class analyse(object):
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
                               n_min=20, n_max=None, cstep=None,
-                              bkg_filter=False, f_win=7, f_n_lim=3):
+                              bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -762,6 +795,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
             analytes = self.analytes
@@ -774,7 +820,7 @@ class analyse(object):
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
-                            f_win=f_win, f_n_lim=f_n_lim)
+                            f_win=f_win, f_n_lim=f_n_lim, focus_stage=focus_stage)
 
         # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
@@ -807,7 +853,7 @@ class analyse(object):
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
-                          bkg_filter=False, f_win=7, f_n_lim=3):
+                          bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
         Background calculation using a 1D interpolation.
 
@@ -835,6 +881,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.            
         """
         if analytes is None:
             analytes = self.analytes
@@ -844,7 +903,7 @@ class analyse(object):
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
-                            f_win=f_win, f_n_lim=f_n_lim)
+                            f_win=f_win, f_n_lim=f_n_lim, focus_stage=focus_stage)
 
         def pad(a, lo=None, hi=None):
             if lo is None:
@@ -877,7 +936,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_subtract(self, analytes=None, errtype='stderr', focus='despiked'):
+    def bkg_subtract(self, analytes=None, errtype='stderr', focus_stage='despiked'):
         """
         Subtract calculated background from data.
 
@@ -889,14 +948,28 @@ class analyse(object):
             Which analyte(s) to subtract.
         errtype : str
             Which type of error to propagate. default is 'stderr'.
-        focus : str
-            Which stage of analysis to work on. Change to 'rawdata' if
-            you're skipping the despiking step.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         # make uncertainty-aware background interpolators
         bkg_interps = {}
@@ -907,10 +980,10 @@ class analyse(object):
 
         # apply background corrections
         for d in tqdm(self.data.values(), desc='Background Subtraction'):
-            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus) for a in analytes]
+            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
             d.setfocus('bkgsub')
 
-        self.stages_complete.update('bkgsub')
+        self.stages_complete.update(['bkgsub'])
         self.focus_stage = 'bkgsub'
         return
 
@@ -1026,7 +1099,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, focus='bkgsub'):
+    def ratio(self, internal_standard=None):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1035,23 +1108,22 @@ class analyse(object):
         internal_standard : str
             The name of the analyte to divide all other analytes
             by.
-        focus : str
-            The `focus` stage of the data used to calculating the
-            ratios.
 
         Returns
         -------
         None
         """
+        if 'bkgsub' not in self.stages_complete:
+            raise RuntimeError('Cannot calculate ratios before background subtraction.')
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
             self.minimal_analytes.update([internal_standard])
 
         for s in tqdm(self.data.values(), desc='Ratio Calculation'):
-            s.ratio(internal_standard=self.internal_standard, focus=focus)
+            s.ratio(internal_standard=self.internal_standard)
 
-        self.stages_complete.update('ratios')
+        self.stages_complete.update(['ratios'])
         self.focus_stage = 'ratios'
         return
 
@@ -1368,7 +1440,7 @@ class analyse(object):
         for d in tqdm(self.data.values(), desc='Applying Calibrations'):
             d.calibrate(self.calib_ps, analytes)
 
-        self.stages_complete.update('calibrated')
+        self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
         return
 
@@ -2467,6 +2539,9 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
+        
+        if subset is None:
+            subset = 'All_Analyses'
 
         samples = self._get_samples(subset)
 
@@ -2502,7 +2577,7 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-
+        
         samples = self._get_samples(subset)
 
         # t = 0
