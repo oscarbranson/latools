@@ -497,6 +497,8 @@ class analyse(object):
                      "dat.data['Sample'].autorange_plot(params)\n" +
                      '*' * 41 + '\n')
             warnings.warn(wstr)
+        
+        self.stages_complete.update(['autorange'])
         return
 
     def find_expcoef(self, nsd_below=0., plot=False,
@@ -977,9 +979,11 @@ class analyse(object):
             bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
                                          y=un.uarray(self.bkg['calc'][a]['mean'],
                                                      self.bkg['calc'][a][errtype]))
+        self.bkg_interps = bkg_interps
 
         # apply background corrections
         for d in tqdm(self.data.values(), desc='Background Subtraction'):
+            # [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), None, focus_stage=focus_stage) for a in analytes]
             [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
             d.setfocus('bkgsub')
 
