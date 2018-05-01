@@ -1091,6 +1091,7 @@ class analyse(object):
         xlim = rangecalc(self.bkg['raw']['uTime'], 0.025)
         ax.set_xlim(xlim)
 
+        # add sample labels
         for s, d in self.data.items():
             ax.axvline(d.uTime[0], alpha=0.2, color='k', zorder=-1)
             ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90,
