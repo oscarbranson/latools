@@ -165,6 +165,13 @@ If this is the case, you can switch a filter on or off for a specific analyte:
 
 Notice how the 'Al27_thresh_below' filter is now deactivated for Mg25.
 
+
+Deleting a Filter
+-----------------
+When you create filters they are not automatically applied to the data (they are 'off' when they are created). This means that you can create as many filters as you want, without them interfering with each other, and then turn them on/off independently for different samples/analytes. There shouldn't be a reason that you'd need to delete a specific filter.
+
+However, after playing around with filters for a while, filters can accumulate and get hard to keep track of. If this happens, you can use :method:`latools.analyse.filter_clear` to get rid of all of them, and then re-run the code for the filters that you like to re-create them.
+
 Sample Subsets
 --------------
 Finally, let's return to the 'Subsets', which we skipped over earlier.
