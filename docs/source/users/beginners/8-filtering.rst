@@ -51,7 +51,7 @@ Choosing a filter
 The foraminifera analysed in this example dataset are from culture experiments and have been thoroughly cleaned.
 There should not be any contaminants in these samples, and filtering is relatively straightforward.
 The first step in choosing a filter is to *look* at the data.
-You can look at the calibrated profiles manually to get a sense of the patterns in the data (using ``trace_plots()``):
+You can look at the calibrated profiles manually to get a sense of the patterns in the data (using ``eg.trace_plots()``):
 
 .. image:: ./figs/calibrated_Sample-3.png
 

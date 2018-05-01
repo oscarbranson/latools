@@ -18,6 +18,8 @@ This imports all the data files within the ``data/`` folder into an :class:`lato
 * ``internal_standard='Ca43'``: This specifies the internal standard element within your samples. The internal standard is used at several key stages in analysis (signal/background identification, normalisation), and should be relatively abundant and homogeneous in your samples.
 * ``srm_identifier='STD'``: This identifies which of your analyses contain standard reference materials (SRMs). Any data file with 'STD' in its name will be flagged as an SRM measurement.
 
+.. tip:: You've just created an analysis called `eg`. Everything we'll do from this point on happens within that analysis session, so you'll see `eg.some_function()` a lot. When doing this yourself, you can give your analysis any name you want - you *don't* have to call it `eg`, but if you change the name of your analysis to `my_analysis` remember that `eg.some_funtion()` will no longer work - you'll have to use `my_analysis.some_function()`.
+
 If it has worked correctly, you should see the output::
 
     latools analysis using "DEFAULT" configuration:
