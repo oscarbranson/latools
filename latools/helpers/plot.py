@@ -593,7 +593,6 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-
 def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
@@ -636,21 +635,18 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
     gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
                                hspace=0.3, wspace=0.3)
 
-    i = 0
-    for a in analytes:
+    for g, a in zip(gs, analytes):
         if not datarange:
-            ax = fig.add_axes(gs[i].get_position(fig))
+            ax = fig.add_axes(g.get_position(fig))
             axes.append(ax)
-            i += 1
         else:
             f = 0.8
-            p0 = gs[i].get_position(fig)
+            p0 = g.get_position(fig)
             p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
             p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
             ax = fig.add_axes(p1)
             axh = fig.add_axes(p2)
             axes.append((ax, axh))
-            i += 1
 
         # plot calibration data
         ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
@@ -664,9 +660,9 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
         # work out axis scaling
         if not loglog:
             xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
-                                nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
+                             nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
             ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
-                                nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
+                             nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
             xlim = [0, 1.05 * xmax]
             ylim = [0, 1.05 * ymax]
         else:
@@ -782,7 +778,6 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
         else:
             ax.text(0.02, 0.75, label, transform=ax.transAxes,
                     va='top', ha='left')
-
 
     if save:
         fig.savefig(self.report_dir + '/calibration.pdf')
