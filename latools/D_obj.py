@@ -223,7 +223,7 @@ class D(object):
                 sig = v.copy()  # copy data
                 if expdecay_despiker:
                     if exponent is not None:
-                        sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
+                        sig = proc.expdecay_despike(sig, exponent, self.tstep, maxiter)
                     else:
                         warnings.warn('exponent is None - either provide exponent, or run at `analyse`\nlevel to automatically calculate it.')
                 
