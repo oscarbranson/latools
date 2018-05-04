@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from latools.helpers.process_fns import *
+from latools.processes import *
 
 
 class test_process_functions(unittest.TestCase):
