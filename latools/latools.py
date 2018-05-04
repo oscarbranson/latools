@@ -32,7 +32,7 @@ from .helpers.helpers import (rolling_window, enumerate_bool,
 from .helpers.config import read_configuration
 from .helpers.stat_fns import *
 from .helpers import utils
-from .helpers import srm
+from .helpers import srm as srms
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1180,7 +1180,7 @@ class analyse(object):
         if not hasattr(self, 'srmdat'):
             elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
             # load SRM info
-            srmdat = srm.read_table(self.srmfile)
+            srmdat = srms.read_table(self.srmfile)
             srmdat = srmdat.loc[srms_used]
 
             # get element name
