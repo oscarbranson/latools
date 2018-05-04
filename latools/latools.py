@@ -3729,9 +3729,20 @@ class analyse(object):
          # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      'data_folder :: ./data/',
-                      'srm_table :: ./srm.table',
-                      ]
+                      'data_folder :: ./data/']
+                      
+        if hasattr(self, 'srmdat'):
+            log_header.append('srm_table :: ./srm.table')
+
+            # export srm table
+            els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
+            srmdat = []
+            for e in els:
+                srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
+            srmdat = pd.concat(srmdat)
+
+            with open(path + '/srm.table', 'w') as f:
+                f.write(srmdat.to_csv())
 
         # save custom functions (of defined)
         if hasattr(self, 'custom_stat_functions'):
@@ -3749,16 +3760,6 @@ class analyse(object):
 
         # save log
         self.save_log(path, log_header)
-
-        # export srm table
-        els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
-        srmdat = []
-        for e in els:
-            srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
-        srmdat = pd.concat(srmdat)
-
-        with open(path + '/srm.table', 'w') as f:
-            f.write(srmdat.to_csv())
 
         if zip_archive:
             utils.zipdir(path, delete=True)
