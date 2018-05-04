@@ -15,16 +15,18 @@ from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
 
+import latools.processes as proc
+
 from .filtering import filters
 from .filtering import clustering
 from .filtering.filt_obj import filt
 from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
-from .helpers import process_fns as proc
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, _log, unitpicker, pretty_element,
+                              calc_grads, unitpicker, pretty_element,
                               findmins, stack_keys)
+from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties
 
 class D(object):

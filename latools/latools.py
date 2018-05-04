@@ -27,8 +27,9 @@ from .filtering.classifier_obj import classifier
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads, _log,
+                      unitpicker, rangecalc, Bunch, calc_grads,
                       get_total_time_span)
+from .helpers.logging import _log
 from .helpers.config import read_configuration
 from .helpers.stat_fns import *
 from .helpers import utils
