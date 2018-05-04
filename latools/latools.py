@@ -217,13 +217,23 @@ class analyse(object):
         elif isinstance(dataformat, dict):
             self.dataformat = dataformat
 
+        # link up progress bars
+        if pbar is None:
+            self.pbar = tqdm
+        else:
+            self.pbar = pbar
+
         # load data into list (initialise D objects)
-        data = [D(self.folder + '/' + f,
-                  dataformat=self.dataformat,
-                  errorhunt=errorhunt,
-                  cmap=cmap,
-                  internal_standard=internal_standard,
-                  name=names) for f in self.files]
+        with self.pbar(total=len(self.files), desc='Loading Data') as pbar:
+            data = []
+            for f in self.files:
+                data.append(D(self.folder + '/' + f,
+                            dataformat=self.dataformat,
+                            errorhunt=errorhunt,
+                            cmap=cmap,
+                            internal_standard=internal_standard,
+                            name=names))
+                pbar.update()
 
         # create universal time scale
         if 'date' in data[0].meta.keys():
@@ -313,12 +323,6 @@ class analyse(object):
 
         # initialise classifiers
         self.classifiers = Bunch()
-
-        # link up progress bars
-        if pbar is None:
-            self.pbar = tqdm
-        else:
-            self.pbar = pbar
 
         # report
         print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
