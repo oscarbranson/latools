@@ -124,7 +124,7 @@ class analyse(object):
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names', srm_file=None):
+                 names='file_names', srm_file=None, pbar=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -314,6 +314,12 @@ class analyse(object):
         # initialise classifiers
         self.classifiers = Bunch()
 
+        # link up progress bars
+        if pbar is None:
+            self.pbar = tqdm
+        else:
+            self.pbar = pbar
+
         # report
         print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
                'samples').format(len(self.data),
@@ -479,12 +485,14 @@ class analyse(object):
             self.minimal_analytes.update([analyte])
 
         fails = {}  # list for catching failures.
-        for s, d in tqdm(self.data.items(), desc='AutoRange'):
-            f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
-                            on_mult=on_mult, off_mult=off_mult, nbin=nbin,
-                            ploterrs=ploterrs, bkg_thresh=None)
-            if f is not None:
-                fails[s] = f
+        with self.pbar(total=len(self.data), desc='AutoRange') as pbar:
+            for s, d in self.data.items():
+                f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
+                                on_mult=on_mult, off_mult=off_mult, nbin=nbin,
+                                ploterrs=ploterrs, bkg_thresh=None)
+                if f is not None:
+                    fails[s] = f
+                pbar.update()  # advance progress bar
         # handle failures
         if len(fails) > 0:
             wstr = ('\n\n' + '*' * 41 + '\n' +
@@ -675,9 +683,11 @@ class analyse(object):
             exponent = self.expdecay_coef
             time.sleep(0.1)
 
-        for d in tqdm(self.data.values(), desc='Despiking'):
-            d.despike(expdecay_despiker, exponent,
-                      noise_despiker, win, nlim, maxiter)
+        with self.pbar(total=len(self.data), desc='Despiking') as pbar:
+            for d in self.data.values():
+                d.despike(expdecay_despiker, exponent,
+                        noise_despiker, win, nlim, maxiter)
+                pbar.update()
 
         self.stages_complete.update(['despiked'])
         self.focus_stage = 'despiked'
@@ -827,7 +837,7 @@ class analyse(object):
             analytes = [analytes]
         
         if weight_fwhm is None:
-            weight_fwhm = get_total_time_span(self.data) / 30
+            weight_fwhm = 600  # 10 minute default window
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
@@ -841,10 +851,6 @@ class analyse(object):
             elif cstep > weight_fwhm:
                 warnings.warn("\ncstep should be less than weight_fwhm. Your backgrounds\n" +
                               "might not behave as expected.\n")
-            # TODO: Modify bkg_t to make sure none of the calculated
-            # bkg points are during a sample collection? Though shouldn't
-            # be a problem with gaussian smooth if bkgs are behaving
-            # correctly.
             bkg_t = np.linspace(0,
                                 self.max_time,
                                 self.max_time // cstep)
@@ -859,8 +865,8 @@ class analyse(object):
 
         for i, a in enumerate(analytes):
             self.bkg['calc'][a] = {'mean': mean[i],
-                                   'std': std[i],
-                                   'stderr': stderr[i]}
+                                    'std': std[i],
+                                    'stderr': stderr[i]}
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
@@ -937,10 +943,12 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
-        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
-            self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
-                                   'std': pad(d.loc[:, (a, 'std')].values),
-                                   'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+        with self.pbar(total=len(analytes), desc='Calculating Analyte Backgrounds') as pbar:
+            for a in analytes:
+                self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
+                                    'std': pad(d.loc[:, (a, 'std')].values),
+                                    'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+                pbar.update()
 
         self.bkg['calc']
 
@@ -991,10 +999,13 @@ class analyse(object):
         self.bkg_interps = bkg_interps
 
         # apply background corrections
-        for d in tqdm(self.data.values(), desc='Background Subtraction'):
-            # [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), None, focus_stage=focus_stage) for a in analytes]
-            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
-            d.setfocus('bkgsub')
+        with self.pbar(total=len(self.data), desc='Background Subtraction') as pbar:
+            for d in self.data.values():
+                # [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), None, focus_stage=focus_stage) for a in analytes]
+                [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
+                d.setfocus('bkgsub')
+
+                pbar.update()
 
         self.stages_complete.update(['bkgsub'])
         self.focus_stage = 'bkgsub'
@@ -1134,8 +1145,10 @@ class analyse(object):
             self.internal_standard = internal_standard
             self.minimal_analytes.update([internal_standard])
 
-        for s in tqdm(self.data.values(), desc='Ratio Calculation'):
-            s.ratio(internal_standard=self.internal_standard)
+        with self.pbar(total=len(self.data), desc='Ratio Calculation') as pbar:
+            for s in self.data.values():
+                s.ratio(internal_standard=self.internal_standard)
+                pbar.update()
 
         self.stages_complete.update(['ratios'])
         self.focus_stage = 'ratios'
@@ -1450,8 +1463,10 @@ class analyse(object):
                 self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
                                                     self.calib_params.loc[:, (a, 'c')].values)
 
-        for d in tqdm(self.data.values(), desc='Applying Calibrations'):
-            d.calibrate(self.calib_ps, analytes)
+        with self.pbar(total=len(self.data), desc='Applying Calibrations') as pbar:
+            for d in self.data.values():
+                d.calibrate(self.calib_ps, analytes)
+                pbar.update()
 
         self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
@@ -1556,8 +1571,10 @@ class analyse(object):
 
         self.minimal_analytes.update([analyte])
 
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_threshold(analyte, threshold)
+        with self.pbar(total=len(samples), desc='Threshold Filter') as pbar:
+            for s in samples:
+                self.data[s].filter_threshold(analyte, threshold)
+                pbar.update()
 
     @_log
     def filter_threshold_percentile(self, analyte, percentiles, level='population', filt=False,
@@ -1613,41 +1630,43 @@ class analyse(object):
             lims = np.percentile(dat, percentiles)
 
         # Calculate filter for individual samples
-        for s in tqdm(samples, desc='Percentile theshold filter'):
-            d = self.data[s]
-            setn = d.filt.maxset + 1
-            g = d.focus[analyte]
+        with self.pbar(total=len(samples), desc='Percentile theshold filter') as pbar:
+            for s in samples:
+                d = self.data[s]
+                setn = d.filt.maxset + 1
+                g = d.focus[analyte]
 
-            if level == 'individual':
-                gt = nominal_values(g)
-                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+                if level == 'individual':
+                    gt = nominal_values(g)
+                    lims = np.percentile(gt[~np.isnan(gt)], percentiles)
 
-            if len(lims) == 1:
-                above = g >= lims[0]
-                below = g < lims[0]
+                if len(lims) == 1:
+                    above = g >= lims[0]
+                    below = g < lims[0]
 
-                d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
-                           below,
-                           'Values below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
-                d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
-                           above,
-                           'Values above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
+                            below,
+                            'Values below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
+                            above,
+                            'Values above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            params, setn=setn)
 
-            elif len(lims) == 2:
-                inside = (g >= min(lims)) & (g <= max(lims))
-                outside = (g < min(lims)) | (g > max(lims))
+                elif len(lims) == 2:
+                    inside = (g >= min(lims)) & (g <= max(lims))
+                    outside = (g < min(lims)) | (g > max(lims))
 
-                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
-                d.filt.add(analyte + '_' + lpc + '-pcnt_inside',
-                           inside,
-                           'Values between ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
-                d.filt.add(analyte + '_' + lpc + '-pcnt_outside',
-                           outside,
-                           'Values outside ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
+                    lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                    d.filt.add(analyte + '_' + lpc + '-pcnt_inside',
+                            inside,
+                            'Values between ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_' + lpc + '-pcnt_outside',
+                            outside,
+                            'Values outside ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                pbar.update()
         return
 
 
@@ -1688,9 +1707,11 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         self.minimal_analytes.update([analyte])
-
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_gradient_threshold(analyte, win, threshold)
+        
+        with self.pbar(total=len(samples), desc='Gradient Threshold Filter') as pbar:
+            for s in samples:
+                self.data[s].filter_gradient_threshold(analyte, win, threshold)
+                pbar.update()
 
     @_log
     def filter_gradient_threshold_percentile(self, analyte, percentiles, level='population', win=15, filt=False,
@@ -1745,129 +1766,44 @@ class analyse(object):
             lims = np.percentile(grad, percentiles)
 
         # Calculate filter for individual samples
-        for s in tqdm(samples, desc='Percentile theshold filter'):
-            d = self.data[s]
-            setn = d.filt.maxset + 1
-            g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
+        with self.pbar(total=len(samples), desc='Percentily Threshold Filter') as pbar:
+            for s in samples:
+                d = self.data[s]
+                setn = d.filt.maxset + 1
+                g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
 
-            if level == 'individual':
-                gt = nominal_values(g)
-                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+                if level == 'individual':
+                    gt = nominal_values(g)
+                    lims = np.percentile(gt[~np.isnan(gt)], percentiles)
 
-            if len(lims) == 1:
-                above = g >= lims[0]
-                below = g < lims[0]
+                if len(lims) == 1:
+                    above = g >= lims[0]
+                    below = g < lims[0]
 
-                d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
-                           below,
-                           'Gradients below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
-                d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
-                           above,
-                           'Gradients above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
+                            below,
+                            'Gradients below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
+                            above,
+                            'Gradients above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            params, setn=setn)
 
-            elif len(lims) == 2:
-                inside = (g >= min(lims)) & (g <= max(lims))
-                outside = (g < min(lims)) | (g > max(lims))
+                elif len(lims) == 2:
+                    inside = (g >= min(lims)) & (g <= max(lims))
+                    outside = (g < min(lims)) | (g > max(lims))
 
-                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
-                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_inside',
-                           inside,
-                           'Gradients between ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
-                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_outside',
-                           outside,
-                           'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
+                    lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                    d.filt.add(analyte + '_' + lpc + '-grd-pcnt_inside',
+                            inside,
+                            'Gradients between ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_' + lpc + '-grd-pcnt_outside',
+                            outside,
+                            'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+            pbar.update()
         return
-
-    # @_log
-    # def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
-    #                               on_mult=(1., 1.), off_mult=(1., 1.), nbin=5,
-    #                               filt=False, samples=None, subset=None):
-    #     """
-    #     Find inclusions in profile based on specific analytes.
-
-    #     Identifies anomalously high / low regions of a specific analyte or analytes
-    #     and returns two filters of the 'low' and 'high' regions, excluding the
-    #     the transition between them.
-
-    #     The mechanics of the filter is identical to the `autorange` function.
-
-    #     Parameters
-    #     ----------
-    #     analytes : str or list
-    #         Which analytes to use to identify inclusions.
-    #     gwin : int
-    #         The size of the window used for smoothing and calculating the derivative.
-    #     win : int
-    #         The region either side of lo-hi transitions to consider for exclusion.
-    #     log : bool
-    #         Whether or not to log-transform the data
-    #     on_mult, off_mult : tuple
-    #         The width (multiples of FWHM) either side of identified matierla transitions to exclude.
-    #     """
-    #     if isinstance(analytes, str):
-    #         analytes = [analytes]
-
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     self.minimal_analytes.update(analytes)
-
-    #     for s in tqdm(samples, desc='Finding Inclusions'):
-    #         self.data[s].filter_inclusion_excluder(analytes, gwin=gwin, swin=swin, win=win, log=log,
-    #                                                on_mult=on_mult, off_mult=off_mult,
-    #                                                filt=filt, nbin=nbin)
-    #     return
-
-    # @_log
-    # def filter_distribution(self, analyte, binwidth='scott', filt=False,
-    #                         transform=None, samples=None, subset=None,
-    #                         min_data=10):
-    #     """
-    #     Applies a distribution filter to the data.
-
-    #     Parameters
-    #     ----------
-    #     analyte : str
-    #         The analyte that the filter applies to.
-    #     binwidth : str of float
-    #         Specify the bin width of the kernel density estimator.
-    #         Passed to `scipy.stats.gaussian_kde`.
-    #         If 'scott' or 'silverman', the method used to automatically 
-    #         estimate bin width. If float, it manually sets the binwidth.
-    #     filt : bool
-    #         Whether or not to apply existing filters to the data before
-    #         calculating this filter.
-    #     transform : str
-    #         If 'log', applies a log transform to the data before calculating
-    #         the distribution.
-    #     samples : array_like or None
-    #         Which samples to apply this filter to. If None, applies to all
-    #         samples.
-    #     min_data : int
-    #         The minimum number of data points that should be considered by
-    #         the filter. Default = 10.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     self.minimal_analytes.update([analyte])
-
-    #     for s in tqdm(samples, desc='Distribution Filter'):
-    #         self.data[s].filter_distribution(analyte, binwidth='scott',
-    #                                          filt=filt, transform=None,
-    #                                          min_data=min_data)
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
@@ -1970,14 +1906,16 @@ class analyse(object):
 
         self.minimal_analytes.update(analytes)
 
-        for s in tqdm(samples, desc='Clustering Filter'):
-            self.data[s].filter_clustering(analytes=analytes, filt=filt,
-                                           normalise=normalise,
-                                           method=method,
-                                           include_time=include_time,
-                                           min_data=min_data,
-                                           sort=sort,
-                                           **kwargs)
+        with self.pbar(total=len(samples), desc='Clustering Filter') as pbar:
+            for s in samples:
+                self.data[s].filter_clustering(analytes=analytes, filt=filt,
+                                            normalise=normalise,
+                                            method=method,
+                                            include_time=include_time,
+                                            min_data=min_data,
+                                            sort=sort,
+                                            **kwargs)
+                pbar.update()
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
@@ -2023,12 +1961,14 @@ class analyse(object):
 
         self.minimal_analytes.update([x_analyte, y_analyte])
 
-        for s in tqdm(samples, desc='Correlation Filter'):
-            self.data[s].filter_correlation(x_analyte, y_analyte,
-                                            window=window,
-                                            r_threshold=r_threshold,
-                                            p_threshold=p_threshold,
-                                            filt=filt)
+        with self.pbar(total=len(samples), desc='Correlation Filter') as pbar:
+            for s in samples:
+                self.data[s].filter_correlation(x_analyte, y_analyte,
+                                                window=window,
+                                                r_threshold=r_threshold,
+                                                p_threshold=p_threshold,
+                                                filt=filt)
+                pbar.update()
 
     @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
@@ -2103,33 +2043,6 @@ class analyse(object):
         if show_status:
             self.filter_status(subset=subset)
         return
-
-    # @_log
-    # def filter_combine(self, name, filt_str, samples=None, subset=None):
-    #     """
-    #     Make new filter from combination of other filters.
-
-    #     Parameters
-    #     ----------
-    #     name : str
-    #         The name of the new filter. Should be unique.
-    #     filt_str : str
-    #         A logical combination of partial strings which will create
-    #         the new filter. For example, 'Albelow & Mnbelow' will combine
-    #         all filters that partially match 'Albelow' with those that
-    #         partially match 'Mnbelow' using the 'AND' logical operator.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     for s in tqdm(samples, desc='Threshold Filter'):
-    #         self.data[s].filt.filter_new(name, filter_string)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         """
@@ -2358,12 +2271,14 @@ class analyse(object):
 
         errs = []
 
-        for s in tqdm(samples, desc='Optimising'):
-            e = self.data[s].signal_optimiser(analytes, min_points,
-                                              threshold_mode, threshold_mult,
-                                              x_bias, weights, filt)
-            if e != '':
-                errs.append(e)
+        with self.pbar(total=len(samples), desc='Optimising Data selection') as pbar:
+            for s in samples:
+                e = self.data[s].signal_optimiser(analytes, min_points,
+                                                threshold_mode, threshold_mult,
+                                                x_bias, weights, filt)
+                if e != '':
+                    errs.append(e)
+                pbar.update()
         
         if len(errs) > 0:
             print('\nA Few Problems:\n' + '\n'.join(errs) + '\n\n  *** Check Optimisation Plots ***')
@@ -2393,15 +2308,17 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         
-        for s in tqdm(samples, desc='Drawing Plots'):
-            figs = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
-            
-            n = 1
-            for f, _ in figs:
-                if f is not None:
-                    f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
-                    plt.close(f)
-                n += 1
+        with self.pbar(total=len(samples), desc='Drawing Plots') as pbar:
+            for s in samples:
+                figs = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
+                
+                n = 1
+                for f, _ in figs:
+                    if f is not None:
+                        f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
+                        plt.close(f)
+                    n += 1
+                pbar.update()
         return
 
     @_log
@@ -2495,19 +2412,22 @@ class analyse(object):
         c = self.classifiers[name]
         labs = c.classifier.ulabels_
 
-        for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
-            d = self.data[s]
-            try:
-                f = c.predict(d.focus)
-            except ValueError:
-                # in case there's no data
-                f = np.array([-2] * len(d.Time))
-            for l in labs:
-                ind = f == l
-                d.filt.add(name=name + '_{:.0f}'.format(l),
-                           filt=ind,
-                           info=name + ' ' + c.method + ' classifier',
-                           params=(c.analytes, c.method))
+        with self.pbar(total=len(samples), desc='Applying ' + name + ' classifier') as pbar:
+            for s in samples:
+                d = self.data[s]
+                try:
+                    f = c.predict(d.focus)
+                except ValueError:
+                    # in case there's no data
+                    f = np.array([-2] * len(d.Time))
+                for l in labs:
+                    ind = f == l
+                    d.filt.add(name=name + '_{:.0f}'.format(l),
+                            filt=ind,
+                            info=name + ' ' + c.method + ' classifier',
+                            params=(c.analytes, c.method))
+            pbar.update()
+
         return name
 
     # plot calibrations
@@ -2648,15 +2568,17 @@ class analyse(object):
         focus = {'uTime': []}
         focus.update({a: [] for a in analytes})
 
-        for sa in tqdm(samples, desc='Calculating Gradients'):
-            s = self.data[sa]
-            focus['uTime'].append(s.uTime)
-            ind = s.filt.grab_filt(filt)
-            grads = calc_grads(s.uTime, s.focus, keys=analytes, win=win)
-            for a in analytes:
-                tmp = grads[a]
-                tmp[~ind] = np.nan
-                focus[a].append(tmp)
+        with self.pbar(total=len(samples), desc='Calculating Gradients') as pbar:
+            for sa in samples:
+                s = self.data[sa]
+                focus['uTime'].append(s.uTime)
+                ind = s.filt.grab_filt(filt)
+                grads = calc_grads(s.uTime, s.focus, keys=analytes, win=win)
+                for a in analytes:
+                    tmp = grads[a]
+                    tmp[~ind] = np.nan
+                    focus[a].append(tmp)
+                pbar.update()
 
         self.gradients.update({k: np.concatenate(v) for k, v, in focus.items()})
 
@@ -3124,20 +3046,22 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
         
-        for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
-                                      scale=scale, filt=filt,
-                                      ranges=ranges, stats=stats,
-                                      stat=stat, err=err, focus_stage=focus)
-            # ax = fig.axes[0]
-            # for l, u in s.sigrng:
-            #     ax.axvspan(l, u, color='r', alpha=0.1)
-            # for l, u in s.bkgrng:
-            #     ax.axvspan(l, u, color='k', alpha=0.1)
-            f.savefig(outdir + '/' + s + '_traces.pdf')
-            # TODO: on older(?) computers raises
-            # 'OSError: [Errno 24] Too many open files'
-            plt.close(f)
+        with self.pbar(total=len(samples), desc='Drawing Plots') as pbar:
+            for s in samples:
+                f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
+                                        scale=scale, filt=filt,
+                                        ranges=ranges, stats=stats,
+                                        stat=stat, err=err, focus_stage=focus)
+                # ax = fig.axes[0]
+                # for l, u in s.sigrng:
+                #     ax.axvspan(l, u, color='r', alpha=0.1)
+                # for l, u in s.bkgrng:
+                #     ax.axvspan(l, u, color='k', alpha=0.1)
+                f.savefig(outdir + '/' + s + '_traces.pdf')
+                # TODO: on older(?) computers raises
+                # 'OSError: [Errno 24] Too many open files'
+                plt.close(f)
+                pbar.update()
         return
 
     # Plot gradients
@@ -3202,18 +3126,20 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
 
-        for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                      ranges=ranges, focus_stage=focus)
-            # ax = fig.axes[0]
-            # for l, u in s.sigrng:
-            #     ax.axvspan(l, u, color='r', alpha=0.1)
-            # for l, u in s.bkgrng:
-            #     ax.axvspan(l, u, color='k', alpha=0.1)
-            f.savefig(outdir + '/' + s + '_gradients.pdf')
-            # TODO: on older(?) computers raises
-            # 'OSError: [Errno 24] Too many open files'
-            plt.close(f)
+        with self.pbar(total=len(samples), desc='Drawing Plots') as pbar:
+            for s in samples:
+                f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
+                                        ranges=ranges, focus_stage=focus)
+                # ax = fig.axes[0]
+                # for l, u in s.sigrng:
+                #     ax.axvspan(l, u, color='r', alpha=0.1)
+                # for l, u in s.bkgrng:
+                #     ax.axvspan(l, u, color='k', alpha=0.1)
+                f.savefig(outdir + '/' + s + '_gradients.pdf')
+                # TODO: on older(?) computers raises
+                # 'OSError: [Errno 24] Too many open files'
+                plt.close(f)
+                pbar.updatE()
         return
 
     # filter reports
