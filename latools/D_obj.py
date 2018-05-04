@@ -1134,7 +1134,7 @@ class D(object):
     @_log
     def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None, err_envelope=False, ax=None):
+              focus_stage=None, err_envelope=False, ax=None):
         """
         Plot analytes as a function of Time.
 
@@ -1162,8 +1162,6 @@ class D(object):
             average statistic to plot.
         err : str
             error statistic to plot.
-        interactive : bool
-            Make the plot interactive.
 
         Returns
         -------
@@ -1172,7 +1170,7 @@ class D(object):
 
         return plot.tplot(self, analytes, figsize, scale, filt,
                           ranges, stats, stat, err,
-                          interactive, focus_stage, err_envelope, ax)
+                          focus_stage, err_envelope, ax)
 
     @_log
     def gplot(self, analytes=None, win=5, figsize=[10, 4],

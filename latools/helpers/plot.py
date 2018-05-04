@@ -14,7 +14,7 @@ from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None, err_envelope=False, ax=None):
+              focus_stage=None, err_envelope=False, ax=None):
         """
         Plot analytes as a function of Time.
 
@@ -42,8 +42,6 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             average statistic to plot.
         err : str
             error statistic to plot.
-        interactive : bool
-            Make the plot interactive.
 
         Returns
         -------
@@ -56,6 +54,10 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
 
         if focus_stage is None:
             focus_stage = self.focus_stage
+        
+        # exclude internal standard from analytes
+        if focus_stage in ['ratios', 'calibrated']:
+            analytes = [a for a in analytes if a != self.internal_standard]
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
@@ -149,14 +151,14 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
 
-        if interactive:
-            ax.legend()
-            plugins.connect(fig, plugins.MousePosition(fontsize=14))
-            display.clear_output(wait=True)
-            display.display(fig)
-            input('Press [Return] when finished.')
-        else:
-            ax.legend(bbox_to_anchor=(1.15, 1))
+        # if interactive:
+        #     ax.legend()
+        #     plugins.connect(fig, plugins.MousePosition(fontsize=14))
+        #     display.clear_output(wait=True)
+        #     display.display(fig)
+        #     input('Press [Return] when finished.')
+        # else:
+        ax.legend(bbox_to_anchor=(1.15, 1))
 
         if ret:
             return fig, ax
