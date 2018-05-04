@@ -3759,7 +3759,7 @@ class analyse(object):
             self.log[i] = rep.sub(r'\1' + str(self.stats_calced) + r'\3', l)
 
         # save log
-        self.save_log(path, log_header)
+        self.save_log(path, 'analysis.lalog', header=log_header)
 
         if zip_archive:
             utils.zipdir(path, delete=True)
