@@ -72,7 +72,7 @@ class test_reproduce(unittest.TestCase):
     Test data reproduction.
     """
     print('\n\nTesting latools.reproduce')
-    d = la.reproduce('./tests/test_dir/test_data_export/minimal_export/analysis.log')
+    d = la.reproduce('./tests/test_dir/test_data_export/minimal_export/analysis.lalog')
 
     # clean up
     shutil.rmtree('./tests/test_dir/test_data_export')

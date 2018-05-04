@@ -29,6 +29,7 @@ from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
                       get_total_time_span)
+from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration
 from .helpers.stat_fns import *
@@ -344,6 +345,12 @@ class analyse(object):
                                 "exist.\nUse 'make_subset' to create a" +
                                 "subset."))
         return samples
+    
+    def _log_header(self):
+        return ['# LATOOLS analysis log saved at {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
+                'data_folder :: {}'.format(self.folder),
+                '# Analysis Log Start: \n'
+                ]
 
     @_log
     def basic_processing(self,
@@ -3564,7 +3571,7 @@ class analyse(object):
             d = dateutil.parser.parse(self.data[s].meta['date'])
             header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      "# Analysis described in '../analysis.log'",
+                      "# Analysis described in '../analysis.lalog'",
                       '# Run latools.reproduce to import analysis.',
                       '#',
                       '# Sample: %s' % (s),
@@ -3678,25 +3685,25 @@ class analyse(object):
 
         return
 
-    def save_log(self, directory=None, header=None):
+    def save_log(self, directory=None, logname=None, header=None):
         """
-        Save analysis.log in specified location
+        Save analysis.lalog in specified location
         """
         if directory is None:
             directory = self.export_dir
         if not os.path.isdir(directory):
             directory = os.path.dirname(directory)
 
+        if logname is None:
+            logname = 'analysis.lalog'
+
         if header is None:
-            log_header = ['# LATOOLS analysis log exported on {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
-                          'data_folder :: {}'.format(self.folder),
-                          '# Analysis Log Start: \n'
-                         ]
-        with open(os.path.join(directory, 'analysis.log'), 'w') as f:
-            f.write('\n'.join(header))
-            f.write('\n'.join(self.log))
+            header = self._log_header()
+
+        loc = logging.write_logfile(self.log, header, 
+                                    os.path.join(directory, logname))
         
-        return 
+        return loc
 
     def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=False):
         """
@@ -3793,20 +3800,20 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
         utils.extract_zipdir(past_analysis)
         logpath = os.path.join(os.path.dirname(past_analysis),
                                os.path.basename(past_analysis).replace('.zip', ''),
-                               'analysis.log')
+                               'analysis.lalog')
     elif os.path.isdir(past_analysis):
-        if os.path.exists(os.path.join(past_analysis, 'analysis.log')):
-            logpath = os.path.join(past_analysis, 'analysis.log')
-    elif 'analysis.log' in past_analysis:
+        if os.path.exists(os.path.join(past_analysis, 'analysis.lalog')):
+            logpath = os.path.join(past_analysis, 'analysis.lalog')
+    elif 'analysis.lalog' in past_analysis:
         logpath = past_analysis
     else:
         raise ValueError(('\n\n{} is not a valid input.\n\n' + 
                           'Must be one of:\n' +
                           '  - A .zip file exported by latools\n' + 
-                          '  - An analysis.log file\n' +
-                          '  - A directory containing an analysis.log files\n'))
+                          '  - An analysis.lalog file\n' +
+                          '  - A directory containing an analysis.lalog files\n'))
 
-    runargs, paths = utils.read_logfile(logpath)
+    runargs, paths = logging.read_logfile(logpath)
 
     # parse custom stat functions
     csfs = Bunch()
