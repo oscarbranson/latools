@@ -193,7 +193,9 @@ def read_data(data_file, dataformat, name_mode):
 
     data = Bunch()
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
-
+    if 'time_divide' in dataformat['column_id']:
+        data['Time'] /= dataformat['column_id']['time_divide']
+        
     # convert raw data into counts
     # TODO: Is this correct? Should actually be per-analyte dwell?
     # if 'unit' in dataformat:
