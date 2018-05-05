@@ -549,14 +549,16 @@ class analyse(object):
         times = []
         for v in self.stds:
             for trnrng in v.trnrng[-1::-2]:
-                tr = minmax_scale(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
-                sm = np.apply_along_axis(np.nanmean, 1,
-                                         rolling_window(tr, 3, pad=0))
-                sm[0] = sm[1]
-                trim = findtrim(sm, trimlim) + 2
-                trans.append(minmax_scale(tr[trim:]))
-                times.append(np.arange(tr[trim:].size) *
-                             np.diff(v.Time[1:3]))
+                # check to make sure the transition doesn't intersect with the end of the file
+                if trnrng[-1] != v.Time[-1]:
+                    tr = minmax_scale(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
+                    sm = np.apply_along_axis(np.nanmean, 1,
+                                            rolling_window(tr, 3, pad=0))
+                    sm[0] = sm[1]
+                    trim = findtrim(sm, trimlim) + 2
+                    trans.append(minmax_scale(tr[trim:]))
+                    times.append(np.arange(tr[trim:].size) *
+                                np.diff(v.Time[1:3]))
 
         times = np.concatenate(times)
         times = np.round(times, 2)
