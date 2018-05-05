@@ -193,9 +193,19 @@ def read_data(data_file, dataformat, name_mode):
 
     data = Bunch()
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
-    if 'time_divide' in dataformat['column_id']:
-        data['Time'] /= dataformat['column_id']['time_divide']
-        
+    if 'time_unit' in dataformat['column_id']:
+        if isinstance(dataformat['column_id']['time_unit'], (float, int)):
+            time_mult = dataformat['column_id']['time_unit']
+        elif isinstance(dataformat['column_id']['time_unit'], str):
+            unit_multipliers = {'ms': 1/1000,
+                                'min': 60/1,
+                                's': 1}
+            try:
+                time_mult = unit_multipliers[dataformat['column_id']['time_unit']]
+            except:
+                raise ValueError("In dataformat: time_unit must be a number, 'ms', 'min' or 's'")
+        data['Time'] *= time_mult
+
     # convert raw data into counts
     # TODO: Is this correct? Should actually be per-analyte dwell?
     # if 'unit' in dataformat:
