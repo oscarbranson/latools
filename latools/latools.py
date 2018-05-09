@@ -1064,22 +1064,23 @@ class analyse(object):
         fig = plt.figure(figsize=figsize)
 
         ax = fig.add_axes([.07, .1, .84, .8])
+        
+        with self.pbar.set(total=len(analytes), desc='Plotting backgrounds') as prog:
+            for a in analytes:
+                # draw data points
+                ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
+                        alpha=0.5, s=3, c=self.cmaps[a],
+                        lw=0.5)
+                
+                # draw STD boxes
+                for i, r in self.bkg['summary'].iterrows():
+                    x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
+                        r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
+                    yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
+                    yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
 
-        for a in tqdm(analytes, desc='Plotting backgrounds',
-                      leave=True, total=len(analytes)):
-            # draw data points
-            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
-                       alpha=0.5, s=3, c=self.cmaps[a],
-                       lw=0.5)
-            
-            # draw STD boxes
-            for i, r in self.bkg['summary'].iterrows():
-                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
-                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
-                yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
-                yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
-
-                ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
+                    ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
+                prog.update()
 
         if yscale == 'log':
             ax.set_yscale('log')
@@ -3169,11 +3170,13 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        for s in tqdm(samples, desc='Drawing Plots'):
-            _ = self.data[s].filter_report(filt=filt_str,
-                                           analytes=analytes,
-                                           savedir=outdir,
-                                           nbin=nbin)
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                _ = self.data[s].filter_report(filt=filt_str,
+                                            analytes=analytes,
+                                            savedir=outdir,
+                                            nbin=nbin)
+                prog.update()
             # plt.close(fig)
         return
 
@@ -3286,13 +3289,15 @@ class analyse(object):
                 self.custom_stat_functions += inspect.getsource(s) + '\n\n\n\n'
 
         # calculate stats for each sample
-        for s in tqdm(self.samples, desc='Calculating Stats'):
-            if self.srm_identifier not in s:
-                self.data[s].sample_stats(analytes, filt=filt,
-                                          stat_fns=stat_fns,
-                                          eachtrace=eachtrace)
+        with self.pbar.set(total=len(self.samples), desc='Calculating Stats') as prog:
+            for s in self.samples:
+                if self.srm_identifier not in s:
+                    self.data[s].sample_stats(analytes, filt=filt,
+                                            stat_fns=stat_fns,
+                                            eachtrace=eachtrace)
 
-                self.stats[s] = self.data[s].stats
+                    self.stats[s] = self.data[s].stats
+                prog.update()
 
     @_log
     def ablation_times(self, samples=None, subset=None):
