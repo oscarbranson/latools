@@ -288,6 +288,9 @@ class analyse(object):
 
         # get analytes
         self.analytes = np.array(data[0].analytes)
+        if np.asanyarray(self.analytes).size == 0:
+            raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
+
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
