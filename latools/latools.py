@@ -129,8 +129,7 @@ class analyse(object):
         For processing and analysing whole LA - ICPMS datasets.
         """
         # initialise log
-        params = locals()
-        del(params['self'])
+        params = {K: v for f, v in locals().items() if v not in ['self', 'pbar']}
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         # assign file paths
