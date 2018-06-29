@@ -55,9 +55,6 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
         `on_mult` and `off_mult` apply to the off-on and on-off transitions,
         respectively.
         Defaults to (1.5, 1) and (1, 1.5).
-    nbin : ind
-        Used to calculate the number of bins in the data histogram.
-        ``bins = len(sig) // nbin``
     transform : str
         How to transform the data. Default is 'log'.
 
@@ -84,8 +81,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
         tsigs = sigs
 
     if thresh is None:
-        # bins = 50
-        bins = sig.size // nbin
+        bins = 50
         kde_x = np.linspace(tsigs.min(), tsigs.max(), bins)
 
         kde = gaussian_kde(tsigs)
@@ -194,7 +190,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
 
 def autorange_components(t, sig, transform='log', gwin=7, swin=None,
                          win=30, on_mult=(1.5, 1.), off_mult=(1., 1.5),
-                         nbin=10, thresh=None):
+                         thresh=None):
     """
     Returns the components underlying the autorange algorithm.
 
@@ -237,8 +233,7 @@ def autorange_components(t, sig, transform='log', gwin=7, swin=None,
         tsig = sig
 
     if thresh is None:
-        # bins = 50
-        bins = sig.size // nbin
+        bins = 50
         kde_x = np.linspace(tsigs.min(), tsigs.max(), bins)
 
         kde = gaussian_kde(tsigs)

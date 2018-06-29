@@ -239,7 +239,7 @@ class D(object):
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
-                  on_mult=[1., 1.], off_mult=[1., 1.5], nbin=10,
+                  on_mult=[1., 1.], off_mult=[1., 1.5],
                   ploterrs=True, transform='log', **kwargs):
         """
         Automatically separates signal and background data regions.
@@ -311,7 +311,7 @@ class D(object):
 
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
-                                            nbin=nbin, on_mult=on_mult, off_mult=off_mult,
+                                            on_mult=on_mult, off_mult=off_mult,
                                             transform=transform)
 
         self.mkrngs()
@@ -340,7 +340,7 @@ class D(object):
 
     def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,
                        on_mult=[1.5, 1.], off_mult=[1., 1.5],
-                       transform='log', nbin=10):
+                       transform='log'):
         """
         Plot a detailed autorange report for this sample.
         """

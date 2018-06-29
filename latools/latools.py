@@ -369,7 +369,7 @@ class analyse(object):
                          noise_despiker=True, despike_win=3, despike_nlim=12.,  # despike args
                          despike_maxiter=4,
                          autorange_analyte='total_counts', autorange_gwin=5, autorange_swin=3, autorange_win=20,  # autorange args
-                         autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1], autorange_nbin=10,
+                         autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1],
                          autorange_transform='log',
                          bkg_weight_fwhm=300.,  # bkg_calc_weightedmean
                          bkg_n_min=20, bkg_n_max=None, bkg_cstep=None,
@@ -385,7 +385,7 @@ class analyse(object):
                      maxiter=despike_maxiter)
         self.autorange(analyte=autorange_analyte, gwin=autorange_gwin, swin=autorange_swin,
                        win=autorange_win, on_mult=autorange_on_mult,
-                       off_mult=autorange_off_mult, nbin=autorange_nbin,
+                       off_mult=autorange_off_mult,
                        transform=autorange_transform)
         if plots:
             self.trace_plots(ranges=True)
@@ -404,7 +404,7 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
-                  on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
+                  on_mult=[1., 1.5], off_mult=[1.5, 1],
                   transform='log', ploterrs=True, focus_stage='despiked'):
         """
         Automatically separates signal and background data regions.
@@ -494,7 +494,7 @@ class analyse(object):
         with self.pbar.set(total=len(self.data), desc='AutoRange') as prog:
             for s, d in self.data.items():
                 f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
-                                on_mult=on_mult, off_mult=off_mult, nbin=nbin,
+                                on_mult=on_mult, off_mult=off_mult,
                                 ploterrs=ploterrs, transform=transform)
                 if f is not None:
                     fails[s] = f
@@ -3146,7 +3146,7 @@ class analyse(object):
                 # TODO: on older(?) computers raises
                 # 'OSError: [Errno 24] Too many open files'
                 plt.close(f)
-                prog.updatE()
+                prog.update()
         return
 
     # filter reports
