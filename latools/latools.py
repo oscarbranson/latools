@@ -370,7 +370,7 @@ class analyse(object):
                          despike_maxiter=4,
                          autorange_analyte='total_counts', autorange_gwin=5, autorange_swin=3, autorange_win=20,  # autorange args
                          autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1], autorange_nbin=10,
-                         autorange_transform='log', autorange_thresh_n=None,
+                         autorange_transform='log',
                          bkg_weight_fwhm=300.,  # bkg_calc_weightedmean
                          bkg_n_min=20, bkg_n_max=None, bkg_cstep=None,
                          bkg_filter=False, bkg_f_win=7, bkg_f_n_lim=3,
@@ -386,7 +386,7 @@ class analyse(object):
         self.autorange(analyte=autorange_analyte, gwin=autorange_gwin, swin=autorange_swin,
                        win=autorange_win, on_mult=autorange_on_mult,
                        off_mult=autorange_off_mult, nbin=autorange_nbin,
-                       transform=autorange_transform, thresh_n=autorange_thresh_n)
+                       transform=autorange_transform)
         if plots:
             self.trace_plots(ranges=True)
         self.bkg_calc_weightedmean(weight_fwhm=bkg_weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
@@ -405,7 +405,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
-                  transform='log', thresh_n=None, ploterrs=True, focus_stage='despiked'):
+                  transform='log', ploterrs=True, focus_stage='despiked'):
         """
         Automatically separates signal and background data regions.
 
@@ -495,7 +495,7 @@ class analyse(object):
             for s, d in self.data.items():
                 f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
                                 on_mult=on_mult, off_mult=off_mult, nbin=nbin,
-                                ploterrs=ploterrs, bkg_thresh=None)
+                                ploterrs=ploterrs, transform=transform)
                 if f is not None:
                     fails[s] = f
                 prog.update()  # advance progress bar

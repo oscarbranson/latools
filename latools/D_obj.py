@@ -240,7 +240,7 @@ class D(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
                   on_mult=[1., 1.], off_mult=[1., 1.5], nbin=10,
-                  ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
+                  ploterrs=True, transform='log', **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -309,12 +309,10 @@ class D(object):
         else:
             raise ValueError('Invalid analyte.')
 
-        if transform == 'log':
-            sig = np.log10(sig)
-
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
-                                            nbin=nbin, on_mult=on_mult, off_mult=off_mult)
+                                            nbin=nbin, on_mult=on_mult, off_mult=off_mult,
+                                            transform=transform)
 
         self.mkrngs()
 
