@@ -195,7 +195,32 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
 def autorange_components(t, sig, transform='log', gwin=7, swin=None,
                          win=30, on_mult=(1.5, 1.), off_mult=(1., 1.5),
                          nbin=10, thresh=None):
+    """
+    Returns the components underlying the autorange algorithm.
 
+    Returns
+    -------
+    t : array-like
+        Time axis (independent variable)
+    sig : array-like
+        Raw signal (dependent variable)
+    sigs : array-like
+        Smoothed signal (swin)
+    tsig : array-like
+        Transformed raw signal (transform)
+    tsigs : array-like
+        Transformed smoothed signal (transform, swin)
+    kde_x : array-like
+        kernel density estimate of smoothed signal.
+    yd : array-like
+        bins of kernel density estimator.
+    g : array-like
+        gradient of smoothed signal (swin, gwin)
+    trans : dict
+        per-transition data.
+    thresh : float
+        threshold identified from kernel density plot
+    """
     failed = []
     # smooth signal
     if swin is not None:
