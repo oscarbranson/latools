@@ -797,13 +797,11 @@ class D(object):
 
             # label the clusters according to their contents
             if (sort is not None) & (sort is not False):
+
                 if isinstance(sort, str):
                     sort = [sort]
 
-                if len(analytes) == 1:
-                    sanalytes = analytes + [False]
-                else:
-                    sanalytes = analytes
+                sanalytes = analytes
 
                 # make boolean filter to select analytes
                 if sort is True:
