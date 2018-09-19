@@ -3572,7 +3572,7 @@ class analyse(object):
             focus_stage = self.focus_stage
 
         if focus_stage in ['ratios', 'calibrated']:
-            analytes = analytes[analytes != self.internal_standard]
+            analytes = [a for a in analytes if a != self.internal_standard]
 
         if outdir is None:
             outdir = os.path.join(self.export_dir, 'trace_export')
