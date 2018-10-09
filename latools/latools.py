@@ -1704,11 +1704,11 @@ class analyse(object):
 
                     d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
                             below,
-                            'Values below {:.1f}th {:} percentile {:.2e}'.format(percentiles[0], analyte, lims[0]),
+                            'Values below {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
                     d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
                             above,
-                            'Values above {:.1f}th {:} percentile {:.2e}'.format(percentiles[0], analyte, lims[0]),
+                            'Values above {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
 
                 elif len(lims) == 2:
@@ -1840,11 +1840,11 @@ class analyse(object):
 
                     d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
                             below,
-                            'Gradients below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            'Gradients below {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
                     d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
                             above,
-                            'Gradients above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            'Gradients above {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
 
                 elif len(lims) == 2:
