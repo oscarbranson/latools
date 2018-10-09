@@ -1704,11 +1704,11 @@ class analyse(object):
 
                     d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
                             below,
-                            'Values below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            'Values below {:.1f}th {:} percentile {:.2e}'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
                     d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
                             above,
-                            'Values above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
+                            'Values above {:.1f}th {:} percentile {:.2e}'.format(percentiles[0], analyte, lims[0]),
                             params, setn=setn)
 
                 elif len(lims) == 2:
