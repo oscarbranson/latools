@@ -1204,13 +1204,13 @@ class D(object):
         figure, axis
         """
 
-        return plot.tplot(self, analytes, figsize, scale, filt,
-                          ranges, stats, stat, err,
-                          focus_stage, err_envelope, ax)
+        return plot.tplot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
+                          ranges=ranges, stats=stats, stat=stat, err=err,
+                          focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 
     @_log
     def gplot(self, analytes=None, win=5, figsize=[10, 4],
-              ranges=False, focus_stage=None):
+              ranges=False, focus_stage=None, ax=None):
         """
         Plot analytes gradients as a function of Time.
 
@@ -1231,56 +1231,59 @@ class D(object):
         figure, axis
         """
 
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
+        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize,
+                          ranges=ranges, focus_stage=focus_stage, ax=ax)
 
-        if focus_stage is None:
-            focus_stage = self.focus_stage
+        # if type(analytes) is str:
+        #     analytes = [analytes]
+        # if analytes is None:
+        #     analytes = self.analytes
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_axes([.1, .12, .77, .8])
+        # if focus_stage is None:
+        #     focus_stage = self.focus_stage
 
-        x = self.Time
-        grads = calc_grads(x, self.data[focus_stage], analytes, win)
+        # fig = plt.figure(figsize=figsize)
+        # ax = fig.add_axes([.1, .12, .77, .8])
 
-        for a in analytes:
-            ax.plot(x, grads[a], color=self.cmap[a], label=a)
+        # x = self.Time
+        # grads = calc_grads(x, self.data[focus_stage], analytes, win)
 
-        if ranges:
-            for lims in self.bkgrng:
-                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
-            for lims in self.sigrng:
-                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
+        # for a in analytes:
+        #     ax.plot(x, grads[a], color=self.cmap[a], label=a)
 
-        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
-                transform=ax.transAxes,
-                ha='left', va='top')
+        # if ranges:
+        #     for lims in self.bkgrng:
+        #         ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+        #     for lims in self.sigrng:
+        #         ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-        ax.set_xlabel('Time (s)')
-        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+        # ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
+        #         transform=ax.transAxes,
+        #         ha='left', va='top')
 
-        # y label
-        ud = {'rawdata': 'counts/s',
-              'despiked': 'counts/s',
-              'bkgsub': 'background corrected counts/s',
-              'ratios': 'counts/{:s} count/s',
-              'calibrated': 'mol/mol/s {:s}'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
-        ax.set_ylabel(ud[focus_stage])
-        # y tick format
+        # ax.set_xlabel('Time (s)')
+        # ax.set_xlim(np.nanmin(x), np.nanmax(x))
 
-        def yfmt(x, p):
-            return '{:.0e}'.format(x)
-        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
+        # # y label
+        # ud = {'rawdata': 'counts/s',
+        #       'despiked': 'counts/s',
+        #       'bkgsub': 'background corrected counts/s',
+        #       'ratios': 'counts/{:s} count/s',
+        #       'calibrated': 'mol/mol {:s}/s'}
+        # if focus_stage in ['ratios', 'calibrated']:
+        #     ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        # ax.set_ylabel(ud[focus_stage])
+        # # y tick format
 
-        ax.legend(bbox_to_anchor=(1.15, 1))
+        # def yfmt(x, p):
+        #     return '{:.0e}'.format(x)
+        # ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
 
-        ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+        # ax.legend(bbox_to_anchor=(1.15, 1))
 
-        return fig, ax
+        # ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+
+        # return fig, ax
 
     @_log
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True, colourful=True, figsize=(12, 12)):
