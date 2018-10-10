@@ -2592,7 +2592,7 @@ class analyse(object):
         return
 
     # fetch all the gradients from the data objects
-    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None):
+    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None, recalc=True):
         """
         Collect all data from all samples into a single array.
         Data from standards is not collected.
@@ -2614,13 +2614,20 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes
-        if not hasattr(self, 'gradients'):
-            self.gradients = Bunch()
 
         if samples is not None:
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
+
+        # check if gradients already calculated
+        if all([self.data[s].grads_calced for s in samples]) and hasattr(self, 'gradients'):
+            if not recalc:
+                print("Using existing gradients. Set recalc=True to re-calculate.")
+                return
+
+        if not hasattr(self, 'gradients'):
+            self.gradients = Bunch()
 
         # t = 0
         focus = {'uTime': []}
@@ -2636,13 +2643,15 @@ class analyse(object):
                     tmp = grads[a]
                     tmp[~ind] = np.nan
                     focus[a].append(tmp)
+                    s.grads = tmp
+                s.grads_calced = True
                 prog.update()
 
         self.gradients.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         return
 
-    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None):
+    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None, recalc=True, ncol=4):
         """
         Plot a histogram of the gradients in all samples.
 
@@ -2658,29 +2667,36 @@ class analyse(object):
             which samples to get
         subset : str or int
             which subset to get
+        recalc : bool
+            Whether to re-calculate the gradients, or use existing gradients.
 
         Returns
         -------
         fig, ax
         """
         if analytes is None:
-            analytes = self.analytes
+            analytes = [a for a in self.analytes if self.internal_standard not in a]
         if not hasattr(self, 'gradients'):
             self.gradients = Bunch()
+
+        ncol = int(ncol)
+        n = len(analytes)
+        nrow = plot.calc_nrow(n, ncol)
 
         if samples is not None:
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
 
-        self.get_gradients(analytes, win, filt, subset=subset)
+        self.get_gradients(analytes=analytes, win=win, filt=filt, subset=subset, recalc=recalc)
 
-        fig, axs = plt.subplots(1, len(analytes), figsize=[3 * len(analytes), 2.5])
+        fig, axs = plt.subplots(nrow, ncol, figsize=[3. * ncol, 2.5 * nrow])
 
         if not isinstance(axs, np.ndarray):
             axs = [axs]
 
-        for a, ax in zip(analytes, axs):
+        i = 0
+        for a, ax in zip(analytes, axs.flatten()):
             d = nominal_values(self.gradients[a])
             d = d[~np.isnan(d)]
 
@@ -2698,6 +2714,13 @@ class analyse(object):
             if ax.is_first_col():
                 ax.set_ylabel('N')
             ax.set_xlabel(u + '/s')
+
+            i += 1
+
+        if i < ncol * nrow:
+            print('invisiblising')
+            for ax in axs.flatten()[i:]:
+                ax.set_visible(False)
         
         fig.tight_layout()
 
@@ -2769,7 +2792,7 @@ class analyse(object):
     def gradient_crossplot(self, analytes=None, win=15, lognorm=True,
                            bins=25, filt=False, samples=None,
                            subset=None, figsize=(12, 12), save=False,
-                           colourful=True, mode='hist2d', **kwargs):
+                           colourful=True, mode='hist2d', recalc=True, **kwargs):
         """
         Plot analyte gradients against each other.
 
@@ -2795,6 +2818,8 @@ class analyse(object):
             Whether or not the plot should be colourful :).
         mode : str
             'hist2d' (default) or 'scatter'
+        recalc : bool
+            Whether to re-calculate the gradients, or use existing gradients.
 
         Returns
         -------
@@ -2812,8 +2837,10 @@ class analyse(object):
         except IndexError:
             analytes = sorted(analytes)
 
+        samples = self._get_samples(subset)
+
         # calculate gradients
-        self.get_gradients(analytes, win, filt, samples, subset)
+        self.get_gradients(analytes=analytes, win=win, filt=filt, subset=subset, recalc=recalc)
 
         # self.get_focus(filt=filt, samples=samples, subset=subset)
         # grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
