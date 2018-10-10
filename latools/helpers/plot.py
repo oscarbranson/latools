@@ -11,7 +11,14 @@ from tqdm import tqdm
 from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element, calc_grads
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
-
+def calc_nrow(n, ncol):
+    if n % ncol is 0:
+        nrow = n / ncol
+    else:
+        nrow = n // ncol + 1
+    
+    return int(nrow)
+    
 def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               focus_stage=None, err_envelope=False, ax=None):
@@ -376,7 +383,7 @@ def crossplot(dat, keys=None, lognorm=True,
     return fig, axes
 
 
-def histograms(dat, keys=None, bins=25, logy=False, cmap=None):
+def histograms(dat, keys=None, bins=25, logy=False, cmap=None, ncol=4):
     """
     Plot histograms of all items in dat.
 
@@ -402,10 +409,10 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None):
     if keys is None:
         keys = dat.keys()
 
-    nrow = len(keys) // 4
-    if len(keys) % 4 > 0:
-        nrow += 1
-    fig, axs = plt.subplots(nrow, 4, figsize=[8, nrow * 2])
+    ncol = int(ncol)
+    nrow = calc_nrow(len(keys), ncol)
+
+    fig, axs = plt.subplots(nrow, 4, figsize=[ncol * 2, nrow * 2])
 
     pn = 0
     for k, ax in zip(keys, axs.flat):
@@ -675,7 +682,7 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
+def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
@@ -700,18 +707,16 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
     if analytes is None:
         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
+    ncol = int(ncol)
     n = len(analytes)
-    if n % 3 is 0:
-        nrow = n / 3
-    else:
-        nrow = n // 3 + 1
+    nrow = calc_nrow(n, ncol)
 
     axes = []
 
     if not datarange:
-        fig = plt.figure(figsize=[12, 3 * nrow])
+        fig = plt.figure(figsize=[4 * ncol, 3 * nrow])
     else:
-        fig = plt.figure(figsize=[14, 3 * nrow])
+        fig = plt.figure(figsize=[4.66 * ncol, 3 * nrow])
         self.get_focus()
 
     gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
