@@ -1029,3 +1029,45 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
             plt.close(fig)
 
     return fig, axes
+
+def correlation_plot(self, corr=None):
+    if len(self.correlations) == 0:
+        raise ValueError("No calculated correlations. Run threshold_correlation first.")
+    
+    if corr is None:
+        if len(self.correlations) == 1:
+            corr = list(self.correlations.keys())[0]
+    
+    if corr not in self.correlations:
+        raise ValueError("{:} not founself. Please use one of [{:}]".format(corr, [', '.join(c) for c in self.correlations.keys()]))
+    
+    x_analyte, y_analyte, window = corr.split('_')
+    r, p = self.correlations[corr]
+    
+    fig, axs = plt.subplots(3, 1, figsize=[7, 5], sharex=True)
+    
+    # plot analytes
+    ax = axs[0]
+        
+    ax.plot(self.Time, nominal_values(self.focus[x_analyte]), color=self.cmap[x_analyte], label=x_analyte)
+    ax.plot(self.Time, nominal_values(self.focus[y_analyte]), color=self.cmap[y_analyte], label=y_analyte)
+    
+    ax.set_yscale('log')
+    ax.legend()
+    ax.set_ylabel('Signals')
+    
+    # plot r
+    ax = axs[1]
+    ax.plot(self.Time, r)
+    ax.set_ylabel('Pearson R')
+    
+    # plot p
+    ax = axs[2]
+    ax.plot(self.Time, p)
+    ax.set_ylabel('pignificance Level (p)')
+
+    ax.set_xlabel('Time (s)')
+    
+    fig.tight_layout()
+    
+    return fig, axs
