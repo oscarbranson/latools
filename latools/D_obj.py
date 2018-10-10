@@ -108,6 +108,10 @@ class D(object):
         # calculate total counts
         self.data['total_counts'] = sum(self.data['rawdata'].values())
 
+        # add placeholder for gradient info
+        self.grads = None
+        self.grads_calced = False
+
         # assign time information to attribute level
         self.Time = self.data['Time']
         self.tstep = self.Time[1] - self.Time[0]
@@ -659,9 +663,9 @@ class D(object):
 
         Parameters
         ----------
-        analyte : TYPE
+        analyte : str
             Description of `analyte`.
-        threshold : TYPE
+        threshold : float
             Description of `threshold`.
 
         Returns
