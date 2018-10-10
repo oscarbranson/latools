@@ -2029,6 +2029,50 @@ class analyse(object):
                 prog.update()
 
     @_log
+    def correlation_plots(self, x_analyte, y_analyte, window=15, filt=True, recalc=False, samples=None, subset=None, outdir=None):
+        """
+        Plot the local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        None
+        """
+        if outdir is None:
+            outdir = self.report_dir + '/correlations/'
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+        
+        if subset is not None:
+            samples = self._get_samples(subset)
+        elif samples is None:
+            samples = self.subsets['All_Analyses']
+        elif isinstance(samples, str):
+            samples = [samples]
+
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                f, a = self.data[s].correlation_plot(x_analyte=x_analyte, y_analyte=y_analyte,
+                                                     window=window, filt=filt, recalc=recalc)
+                f.savefig('{}/{}_{}-{}.pdf'.format(outdir, s, x_analyte, y_analyte))
+                plt.close(f)
+                prog.update()
+        return
+        
+
+
+    @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
         """
         Turns data filters on for particular analytes and samples.

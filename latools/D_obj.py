@@ -27,7 +27,7 @@ from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
                               calc_grads, unitpicker, pretty_element,
                               findmins, stack_keys)
 from .helpers.logging import _log
-from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties
+from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
 
 class D(object):
     """
@@ -111,6 +111,9 @@ class D(object):
         # add placeholder for gradient info
         self.grads = None
         self.grads_calced = False
+
+        # add placeholder for local correlations
+        self.correlations = Bunch()
 
         # assign time information to attribute level
         self.Time = self.data['Time']
@@ -903,10 +906,61 @@ class D(object):
         return
 
     @_log
-    def filter_correlation(self, x_analyte, y_analyte, window=None,
-                           r_threshold=0.9, p_threshold=0.05, filt=True):
+    def calc_correlation(self, x_analyte, y_analyte, window=15, filt=True, recalc=True):
         """
-        Apply correlation filter.
+        Calculate local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        None
+        """
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+
+        if label in self.correlations and not recalc:
+            return
+
+        # make window odd
+        if window % 2 != 1:
+            window += 1
+        
+        # get filter
+        ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
+
+        x = nominal_values(self.focus[x_analyte])
+        x[~ind] = np.nan
+        xr = rolling_window(x, window, pad=np.nan)
+
+        y = nominal_values(self.focus[y_analyte])
+        y[~ind] = np.nan
+        yr = rolling_window(y, window, pad=np.nan)
+
+        r, p = zip(*map(nan_pearsonr, xr, yr))
+
+        r = np.array(r)
+        p = np.array(p)
+
+        # save correlation info
+        
+        self.correlations[label] = r, p
+        return
+
+    @_log
+    def filter_correlation(self, x_analyte, y_analyte, window=15,
+                           r_threshold=0.9, p_threshold=0.05, filt=True, recalc=False):
+        """
+        Calculate correlation filter.
 
         Parameters
         ----------
@@ -924,18 +978,15 @@ class D(object):
         filt : bool
             Whether or not to apply existing filters to the data before
             calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
 
         Returns
         -------
         None
         """
-
-        # automatically determine appripriate window?
-
         # make window odd
-        if window is None:
-            window = 11
-        elif window % 2 != 1:
+        if window % 2 != 1:
             window += 1
 
         params = locals()
@@ -943,21 +994,10 @@ class D(object):
 
         setn = self.filt.maxset + 1
 
-        # get filter
-        ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
-
-        x = nominal_values(self.focus[x_analyte])
-        x[~ind] = np.nan
-        xr = rolling_window(x, window, pad=np.nan)
-
-        y = nominal_values(self.focus[y_analyte])
-        y[~ind] = np.nan
-        yr = rolling_window(y, window, pad=np.nan)
-
-        r, p = zip(*map(pearsonr, xr, yr))
-
-        r = np.array(r)
-        p = np.array(p)
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+        
+        self.calc_correlation(x_analyte, y_analyte, window, filt, recalc)
+        r, p = self.correlations[label]
 
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
@@ -973,6 +1013,58 @@ class D(object):
         self.filt.on(analyte=y_analyte, filt=name)
 
         return
+
+    @_log
+    def correlation_plot(self, x_analyte, y_analyte, window=15, filt=True, recalc=False):
+        """
+        Plot the local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        fig, axs : figure and axes objects
+        """
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+
+        self.calc_correlation(x_analyte, y_analyte, window, filt, recalc)
+        r, p = self.correlations[label]
+
+        fig, axs = plt.subplots(3, 1, figsize=[7, 5], sharex=True)
+        
+        # plot analytes
+        ax = axs[0]
+            
+        ax.plot(self.Time, nominal_values(self.focus[x_analyte]), color=self.cmap[x_analyte], label=x_analyte)
+        ax.plot(self.Time, nominal_values(self.focus[y_analyte]), color=self.cmap[y_analyte], label=y_analyte)
+        
+        ax.set_yscale('log')
+        ax.legend()
+        ax.set_ylabel('Signals')
+        
+        # plot r
+        ax = axs[1]
+        ax.plot(self.Time, r)
+        ax.set_ylabel('Pearson R')
+        
+        # plot p
+        ax = axs[2]
+        ax.plot(self.Time, p)
+        ax.set_ylabel('pignificance Level (p)')
+        
+        fig.tight_layout()
+        
+        return fig, axs
     
     @_log
     def filter_new(self, name, filt_str):
