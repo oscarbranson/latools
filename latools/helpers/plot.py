@@ -172,7 +172,7 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             return fig, ax
 
 def gplot(self, analytes=None, win=25, figsize=[10, 4],
-              ranges=False, focus_stage=None, ax=None):
+              ranges=False, focus_stage=None, ax=None, recalc=True):
         """
         Plot analytes gradients as a function of Time.
 
@@ -210,10 +210,12 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
             ret = False
 
         x = self.Time
-        grads = calc_grads(x, self.data[focus_stage], analytes, win)
+        if recalc or not self.grads_calced:
+            self.grads = calc_grads(x, self.data[focus_stage], analytes, win)
+            self.grads_calce = True
 
         for a in analytes:
-            ax.plot(x, grads[a], color=self.cmap[a], label=a)
+            ax.plot(x, self.grads[a], color=self.cmap[a], label=a)
 
         if ranges:
             for lims in self.bkgrng:
@@ -714,13 +716,13 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
     axes = []
 
     if not datarange:
-        fig = plt.figure(figsize=[4 * ncol, 3 * nrow])
+        fig = plt.figure(figsize=[4.1 * ncol, 3 * nrow])
     else:
-        fig = plt.figure(figsize=[4.66 * ncol, 3 * nrow])
+        fig = plt.figure(figsize=[4.7 * ncol, 3 * nrow])
         self.get_focus()
 
-    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
-                               hspace=0.3, wspace=0.3)
+    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
+                               hspace=0.35, wspace=0.3)
 
     for g, a in zip(gs, analytes):
         if not datarange:
@@ -868,6 +870,65 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
     if save:
         fig.savefig(self.report_dir + '/calibration.pdf')
+
+    return fig, axes
+
+def calibration_drift_plot(self, analytes=None, ncol=3, save=True):
+    """
+    Plot calibration slopes through the entire session.
+
+    Parameters
+    ----------
+    self : latools.analyse
+        Analyse object, containing 
+    analytes : optional, array_like or str
+        The analyte(s) to plot. Defaults to all analytes.
+    ncol : int
+        Number of columns of plots
+    save : bool
+        Whether or not to save the plot.
+
+    Returns
+    -------
+    (fig, axes)
+    """
+    if not hasattr(self, 'calib_params'):
+        raise ValueError('Please run calibrate before making this plot.')
+
+    if analytes is None:
+        analytes = [a for a in self.analytes if self.internal_standard not in a]
+
+    ncol = int(ncol)
+    n = len(analytes)
+    nrow = calc_nrow(n, ncol)
+
+    axes = []
+
+    fig = plt.figure(figsize=[6 * ncol, 3 * nrow])
+
+    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
+                               hspace=0.35, wspace=0.3)
+
+    cp = self.calib_params
+
+    for g, a in zip(gs, analytes):
+        ax = fig.add_axes(g.get_position(fig))
+        axes.append(ax)
+
+        ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), c=self.cmaps[a])
+        ax.fill_between(cp.index, 
+                        nominal_values(cp.loc[:, (a, 'm')]) - std_devs(cp.loc[:, (a, 'm')]),
+                        nominal_values(cp.loc[:, (a, 'm')]) + std_devs(cp.loc[:, (a, 'm')]),
+                        color=self.cmaps[a], alpha=0.2, lw=0)
+
+
+        ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+                weight='bold', va='top', ha='left', size=12)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('mol/mol ' + self.internal_standard)
+    
+    if save:
+        fig.savefig(self.report_dir + '/calibration_drift.pdf')
 
     return fig, axes
 
