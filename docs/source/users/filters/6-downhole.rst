@@ -29,3 +29,10 @@ This can be done using the Down-Hole Exclusion filter:
 .. image :: figs/5-fragmented-post.png
 
 This filter is particularly useful if, for example, there is a significant contaminated region in the middle of an ablation, but threshold filters do not effectively exclude the post-contaminant region.
+
+Related Functions
+-----------------
+
+* :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
+* :meth:`~latools.latools.analyse.filter_on` and :meth:`~latools.latools.analyse.filter_off` turn filters on or off.
+* :meth:`~latools.latools.analyse.filter_clear` deletes all filters.
