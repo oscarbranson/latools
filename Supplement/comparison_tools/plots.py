@@ -116,7 +116,7 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         hax.set_ylim([0, hax.get_ylim()[-1]])
         hax.set_xlim(lims)
         hax.axvline(0, c='k', ls='dashed', alpha=0.6)
-        hax.set_yticklabels([])
+        # hax.set_yticklabels([])
         hax.set_ylabel('Density')
         
         # axis labels, annotations and limits
@@ -382,7 +382,7 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
             if ax.is_last_row():
                 tax.set_xlabel('Mean')
                 lax.set_xlabel('Mean')
-                hax.set_xlabel('Data Density')
+                hax.set_xlabel('Residual Density')
                 hax.legend()
             else:
                 ax.set_xlabel('')

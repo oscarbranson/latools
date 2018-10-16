@@ -24,7 +24,7 @@ def bland_altman_plots(df, rep_stats=None, els=None, c=(0,0,0,0.6)):
     frame = [.25, .25, .75, .75]
 
     baframe = [frame[0], frame[1], frame[2] * p, frame[3]]
-    rframe = [frame[0] + frame[2] * p, frame[1], frame[2] * (1 - p), frame[3]]
+    rframe = [frame[0] + frame[2] * p * 1.02, frame[1], frame[2] * (1 - p * 1.02), frame[3]]
 
     fig = plt.figure(figsize=(cols * 2.8, rows * 1.5))
     axs = []
@@ -86,6 +86,10 @@ def bland_altman_plots(df, rep_stats=None, els=None, c=(0,0,0,0.6)):
         dax.set_xlim([0, dax.get_xlim()[-1] * 1.1])
         dax.axhline(0, ls='dashed', c='k', alpha=0.6, zorder=-1)
 
+
+    for ax in axs[-4:]:
+        ax[0].set_xlabel('[X]')
+        ax[1].set_xlabel('Resid.\nDens')
     #     lax.set_title(e[-3:], loc='left')
 
     #     # if lax.is_first_row() and lax.is_first_col():
