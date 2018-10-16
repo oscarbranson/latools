@@ -3,8 +3,10 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-# SPHINXBUILD	  = python /home/oscar/pyenvs/py3/bin/sphinx-build
-SPHINXBUILD   = /home/oscar/pyenvs/py3/bin/python -msphinx
+# SPHINXBUILD = sphinx-build
+# SPHINXBUILD	  = python
+SPHINXBUILD = python $(shell which sphinx-build)
+# SPHINXBUILD   = /home/oscar/pyenvs/py3/bin/python -msphinx
 SPHINXPROJ    = latools
 SOURCEDIR     = source
 BUILDDIR      = build

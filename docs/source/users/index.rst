@@ -16,4 +16,6 @@ User Guide
     intro.rst
     installing.rst
     beginners/index.rst
+    filters/index.rst
     configuration/index.rst
+    advanced/index.rst

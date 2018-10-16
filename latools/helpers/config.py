@@ -20,8 +20,11 @@ def read_configuration(config='DEFAULT'):
     if config == 'DEFAULT':
         config = conf['DEFAULT']['config']
 
-    # return the chosen configuration    
-    return dict(conf[config])
+    # grab the chosen configuration
+    conf = dict(conf[config])
+    # update config name with chosen
+    conf['config'] = config
+    return conf
 
 # under-the-hood functions
 def read_latoolscfg():

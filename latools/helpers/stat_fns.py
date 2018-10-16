@@ -1,6 +1,15 @@
 import numpy as np
 import uncertainties.unumpy as un
+from scipy.stats import pearsonr
 
+def nan_pearsonr(x, y):
+    xy = np.vstack([x, y])
+    xy = xy[:, ~np.any(np.isnan(xy),0)]
+    n = len(x)
+    if xy.shape[-1] < n // 2:
+        return np.nan, np.nan
+        
+    return pearsonr(xy[0], xy[1])
 
 def R2calc(meas, model, force_zero=False):
     if force_zero:

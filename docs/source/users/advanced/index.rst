@@ -13,4 +13,5 @@ Advanced Topics
 .. toctree::
     :maxdepth: 2
 
+    preprocessing.rst
 

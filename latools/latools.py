@@ -18,7 +18,6 @@ import uncertainties.unumpy as un
 from sklearn.preprocessing import minmax_scale
 
 from scipy.optimize import curve_fit
-from tqdm import tqdm  # status bars!
 
 from .helpers import plot
 from .filtering import filters
@@ -27,10 +26,15 @@ from .filtering.classifier_obj import classifier
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads, _log,
+                      unitpicker, rangecalc, Bunch, calc_grads,
                       get_total_time_span)
+from .helpers import logging
+from .helpers.logging import _log
 from .helpers.config import read_configuration
 from .helpers.stat_fns import *
+from .helpers import utils
+from .helpers import srm as srms
+from .helpers.progressbars import progressbar
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -120,13 +124,12 @@ class analyse(object):
     def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names', srm_file=None):
+                 names='file_names', srm_file=None, pbar=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
         # initialise log
-        params = locals()
-        del(params['self'])
+        params = {k: v for k, v in locals().items() if k not in ['self', 'pbar']}
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         # assign file paths
@@ -213,13 +216,23 @@ class analyse(object):
         elif isinstance(dataformat, dict):
             self.dataformat = dataformat
 
+        # link up progress bars
+        if pbar is None:
+            self.pbar = progressbar()
+        else:
+            self.pbar = pbar
+
         # load data into list (initialise D objects)
-        data = [D(self.folder + '/' + f,
-                  dataformat=self.dataformat,
-                  errorhunt=errorhunt,
-                  cmap=cmap,
-                  internal_standard=internal_standard,
-                  name=names) for f in self.files]
+        with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
+            data = []
+            for f in self.files:
+                data.append(D(self.folder + '/' + f,
+                            dataformat=self.dataformat,
+                            errorhunt=errorhunt,
+                            cmap=cmap,
+                            internal_standard=internal_standard,
+                            name=names))
+                prog.update()
 
         # create universal time scale
         if 'date' in data[0].meta.keys():
@@ -274,12 +287,18 @@ class analyse(object):
 
         # get analytes
         self.analytes = np.array(data[0].analytes)
+        if np.asanyarray(self.analytes).size == 0:
+            raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
+
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
             ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
                        'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = set([internal_standard])
+
+        # keep record of which stages of processing have been performed
+        self.stages_complete = set(['rawdata'])
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
@@ -315,18 +334,6 @@ class analyse(object):
         print('  Analytes: ' + ' '.join(self.analytes))
         print('  Internal Standard: {}'.format(self.internal_standard))
 
-    # Helper Functions
-    # def _log(func):
-    #     """
-    #     Function for logging method calls and parameters
-    #     """
-    #     @wraps(func)
-    #     def wrapper(self, *args, **kwargs):
-    #         a = func(self, *args, **kwargs)
-    #         self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-    #         return a
-    #     return wrapper
-
     def _get_samples(self, subset=None):
         """
         Helper function to get sample names from subset.
@@ -350,14 +357,20 @@ class analyse(object):
                                 "exist.\nUse 'make_subset' to create a" +
                                 "subset."))
         return samples
+    
+    def _log_header(self):
+        return ['# LATOOLS analysis log saved at {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
+                'data_folder :: {}'.format(self.folder),
+                '# Analysis Log Start: \n'
+                ]
 
     @_log
     def basic_processing(self,
                          noise_despiker=True, despike_win=3, despike_nlim=12.,  # despike args
                          despike_maxiter=4,
                          autorange_analyte='total_counts', autorange_gwin=5, autorange_swin=3, autorange_win=20,  # autorange args
-                         autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1], autorange_nbin=10,
-                         autorange_transform='log', autorange_thresh_n=None,
+                         autorange_on_mult=[1., 1.5], autorange_off_mult=[1.5, 1],
+                         autorange_transform='log',
                          bkg_weight_fwhm=300.,  # bkg_calc_weightedmean
                          bkg_n_min=20, bkg_n_max=None, bkg_cstep=None,
                          bkg_filter=False, bkg_f_win=7, bkg_f_n_lim=3,
@@ -372,8 +385,8 @@ class analyse(object):
                      maxiter=despike_maxiter)
         self.autorange(analyte=autorange_analyte, gwin=autorange_gwin, swin=autorange_swin,
                        win=autorange_win, on_mult=autorange_on_mult,
-                       off_mult=autorange_off_mult, nbin=autorange_nbin,
-                       transform=autorange_transform, thresh_n=autorange_thresh_n)
+                       off_mult=autorange_off_mult,
+                       transform=autorange_transform)
         if plots:
             self.trace_plots(ranges=True)
         self.bkg_calc_weightedmean(weight_fwhm=bkg_weight_fwhm, n_min=bkg_n_min, n_max=bkg_n_max,
@@ -391,8 +404,8 @@ class analyse(object):
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
-                  on_mult=[1., 1.5], off_mult=[1.5, 1], nbin=10,
-                  transform='log', thresh_n=None, ploterrs=True):
+                  on_mult=[1., 1.5], off_mult=[1.5, 1],
+                  transform='log', ploterrs=True, focus_stage='despiked'):
         """
         Automatically separates signal and background data regions.
 
@@ -445,6 +458,18 @@ class analyse(object):
             if the transitions consistently leave some bad data proceeding the
             transition, set trans_mult to [0, 0.5] to ad 0.5 * the FWHM to the
             right hand side of the limit.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked', or rawdata' if not despiked. Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
@@ -456,8 +481,9 @@ class analyse(object):
             (min, max) pairs identifying the boundaries of contiguous
             True regions in the boolean arrays.
         """
-
-        bkg_thresh = None
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         if analyte is None:
             analyte = self.internal_standard
@@ -465,12 +491,14 @@ class analyse(object):
             self.minimal_analytes.update([analyte])
 
         fails = {}  # list for catching failures.
-        for s, d in tqdm(self.data.items(), desc='AutoRange'):
-            f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
-                            on_mult=on_mult, off_mult=off_mult, nbin=nbin,
-                            ploterrs=ploterrs, bkg_thresh=bkg_thresh)
-            if f is not None:
-                fails[s] = f
+        with self.pbar.set(total=len(self.data), desc='AutoRange') as prog:
+            for s, d in self.data.items():
+                f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
+                                on_mult=on_mult, off_mult=off_mult,
+                                ploterrs=ploterrs, transform=transform)
+                if f is not None:
+                    fails[s] = f
+                prog.update()  # advance progress bar
         # handle failures
         if len(fails) > 0:
             wstr = ('\n\n' + '*' * 41 + '\n' +
@@ -492,9 +520,11 @@ class analyse(object):
                      "dat.data['Sample'].autorange_plot(params)\n" +
                      '*' * 41 + '\n')
             warnings.warn(wstr)
+        
+        self.stages_complete.update(['autorange'])
         return
 
-    def find_expcoef(self, nsd_below=0., analyte=None, plot=False,
+    def find_expcoef(self, nsd_below=0., plot=False,
                      trimlim=None, autorange_kwargs={}):
         """
         Determines exponential decay coefficient for despike filter.
@@ -504,14 +534,13 @@ class analyse(object):
         coefficient reported is `nsd_below` standard deviations below the
         fitted exponent, to ensure that no real data is removed.
 
+        Total counts are used in fitting, rather than a specific analyte.
+
         Parameters
         ----------
         nsd_below : float
             The number of standard deviations to subtract from the fitted
             coefficient when calculating the filter exponent.
-        analyte : str
-            The analyte to consider when determining the coefficient.
-            Use high - concentration analyte for best estimates.
         plot : bool or str
             If True, creates a plot of the fit, if str the plot is to the
             location specified in str.
@@ -526,12 +555,7 @@ class analyse(object):
         -------
         None
         """
-        if analyte is None:
-            analyte = self.internal_standard
-
-        self.minimal_analytes.update([analyte])
-
-        print('Calculating exponential decay coefficient\nfrom SRM {} washouts...'.format(analyte))
+        print('Calculating exponential decay coefficient\nfrom SRM washouts...')
 
         def findtrim(tr, lim=None):
             trr = np.roll(tr, -1)
@@ -549,7 +573,7 @@ class analyse(object):
         times = []
         for v in self.stds:
             for trnrng in v.trnrng[-1::-2]:
-                tr = minmax_scale(v.focus[analyte][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
+                tr = minmax_scale(v.data['total_counts'][(v.Time > trnrng[0]) & (v.Time < trnrng[1])])
                 sm = np.apply_along_axis(np.nanmean, 1,
                                          rolling_window(tr, 3, pad=0))
                 sm[0] = sm[1]
@@ -611,7 +635,7 @@ class analyse(object):
     @_log
     def despike(self, expdecay_despiker=False, exponent=None,
                 noise_despiker=True, win=3, nlim=12., exponentplot=False,
-                maxiter=4, autorange_kwargs={}):
+                maxiter=4, autorange_kwargs={}, focus_stage='rawdata'):
         """
         Despikes data with exponential decay and noise filters.
 
@@ -638,11 +662,26 @@ class analyse(object):
             exponential decay exponent.
         maxiter : int
             The max number of times that the fitler is applied.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'rawdata'. Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
         None
         """
+        if focus_stage != self.focus_stage:
+            self.set_focus(focus_stage)
+
         if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
                 self.find_expcoef(plot=exponentplot,
@@ -650,10 +689,13 @@ class analyse(object):
             exponent = self.expdecay_coef
             time.sleep(0.1)
 
-        for d in tqdm(self.data.values(), desc='Despiking'):
-            d.despike(expdecay_despiker, exponent,
-                      noise_despiker, win, nlim, maxiter)
+        with self.pbar.set(total=len(self.data), desc='Despiking') as prog:
+            for d in self.data.values():
+                d.despike(expdecay_despiker, exponent,
+                        noise_despiker, win, nlim, maxiter)
+                prog.update()
 
+        self.stages_complete.update(['despiked'])
         self.focus_stage = 'despiked'
         return
 
@@ -680,6 +722,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
         Returns
         -------
@@ -687,6 +742,10 @@ class analyse(object):
         """
         allbkgs = {'uTime': [],
                    'ns': []}
+                
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         for a in self.analytes:
             allbkgs[a] = []
@@ -738,7 +797,7 @@ class analyse(object):
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
                               n_min=20, n_max=None, cstep=None,
-                              bkg_filter=False, f_win=7, f_n_lim=3):
+                              bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
         Background calculation using a gaussian weighted mean.
 
@@ -763,6 +822,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
             analytes = self.analytes
@@ -771,11 +843,11 @@ class analyse(object):
             analytes = [analytes]
         
         if weight_fwhm is None:
-            weight_fwhm = get_total_time_span(self.data) / 30
+            weight_fwhm = 600  # 10 minute default window
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
-                            f_win=f_win, f_n_lim=f_n_lim)
+                            f_win=f_win, f_n_lim=f_n_lim, focus_stage=focus_stage)
 
         # Gaussian - weighted average
         if 'calc' not in self.bkg.keys():
@@ -785,10 +857,6 @@ class analyse(object):
             elif cstep > weight_fwhm:
                 warnings.warn("\ncstep should be less than weight_fwhm. Your backgrounds\n" +
                               "might not behave as expected.\n")
-            # TODO: Modify bkg_t to make sure none of the calculated
-            # bkg points are during a sample collection? Though shouldn't
-            # be a problem with gaussian smooth if bkgs are behaving
-            # correctly.
             bkg_t = np.linspace(0,
                                 self.max_time,
                                 self.max_time // cstep)
@@ -803,12 +871,12 @@ class analyse(object):
 
         for i, a in enumerate(analytes):
             self.bkg['calc'][a] = {'mean': mean[i],
-                                   'std': std[i],
-                                   'stderr': stderr[i]}
+                                    'std': std[i],
+                                    'stderr': stderr[i]}
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
-                          bkg_filter=False, f_win=7, f_n_lim=3):
+                          bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
         Background calculation using a 1D interpolation.
 
@@ -836,6 +904,19 @@ class analyse(object):
         f_n_lim : float
             The number of standard deviations above the rolling mean
             to set the threshold.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.            
         """
         if analytes is None:
             analytes = self.analytes
@@ -845,7 +926,7 @@ class analyse(object):
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
-                            f_win=f_win, f_n_lim=f_n_lim)
+                            f_win=f_win, f_n_lim=f_n_lim, focus_stage=focus_stage)
 
         def pad(a, lo=None, hi=None):
             if lo is None:
@@ -868,17 +949,19 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
-        for a in tqdm(analytes, desc='Calculating Analyte Backgrounds'):
-            self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
-                                   'std': pad(d.loc[:, (a, 'std')].values),
-                                   'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+        with self.pbar.set(total=len(analytes), desc='Calculating Analyte Backgrounds') as prog:
+            for a in analytes:
+                self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
+                                    'std': pad(d.loc[:, (a, 'std')].values),
+                                    'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+                prog.update()
 
         self.bkg['calc']
 
         return
 
     @_log
-    def bkg_subtract(self, analytes=None, errtype='stderr', focus='despiked'):
+    def bkg_subtract(self, analytes=None, errtype='stderr', focus_stage='despiked'):
         """
         Subtract calculated background from data.
 
@@ -890,14 +973,28 @@ class analyse(object):
             Which analyte(s) to subtract.
         errtype : str
             Which type of error to propagate. default is 'stderr'.
-        focus : str
-            Which stage of analysis to work on. Change to 'rawdata' if
-            you're skipping the despiking step.
+        focus_stage : str
+            Which stage of analysis to apply processing to. 
+            Defaults to 'despiked' if present, or 'rawdata' if not. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if focus_stage == 'despiked':
+            if 'despiked' not in self.stages_complete:
+                focus_stage = 'rawdata'
 
         # make uncertainty-aware background interpolators
         bkg_interps = {}
@@ -905,14 +1002,71 @@ class analyse(object):
             bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
                                          y=un.uarray(self.bkg['calc'][a]['mean'],
                                                      self.bkg['calc'][a][errtype]))
+        self.bkg_interps = bkg_interps
 
         # apply background corrections
-        for d in tqdm(self.data.values(), desc='Background Subtraction'):
-            [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus) for a in analytes]
-            d.setfocus('bkgsub')
+        with self.pbar.set(total=len(self.data), desc='Background Subtraction') as prog:
+            for d in self.data.values():
+                # [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), None, focus_stage=focus_stage) for a in analytes]
+                [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
+                d.setfocus('bkgsub')
 
+                prog.update()
+
+        self.stages_complete.update(['bkgsub'])
         self.focus_stage = 'bkgsub'
         return
+
+    @_log
+    def correct_spectral_interference(self, target_analyte, source_analyte, f):
+        """
+        Correct spectral interference.
+
+        Subtract interference counts from target_analyte, based on the
+        intensity of a source_analayte and a known fractional contribution (f).
+
+        Correction takes the form:
+        target_analyte -= source_analyte * f
+
+        Only operates on background-corrected data ('bkgsub'). To undo a correction,
+        rerun `self.bkg_subtract()`.
+
+        Example
+        -------
+        To correct 44Ca+ for an 88Sr++ interference, where both 43.5 and 44 Da
+        peaks are known:
+        f = abundance(88Sr) / (abundance(87Sr) 
+
+        counts(44Ca) = counts(44 Da) - counts(43.5 Da) * f
+
+
+        Parameters
+        ----------
+        target_analyte : str
+            The name of the analyte to modify.
+        source_analyte : str
+            The name of the analyte to base the correction on.
+        f : float
+            The fraction of the intensity of the source_analyte to
+            subtract from the target_analyte. Correction is:
+            target_analyte - source_analyte * f
+
+        Returns
+        -------
+        None
+        """
+
+        if target_analyte not in self.analytes:
+            raise ValueError('target_analyte: {:} not in available analytes ({:})'.format(target_analyte, ', '.join(self.analytes)))
+
+        if source_analyte not in self.analytes:
+            raise ValueError('source_analyte: {:} not in available analytes ({:})'.format(source_analyte, ', '.join(self.analytes)))
+
+        with self.pbar.set(total=len(self.data), desc='Interference Correction') as prog:
+            for d in self.data.values():
+                d.correct_spectral_interference(target_analyte, source_analyte, f)
+
+                prog.update()
 
     @_log
     def bkg_plot(self, analytes=None, figsize=None, yscale='log',
@@ -960,22 +1114,23 @@ class analyse(object):
         fig = plt.figure(figsize=figsize)
 
         ax = fig.add_axes([.07, .1, .84, .8])
+        
+        with self.pbar.set(total=len(analytes), desc='Plotting backgrounds') as prog:
+            for a in analytes:
+                # draw data points
+                ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
+                        alpha=0.5, s=3, c=self.cmaps[a],
+                        lw=0.5)
+                
+                # draw STD boxes
+                for i, r in self.bkg['summary'].iterrows():
+                    x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
+                        r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
+                    yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
+                    yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
 
-        for a in tqdm(analytes, desc='Plotting backgrounds',
-                      leave=True, total=len(analytes)):
-            # draw data points
-            ax.scatter(self.bkg['raw'].uTime, self.bkg['raw'].loc[:, a],
-                       alpha=0.5, s=3, c=self.cmaps[a],
-                       lw=0.5)
-            
-            # draw STD boxes
-            for i, r in self.bkg['summary'].iterrows():
-                x = (r.loc['uTime', 'mean'] - r.loc['uTime', 'std'] * 2,
-                     r.loc['uTime', 'mean'] + r.loc['uTime', 'std'] * 2)
-                yl = [r.loc[a, 'mean'] - r.loc[a, err]] * 2
-                yu = [r.loc[a, 'mean'] + r.loc[a, err]] * 2
-
-                ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
+                    ax.fill_between(x, yl, yu, alpha=0.8, lw=0.5, color=self.cmaps[a], zorder=1)
+                prog.update()
 
         if yscale == 'log':
             ax.set_yscale('log')
@@ -1014,6 +1169,7 @@ class analyse(object):
         xlim = rangecalc(self.bkg['raw']['uTime'], 0.025)
         ax.set_xlim(xlim)
 
+        # add sample labels
         for s, d in self.data.items():
             ax.axvline(d.uTime[0], alpha=0.2, color='k', zorder=-1)
             ax.text(d.uTime[0], ax.get_ylim()[1], s, rotation=90,
@@ -1026,7 +1182,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, focus='bkgsub'):
+    def ratio(self, internal_standard=None):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1035,22 +1191,24 @@ class analyse(object):
         internal_standard : str
             The name of the analyte to divide all other analytes
             by.
-        focus : str
-            The `focus` stage of the data used to calculating the
-            ratios.
 
         Returns
         -------
         None
         """
+        if 'bkgsub' not in self.stages_complete:
+            raise RuntimeError('Cannot calculate ratios before background subtraction.')
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
             self.minimal_analytes.update([internal_standard])
 
-        for s in tqdm(self.data.values(), desc='Ratio Calculation'):
-            s.ratio(internal_standard=self.internal_standard, focus=focus)
+        with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
+            for s in self.data.values():
+                s.ratio(internal_standard=self.internal_standard)
+                prog.update()
 
+        self.stages_complete.update(['ratios'])
         self.focus_stage = 'ratios'
         return
 
@@ -1101,8 +1259,7 @@ class analyse(object):
         if not hasattr(self, 'srmdat'):
             elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
             # load SRM info
-            srmdat = pd.read_csv(self.srmfile)
-            srmdat.set_index('SRM', inplace=True)
+            srmdat = srms.read_table(self.srmfile)
             srmdat = srmdat.loc[srms_used]
 
             # get element name
@@ -1364,11 +1521,13 @@ class analyse(object):
                 self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
                                                     self.calib_params.loc[:, (a, 'c')].values)
 
-        for d in tqdm(self.data.values(), desc='Applying Calibrations'):
-            d.calibrate(self.calib_ps, analytes)
+        with self.pbar.set(total=len(self.data), desc='Applying Calibrations') as prog:
+            for d in self.data.values():
+                d.calibrate(self.calib_ps, analytes)
+                prog.update()
 
+        self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
-
         return
 
     # data filtering
@@ -1470,8 +1629,10 @@ class analyse(object):
 
         self.minimal_analytes.update([analyte])
 
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_threshold(analyte, threshold)
+        with self.pbar.set(total=len(samples), desc='Threshold Filter') as prog:
+            for s in samples:
+                self.data[s].filter_threshold(analyte, threshold)
+                prog.update()
 
     @_log
     def filter_threshold_percentile(self, analyte, percentiles, level='population', filt=False,
@@ -1527,41 +1688,43 @@ class analyse(object):
             lims = np.percentile(dat, percentiles)
 
         # Calculate filter for individual samples
-        for s in tqdm(samples, desc='Percentile theshold filter'):
-            d = self.data[s]
-            setn = d.filt.maxset + 1
-            g = d.focus[analyte]
+        with self.pbar.set(total=len(samples), desc='Percentile theshold filter') as prog:
+            for s in samples:
+                d = self.data[s]
+                setn = d.filt.maxset + 1
+                g = d.focus[analyte]
 
-            if level == 'individual':
-                gt = nominal_values(g)
-                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+                if level == 'individual':
+                    gt = nominal_values(g)
+                    lims = np.percentile(gt[~np.isnan(gt)], percentiles)
 
-            if len(lims) == 1:
-                above = g >= lims[0]
-                below = g < lims[0]
+                if len(lims) == 1:
+                    above = g >= lims[0]
+                    below = g < lims[0]
 
-                d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
-                           below,
-                           'Values below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
-                d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
-                           above,
-                           'Values above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-pcnt_below'.format(percentiles[0]),
+                            below,
+                            'Values below {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
+                            params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-pcnt_above'.format(percentiles[0]),
+                            above,
+                            'Values above {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
+                            params, setn=setn)
 
-            elif len(lims) == 2:
-                inside = (g >= min(lims)) & (g <= max(lims))
-                outside = (g < min(lims)) | (g > max(lims))
+                elif len(lims) == 2:
+                    inside = (g >= min(lims)) & (g <= max(lims))
+                    outside = (g < min(lims)) | (g > max(lims))
 
-                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
-                d.filt.add(analyte + '_' + lpc + '-pcnt_inside',
-                           inside,
-                           'Values between ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
-                d.filt.add(analyte + '_' + lpc + '-pcnt_outside',
-                           outside,
-                           'Values outside ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
+                    lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                    d.filt.add(analyte + '_' + lpc + '-pcnt_inside',
+                            inside,
+                            'Values between ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_' + lpc + '-pcnt_outside',
+                            outside,
+                            'Values outside ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                prog.update()
         return
 
 
@@ -1602,9 +1765,11 @@ class analyse(object):
         samples = self._get_samples(subset)
 
         self.minimal_analytes.update([analyte])
-
-        for s in tqdm(samples, desc='Threshold Filter'):
-            self.data[s].filter_gradient_threshold(analyte, win, threshold)
+        
+        with self.pbar.set(total=len(samples), desc='Gradient Threshold Filter') as prog:
+            for s in samples:
+                self.data[s].filter_gradient_threshold(analyte, win, threshold)
+                prog.update()
 
     @_log
     def filter_gradient_threshold_percentile(self, analyte, percentiles, level='population', win=15, filt=False,
@@ -1659,134 +1824,49 @@ class analyse(object):
             lims = np.percentile(grad, percentiles)
 
         # Calculate filter for individual samples
-        for s in tqdm(samples, desc='Percentile theshold filter'):
-            d = self.data[s]
-            setn = d.filt.maxset + 1
-            g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
+        with self.pbar.set(total=len(samples), desc='Percentile Threshold Filter') as prog:
+            for s in samples:
+                d = self.data[s]
+                setn = d.filt.maxset + 1
+                g = calc_grads(d.Time, d.focus, [analyte], win)[analyte]
 
-            if level == 'individual':
-                gt = nominal_values(g)
-                lims = np.percentile(gt[~np.isnan(gt)], percentiles)
+                if level == 'individual':
+                    gt = nominal_values(g)
+                    lims = np.percentile(gt[~np.isnan(gt)], percentiles)
 
-            if len(lims) == 1:
-                above = g >= lims[0]
-                below = g < lims[0]
+                if len(lims) == 1:
+                    above = g >= lims[0]
+                    below = g < lims[0]
 
-                d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
-                           below,
-                           'Gradients below {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
-                d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
-                           above,
-                           'Gradients above {:.1f}th '.format(percentiles[0]) + analyte + 'percentile',
-                           params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-grd-pcnt_below'.format(percentiles[0]),
+                            below,
+                            'Gradients below {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
+                            params, setn=setn)
+                    d.filt.add(analyte + '_{:.1f}-grd-pcnt_above'.format(percentiles[0]),
+                            above,
+                            'Gradients above {:.1f}th {:} percentile ({:.2e})'.format(percentiles[0], analyte, lims[0]),
+                            params, setn=setn)
 
-            elif len(lims) == 2:
-                inside = (g >= min(lims)) & (g <= max(lims))
-                outside = (g < min(lims)) | (g > max(lims))
+                elif len(lims) == 2:
+                    inside = (g >= min(lims)) & (g <= max(lims))
+                    outside = (g < min(lims)) | (g > max(lims))
 
-                lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
-                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_inside',
-                           inside,
-                           'Gradients between ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
-                d.filt.add(analyte + '_' + lpc + '-grd-pcnt_outside',
-                           outside,
-                           'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
-                           params, setn=setn)
+                    lpc = '-'.join(['{:.1f}'.format(p) for p in percentiles])
+                    d.filt.add(analyte + '_' + lpc + '-grd-pcnt_inside',
+                            inside,
+                            'Gradients between ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                    d.filt.add(analyte + '_' + lpc + '-grd-pcnt_outside',
+                            outside,
+                            'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
+                            params, setn=setn)
+                prog.update()
         return
-
-    # @_log
-    # def filter_inclusion_excluder(self, analytes, gwin=5, swin=None, win=10, log=False,
-    #                               on_mult=(1., 1.), off_mult=(1., 1.), nbin=5,
-    #                               filt=False, samples=None, subset=None):
-    #     """
-    #     Find inclusions in profile based on specific analytes.
-
-    #     Identifies anomalously high / low regions of a specific analyte or analytes
-    #     and returns two filters of the 'low' and 'high' regions, excluding the
-    #     the transition between them.
-
-    #     The mechanics of the filter is identical to the `autorange` function.
-
-    #     Parameters
-    #     ----------
-    #     analytes : str or list
-    #         Which analytes to use to identify inclusions.
-    #     gwin : int
-    #         The size of the window used for smoothing and calculating the derivative.
-    #     win : int
-    #         The region either side of lo-hi transitions to consider for exclusion.
-    #     log : bool
-    #         Whether or not to log-transform the data
-    #     on_mult, off_mult : tuple
-    #         The width (multiples of FWHM) either side of identified matierla transitions to exclude.
-    #     """
-    #     if isinstance(analytes, str):
-    #         analytes = [analytes]
-
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     self.minimal_analytes.update(analytes)
-
-    #     for s in tqdm(samples, desc='Finding Inclusions'):
-    #         self.data[s].filter_inclusion_excluder(analytes, gwin=gwin, swin=swin, win=win, log=log,
-    #                                                on_mult=on_mult, off_mult=off_mult,
-    #                                                filt=filt, nbin=nbin)
-    #     return
-
-    # @_log
-    # def filter_distribution(self, analyte, binwidth='scott', filt=False,
-    #                         transform=None, samples=None, subset=None,
-    #                         min_data=10):
-    #     """
-    #     Applies a distribution filter to the data.
-
-    #     Parameters
-    #     ----------
-    #     analyte : str
-    #         The analyte that the filter applies to.
-    #     binwidth : str of float
-    #         Specify the bin width of the kernel density estimator.
-    #         Passed to `scipy.stats.gaussian_kde`.
-    #         If 'scott' or 'silverman', the method used to automatically 
-    #         estimate bin width. If float, it manually sets the binwidth.
-    #     filt : bool
-    #         Whether or not to apply existing filters to the data before
-    #         calculating this filter.
-    #     transform : str
-    #         If 'log', applies a log transform to the data before calculating
-    #         the distribution.
-    #     samples : array_like or None
-    #         Which samples to apply this filter to. If None, applies to all
-    #         samples.
-    #     min_data : int
-    #         The minimum number of data points that should be considered by
-    #         the filter. Default = 10.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     self.minimal_analytes.update([analyte])
-
-    #     for s in tqdm(samples, desc='Distribution Filter'):
-    #         self.data[s].filter_distribution(analyte, binwidth='scott',
-    #                                          filt=filt, transform=None,
-    #                                          min_data=min_data)
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
-                          method='meanshift', include_time=False, samples=None,
-                          sort=True, subset=None, min_data=10, **kwargs):
+                          method='kmeans', include_time=False, samples=None,
+                          sort=True, subset=None, level='sample', min_data=10, **kwargs):
         """
         Applies an n - dimensional clustering filter to the data.
      
@@ -1812,20 +1892,9 @@ class analyse(object):
               the characteristics of a known number of clusters
               within the data. Must provide `n_clusters` to specify
               the expected number of clusters.
-            * 'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
-              determines the number and characteristics of clusters
-              within the data based on the 'connectivity' of the
-              data (i.e. how far apart each data point is in a
-              multi - dimensional parameter space). Requires you to
-              set `eps`, the minimum distance point must be from
-              another point to be considered in the same cluster,
-              and `min_samples`, the minimum number of points that
-              must be within the minimum distance for it to be
-              considered a cluster. It may also be run in automatic
-              mode by specifying `n_clusters` alongside
-              `min_samples`, where eps is decreased until the
-              desired number of clusters is obtained.
-
+        level : str
+            Whether to conduct the clustering analysis at the 'sample' or 
+            'population' level.
         include_time : bool
             Whether or not to include the Time variable in the clustering
             analysis. Useful if you're looking for spatially continuous
@@ -1851,24 +1920,9 @@ class analyse(object):
             bin_seeding : bool
                 Modifies the behaviour of the meanshift algorithm. Refer to
                 sklearn.cluster.meanshift documentation.
-        K - Means Parameters
+        K-Means Parameters
             n_clusters : int
                 The number of clusters expected in the data.
-        DBSCAN Parameters
-            eps : float
-                The minimum 'distance' points must be apart for them to be in the
-                same cluster. Defaults to 0.3. Note: If the data are normalised
-                (they should be for DBSCAN) this is in terms of total sample
-                variance. Normalised data have a mean of 0 and a variance of 1.
-            min_samples : int
-                The minimum number of samples within distance `eps` required
-                to be considered as an independent cluster.
-            n_clusters : int
-                The number of clusters expected. If specified, `eps` will be
-                incrementally reduced until the expected number of clusters is
-                found.
-            maxiter : int
-                The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -1884,14 +1938,139 @@ class analyse(object):
 
         self.minimal_analytes.update(analytes)
 
-        for s in tqdm(samples, desc='Clustering Filter'):
-            self.data[s].filter_clustering(analytes=analytes, filt=filt,
-                                           normalise=normalise,
-                                           method=method,
-                                           include_time=include_time,
-                                           min_data=min_data,
-                                           sort=sort,
-                                           **kwargs)
+        if level == 'sample':
+            with self.pbar.set(total=len(samples), desc='Clustering Filter') as prog:
+                for s in samples:
+                    self.data[s].filter_clustering(analytes=analytes, filt=filt,
+                                                normalise=normalise,
+                                                method=method,
+                                                include_time=include_time,
+                                                min_data=min_data,
+                                                sort=sort,
+                                                **kwargs)
+                    prog.update()
+        
+        if level == 'population':
+            if isinstance(sort, bool):
+                sort_by = 0
+            else:
+                sort_by = sort
+            
+            name = '_'.join(analytes) + '_{}'.format(method)
+
+            self.fit_classifier(name=name, analytes=analytes, method=method,
+                                subset=subset, filt=filt, sort_by=sort_by, **kwargs)
+
+            self.apply_classifier(name=name, subset=subset)
+
+    @_log
+    def fit_classifier(self, name, analytes, method, samples=None,
+                       subset=None, filt=True, sort_by=0, **kwargs):
+        """
+        Create a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier.
+        analytes : str or iterable
+            Which analytes the clustering algorithm should consider.
+        method : str
+            Which clustering algorithm to use. Can be:
+
+            'meanshift'
+                The `sklearn.cluster.MeanShift` algorithm.
+                Automatically determines number of clusters
+                in data based on the `bandwidth` of expected
+                variation.
+            'kmeans'
+                The `sklearn.cluster.KMeans` algorithm. Determines
+                the characteristics of a known number of clusters
+                within the data. Must provide `n_clusters` to specify
+                the expected number of clusters.
+        samples : iterable
+            list of samples to consider. Overrides 'subset'.
+        subset : str
+            The subset of samples used to fit the classifier. Ignored if
+            'samples' is specified.
+        sort_by : int
+            Which analyte the resulting clusters should be sorted
+            by - defaults to 0, which is the first analyte.
+        **kwargs :
+            method-specific keyword parameters - see below.
+        Meanshift Parameters
+            bandwidth : str or float
+                The bandwith (float) or bandwidth method ('scott' or 'silverman')
+                used to estimate the data bandwidth.
+            bin_seeding : bool
+                Modifies the behaviour of the meanshift algorithm. Refer to
+                sklearn.cluster.meanshift documentation.
+        K - Means Parameters
+            n_clusters : int
+                The number of clusters expected in the data.
+
+        Returns
+        -------
+        name : str
+        """
+        # isolate data
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        self.get_focus(subset=subset, filt=filt)
+
+        # create classifer
+        c = classifier(analytes,
+                       sort_by)
+        # fit classifier
+        c.fit(data=self.focus,
+              method=method,
+              **kwargs)
+
+        self.classifiers[name] = c
+
+        return name
+
+    @_log
+    def apply_classifier(self, name, samples=None, subset=None):
+        """
+        Apply a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier to apply.
+        subset : str
+            The subset of samples to apply the classifier to.
+        Returns
+        -------
+        name : str
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        c = self.classifiers[name]
+        labs = c.classifier.ulabels_
+
+        with self.pbar.set(total=len(samples), desc='Applying ' + name + ' classifier') as prog:
+            for s in samples:
+                d = self.data[s]
+                try:
+                    f = c.predict(d.focus)
+                except ValueError:
+                    # in case there's no data
+                    f = np.array([-2] * len(d.Time))
+                for l in labs:
+                    ind = f == l
+                    d.filt.add(name=name + '_{:.0f}'.format(l),
+                            filt=ind,
+                            info=name + ' ' + c.method + ' classifier',
+                            params=(c.analytes, c.method))
+                prog.update()
+
+        return name
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
@@ -1937,12 +2116,58 @@ class analyse(object):
 
         self.minimal_analytes.update([x_analyte, y_analyte])
 
-        for s in tqdm(samples, desc='Correlation Filter'):
-            self.data[s].filter_correlation(x_analyte, y_analyte,
-                                            window=window,
-                                            r_threshold=r_threshold,
-                                            p_threshold=p_threshold,
-                                            filt=filt)
+        with self.pbar.set(total=len(samples), desc='Correlation Filter') as prog:
+            for s in samples:
+                self.data[s].filter_correlation(x_analyte, y_analyte,
+                                                window=window,
+                                                r_threshold=r_threshold,
+                                                p_threshold=p_threshold,
+                                                filt=filt)
+                prog.update()
+
+    @_log
+    def correlation_plots(self, x_analyte, y_analyte, window=15, filt=True, recalc=False, samples=None, subset=None, outdir=None):
+        """
+        Plot the local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        None
+        """
+        if outdir is None:
+            outdir = self.report_dir + '/correlations/'
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+        
+        if subset is not None:
+            samples = self._get_samples(subset)
+        elif samples is None:
+            samples = self.subsets['All_Analyses']
+        elif isinstance(samples, str):
+            samples = [samples]
+
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                f, a = self.data[s].correlation_plot(x_analyte=x_analyte, y_analyte=y_analyte,
+                                                     window=window, filt=filt, recalc=recalc)
+                f.savefig('{}/{}_{}-{}.pdf'.format(outdir, s, x_analyte, y_analyte))
+                plt.close(f)
+                prog.update()
+        return
+        
+
 
     @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
@@ -2017,33 +2242,6 @@ class analyse(object):
         if show_status:
             self.filter_status(subset=subset)
         return
-
-    # @_log
-    # def filter_combine(self, name, filt_str, samples=None, subset=None):
-    #     """
-    #     Make new filter from combination of other filters.
-
-    #     Parameters
-    #     ----------
-    #     name : str
-    #         The name of the new filter. Should be unique.
-    #     filt_str : str
-    #         A logical combination of partial strings which will create
-    #         the new filter. For example, 'Albelow & Mnbelow' will combine
-    #         all filters that partially match 'Albelow' with those that
-    #         partially match 'Mnbelow' using the 'AND' logical operator.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if samples is not None:
-    #         subset = self.make_subset(samples)
-
-    #     samples = self._get_samples(subset)
-
-    #     for s in tqdm(samples, desc='Threshold Filter'):
-    #         self.data[s].filt.filter_new(name, filter_string)
 
     def filter_status(self, sample=None, subset=None, stds=False):
         """
@@ -2212,7 +2410,8 @@ class analyse(object):
     def optimise_signal(self, analytes, min_points=5,
                         threshold_mode='kde_first_max', 
                         threshold_mult=1., x_bias=0, filt=True,
-                        weights=None, samples=None, subset=None):
+                        weights=None, mode='minimise',
+                        samples=None, subset=None):
         """
         Optimise data selection based on specified analytes.
 
@@ -2272,12 +2471,14 @@ class analyse(object):
 
         errs = []
 
-        for s in tqdm(samples, desc='Optimising'):
-            e = self.data[s].signal_optimiser(analytes, min_points,
-                                              threshold_mode, threshold_mult,
-                                              x_bias, weights, filt)
-            if e != '':
-                errs.append(e)
+        with self.pbar.set(total=len(samples), desc='Optimising Data selection') as prog:
+            for s in samples:
+                e = self.data[s].signal_optimiser(analytes=analytes, min_points=min_points,
+                                                  threshold_mode=threshold_mode, threshold_mult=threshold_mult,
+                                                  x_bias=x_bias, weights=weights, filt=filt, mode=mode)
+                if e != '':
+                    errs.append(e)
+                prog.update()
         
         if len(errs) > 0:
             print('\nA Few Problems:\n' + '\n'.join(errs) + '\n\n  *** Check Optimisation Plots ***')
@@ -2307,127 +2508,24 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         
-        for s in tqdm(samples, desc='Drawing Plots'):
-            figs = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
-            
-            n = 1
-            for f, _ in figs:
-                if f is not None:
-                    f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
-                    plt.close(f)
-                n += 1
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                figs = self.data[s].optimisation_plot(overlay_alpha, **kwargs)
+                
+                n = 1
+                for f, _ in figs:
+                    if f is not None:
+                        f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
+                        plt.close(f)
+                    n += 1
+                prog.update()
         return
-
-    @_log
-    def fit_classifier(self, name, analytes, method, samples=None,
-                       subset=None, filt=True, sort_by=0, **kwargs):
-        """
-        Create a clustering classifier based on all samples, or a subset.
-
-        Parameters
-        ----------
-        name : str
-            The name of the classifier.
-        analytes : str or iterable
-            Which analytes the clustering algorithm should consider.
-        method : str
-            Which clustering algorithm to use. Can be:
-
-            'meanshift'
-                The `sklearn.cluster.MeanShift` algorithm.
-                Automatically determines number of clusters
-                in data based on the `bandwidth` of expected
-                variation.
-            'kmeans'
-                The `sklearn.cluster.KMeans` algorithm. Determines
-                the characteristics of a known number of clusters
-                within the data. Must provide `n_clusters` to specify
-                the expected number of clusters.
-        samples : iterable
-            list of samples to consider. Overrides 'subset'.
-        subset : str
-            The subset of samples used to fit the classifier. Ignored if
-            'samples' is specified.
-        sort_by : int
-            Which analyte the resulting clusters should be sorted
-            by - defaults to 0, which is the first analyte.
-        **kwargs :
-            method-specific keyword parameters - see below.
-        Meanshift Parameters
-            bandwidth : str or float
-                The bandwith (float) or bandwidth method ('scott' or 'silverman')
-                used to estimate the data bandwidth.
-            bin_seeding : bool
-                Modifies the behaviour of the meanshift algorithm. Refer to
-                sklearn.cluster.meanshift documentation.
-        K - Means Parameters
-            n_clusters : int
-                The number of clusters expected in the data.
-
-        Returns
-        -------
-        name : str
-        """
-        # isolate data
-        if samples is not None:
-            subset = self.make_subset(samples)
-
-        self.get_focus(subset=subset, filt=filt)
-
-        # create classifer
-        c = classifier(analytes,
-                       sort_by)
-        # fit classifier
-        c.fit(data=self.focus,
-              method=method,
-              **kwargs)
-
-        self.classifiers[name] = c
-
-        return name
-
-    @_log
-    def apply_classifier(self, name, samples=None, subset=None):
-        """
-        Apply a clustering classifier based on all samples, or a subset.
-
-        Parameters
-        ----------
-        name : str
-            The name of the classifier to apply.
-        subset : str
-            The subset of samples to apply the classifier to.
-        Returns
-        -------
-        name : str
-        """
-        if samples is not None:
-            subset = self.make_subset(samples)
-
-        samples = self._get_samples(subset)
-
-        c = self.classifiers[name]
-        labs = c.classifier.ulabels_
-
-        for s in tqdm(samples, desc='Applying ' + name + ' classifier'):
-            d = self.data[s]
-            try:
-                f = c.predict(d.focus)
-            except ValueError:
-                # in case there's no data
-                f = np.array([-2] * len(d.Time))
-            for l in labs:
-                ind = f == l
-                d.filt.add(name=name + '_{:.0f}'.format(l),
-                           filt=ind,
-                           info=name + ' ' + c.method + ' classifier',
-                           params=(c.analytes, c.method))
-        return name
 
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
-        return plot.calibration_plot(self, analytes, datarange, loglog, save)
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
+        return plot.calibration_plot(self=self, analytes=analytes, datarange=datarange, 
+                                     loglog=loglog, ncol=ncol, save=save)
 
     # set the focus attribute for specified samples
     @_log
@@ -2466,6 +2564,9 @@ class analyse(object):
         """
         if samples is not None:
             subset = self.make_subset(samples)
+        
+        if subset is None:
+            subset = 'All_Analyses'
 
         samples = self._get_samples(subset)
 
@@ -2501,7 +2602,7 @@ class analyse(object):
 
         if samples is not None:
             subset = self.make_subset(samples)
-
+        
         samples = self._get_samples(subset)
 
         # t = 0
@@ -2525,7 +2626,7 @@ class analyse(object):
         return
 
     # fetch all the gradients from the data objects
-    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None):
+    def get_gradients(self, analytes=None, win=15, filt=False, samples=None, subset=None, recalc=True):
         """
         Collect all data from all samples into a single array.
         Data from standards is not collected.
@@ -2547,33 +2648,44 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes
-        if not hasattr(self, 'gradients'):
-            self.gradients = Bunch()
 
         if samples is not None:
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
 
+        # check if gradients already calculated
+        if all([self.data[s].grads_calced for s in samples]) and hasattr(self, 'gradients'):
+            if not recalc:
+                print("Using existing gradients. Set recalc=True to re-calculate.")
+                return
+
+        if not hasattr(self, 'gradients'):
+            self.gradients = Bunch()
+
         # t = 0
         focus = {'uTime': []}
         focus.update({a: [] for a in analytes})
 
-        for sa in tqdm(samples, desc='Calculating Gradients'):
-            s = self.data[sa]
-            focus['uTime'].append(s.uTime)
-            ind = s.filt.grab_filt(filt)
-            grads = calc_grads(s.uTime, s.focus, keys=analytes, win=win)
-            for a in analytes:
-                tmp = grads[a]
-                tmp[~ind] = np.nan
-                focus[a].append(tmp)
+        with self.pbar.set(total=len(samples), desc='Calculating Gradients') as prog:
+            for sa in samples:
+                s = self.data[sa]
+                focus['uTime'].append(s.uTime)
+                ind = s.filt.grab_filt(filt)
+                grads = calc_grads(s.uTime, s.focus, keys=analytes, win=win)
+                for a in analytes:
+                    tmp = grads[a]
+                    tmp[~ind] = np.nan
+                    focus[a].append(tmp)
+                    s.grads = tmp
+                s.grads_calced = True
+                prog.update()
 
         self.gradients.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         return
 
-    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None):
+    def gradient_histogram(self, analytes=None, win=15, filt=False, bins=None, samples=None, subset=None, recalc=True, ncol=4):
         """
         Plot a histogram of the gradients in all samples.
 
@@ -2589,36 +2701,43 @@ class analyse(object):
             which samples to get
         subset : str or int
             which subset to get
+        recalc : bool
+            Whether to re-calculate the gradients, or use existing gradients.
 
         Returns
         -------
         fig, ax
         """
         if analytes is None:
-            analytes = self.analytes
+            analytes = [a for a in self.analytes if self.internal_standard not in a]
         if not hasattr(self, 'gradients'):
             self.gradients = Bunch()
+
+        ncol = int(ncol)
+        n = len(analytes)
+        nrow = plot.calc_nrow(n, ncol)
 
         if samples is not None:
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
 
-        self.get_gradients(analytes, win, filt, subset=subset)
+        self.get_gradients(analytes=analytes, win=win, filt=filt, subset=subset, recalc=recalc)
 
-        fig, axs = plt.subplots(1, len(analytes), figsize=[3 * len(analytes), 2.5])
+        fig, axs = plt.subplots(nrow, ncol, figsize=[3. * ncol, 2.5 * nrow])
 
         if not isinstance(axs, np.ndarray):
             axs = [axs]
 
-        for a, ax in zip(analytes, axs):
+        i = 0
+        for a, ax in zip(analytes, axs.flatten()):
             d = nominal_values(self.gradients[a])
             d = d[~np.isnan(d)]
 
             m, u = unitpicker(d, focus_stage=self.focus_stage, denominator=self.internal_standard)
 
             if bins is None:
-                ibins = np.linspace(*np.percentile(d * m, [2.5, 97.5]), 50)
+                ibins = np.linspace(*np.percentile(d * m, [1, 99]), 50)
             else:
                 ibins = bins
 
@@ -2629,6 +2748,12 @@ class analyse(object):
             if ax.is_first_col():
                 ax.set_ylabel('N')
             ax.set_xlabel(u + '/s')
+
+            i += 1
+
+        if i < ncol * nrow:
+            for ax in axs.flatten()[i:]:
+                ax.set_visible(False)
         
         fig.tight_layout()
 
@@ -2700,7 +2825,7 @@ class analyse(object):
     def gradient_crossplot(self, analytes=None, win=15, lognorm=True,
                            bins=25, filt=False, samples=None,
                            subset=None, figsize=(12, 12), save=False,
-                           colourful=True, mode='hist2d', **kwargs):
+                           colourful=True, mode='hist2d', recalc=True, **kwargs):
         """
         Plot analyte gradients against each other.
 
@@ -2726,6 +2851,8 @@ class analyse(object):
             Whether or not the plot should be colourful :).
         mode : str
             'hist2d' (default) or 'scatter'
+        recalc : bool
+            Whether to re-calculate the gradients, or use existing gradients.
 
         Returns
         -------
@@ -2743,8 +2870,10 @@ class analyse(object):
         except IndexError:
             analytes = sorted(analytes)
 
+        samples = self._get_samples(subset)
+
         # calculate gradients
-        self.get_gradients(analytes, win, filt, samples, subset)
+        self.get_gradients(analytes=analytes, win=win, filt=filt, subset=subset, recalc=recalc)
 
         # self.get_focus(filt=filt, samples=samples, subset=subset)
         # grads = calc_grads(self.focus.uTime, self.focus, analytes, win)
@@ -3035,20 +3164,22 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
         
-        for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
-                                      scale=scale, filt=filt,
-                                      ranges=ranges, stats=stats,
-                                      stat=stat, err=err, focus_stage=focus)
-            # ax = fig.axes[0]
-            # for l, u in s.sigrng:
-            #     ax.axvspan(l, u, color='r', alpha=0.1)
-            # for l, u in s.bkgrng:
-            #     ax.axvspan(l, u, color='k', alpha=0.1)
-            f.savefig(outdir + '/' + s + '_traces.pdf')
-            # TODO: on older(?) computers raises
-            # 'OSError: [Errno 24] Too many open files'
-            plt.close(f)
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
+                                        scale=scale, filt=filt,
+                                        ranges=ranges, stats=stats,
+                                        stat=stat, err=err, focus_stage=focus)
+                # ax = fig.axes[0]
+                # for l, u in s.sigrng:
+                #     ax.axvspan(l, u, color='r', alpha=0.1)
+                # for l, u in s.bkgrng:
+                #     ax.axvspan(l, u, color='k', alpha=0.1)
+                f.savefig(outdir + '/' + s + '_traces.pdf')
+                # TODO: on older(?) computers raises
+                # 'OSError: [Errno 24] Too many open files'
+                plt.close(f)
+                prog.update()
         return
 
     # Plot gradients
@@ -3113,18 +3244,20 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
 
-        for s in tqdm(samples, desc='Drawing Plots'):
-            f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                      ranges=ranges, focus_stage=focus)
-            # ax = fig.axes[0]
-            # for l, u in s.sigrng:
-            #     ax.axvspan(l, u, color='r', alpha=0.1)
-            # for l, u in s.bkgrng:
-            #     ax.axvspan(l, u, color='k', alpha=0.1)
-            f.savefig(outdir + '/' + s + '_gradients.pdf')
-            # TODO: on older(?) computers raises
-            # 'OSError: [Errno 24] Too many open files'
-            plt.close(f)
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
+                                        ranges=ranges, focus_stage=focus)
+                # ax = fig.axes[0]
+                # for l, u in s.sigrng:
+                #     ax.axvspan(l, u, color='r', alpha=0.1)
+                # for l, u in s.bkgrng:
+                #     ax.axvspan(l, u, color='k', alpha=0.1)
+                f.savefig(outdir + '/' + s + '_gradients.pdf')
+                # TODO: on older(?) computers raises
+                # 'OSError: [Errno 24] Too many open files'
+                plt.close(f)
+                prog.update()
         return
 
     # filter reports
@@ -3147,11 +3280,13 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        for s in tqdm(samples, desc='Drawing Plots'):
-            _ = self.data[s].filter_report(filt=filt_str,
-                                           analytes=analytes,
-                                           savedir=outdir,
-                                           nbin=nbin)
+        with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
+            for s in samples:
+                _ = self.data[s].filter_report(filt=filt_str,
+                                            analytes=analytes,
+                                            savedir=outdir,
+                                            nbin=nbin)
+                prog.update()
             # plt.close(fig)
         return
 
@@ -3264,13 +3399,15 @@ class analyse(object):
                 self.custom_stat_functions += inspect.getsource(s) + '\n\n\n\n'
 
         # calculate stats for each sample
-        for s in tqdm(self.samples, desc='Calculating Stats'):
-            if self.srm_identifier not in s:
-                self.data[s].sample_stats(analytes, filt=filt,
-                                          stat_fns=stat_fns,
-                                          eachtrace=eachtrace)
+        with self.pbar.set(total=len(self.samples), desc='Calculating Stats') as prog:
+            for s in self.samples:
+                if self.srm_identifier not in s:
+                    self.data[s].sample_stats(analytes, filt=filt,
+                                            stat_fns=stat_fns,
+                                            eachtrace=eachtrace)
 
-                self.stats[s] = self.data[s].stats
+                    self.stats[s] = self.data[s].stats
+                prog.update()
 
     @_log
     def ablation_times(self, samples=None, subset=None):
@@ -3482,7 +3619,7 @@ class analyse(object):
             d = dateutil.parser.parse(self.data[s].meta['date'])
             header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      "# Analysis described in '../analysis.log'",
+                      "# Analysis described in '../analysis.lalog'",
                       '# Run latools.reproduce to import analysis.',
                       '#',
                       '# Sample: %s' % (s),
@@ -3499,7 +3636,7 @@ class analyse(object):
 
     @_log
     def export_traces(self, outdir=None, focus_stage=None, analytes=None,
-                      samples=None, subset='All_Analyses', filt=False):
+                      samples=None, subset='All_Analyses', filt=False, zip_archive=False):
         """
         Function to export raw data.
 
@@ -3546,10 +3683,10 @@ class analyse(object):
             focus_stage = self.focus_stage
 
         if focus_stage in ['ratios', 'calibrated']:
-            analytes = analytes[analytes != self.internal_standard]
+            analytes = [a for a in analytes if a != self.internal_standard]
 
         if outdir is None:
-            outdir = self.export_dir
+            outdir = os.path.join(self.export_dir, 'trace_export')
 
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
@@ -3590,9 +3727,33 @@ class analyse(object):
             with open('%s/%s_%s.csv' % (outdir, s, focus_stage), 'w') as f:
                 f.write(header)
                 f.write(csv)
+        
+        if zip_archive:
+            utils.zipdir(outdir, delete=True)
+
         return
 
-    def minimal_export(self, target_analytes=None, override=False, path=None):
+    def save_log(self, directory=None, logname=None, header=None):
+        """
+        Save analysis.lalog in specified location
+        """
+        if directory is None:
+            directory = self.export_dir
+        if not os.path.isdir(directory):
+            directory = os.path.dirname(directory)
+
+        if logname is None:
+            logname = 'analysis.lalog'
+
+        if header is None:
+            header = self._log_header()
+
+        loc = logging.write_logfile(self.log, header, 
+                                    os.path.join(directory, logname))
+        
+        return loc
+
+    def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=False):
         """
         Exports a analysis parameters, standard info and a minimal dataset,
         which can be imported by another user.
@@ -3613,12 +3774,23 @@ class analyse(object):
         # export data
         self._minimal_export_traces(path + '/data', analytes=self.minimal_analytes)
 
-        # define analysis_log header
+         # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      'data_folder :: ./data/',
-                      'srm_table :: ./srm.table',
-                      ]
+                      'data_folder :: ./data/']
+                      
+        if hasattr(self, 'srmdat'):
+            log_header.append('srm_table :: ./srm.table')
+
+            # export srm table
+            els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
+            srmdat = []
+            for e in els:
+                srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
+            srmdat = pd.concat(srmdat)
+
+            with open(path + '/srm.table', 'w') as f:
+                f.write(srmdat.to_csv())
 
         # save custom functions (of defined)
         if hasattr(self, 'custom_stat_functions'):
@@ -3635,22 +3807,15 @@ class analyse(object):
             self.log[i] = rep.sub(r'\1' + str(self.stats_calced) + r'\3', l)
 
         # save log
-        with open(path + '/analysis.log', 'w') as f:
-            f.write('\n'.join(log_header))
-            f.write('\n'.join(self.log))
+        self.save_log(path, 'analysis.lalog', header=log_header)
 
-        # export srm table
-        els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
-        srmdat = []
-        for e in els:
-            srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
-        srmdat = pd.concat(srmdat)
-
-        with open(path + '/srm.table', 'w') as f:
-            f.write(srmdat.to_csv())
+        if zip_archive:
+            utils.zipdir(path, delete=True)
+        
+        return
 
 
-def reproduce(log_file, plotting=False, data_folder=None,
+def reproduce(past_analysis, plotting=False, data_folder=None,
               srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
@@ -3680,25 +3845,30 @@ def reproduce(log_file, plotting=False, data_folder=None,
         stat functions should normally be included in the
         same folder as the log file.
     """
-    dirname = os.path.dirname(log_file) + '/'
+    if '.zip' in past_analysis:
+        utils.extract_zipdir(past_analysis)
+        logpath = os.path.join(os.path.dirname(past_analysis),
+                               os.path.basename(past_analysis).replace('.zip', ''),
+                               'analysis.lalog')
+    elif os.path.isdir(past_analysis):
+        if os.path.exists(os.path.join(past_analysis, 'analysis.lalog')):
+            logpath = os.path.join(past_analysis, 'analysis.lalog')
+    elif 'analysis.lalog' in past_analysis:
+        logpath = past_analysis
+    else:
+        raise ValueError(('\n\n{} is not a valid input.\n\n' + 
+                          'Must be one of:\n' +
+                          '  - A .zip file exported by latools\n' + 
+                          '  - An analysis.lalog file\n' +
+                          '  - A directory containing an analysis.lalog files\n'))
 
-    with open(log_file, 'r') as f:
-        rlog = f.readlines()
+    runargs, paths = logging.read_logfile(logpath)
 
-    hashind = [i for i, n in enumerate(rlog) if '#' in n]
-
-    pathread = re.compile('(.*) :: (.*)\n')
-    paths = dict([pathread.match(l).groups() for l in rlog[hashind[0] + 1:hashind[-1]] if pathread.match(l)])
-
-    if data_folder is None:
-        data_folder = dirname + paths['data_folder']
-    if srm_table is None:
-        srm_table = dirname + paths['srm_table']
-
+    # parse custom stat functions
     csfs = Bunch()
     if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
         # load custom functions as a dict
-        with open(dirname + paths['custom_stat_functions'], 'r') as f:
+        with open(paths['custom_stat_functions'], 'r') as f:
             csf = f.read()
 
         fname = re.compile('def (.*)\(.*')
@@ -3707,32 +3877,17 @@ def reproduce(log_file, plotting=False, data_folder=None,
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
 
-    # reproduce analysis
-    logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
-
-    init_kwargs = eval(logread.match(rlog[hashind[1] + 1]).groups()[-1])
-    init_kwargs['config'] = 'REPRODUCE'
-    init_kwargs['dataformat'] = None
-    init_kwargs['data_folder'] = data_folder
-
-    dat = analyse(**init_kwargs)
-
-    dat.srmdat = pd.read_csv(srm_table).set_index('SRM')
-    print('SRM values loaded from: {}'.format(srm_table))
+    # create analysis object
+    rep = analyse(*runargs['__init__']['args'], **runargs['__init__']['kwargs'])
 
     # rest of commands
-    for l in rlog[hashind[1] + 2:]:
-        fname, args, kwargs = logread.match(l).groups()
-        if 'sample_stats' in fname:
-            dat.sample_stats(*eval(args), csf_dict=csfs, **eval(kwargs))
-        elif 'plot' not in fname.lower():
-            getattr(dat, fname)(*eval(args), **eval(kwargs))
-        elif plotting:
-            getattr(dat, fname)(*eval(args), **eval(kwargs))
-        else:
-            pass
+    for fname, arg in runargs.items():
+        if fname != '__init__':
+            if 'plot' in fname.lower() and plotting:
+                getattr(rep, fname)(*arg['args'], **arg['kwargs'])
+            elif 'sample_stats' in fname.lower():
+                rep.sample_stats(*arg['args'], csf_dict=csfs, **arg['kwargs'])
+            else:
+                getattr(rep, fname)(*arg['args'], **arg['kwargs'])
 
-    return dat
-
-
-analyze = analyse  # for the yanks
+    return rep

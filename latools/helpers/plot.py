@@ -8,13 +8,20 @@ from IPython import display
 
 from tqdm import tqdm
 
-from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element
+from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element, calc_grads
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
-
+def calc_nrow(n, ncol):
+    if n % ncol is 0:
+        nrow = n / ncol
+    else:
+        nrow = n // ncol + 1
+    
+    return int(nrow)
+    
 def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None, err_envelope=False, ax=None):
+              focus_stage=None, err_envelope=False, ax=None):
         """
         Plot analytes as a function of Time.
 
@@ -42,8 +49,6 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             average statistic to plot.
         err : str
             error statistic to plot.
-        interactive : bool
-            Make the plot interactive.
 
         Returns
         -------
@@ -56,12 +61,17 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
 
         if focus_stage is None:
             focus_stage = self.focus_stage
+        
+        # exclude internal standard from analytes
+        if focus_stage in ['ratios', 'calibrated']:
+            analytes = [a for a in analytes if a != self.internal_standard]
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
             ax = fig.add_axes([.1, .12, .77, .8])
             ret = True
         else:
+            fig = ax.figure
             ret = False
 
         for a in analytes:
@@ -149,14 +159,95 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
 
-        if interactive:
-            ax.legend()
-            plugins.connect(fig, plugins.MousePosition(fontsize=14))
-            display.clear_output(wait=True)
-            display.display(fig)
-            input('Press [Return] when finished.')
+        # if interactive:
+        #     ax.legend()
+        #     plugins.connect(fig, plugins.MousePosition(fontsize=14))
+        #     display.clear_output(wait=True)
+        #     display.display(fig)
+        #     input('Press [Return] when finished.')
+        # else:
+        ax.legend(bbox_to_anchor=(1.15, 1))
+
+        if ret:
+            return fig, ax
+
+def gplot(self, analytes=None, win=25, figsize=[10, 4],
+              ranges=False, focus_stage=None, ax=None, recalc=True):
+        """
+        Plot analytes gradients as a function of Time.
+
+        Parameters
+        ----------
+        analytes : array_like
+            list of strings containing names of analytes to plot.
+            None = all analytes.
+        win : int
+            The window over which to calculate the rolling gradient.
+        figsize : tuple
+            size of final figure.
+        ranges : bool
+            show signal/background regions.
+
+        Returns
+        -------
+        figure, axis
+        """
+
+        if type(analytes) is str:
+            analytes = [analytes]
+        if analytes is None:
+            analytes = self.analytes
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+
+        if ax is None:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_axes([.1, .12, .77, .8])
+            ret = True
         else:
-            ax.legend(bbox_to_anchor=(1.15, 1))
+            fig = ax.figure
+            ret = False
+
+        x = self.Time
+        if recalc or not self.grads_calced:
+            self.grads = calc_grads(x, self.data[focus_stage], analytes, win)
+            self.grads_calce = True
+
+        for a in analytes:
+            ax.plot(x, self.grads[a], color=self.cmap[a], label=a)
+
+        if ranges:
+            for lims in self.bkgrng:
+                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+            for lims in self.sigrng:
+                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
+
+        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
+                transform=ax.transAxes,
+                ha='left', va='top')
+
+        ax.set_xlabel('Time (s)')
+        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+
+        # y label
+        ud = {'rawdata': 'counts/s',
+              'despiked': 'counts/s',
+              'bkgsub': 'background corrected counts/s',
+              'ratios': 'counts/{:s} count/s',
+              'calibrated': 'mol/mol {:s}/s'}
+        if focus_stage in ['ratios', 'calibrated']:
+            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        ax.set_ylabel(ud[focus_stage])
+        # y tick format
+
+        def yfmt(x, p):
+            return '{:.0e}'.format(x)
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
+
+        ax.legend(bbox_to_anchor=(1.15, 1))
+
+        ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
 
         if ret:
             return fig, ax
@@ -294,7 +385,7 @@ def crossplot(dat, keys=None, lognorm=True,
     return fig, axes
 
 
-def histograms(dat, keys=None, bins=25, logy=False, cmap=None):
+def histograms(dat, keys=None, bins=25, logy=False, cmap=None, ncol=4):
     """
     Plot histograms of all items in dat.
 
@@ -320,10 +411,10 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None):
     if keys is None:
         keys = dat.keys()
 
-    nrow = len(keys) // 4
-    if len(keys) % 4 > 0:
-        nrow += 1
-    fig, axs = plt.subplots(nrow, 4, figsize=[8, nrow * 2])
+    ncol = int(ncol)
+    nrow = calc_nrow(len(keys), ncol)
+
+    fig, axs = plt.subplots(nrow, 4, figsize=[ncol * 2, nrow * 2])
 
     pn = 0
     for k, ax in zip(keys, axs.flat):
@@ -593,8 +684,7 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
+def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
@@ -619,38 +709,33 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
     if analytes is None:
         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
+    ncol = int(ncol)
     n = len(analytes)
-    if n % 3 is 0:
-        nrow = n / 3
-    else:
-        nrow = n // 3 + 1
+    nrow = calc_nrow(n, ncol)
 
     axes = []
 
     if not datarange:
-        fig = plt.figure(figsize=[12, 3 * nrow])
+        fig = plt.figure(figsize=[4.1 * ncol, 3 * nrow])
     else:
-        fig = plt.figure(figsize=[14, 3 * nrow])
+        fig = plt.figure(figsize=[4.7 * ncol, 3 * nrow])
         self.get_focus()
 
-    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=3,
-                               hspace=0.3, wspace=0.3)
+    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
+                               hspace=0.35, wspace=0.3)
 
-    i = 0
-    for a in analytes:
+    for g, a in zip(gs, analytes):
         if not datarange:
-            ax = fig.add_axes(gs[i].get_position(fig))
+            ax = fig.add_axes(g.get_position(fig))
             axes.append(ax)
-            i += 1
         else:
             f = 0.8
-            p0 = gs[i].get_position(fig)
+            p0 = g.get_position(fig)
             p1 = [p0.x0, p0.y0, p0.width * f, p0.height]
             p2 = [p0.x0 + p0.width * f, p0.y0, p0.width * (1 - f), p0.height]
             ax = fig.add_axes(p1)
             axh = fig.add_axes(p2)
             axes.append((ax, axh))
-            i += 1
 
         # plot calibration data
         ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
@@ -664,9 +749,9 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
         # work out axis scaling
         if not loglog:
             xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
-                                nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
+                             nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
             ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
-                                nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
+                             nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
             xlim = [0, 1.05 * xmax]
             ylim = [0, 1.05 * ymax]
         else:
@@ -783,9 +868,67 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=Tru
             ax.text(0.02, 0.75, label, transform=ax.transAxes,
                     va='top', ha='left')
 
-
     if save:
         fig.savefig(self.report_dir + '/calibration.pdf')
+
+    return fig, axes
+
+def calibration_drift_plot(self, analytes=None, ncol=3, save=True):
+    """
+    Plot calibration slopes through the entire session.
+
+    Parameters
+    ----------
+    self : latools.analyse
+        Analyse object, containing 
+    analytes : optional, array_like or str
+        The analyte(s) to plot. Defaults to all analytes.
+    ncol : int
+        Number of columns of plots
+    save : bool
+        Whether or not to save the plot.
+
+    Returns
+    -------
+    (fig, axes)
+    """
+    if not hasattr(self, 'calib_params'):
+        raise ValueError('Please run calibrate before making this plot.')
+
+    if analytes is None:
+        analytes = [a for a in self.analytes if self.internal_standard not in a]
+
+    ncol = int(ncol)
+    n = len(analytes)
+    nrow = calc_nrow(n, ncol)
+
+    axes = []
+
+    fig = plt.figure(figsize=[6 * ncol, 3 * nrow])
+
+    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
+                               hspace=0.35, wspace=0.3)
+
+    cp = self.calib_params
+
+    for g, a in zip(gs, analytes):
+        ax = fig.add_axes(g.get_position(fig))
+        axes.append(ax)
+
+        ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), c=self.cmaps[a])
+        ax.fill_between(cp.index, 
+                        nominal_values(cp.loc[:, (a, 'm')]) - std_devs(cp.loc[:, (a, 'm')]),
+                        nominal_values(cp.loc[:, (a, 'm')]) + std_devs(cp.loc[:, (a, 'm')]),
+                        color=self.cmaps[a], alpha=0.2, lw=0)
+
+
+        ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+                weight='bold', va='top', ha='left', size=12)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('mol/mol ' + self.internal_standard)
+    
+    if save:
+        fig.savefig(self.report_dir + '/calibration_drift.pdf')
 
     return fig, axes
 
@@ -947,3 +1090,45 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
             plt.close(fig)
 
     return fig, axes
+
+def correlation_plot(self, corr=None):
+    if len(self.correlations) == 0:
+        raise ValueError("No calculated correlations. Run threshold_correlation first.")
+    
+    if corr is None:
+        if len(self.correlations) == 1:
+            corr = list(self.correlations.keys())[0]
+    
+    if corr not in self.correlations:
+        raise ValueError("{:} not founself. Please use one of [{:}]".format(corr, [', '.join(c) for c in self.correlations.keys()]))
+    
+    x_analyte, y_analyte, window = corr.split('_')
+    r, p = self.correlations[corr]
+    
+    fig, axs = plt.subplots(3, 1, figsize=[7, 5], sharex=True)
+    
+    # plot analytes
+    ax = axs[0]
+        
+    ax.plot(self.Time, nominal_values(self.focus[x_analyte]), color=self.cmap[x_analyte], label=x_analyte)
+    ax.plot(self.Time, nominal_values(self.focus[y_analyte]), color=self.cmap[y_analyte], label=y_analyte)
+    
+    ax.set_yscale('log')
+    ax.legend()
+    ax.set_ylabel('Signals')
+    
+    # plot r
+    ax = axs[1]
+    ax.plot(self.Time, r)
+    ax.set_ylabel('Pearson R')
+    
+    # plot p
+    ax = axs[2]
+    ax.plot(self.Time, p)
+    ax.set_ylabel('pignificance Level (p)')
+
+    ax.set_xlabel('Time (s)')
+    
+    fig.tight_layout()
+    
+    return fig, axs

@@ -10,10 +10,10 @@ class test_latools(unittest.TestCase):
     print('\n\nTest LATOOLS on static data.')
 
     # load test data
-    d = la.analyse('./tests/test_dir/test_data')
+    d = la.analyse('./tests/test_dir/test_data', internal_standard="Ca43")
 
     # despike
-    d.despike(expdecay_despiker=False, noise_despiker=True)
+    d.despike(expdecay_despiker=True, noise_despiker=True)
 
     # autorange
     d.autorange(on_mult=[1.5, 0.8],
@@ -72,7 +72,7 @@ class test_reproduce(unittest.TestCase):
     Test data reproduction.
     """
     print('\n\nTesting latools.reproduce')
-    d = la.reproduce('./tests/test_dir/test_data_export/minimal_export/analysis.log')
+    d = la.reproduce('./tests/test_dir/test_data_export/minimal_export/analysis.lalog')
 
     # clean up
     shutil.rmtree('./tests/test_dir/test_data_export')

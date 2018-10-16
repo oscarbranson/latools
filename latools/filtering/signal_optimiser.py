@@ -132,7 +132,7 @@ def calculate_optimisation_stats(d, analytes, min_points, weights, ind, x_bias=0
 def signal_optimiser(d, analytes, min_points=5,
                      threshold_mode='kde_first_max',
                      threshold_mult=1., x_bias=0,
-                     weights=None, ind=None):
+                     weights=None, ind=None, mode='minimise'):
     """
     Optimise data selection based on specified analytes.
 
@@ -193,16 +193,22 @@ def signal_optimiser(d, analytes, min_points=5,
     ind : boolean array
         A boolean array the same length as the data. Where
         false, data will not be included.
+    mode : str
+        Whether to 'minimise' or 'maximise' the concentration
+        of the elements.
 
     Returns
     -------
-    optimisation result : dict
+    dict, str : optimisation result, error message
     """
     errmsg = ''
 
     if isinstance(analytes, str):
         analytes = [analytes]
     
+    if ind is None:
+        ind = np.full(len(d.Time), True)
+
     # initial catch
     if not any(ind) or (np.diff(bool_2_indices(ind)).max() < min_points):
         errmsg = 'Optmisation failed. No contiguous data regions longer than {:.0f} points.'.format(min_points)
@@ -310,7 +316,11 @@ def signal_optimiser(d, analytes, min_points=5,
             raise ValueError('\nthreshold_mult must be a float, int or tuple of length 2.')
 
         rind = (msstds < std_threshold)
-        mind = (msmeans < mean_threshold)
+
+        if mode == 'minimise':
+            mind = (msmeans < mean_threshold)
+        else:
+            mind = (msmeans > mean_threshold)
 
         ind = rind & mind
 
