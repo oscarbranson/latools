@@ -109,7 +109,7 @@ class D(object):
         self.data['total_counts'] = sum(self.data['rawdata'].values())
 
         # add placeholder for gradient info
-        self.grads = None
+        self.grads = Bunch()
         self.grads_calced = False
 
         # add placeholder for local correlations
@@ -650,7 +650,7 @@ class D(object):
                         params, setn=setn)
 
     @_log
-    def filter_gradient_threshold(self, analyte, win, threshold):
+    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True):
         """
         Apply gradient threshold filter.
 
@@ -670,6 +670,10 @@ class D(object):
             Description of `analyte`.
         threshold : float
             Description of `threshold`.
+        win : int
+            Window used to calculate gradients (n points)
+        recalc : bool
+            Whether or not to re-calculate the gradients.
 
         Returns
         -------
@@ -679,10 +683,12 @@ class D(object):
         del(params['self'])
 
         # calculate absolute gradient
-        grad = abs(calc_grads(self.Time, self.focus,
-                              [analyte], win)[analyte])
+        if recalc or not self.grads_calced:
+            self.grads = calc_grads(self.Time, self.focus,
+                                    [analyte], win)
+            self.grads_calced = True
 
-        below, above = filters.threshold(grad, threshold)
+        below, above = filters.threshold(abs(self.grads[analyte]), threshold)
 
         setn = self.filt.maxset + 1
 
@@ -1150,7 +1156,7 @@ class D(object):
     def signal_optimiser(self, analytes, min_points=5,
                          threshold_mode='kde_first_max',
                          threshold_mult=1., x_bias=0,
-                         weights=None, filt=True):
+                         weights=None, filt=True, mode='minimise'):
         """
         Optimise data selection based on specified analytes.
 
@@ -1223,7 +1229,8 @@ class D(object):
                                                     threshold_mode=threshold_mode,
                                                     threshold_mult=threshold_mult,
                                                     weights=weights,
-                                                    ind=nind, x_bias=x_bias)
+                                                    ind=nind, x_bias=x_bias,
+                                                    mode=mode)
 
             if err == '':
                 ofilt.append(self.opt[i + 1].filt)
