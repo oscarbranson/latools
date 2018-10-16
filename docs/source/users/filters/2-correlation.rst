@@ -49,3 +49,12 @@ For example:
 Will produce pdf plots like the following for all samples. 
 
 .. image :: ./figs/2-correlation_plot.png
+
+Related Functions
+-----------------
+
+* :meth:`~latools.latools.analyse.correlation_plots` creates plots of the local correlation between two analytes.
+* :meth:`~latools.latools.analyse.crossplot` creates a cross-plot of all analytes, showing relationships within the data at the population-level (all samples). This can be useful when choosing a threshold value.
+* :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
+* :meth:`~latools.latools.analyse.filter_on` and :meth:`~latools.latools.analyse.filter_off` turn filters on or off.
+* :meth:`~latools.latools.analyse.filter_clear` deletes all filters.

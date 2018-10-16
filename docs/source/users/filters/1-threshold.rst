@@ -52,6 +52,7 @@ Related Functions
 * :meth:`~latools.latools.analyse.filter_threshold` creates a threshold filter.
 * :meth:`~latools.latools.analyse.filter_on` and :meth:`~latools.latools.analyse.filter_off` turn filters on or off.
 * :meth:`~latools.latools.analyse.crossplot` creates a cross-plot of all analytes, showing relationships within the data at the population-level (all samples). This can be useful when choosing a threshold value.
+* :meth:`~latools.latools.analyse.filter_reports` creates plots of a particular filter, showing which sections of the ablation are selected.
 * :meth:`~latools.latools.analyse.histograms` creates histograms of the concentrations of all analytes. Useful for identifying threshold values for specific analytes.
 * :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
 * :meth:`~latools.latools.analyse.filter_clear` deletes all filters.
@@ -108,6 +109,7 @@ Related Functions
 * :meth:`~latools.latools.analyse.gradient_crossplot` Create crossplots of the local gradients for all analyes.
 * :meth:`~latools.latools.analyse.gradient_histogram` Plot histograms of the local gradients in the entire dataset.
 * :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
+* :meth:`~latools.latools.analyse.filter_reports` creates plots of a particular filter, showing which sections of the ablation are selected.
 * :meth:`~latools.latools.analyse.filter_clear` deletes all filters.
 
 #####################

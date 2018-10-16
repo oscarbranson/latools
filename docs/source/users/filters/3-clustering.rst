@@ -113,3 +113,12 @@ We can directly see the influence of this filter:
 Here, we can see that the filter has picked out three Sr concentrations well, but that these clusters don't seem to have any systematic relationship with other analytes.
 This suggests that Sr might not be that useful in separating different materials in these data.
 (In reality, the Sr variance in these data comes from an incorrectly-tuned mass spec, and tells us nothing about the sample!)
+
+Related Functions
+-----------------
+
+* :meth:`~latools.latools.analyse.crossplot` creates a cross-plot of specified analytes, showing relationships within the data at the population-level (all samples). This can be useful when choosing a threshold value.
+* :meth:`~latools.latools.analyse.crossplot_filters` creates a cross-plot of specified analytes with the effect of a particular filter highlighted (see above).
+* :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
+* :meth:`~latools.latools.analyse.filter_on` and :meth:`~latools.latools.analyse.filter_off` turn filters on or off.
+* :meth:`~latools.latools.analyse.filter_clear` deletes all filters.

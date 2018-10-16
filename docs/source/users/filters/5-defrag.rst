@@ -40,9 +40,16 @@ If, on the other hand, the proximity of Al27 in this sample to the threshold val
 
     eg.filter_defragment(10, mode='exclude')
 
-    eg.filter_off('Al27')  # deactivate the original Al filter
+    eg.filter_off()  # deactivate the original Al filter
     eg.filter_on('defrag')  # activate the new defragmented filter
 
 .. image :: figs/5-fragmented-exclude.png
 
 This removes all fragments fragments of selected data that are 10-points or less, and removes them. 
+
+Related Functions
+-----------------
+
+* :meth:`~latools.latools.analyse.trace_plots` with option ``filt=True`` creates plots of all data, showing which regions are selected/rejected by the active filters.
+* :meth:`~latools.latools.analyse.filter_on` and :meth:`~latools.latools.analyse.filter_off` turn filters on or off.
+* :meth:`~latools.latools.analyse.filter_clear` deletes all filters.
