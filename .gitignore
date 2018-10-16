@@ -24,3 +24,5 @@ support/*
 ./*.ipynb
 Supplement/fossil_foram_manual.ipynb
 dev*.ipynb
+Supplement/raw_data/*/*/*.pdf
+Supplement/raw_data/*/*.p*
