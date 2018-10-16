@@ -141,13 +141,13 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
                 hax.legend(fontsize=8)
 
             if ax.is_first_row():
-                tax.set_title('Test User', loc='left')
-                lax.set_title('LAtools', loc='left')
+                tax.set_title('Manual Test User', loc='left')
+                lax.set_title('LAtools Test User', loc='left')
             
     fig.tight_layout()
     return fig, axs
-
 def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
+
     """
     Function for plotting Test User and LAtools data comparison.
 
@@ -240,8 +240,8 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
                 lax.set_xlabel('Reference User')
 
             if ax.is_first_row():
-                tax.set_title('Test User', loc='left')
-                lax.set_title('LAtools', loc='left')
+                tax.set_title('Manual Test User', loc='left')
+                lax.set_title('LAtools Test User', loc='left')
             
     fig.tight_layout()
 
@@ -365,7 +365,7 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         kdl = stats.gaussian_kde(rl, .4)
         # draw KDEs
         hax.fill_betweenx(bins, kdl(bins), facecolor=element_colour(a), alpha=0.8, edgecolor='k', lw=0.75, label='LAtools', zorder=-1)
-        hax.fill_betweenx(bins, kdt(bins), facecolor=element_colour(a), alpha=0.4, edgecolor='k', lw=0.75, label='Test User', zorder=1)
+        hax.fill_betweenx(bins, kdt(bins), facecolor=element_colour(a), alpha=0.4, edgecolor='k', lw=0.75, label='Manual', zorder=1)
         # limits and horizontal line
         hax.set_xlim([0, hax.get_xlim()[-1]])
         hax.axhline(0, ls='dashed', c='k', alpha=0.6, zorder=-1)
@@ -388,8 +388,8 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
                 ax.set_xlabel('')
 
             if ax.is_first_row():
-                tax.set_title('Test User', loc='left')
-                lax.set_title('LAtools', loc='left')
+                tax.set_title('Manual Test User', loc='left')
+                lax.set_title('LAtools Test User', loc='left')
                 hax.set_title('Residuals', loc='left')
 
     fig.tight_layout()
