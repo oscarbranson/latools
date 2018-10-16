@@ -28,6 +28,8 @@ If it has worked correctly, you should see the output::
 In this output, ``latools`` reports that 5 data files were imported from the ``data/`` directory, two of which were standards (names contained 'STD'), and tells you which analytes are present in these data.
 Each of the imported data files is stored in a :class:`latools.D` object, which are 'managed' by the :class:`latools.analyse` object that contains them.
 
+.. tip:: ``latoools`` expects data to be organised in a :ref:`particular way\ <data_formats>`. If your data do not meet these specifications, have a read through the :ref:`Pre-Processing Guide <preprocessing>` for advice on getting your data in the right format.
+
 Check inside the ``latools_demo`` directory. 
 There should now be two new folders called ``reports_data/`` and ``export_data/`` alongside the ``data/`` folder.
 Note that the '_data' suffix will be the same as the name of the folder that contains your data - i.e. the names of these folders will change, depending on the name of your data folder.

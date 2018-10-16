@@ -27,6 +27,8 @@ Installing ``latools``
 
 There are two ways to install ``latools``. We recommend the first method, which will allow you to easily keep your installation of ``latools`` up to date with new developments.
 
+Both methods require entering commands in a terminal window. On Mac, open the **Terminal** application in '/Applications/Utilities'. On Windows, this is a little more complex - `see instructions here <https://projects.raspberrypi.org/en/projects/using-pip-on-windows>`_.
+
 ----------------
 1. Using ``pip``
 ----------------
@@ -34,6 +36,8 @@ There are two ways to install ``latools``. We recommend the first method, which 
 .. code-block:: bash
 
     pip install latools
+
+For in-depth instructions on using `pip`, see `here <https://docs.python.org/3/installing/index.html>`_
 
 ------------------
 2. Using ``conda``
