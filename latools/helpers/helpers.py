@@ -12,7 +12,6 @@ import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
 from .stat_fns import nominal_values
-from functools import wraps
 
 # Bunch modifies dict to allow item access using dot (.) operator
 class Bunch(dict):
@@ -26,18 +25,6 @@ def _warning(message, category=UserWarning,
              filename='', lineno=-1,
              file=None, line=None):
     print(message)
-
-# Logging Functions
-def _log(func):
-    """
-    Function for logging method calls and parameters
-    """
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        a = func(self, *args, **kwargs)
-        self.log.append(func.__name__ + ' :: args={} kwargs={}'.format(args, kwargs))
-        return a
-    return wrapper
 
 def get_date(datetime, time_format=None):
     """
@@ -277,6 +264,7 @@ def rangecalc(xs, pad=0.05):
     mx = np.nanmax(xs)
     xr = mx - mn
     return [mn - pad * xr, mx + pad * xr]
+
 class un_interp1d(object):
     """
     object for handling interpolation of values with uncertainties.

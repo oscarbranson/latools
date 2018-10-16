@@ -1,7 +1,4 @@
-test_data/A1-1.csv
-test_data/A1-10.csv
-test_data/A1-5.csv
-test_data/STD-3.csv
+test_data/*
 latools.pro.user
 latools.egg-info
 ./*.ipynb
@@ -26,3 +23,6 @@ data
 support/*
 ./*.ipynb
 Supplement/fossil_foram_manual.ipynb
+dev*.ipynb
+Supplement/raw_data/*/*/*.pdf
+Supplement/raw_data/*/*.p*

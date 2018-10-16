@@ -201,7 +201,7 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'C
     frame = [.25, .25, .75, .75]
 
     baframe = [frame[0], frame[1], frame[2] * p, frame[3]]
-    rframe = [frame[0] + frame[2] * p, frame[1], frame[2] * (1 - p), frame[3]]
+    rframe = [frame[0] + frame[2] * p * 1.02, frame[1], frame[2] * (1 - p * 1.02), frame[3]]
 
     fig = plt.figure(figsize=(cols * 2.8, rows * 1.5))
     axs = []
@@ -269,5 +269,9 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'C
 
         # if lax.is_first_row() and lax.is_first_col():
         #     lax.set_title('LAtools', loc='left')
+
+    for ax in axs[-2:]:
+       ax[0].set_xlabel('X/Ca')
+       ax[1].set_xlabel('Resid.\nDens')
         
     return fig, np.array(axs)

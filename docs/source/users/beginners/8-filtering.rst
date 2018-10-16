@@ -7,6 +7,9 @@ Data Selection and Filtering
 The data are now background corrected, normalised to an internal standard, and calibrated.
 Now we can get into some of the new features of ``latools``, and start thinking about **data filtering**.
 
+This section will tell you the basics - what a filter is, and how to create and apply one.
+For most information on the different types of filters available in ``latools``, head over to the :ref:`filters` section.
+
 What is Data Filtering?
 =======================
 Laser ablation data are spatially resolved.
@@ -41,7 +44,7 @@ To do this, use:
 * :meth:`~latools.analyse.fit_classifier`: Uses a clustering algorithm based on specified analytes in *all* samples (or a subset) to identify separate compositions within the entire dataset. This is particularly useful if (for example) all samples are affected by a contaminant with a unique composition, or the samples contain a chemical 'label' that identifies a particular material. This will be most robustly identified at the whole-analysis level, rather than the individual-sample level.
 * :meth:`~latools.analyse.apply_classifier`: Applies the classifier fitted to the entire dataset to all samples individually. Creates a sample-level filter using the classifier based on all data.
 
-For a full account of these filters, how they work and how they can be used, see :ref:`advanced_filtering`.
+For a full account of these filters, how they work and how they can be used, see :ref:`filters`.
 
 Simple Demonstration
 ====================
@@ -216,6 +219,6 @@ To see which subsets have been defined::
      'set1': ['Sample-1'],
      'set2': ['Sample-2', 'Sample-3']}
 
-.. note:: The filtering above is relatively simplistic. More complex filters require quite a lot more thought and care in their application. For examples of how to use clustering, distribution and correlation filters, see the :ref:`Advanced Filtering <advanced_filtering>` section.
+.. note:: The filtering above is relatively simplistic. More complex filters require quite a lot more thought and care in their application. For examples of how to use clustering, distribution and correlation filters, see the :ref:`Advanced Filtering <filters>` section.
 
 

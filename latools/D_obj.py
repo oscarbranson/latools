@@ -15,17 +15,19 @@ from IPython import display
 from scipy.stats import gaussian_kde, pearsonr
 from sklearn import preprocessing
 
+import latools.processes as proc
+
 from .filtering import filters
 from .filtering import clustering
 from .filtering.filt_obj import filt
 from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
-from .helpers import process_fns as proc
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, _log, unitpicker, pretty_element,
+                              calc_grads, unitpicker, pretty_element,
                               findmins, stack_keys)
-from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties
+from .helpers.logging import _log
+from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
 
 class D(object):
     """
@@ -89,7 +91,7 @@ class D(object):
         An object for storing, selecting and creating data filters.F
     """
 
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard='Ca43', name='file_names'):
+    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names'):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -102,6 +104,16 @@ class D(object):
         self.internal_standard = internal_standard
 
         self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+
+        # calculate total counts
+        self.data['total_counts'] = sum(self.data['rawdata'].values())
+
+        # add placeholder for gradient info
+        self.grads = Bunch()
+        self.grads_calced = False
+
+        # add placeholder for local correlations
+        self.correlations = Bunch()
 
         # assign time information to attribute level
         self.Time = self.data['Time']
@@ -218,7 +230,7 @@ class D(object):
                 sig = v.copy()  # copy data
                 if expdecay_despiker:
                     if exponent is not None:
-                        sig = proc.expdecay_despike(v, exponent, self.tstep, maxiter)
+                        sig = proc.expdecay_despike(sig, exponent, self.tstep, maxiter)
                     else:
                         warnings.warn('exponent is None - either provide exponent, or run at `analyse`\nlevel to automatically calculate it.')
                 
@@ -227,14 +239,15 @@ class D(object):
                 out[a] = sig
 
         self.data['despiked'].update(out)
+        # recalculate total counts
         self.data['total_counts'] = sum(self.data['despiked'].values())
         self.setfocus('despiked')
         return
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
-                  on_mult=[1., 1.], off_mult=[1., 1.5], nbin=10,
-                  ploterrs=True, bkg_thresh=None, transform='log', **kwargs):
+                  on_mult=[1., 1.], off_mult=[1., 1.5],
+                  ploterrs=True, transform='log', **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -294,7 +307,8 @@ class D(object):
             True regions in the boolean arrays.
         """
         if analyte is None:
-            sig = self.focus[self.internal_standard]
+            # sig = self.focus[self.internal_standard]
+            sig = self.data['total_counts']
         elif analyte == 'total_counts':
             sig = self.data['total_counts']
         elif analyte in self.analytes:
@@ -302,12 +316,10 @@ class D(object):
         else:
             raise ValueError('Invalid analyte.')
 
-        if transform == 'log':
-            sig = np.log10(sig)
-
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
-                                            nbin=nbin, on_mult=on_mult, off_mult=off_mult)
+                                            on_mult=on_mult, off_mult=off_mult,
+                                            transform=transform)
 
         self.mkrngs()
 
@@ -335,12 +347,13 @@ class D(object):
 
     def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,
                        on_mult=[1.5, 1.], off_mult=[1., 1.5],
-                       transform='log', nbin=10):
+                       transform='log'):
         """
         Plot a detailed autorange report for this sample.
         """
         if analyte is None:
-            sig = self.focus[self.internal_standard]
+            # sig = self.focus[self.internal_standard]
+            sig = self.data['total_counts']
         elif analyte == 'total_counts':
             sig = self.data['total_counts']
         elif analyte in self.analytes:
@@ -399,12 +412,10 @@ class D(object):
 
         Results is saved in new 'bkgsub' focus stage
 
-
         Returns
         -------
         None
         """
-
         if 'bkgsub' not in self.data.keys():
             self.data['bkgsub'] = Bunch()
 
@@ -416,7 +427,47 @@ class D(object):
         return
 
     @_log
-    def ratio(self, internal_standard=None, focus='bkgsub'):
+    def correct_spectral_interference(self, target_analyte, source_analyte, f):
+        """
+        Correct spectral interference.
+
+        Subtract interference counts from target_analyte, based on the
+        intensity of a source_analayte and a known fractional contribution (f).
+
+        Correction takes the form:
+        target_analyte -= source_analyte * f
+
+        Only operates on background-corrected data ('bkgsub'). 
+        
+        To undo a correction,
+        rerun `self.bkg_subtract()`.
+
+        Parameters
+        ----------
+        target_analyte : str
+            The name of the analyte to modify.
+        source_analyte : str
+            The name of the analyte to base the correction on.
+        f : float
+            The fraction of the intensity of the source_analyte to
+            subtract from the target_analyte. Correction is:
+            target_analyte - source_analyte * f
+
+        Returns
+        -------
+        None
+        """
+
+        if target_analyte not in self.analytes:
+            raise ValueError('target_analyte: {:} not in available analytes ({:})'.format(target_analyte, ', '.join(self.analytes)))
+
+        if source_analyte not in self.analytes:
+            raise ValueError('source_analyte: {:} not in available analytes ({:})'.format(source_analyte, ', '.join(self.analytes)))
+
+        self.data['bkgsub'][target_analyte] -= self.data['bkgsub'][source_analyte] * f
+
+    @_log
+    def ratio(self, internal_standard=None):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -424,9 +475,6 @@ class D(object):
         ----------
         internal_standard : str
             The analyte used as the internal_standard.
-        focus : str
-            The analysis stage to perform the ratio calculation on.
-            Defaults to 'signal'.
 
         Returns
         -------
@@ -435,11 +483,10 @@ class D(object):
         if internal_standard is not None:
             self.internal_standard = internal_standard
 
-        self.setfocus(focus)
         self.data['ratios'] = Bunch()
         for a in self.analytes:
-            self.data['ratios'][a] = (self.focus[a] /
-                                      self.focus[self.internal_standard])
+            self.data['ratios'][a] = (self.data['bkgsub'][a] /
+                                      self.data['bkgsub'][self.internal_standard])
         self.setfocus('ratios')
         return
 
@@ -603,7 +650,7 @@ class D(object):
                         params, setn=setn)
 
     @_log
-    def filter_gradient_threshold(self, analyte, win, threshold):
+    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True):
         """
         Apply gradient threshold filter.
 
@@ -619,10 +666,14 @@ class D(object):
 
         Parameters
         ----------
-        analyte : TYPE
+        analyte : str
             Description of `analyte`.
-        threshold : TYPE
+        threshold : float
             Description of `threshold`.
+        win : int
+            Window used to calculate gradients (n points)
+        recalc : bool
+            Whether or not to re-calculate the gradients.
 
         Returns
         -------
@@ -632,10 +683,12 @@ class D(object):
         del(params['self'])
 
         # calculate absolute gradient
-        grad = abs(calc_grads(self.Time, self.focus,
-                              [analyte], win)[analyte])
+        if recalc or not self.grads_calced:
+            self.grads = calc_grads(self.Time, self.focus,
+                                    [analyte], win)
+            self.grads_calced = True
 
-        below, above = filters.threshold(grad, threshold)
+        below, above = filters.threshold(abs(self.grads[analyte]), threshold)
 
         setn = self.filt.maxset + 1
 
@@ -785,7 +838,7 @@ class D(object):
                 ds = preprocessing.scale(ds)
 
             method_key = {'kmeans': clustering.cluster_kmeans,
-                          'DBSCAN': clustering.cluster_DBSCAN,
+                        #   'DBSCAN': clustering.cluster_DBSCAN,
                           'meanshift': clustering.cluster_meanshift}
 
             cfun = method_key[method]
@@ -797,13 +850,11 @@ class D(object):
 
             # label the clusters according to their contents
             if (sort is not None) & (sort is not False):
+
                 if isinstance(sort, str):
                     sort = [sort]
 
-                if len(analytes) == 1:
-                    sanalytes = analytes + [False]
-                else:
-                    sanalytes = analytes
+                sanalytes = analytes
 
                 # make boolean filter to select analytes
                 if sort is True:
@@ -861,10 +912,61 @@ class D(object):
         return
 
     @_log
-    def filter_correlation(self, x_analyte, y_analyte, window=None,
-                           r_threshold=0.9, p_threshold=0.05, filt=True):
+    def calc_correlation(self, x_analyte, y_analyte, window=15, filt=True, recalc=True):
         """
-        Apply correlation filter.
+        Calculate local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        None
+        """
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+
+        if label in self.correlations and not recalc:
+            return
+
+        # make window odd
+        if window % 2 != 1:
+            window += 1
+        
+        # get filter
+        ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
+
+        x = nominal_values(self.focus[x_analyte])
+        x[~ind] = np.nan
+        xr = rolling_window(x, window, pad=np.nan)
+
+        y = nominal_values(self.focus[y_analyte])
+        y[~ind] = np.nan
+        yr = rolling_window(y, window, pad=np.nan)
+
+        r, p = zip(*map(nan_pearsonr, xr, yr))
+
+        r = np.array(r)
+        p = np.array(p)
+
+        # save correlation info
+        
+        self.correlations[label] = r, p
+        return
+
+    @_log
+    def filter_correlation(self, x_analyte, y_analyte, window=15,
+                           r_threshold=0.9, p_threshold=0.05, filt=True, recalc=False):
+        """
+        Calculate correlation filter.
 
         Parameters
         ----------
@@ -882,18 +984,15 @@ class D(object):
         filt : bool
             Whether or not to apply existing filters to the data before
             calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
 
         Returns
         -------
         None
         """
-
-        # automatically determine appripriate window?
-
         # make window odd
-        if window is None:
-            window = 11
-        elif window % 2 != 1:
+        if window % 2 != 1:
             window += 1
 
         params = locals()
@@ -901,21 +1000,10 @@ class D(object):
 
         setn = self.filt.maxset + 1
 
-        # get filter
-        ind = self.filt.grab_filt(filt, [x_analyte, y_analyte])
-
-        x = nominal_values(self.focus[x_analyte])
-        x[~ind] = np.nan
-        xr = rolling_window(x, window, pad=np.nan)
-
-        y = nominal_values(self.focus[y_analyte])
-        y[~ind] = np.nan
-        yr = rolling_window(y, window, pad=np.nan)
-
-        r, p = zip(*map(pearsonr, xr, yr))
-
-        r = np.array(r)
-        p = np.array(p)
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+        
+        self.calc_correlation(x_analyte, y_analyte, window, filt, recalc)
+        r, p = self.correlations[label]
 
         cfilt = (abs(r) > r_threshold) & (p < p_threshold)
         cfilt = ~cfilt
@@ -931,6 +1019,58 @@ class D(object):
         self.filt.on(analyte=y_analyte, filt=name)
 
         return
+
+    @_log
+    def correlation_plot(self, x_analyte, y_analyte, window=15, filt=True, recalc=False):
+        """
+        Plot the local correlation between two analytes.
+
+        Parameters
+        ----------
+        x_analyte, y_analyte : str
+            The names of the x and y analytes to correlate.
+        window : int, None
+            The rolling window used when calculating the correlation.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        recalc : bool
+            If True, the correlation is re-calculated, even if it is already present.
+
+        Returns
+        -------
+        fig, axs : figure and axes objects
+        """
+        label = '{:}_{:}_{:.0f}'.format(x_analyte, y_analyte, window)
+
+        self.calc_correlation(x_analyte, y_analyte, window, filt, recalc)
+        r, p = self.correlations[label]
+
+        fig, axs = plt.subplots(3, 1, figsize=[7, 5], sharex=True)
+        
+        # plot analytes
+        ax = axs[0]
+            
+        ax.plot(self.Time, nominal_values(self.focus[x_analyte]), color=self.cmap[x_analyte], label=x_analyte)
+        ax.plot(self.Time, nominal_values(self.focus[y_analyte]), color=self.cmap[y_analyte], label=y_analyte)
+        
+        ax.set_yscale('log')
+        ax.legend()
+        ax.set_ylabel('Signals')
+        
+        # plot r
+        ax = axs[1]
+        ax.plot(self.Time, r)
+        ax.set_ylabel('Pearson R')
+        
+        # plot p
+        ax = axs[2]
+        ax.plot(self.Time, p)
+        ax.set_ylabel('pignificance Level (p)')
+        
+        fig.tight_layout()
+        
+        return fig, axs
     
     @_log
     def filter_new(self, name, filt_str):
@@ -1016,7 +1156,7 @@ class D(object):
     def signal_optimiser(self, analytes, min_points=5,
                          threshold_mode='kde_first_max',
                          threshold_mult=1., x_bias=0,
-                         weights=None, filt=True):
+                         weights=None, filt=True, mode='minimise'):
         """
         Optimise data selection based on specified analytes.
 
@@ -1089,7 +1229,8 @@ class D(object):
                                                     threshold_mode=threshold_mode,
                                                     threshold_mult=threshold_mult,
                                                     weights=weights,
-                                                    ind=nind, x_bias=x_bias)
+                                                    ind=nind, x_bias=x_bias,
+                                                    mode=mode)
 
             if err == '':
                 ofilt.append(self.opt[i + 1].filt)
@@ -1132,7 +1273,7 @@ class D(object):
     @_log
     def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
-              interactive=False, focus_stage=None, err_envelope=False, ax=None):
+              focus_stage=None, err_envelope=False, ax=None):
         """
         Plot analytes as a function of Time.
 
@@ -1160,21 +1301,19 @@ class D(object):
             average statistic to plot.
         err : str
             error statistic to plot.
-        interactive : bool
-            Make the plot interactive.
 
         Returns
         -------
         figure, axis
         """
 
-        return plot.tplot(self, analytes, figsize, scale, filt,
-                          ranges, stats, stat, err,
-                          interactive, focus_stage, err_envelope, ax)
+        return plot.tplot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
+                          ranges=ranges, stats=stats, stat=stat, err=err,
+                          focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 
     @_log
     def gplot(self, analytes=None, win=5, figsize=[10, 4],
-              ranges=False, focus_stage=None):
+              ranges=False, focus_stage=None, ax=None):
         """
         Plot analytes gradients as a function of Time.
 
@@ -1195,56 +1334,59 @@ class D(object):
         figure, axis
         """
 
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
+        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize,
+                          ranges=ranges, focus_stage=focus_stage, ax=ax)
 
-        if focus_stage is None:
-            focus_stage = self.focus_stage
+        # if type(analytes) is str:
+        #     analytes = [analytes]
+        # if analytes is None:
+        #     analytes = self.analytes
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_axes([.1, .12, .77, .8])
+        # if focus_stage is None:
+        #     focus_stage = self.focus_stage
 
-        x = self.Time
-        grads = calc_grads(x, self.data[focus_stage], analytes, win)
+        # fig = plt.figure(figsize=figsize)
+        # ax = fig.add_axes([.1, .12, .77, .8])
 
-        for a in analytes:
-            ax.plot(x, grads[a], color=self.cmap[a], label=a)
+        # x = self.Time
+        # grads = calc_grads(x, self.data[focus_stage], analytes, win)
 
-        if ranges:
-            for lims in self.bkgrng:
-                ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
-            for lims in self.sigrng:
-                ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
+        # for a in analytes:
+        #     ax.plot(x, grads[a], color=self.cmap[a], label=a)
 
-        ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
-                transform=ax.transAxes,
-                ha='left', va='top')
+        # if ranges:
+        #     for lims in self.bkgrng:
+        #         ax.axvspan(*lims, color='k', alpha=0.1, zorder=-1)
+        #     for lims in self.sigrng:
+        #         ax.axvspan(*lims, color='r', alpha=0.1, zorder=-1)
 
-        ax.set_xlabel('Time (s)')
-        ax.set_xlim(np.nanmin(x), np.nanmax(x))
+        # ax.text(0.01, 0.99, self.sample + ' : ' + self.focus_stage + ' : gradient',
+        #         transform=ax.transAxes,
+        #         ha='left', va='top')
 
-        # y label
-        ud = {'rawdata': 'counts/s',
-              'despiked': 'counts/s',
-              'bkgsub': 'background corrected counts/s',
-              'ratios': 'counts/{:s} count/s',
-              'calibrated': 'mol/mol/s {:s}'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
-        ax.set_ylabel(ud[focus_stage])
-        # y tick format
+        # ax.set_xlabel('Time (s)')
+        # ax.set_xlim(np.nanmin(x), np.nanmax(x))
 
-        def yfmt(x, p):
-            return '{:.0e}'.format(x)
-        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
+        # # y label
+        # ud = {'rawdata': 'counts/s',
+        #       'despiked': 'counts/s',
+        #       'bkgsub': 'background corrected counts/s',
+        #       'ratios': 'counts/{:s} count/s',
+        #       'calibrated': 'mol/mol {:s}/s'}
+        # if focus_stage in ['ratios', 'calibrated']:
+        #     ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+        # ax.set_ylabel(ud[focus_stage])
+        # # y tick format
 
-        ax.legend(bbox_to_anchor=(1.15, 1))
+        # def yfmt(x, p):
+        #     return '{:.0e}'.format(x)
+        # ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(yfmt))
 
-        ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+        # ax.legend(bbox_to_anchor=(1.15, 1))
 
-        return fig, ax
+        # ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+
+        # return fig, ax
 
     @_log
     def crossplot(self, analytes=None, bins=25, lognorm=True, filt=True, colourful=True, figsize=(12, 12)):
