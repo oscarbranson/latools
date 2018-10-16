@@ -1824,7 +1824,7 @@ class analyse(object):
             lims = np.percentile(grad, percentiles)
 
         # Calculate filter for individual samples
-        with self.pbar.set(total=len(samples), desc='Percentily Threshold Filter') as prog:
+        with self.pbar.set(total=len(samples), desc='Percentile Threshold Filter') as prog:
             for s in samples:
                 d = self.data[s]
                 setn = d.filt.maxset + 1
@@ -1860,13 +1860,13 @@ class analyse(object):
                             outside,
                             'Gradients outside ' + lpc + ' ' + analyte + 'percentiles',
                             params, setn=setn)
-            prog.update()
+                prog.update()
         return
 
     @_log
     def filter_clustering(self, analytes, filt=False, normalise=True,
-                          method='meanshift', include_time=False, samples=None,
-                          sort=True, subset=None, min_data=10, **kwargs):
+                          method='kmeans', include_time=False, samples=None,
+                          sort=True, subset=None, level='sample', min_data=10, **kwargs):
         """
         Applies an n - dimensional clustering filter to the data.
      
@@ -1892,20 +1892,9 @@ class analyse(object):
               the characteristics of a known number of clusters
               within the data. Must provide `n_clusters` to specify
               the expected number of clusters.
-            * 'DBSCAN': The `sklearn.cluster.DBSCAN` algorithm. Automatically
-              determines the number and characteristics of clusters
-              within the data based on the 'connectivity' of the
-              data (i.e. how far apart each data point is in a
-              multi - dimensional parameter space). Requires you to
-              set `eps`, the minimum distance point must be from
-              another point to be considered in the same cluster,
-              and `min_samples`, the minimum number of points that
-              must be within the minimum distance for it to be
-              considered a cluster. It may also be run in automatic
-              mode by specifying `n_clusters` alongside
-              `min_samples`, where eps is decreased until the
-              desired number of clusters is obtained.
-
+        level : str
+            Whether to conduct the clustering analysis at the 'sample' or 
+            'population' level.
         include_time : bool
             Whether or not to include the Time variable in the clustering
             analysis. Useful if you're looking for spatially continuous
@@ -1931,24 +1920,9 @@ class analyse(object):
             bin_seeding : bool
                 Modifies the behaviour of the meanshift algorithm. Refer to
                 sklearn.cluster.meanshift documentation.
-        K - Means Parameters
+        K-Means Parameters
             n_clusters : int
                 The number of clusters expected in the data.
-        DBSCAN Parameters
-            eps : float
-                The minimum 'distance' points must be apart for them to be in the
-                same cluster. Defaults to 0.3. Note: If the data are normalised
-                (they should be for DBSCAN) this is in terms of total sample
-                variance. Normalised data have a mean of 0 and a variance of 1.
-            min_samples : int
-                The minimum number of samples within distance `eps` required
-                to be considered as an independent cluster.
-            n_clusters : int
-                The number of clusters expected. If specified, `eps` will be
-                incrementally reduced until the expected number of clusters is
-                found.
-            maxiter : int
-                The maximum number of iterations DBSCAN will run.
 
         Returns
         -------
@@ -1964,16 +1938,139 @@ class analyse(object):
 
         self.minimal_analytes.update(analytes)
 
-        with self.pbar.set(total=len(samples), desc='Clustering Filter') as prog:
+        if level == 'sample':
+            with self.pbar.set(total=len(samples), desc='Clustering Filter') as prog:
+                for s in samples:
+                    self.data[s].filter_clustering(analytes=analytes, filt=filt,
+                                                normalise=normalise,
+                                                method=method,
+                                                include_time=include_time,
+                                                min_data=min_data,
+                                                sort=sort,
+                                                **kwargs)
+                    prog.update()
+        
+        if level == 'population':
+            if isinstance(sort, bool):
+                sort_by = 0
+            else:
+                sort_by = sort
+            
+            name = '_'.join(analytes) + '_{}'.format(method)
+
+            self.fit_classifier(name=name, analytes=analytes, method=method,
+                                subset=subset, filt=filt, sort_by=sort_by, **kwargs)
+
+            self.apply_classifier(name=name, subset=subset)
+
+    @_log
+    def fit_classifier(self, name, analytes, method, samples=None,
+                       subset=None, filt=True, sort_by=0, **kwargs):
+        """
+        Create a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier.
+        analytes : str or iterable
+            Which analytes the clustering algorithm should consider.
+        method : str
+            Which clustering algorithm to use. Can be:
+
+            'meanshift'
+                The `sklearn.cluster.MeanShift` algorithm.
+                Automatically determines number of clusters
+                in data based on the `bandwidth` of expected
+                variation.
+            'kmeans'
+                The `sklearn.cluster.KMeans` algorithm. Determines
+                the characteristics of a known number of clusters
+                within the data. Must provide `n_clusters` to specify
+                the expected number of clusters.
+        samples : iterable
+            list of samples to consider. Overrides 'subset'.
+        subset : str
+            The subset of samples used to fit the classifier. Ignored if
+            'samples' is specified.
+        sort_by : int
+            Which analyte the resulting clusters should be sorted
+            by - defaults to 0, which is the first analyte.
+        **kwargs :
+            method-specific keyword parameters - see below.
+        Meanshift Parameters
+            bandwidth : str or float
+                The bandwith (float) or bandwidth method ('scott' or 'silverman')
+                used to estimate the data bandwidth.
+            bin_seeding : bool
+                Modifies the behaviour of the meanshift algorithm. Refer to
+                sklearn.cluster.meanshift documentation.
+        K - Means Parameters
+            n_clusters : int
+                The number of clusters expected in the data.
+
+        Returns
+        -------
+        name : str
+        """
+        # isolate data
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        self.get_focus(subset=subset, filt=filt)
+
+        # create classifer
+        c = classifier(analytes,
+                       sort_by)
+        # fit classifier
+        c.fit(data=self.focus,
+              method=method,
+              **kwargs)
+
+        self.classifiers[name] = c
+
+        return name
+
+    @_log
+    def apply_classifier(self, name, samples=None, subset=None):
+        """
+        Apply a clustering classifier based on all samples, or a subset.
+
+        Parameters
+        ----------
+        name : str
+            The name of the classifier to apply.
+        subset : str
+            The subset of samples to apply the classifier to.
+        Returns
+        -------
+        name : str
+        """
+        if samples is not None:
+            subset = self.make_subset(samples)
+
+        samples = self._get_samples(subset)
+
+        c = self.classifiers[name]
+        labs = c.classifier.ulabels_
+
+        with self.pbar.set(total=len(samples), desc='Applying ' + name + ' classifier') as prog:
             for s in samples:
-                self.data[s].filter_clustering(analytes=analytes, filt=filt,
-                                            normalise=normalise,
-                                            method=method,
-                                            include_time=include_time,
-                                            min_data=min_data,
-                                            sort=sort,
-                                            **kwargs)
+                d = self.data[s]
+                try:
+                    f = c.predict(d.focus)
+                except ValueError:
+                    # in case there's no data
+                    f = np.array([-2] * len(d.Time))
+                for l in labs:
+                    ind = f == l
+                    d.filt.add(name=name + '_{:.0f}'.format(l),
+                            filt=ind,
+                            info=name + ' ' + c.method + ' classifier',
+                            params=(c.analytes, c.method))
                 prog.update()
+
+        return name
 
     @_log
     def filter_correlation(self, x_analyte, y_analyte, window=None,
@@ -2313,7 +2410,8 @@ class analyse(object):
     def optimise_signal(self, analytes, min_points=5,
                         threshold_mode='kde_first_max', 
                         threshold_mult=1., x_bias=0, filt=True,
-                        weights=None, samples=None, subset=None):
+                        weights=None, mode='minimise',
+                        samples=None, subset=None):
         """
         Optimise data selection based on specified analytes.
 
@@ -2375,9 +2473,9 @@ class analyse(object):
 
         with self.pbar.set(total=len(samples), desc='Optimising Data selection') as prog:
             for s in samples:
-                e = self.data[s].signal_optimiser(analytes, min_points,
-                                                threshold_mode, threshold_mult,
-                                                x_bias, weights, filt)
+                e = self.data[s].signal_optimiser(analytes=analytes, min_points=min_points,
+                                                  threshold_mode=threshold_mode, threshold_mult=threshold_mult,
+                                                  x_bias=x_bias, weights=weights, filt=filt, mode=mode)
                 if e != '':
                     errs.append(e)
                 prog.update()
@@ -2423,119 +2521,11 @@ class analyse(object):
                 prog.update()
         return
 
-    @_log
-    def fit_classifier(self, name, analytes, method, samples=None,
-                       subset=None, filt=True, sort_by=0, **kwargs):
-        """
-        Create a clustering classifier based on all samples, or a subset.
-
-        Parameters
-        ----------
-        name : str
-            The name of the classifier.
-        analytes : str or iterable
-            Which analytes the clustering algorithm should consider.
-        method : str
-            Which clustering algorithm to use. Can be:
-
-            'meanshift'
-                The `sklearn.cluster.MeanShift` algorithm.
-                Automatically determines number of clusters
-                in data based on the `bandwidth` of expected
-                variation.
-            'kmeans'
-                The `sklearn.cluster.KMeans` algorithm. Determines
-                the characteristics of a known number of clusters
-                within the data. Must provide `n_clusters` to specify
-                the expected number of clusters.
-        samples : iterable
-            list of samples to consider. Overrides 'subset'.
-        subset : str
-            The subset of samples used to fit the classifier. Ignored if
-            'samples' is specified.
-        sort_by : int
-            Which analyte the resulting clusters should be sorted
-            by - defaults to 0, which is the first analyte.
-        **kwargs :
-            method-specific keyword parameters - see below.
-        Meanshift Parameters
-            bandwidth : str or float
-                The bandwith (float) or bandwidth method ('scott' or 'silverman')
-                used to estimate the data bandwidth.
-            bin_seeding : bool
-                Modifies the behaviour of the meanshift algorithm. Refer to
-                sklearn.cluster.meanshift documentation.
-        K - Means Parameters
-            n_clusters : int
-                The number of clusters expected in the data.
-
-        Returns
-        -------
-        name : str
-        """
-        # isolate data
-        if samples is not None:
-            subset = self.make_subset(samples)
-
-        self.get_focus(subset=subset, filt=filt)
-
-        # create classifer
-        c = classifier(analytes,
-                       sort_by)
-        # fit classifier
-        c.fit(data=self.focus,
-              method=method,
-              **kwargs)
-
-        self.classifiers[name] = c
-
-        return name
-
-    @_log
-    def apply_classifier(self, name, samples=None, subset=None):
-        """
-        Apply a clustering classifier based on all samples, or a subset.
-
-        Parameters
-        ----------
-        name : str
-            The name of the classifier to apply.
-        subset : str
-            The subset of samples to apply the classifier to.
-        Returns
-        -------
-        name : str
-        """
-        if samples is not None:
-            subset = self.make_subset(samples)
-
-        samples = self._get_samples(subset)
-
-        c = self.classifiers[name]
-        labs = c.classifier.ulabels_
-
-        with self.pbar.set(total=len(samples), desc='Applying ' + name + ' classifier') as prog:
-            for s in samples:
-                d = self.data[s]
-                try:
-                    f = c.predict(d.focus)
-                except ValueError:
-                    # in case there's no data
-                    f = np.array([-2] * len(d.Time))
-                for l in labs:
-                    ind = f == l
-                    d.filt.add(name=name + '_{:.0f}'.format(l),
-                            filt=ind,
-                            info=name + ' ' + c.method + ' classifier',
-                            params=(c.analytes, c.method))
-            prog.update()
-
-        return name
-
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False, save=True):
-        return plot.calibration_plot(self, analytes, datarange, loglog, save)
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
+        return plot.calibration_plot(self=self, analytes=analytes, datarange=datarange, 
+                                     loglog=loglog, ncol=ncol, save=save)
 
     # set the focus attribute for specified samples
     @_log
@@ -2747,7 +2737,7 @@ class analyse(object):
             m, u = unitpicker(d, focus_stage=self.focus_stage, denominator=self.internal_standard)
 
             if bins is None:
-                ibins = np.linspace(*np.percentile(d * m, [2.5, 97.5]), 50)
+                ibins = np.linspace(*np.percentile(d * m, [1, 99]), 50)
             else:
                 ibins = bins
 
@@ -2762,7 +2752,6 @@ class analyse(object):
             i += 1
 
         if i < ncol * nrow:
-            print('invisiblising')
             for ax in axs.flatten()[i:]:
                 ax.set_visible(False)
         
