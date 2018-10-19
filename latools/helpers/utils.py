@@ -52,14 +52,15 @@ def extract_zipdir(zip_file):
     
     Returns
     -------
-        None
+        str : folder where the zip was extracted
     """
     if not os.path.exists(zip_file):
         raise ValueError('{} does not exist'.format(zip_file))
     directory = os.path.dirname(zip_file)
-    file = os.path.basename(zip_file)
+    filename = os.path.basename(zip_file)
+    dirpath = os.path.join(directory, filename.replace('.zip', ''))
 
     with zipfile.ZipFile(zip_file, 'r', zipfile.ZIP_DEFLATED) as zipf:
-        zipf.extractall(os.path.join(directory, file.replace('.zip', '')))
+        zipf.extractall(dirpath)
 
-    return None
+    return dirpath
