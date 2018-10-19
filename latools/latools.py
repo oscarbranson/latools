@@ -3753,7 +3753,7 @@ class analyse(object):
         
         return loc
 
-    def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=False):
+    def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=True):
         """
         Exports a analysis parameters, standard info and a minimal dataset,
         which can be imported by another user.
@@ -3846,10 +3846,8 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
         same folder as the log file.
     """
     if '.zip' in past_analysis:
-        utils.extract_zipdir(past_analysis)
-        logpath = os.path.join(os.path.dirname(past_analysis),
-                               os.path.basename(past_analysis).replace('.zip', ''),
-                               'analysis.lalog')
+        dirpath = utils.extract_zipdir(past_analysis)
+        logpath = os.path.join(dirpath, 'analysis.lalog')
     elif os.path.isdir(past_analysis):
         if os.path.exists(os.path.join(past_analysis, 'analysis.lalog')):
             logpath = os.path.join(past_analysis, 'analysis.lalog')
@@ -3878,10 +3876,10 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
                 csfs[fname.match(c).groups()[0]] = c
 
     # create analysis object
-    rep = analyse(*runargs['__init__']['args'], **runargs['__init__']['kwargs'])
+    rep = analyse(*runargs[0][-1]['args'], **runargs[0][-1]['kwargs'])
 
     # rest of commands
-    for fname, arg in runargs.items():
+    for fname, arg in runargs:
         if fname != '__init__':
             if 'plot' in fname.lower() and plotting:
                 getattr(rep, fname)(*arg['args'], **arg['kwargs'])
