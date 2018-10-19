@@ -71,16 +71,16 @@ def read_logfile(log_file):
     # paths = {k: os.path.abspath(v) for k, v in paths}
 
     logread = re.compile('([a-z_]+) :: args=(\(.*\)) kwargs=(\{.*\})')
-    runargs = {}
+    runargs = []
     for line in rlog[hashind[1] + 1:]:
         fname, args, kwargs = (logread.match(line).groups())
-        runargs[fname] = {'args': eval(args), 'kwargs': eval(kwargs)}
+        runargs.append((fname ,{'args': eval(args), 'kwargs': eval(kwargs)}))
         
         if fname == '__init__':
-            runargs[fname]['kwargs']['config'] = 'REPRODUCE'
-            runargs[fname]['kwargs']['dataformat'] = None
-            runargs[fname]['kwargs']['data_folder'] = paths['data_folder']
+            runargs[-1][-1]['kwargs']['config'] = 'REPRODUCE'
+            runargs[-1][-1]['kwargs']['dataformat'] = None
+            runargs[-1][-1]['kwargs']['data_folder'] = paths['data_folder']
             if 'srm_table' in paths:
-                runargs[fname]['kwargs']['srm_file'] = paths['srm_table']
+                runargs[-1][-1]['kwargs']['srm_file'] = paths['srm_table']
 
     return runargs, paths
