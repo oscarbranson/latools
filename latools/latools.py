@@ -3753,10 +3753,22 @@ class analyse(object):
         
         return loc
 
-    def minimal_export(self, target_analytes=None, override=False, path=None, zip_archive=True):
+    def minimal_export(self, target_analytes=None, path=None):
         """
         Exports a analysis parameters, standard info and a minimal dataset,
         which can be imported by another user.
+
+        Parameters
+        ----------
+        target_analytes : str or iterable
+            Which analytes to include in the export. If specified, the export
+            will contain these analytes, and all other analytes used during
+            data processing (e.g. during filtering). If not specified, 
+            all analytes are exported.
+        path : str
+            Where to save the minimal export. 
+            If it ends with .zip, a zip file is created.
+            If it's a folder, all data are exported to a folder.
         """
         if target_analytes is None:
             target_analytes = self.analytes
@@ -3764,10 +3776,14 @@ class analyse(object):
             target_analytes = [target_analytes]
 
         self.minimal_analytes.update(target_analytes)
+        zip_archive = False
 
         # set up data path
         if path is None:
-            path = self.export_dir + '/minimal_export/'
+            path = self.export_dir + '/minimal_export.zip'
+        if path.endswith('.zip'):
+            path = path.replace('.zip', '')
+            zip_archive = True
         if not os.path.isdir(path):
             os.mkdir(path)
 
@@ -3810,7 +3826,7 @@ class analyse(object):
         self.save_log(path, 'analysis.lalog', header=log_header)
 
         if zip_archive:
-            utils.zipdir(path, delete=True)
+            utils.zipdir(directory=path, delete=True)
         
         return
 

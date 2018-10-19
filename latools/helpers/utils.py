@@ -26,13 +26,12 @@ def zipdir(directory, name=None, delete=False):
     if not os.path.isdir(directory) or not os.path.exists(directory):
         raise ValueError('Please provide a valid directory.')
     if name is None:
-        name = os.path.dirname(directory).split('/')[-1]
+        name = directory.split('/')[-1]
     
     savepath = os.path.join(directory, os.path.pardir)
     
     # create zipfile
     with zipfile.ZipFile(os.path.join(savepath, name + '.zip'), 'w', zipfile.ZIP_DEFLATED) as zipf:
-        print(os.path.join(savepath, name + '.zip'))
         for root, dirs, files in os.walk(directory):
             for f in files:
                 zipf.write(os.path.join(root, f), os.path.join(root.replace(directory, ''), f))
