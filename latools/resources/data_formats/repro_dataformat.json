@@ -16,6 +16,6 @@
         "timekey": "time",
         "timecolumn": 0,
         "name_row": 6,
-        "pattern": "([A-z]{1,2}[0-9]{1,3})"
+        "pattern": "([A-z]{1,3}[0-9]{1,3})"
     }
 }
