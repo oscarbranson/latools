@@ -1546,6 +1546,11 @@ class analyse(object):
             The name of the sample group. Defaults to n + 1, where n is
             the highest existing group number
         """
+        # Check if a subset containing the same samples already exists.
+        for k, v in self.subsets.items():
+            if set(v) == set(samples) and k != 'not_in_set':
+                return k
+
         if isinstance(samples, str):
             samples = [samples]
 
@@ -2262,7 +2267,12 @@ class analyse(object):
                 s += 'Subset: All Samples\n\n'
                 s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()
             else:
-                for n in sorted(self._subset_names):
+                for n in sorted(str(sn) for sn in self._subset_names):
+                    if n in self.subsets:
+                        pass
+                    elif int(n) in self.subsets:
+                        n = int(n)
+                        pass
                     s += 'Subset: ' + str(n) + '\n'
                     s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
                     s += self.data[self.subsets[n][0]].filt.__repr__()
@@ -3010,7 +3020,7 @@ class analyse(object):
         """
 
         if analytes is None:
-            analytes = [a for a in self.analytes if 'Ca' not in a]
+            analytes = [a for a in self.analytes if self.internal_standard not in a]
 
         if samples is None:
             samples = self._get_samples(subset)
