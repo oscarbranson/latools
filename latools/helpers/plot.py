@@ -247,7 +247,7 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
 
         ax.legend(bbox_to_anchor=(1.15, 1))
 
-        ax.axhline(0, c='k', lw=1, ls='dashed', alpha=0.5)
+        ax.axhline(0, color='k', lw=1, ls='dashed', alpha=0.5)
 
         if ret:
             return fig, ax
@@ -354,10 +354,10 @@ def crossplot(dat, keys=None, lognorm=True,
                               cmap=plt.get_cmap(cmlist[j]))
         elif mode == 'scatter':
             axes[i, j].scatter(pj, pi, s=10,
-                               c=cmap[ai], lw=0.5, edgecolor='k',
+                               color=cmap[ai], lw=0.5, edgecolor='k',
                                alpha=0.4)
             axes[j, i].scatter(pi, pj, s=10,
-                               c=cmap[aj], lw=0.5, edgecolor='k',
+                               color=cmap[aj], lw=0.5, edgecolor='k',
                                alpha=0.4)
         else:
             raise ValueError("invalid mode. Must be 'hist2d' or 'scatter'.")
@@ -605,29 +605,29 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     ax2.axes.set_position(p2)
 
     # plot traces and gradient
-    ax1.plot(t, sig, c='k', lw=1)
+    ax1.plot(t, sig, color='k', lw=1)
     ax1.set_xticklabels([])
     ax1.set_ylabel('Signal')
-    ax3.plot(t, g, c='k', lw=1)
+    ax3.plot(t, g, color='k', lw=1)
     ax3.set_xlabel('Time (s)')
     ax3.set_ylabel('Gradient')
 
     # plot kde
     ax2.fill_betweenx(kde_x, yd, color=(0, 0, 0, 0.2))
-    ax2.plot(yd, kde_x, c='k')
+    ax2.plot(yd, kde_x, color='k')
     ax2.set_ylim(ax1.get_ylim())
     ax2.set_yticklabels([])
     ax2.set_xlabel('Data\nDensity')
 
     # limit
     for ax in [ax1, ax2]:
-        ax.axhline(mins[0], c='k', ls='dashed', alpha=0.4)
+        ax.axhline(mins[0], color='k', ls='dashed', alpha=0.4)
 
     if len(zeros) > 0:
         # zeros
         for z in zeros:
-            ax1.axvline(t[z], c='r', alpha=0.5)
-            ax3.axvline(t[z], c='r', alpha=0.5)
+            ax1.axvline(t[z], color='r', alpha=0.5)
+            ax3.axvline(t[z], color='r', alpha=0.5)
 
         # plot individual transitions
         n = 1
@@ -639,21 +639,21 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
             x = t[lo:hi]
             y = g[lo:hi]
             ys = sig[lo:hi]
-            ax.scatter(x, y, c='k', marker='x', zorder=-1, s=10)
+            ax.scatter(x, y, color='k', marker='x', zorder=-1, s=10)
             ax.set_yticklabels([])
             ax.set_ylim(rangecalc(y))
 
             tax = ax.twinx()
-            tax.plot(x, ys, c='k', alpha=0.3, zorder=-5)
+            tax.plot(x, ys, color='k', alpha=0.3, zorder=-5)
             tax.set_yticklabels([])
             tax.set_ylim(rangecalc(ys))
 
             # plot fitted gaussian
             xn = np.linspace(x.min(), x.max(), 100)
-            ax.plot(xn, gauss(xn, *pg), c='r', alpha=0.5)
+            ax.plot(xn, gauss(xn, *pg), color='r', alpha=0.5)
 
             # plot center and excluded region
-            ax.axvline(pg[1], c='b', alpha=0.5)
+            ax.axvline(pg[1], color='b', alpha=0.5)
             ax.axvspan(*lim, color='b', alpha=0.1, zorder=-2)
 
             ax1.axvspan(*lim, color='b', alpha=0.1, zorder=-2)
@@ -915,7 +915,7 @@ def calibration_drift_plot(self, analytes=None, ncol=3, save=True):
         ax = fig.add_axes(g.get_position(fig))
         axes.append(ax)
 
-        ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), c=self.cmaps[a])
+        ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), color=self.cmaps[a])
         ax.fill_between(cp.index, 
                         nominal_values(cp.loc[:, (a, 'm')]) - std_devs(cp.loc[:, (a, 'm')]),
                         nominal_values(cp.loc[:, (a, 'm')]) + std_devs(cp.loc[:, (a, 'm')]),
@@ -1015,14 +1015,14 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
                     hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
                             color='k', lw=0)
                     # legend markers for core/member
-                    tax.scatter([], [], s=20, label='core', c='w', lw=0.5, edgecolor='k')
-                    tax.scatter([], [], s=7.5, label='member', c='w', lw=0.5, edgecolor='k')
+                    tax.scatter([], [], s=20, label='core', color='w', lw=0.5, edgecolor='k')
+                    tax.scatter([], [], s=7.5, label='member', color='w', lw=0.5, edgecolor='k')
                     # plot noise
                     try:
                         noise_ind = Data.filt.components[[f for f in fg
                                                         if 'noise' in f][0]]
                         tax.scatter(Data.Time[noise_ind], m * y[noise_ind],
-                                    lw=1, c='k', s=10, marker='x',
+                                    lw=1, color='k', s=10, marker='x',
                                     label='noise', alpha=0.6)
                     except:
                         pass
@@ -1031,16 +1031,16 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
                     for f, c, lab in zip(tfg, tcs, tfn):
                         ind = Data.filt.components[f]
                         tax.scatter(Data.Time[~core_ind & ind],
-                                    m * y[~core_ind & ind], lw=.5, c=c, s=5, edgecolor='k')
+                                    m * y[~core_ind & ind], lw=.5, color=c, s=5, edgecolor='k')
                         tax.scatter(Data.Time[core_ind & ind],
-                                    m * y[core_ind & ind], lw=.5, c=c, s=15, edgecolor='k',
+                                    m * y[core_ind & ind], lw=.5, color=c, s=15, edgecolor='k',
                                     label=lab)
                         hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                 orientation='horizontal', alpha=0.6)
 
                 else:
                     # plot all data
-                    tax.scatter(Data.Time, m * y, c='k', alpha=0.2, lw=0.1,
+                    tax.scatter(Data.Time, m * y, color='k', alpha=0.2, lw=0.1,
                                 s=20, label='excl')
                     hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
                              color='k', lw=0)
@@ -1049,15 +1049,15 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
                     for f, c, lab in zip(fg, cs, fn):
                         ind = Data.filt.components[f]
                         tax.scatter(Data.Time[ind], m * y[ind],
-                                    edgecolor=(0,0,0,0), c=c, s=15, label=lab)
+                                    edgecolor=(0,0,0,0), color=c, s=15, label=lab)
                         hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
                                 orientation='horizontal', alpha=0.6)
 
                 if 'thresh' in fgrp and analyte in fgrp:
                     tax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
-                                ls='dashed', zorder=-2, alpha=0.5, c='k')
+                                ls='dashed', zorder=-2, alpha=0.5, color='k')
                     hax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
-                                ls='dashed', zorder=-2, alpha=0.5, c='k')
+                                ls='dashed', zorder=-2, alpha=0.5, color='k')
 
                 # formatting
                 for ax in axs:
