@@ -114,6 +114,6 @@ def read_data(data_file, dataformat, name_mode):
     #     else:
     #         pass
     data['rawdata'] = Bunch(zip(analytes, read_data[dind]))
-    data['total_counts'] = read_data[dind].sum(0)
+    data['total_counts'] = np.nansum(read_data[dind], 0)
 
     return sample, analytes, data, meta
