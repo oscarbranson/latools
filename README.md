@@ -8,6 +8,10 @@
 # LAtools
 **Python tools for processing Laser Ablation mass spectrometry data**
 
+## Citing LAtools
+
+>[LAtools: a data analysis package for the reproducible reduction of LA-ICPMS data. 2018. Branson, O., Fehrenbacher, J., Vetter, L., Sadekov, A.Y., Eggins, S.M., Spero, H.J. *Chemical Geology, Accepted Manuscript.* doi:10.1016/j.chemgeo.2018.10.029](https://doi.org/10.1016/j.chemgeo.2018.10.029)
+
 ## Installation
 Using `pip`:
 
