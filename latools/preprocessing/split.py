@@ -164,7 +164,7 @@ def long_file(data_file, dataformat, sample_list, savedir=None, srm_id=None, **a
     
     # save output
     if savedir is None:
-        savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename('long_format/Laser data.csv'))[0] + '_split')
+        savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
     if not os.path.isdir(savedir):
         os.makedirs(savedir)
     
