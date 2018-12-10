@@ -1462,14 +1462,17 @@ class D(object):
                 udict[analytes[x]] = (x, ux)
 
                 # get filter
+                xd = nominal_values(self.focus[analytes[x]])
+                yd = nominal_values(self.focus[analytes[y]])
+
                 ind = (self.filt.grab_filt(filt, analytes[x]) &
                        self.filt.grab_filt(filt, analytes[y]) &
-                       ~np.isnan(self.focus[analytes[x]]) &
-                       ~np.isnan(self.focus[analytes[y]]))
+                       ~np.isnan(xd) &
+                       ~np.isnan(yd))
 
                 # make plot
-                pi = self.focus[analytes[x]][ind] * mx
-                pj = self.focus[analytes[y]][ind] * my
+                pi = xd[ind] * mx
+                pj = yd[ind] * my
 
                 # determine normalisation shceme
                 if lognorm:
