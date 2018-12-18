@@ -1212,22 +1212,53 @@ class analyse(object):
         self.focus_stage = 'ratios'
         return
 
-    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10):
-        """
-        Function for automarically identifying SRMs
-    
-        Parameters
-        ----------
-        srms_used : iterable
-            Which SRMs have been used. Must match SRM names
-            in SRM database *exactly* (case sensitive!).
-        n_min : int
-            The minimum number of data points a SRM measurement
-            must contain to be included.
-        """
-        if isinstance(srms_used, str):
-            srms_used = [srms_used]
+    def srm_load_database(self, srms_used=None, reload=False):
+        if not hasattr(self, 'srmdat') and not reload:
+            elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
+            # load SRM info
+            srmdat = srms.read_table(self.srmfile)
+            srmdat = srmdat.loc[srms_used]
 
+            # get element name
+            internal_el = elnames.match(self.internal_standard).groups()[0]
+            # calculate ratios to internal_standard for all elements
+            for srm in srms_used:
+                ind = srmdat.index == srm
+
+                # find denominator
+                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+                # calculate denominator composition (multiplier to account for stoichiometry,
+                # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
+                                denom.Item.values[0])
+                # determine stoichiometric multiplier
+                N = [n for el, n in comp if el == internal_el][0]
+                if N == '':
+                    N = 1
+                else:
+                    N = float(N)
+
+                # calculate molar ratio
+                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+                srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
+                                                    (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+                                                    srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
+
+            # isolate measured elements
+            elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
+            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+            # label elements
+            srmdat.loc[:, 'element'] = np.nan
+
+            elonly = re.compile('([A-Z][a-z]{0,})')
+            for e in elements:
+                ind = [e in elonly.findall(i) for i in srmdat.Item]
+                srmdat.loc[ind, 'element'] = str(e)
+
+            # convert to table in same format as stdtab
+            self.srmdat = srmdat.dropna()
+    
+    def srm_compile_measured(self, n_min=10):
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1254,53 +1285,32 @@ class analyse(object):
 
             s.stdtab = stdtab
 
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
+        """
+        Function for automarically identifying SRMs
+    
+        Parameters
+        ----------
+        srms_used : iterable
+            Which SRMs have been used. Must match SRM names
+            in SRM database *exactly* (case sensitive!).
+        n_min : int
+            The minimum number of data points a SRM measurement
+            must contain to be included.
+        """
+        if isinstance(srms_used, str):
+            srms_used = [srms_used]
+            
+        # get mean and standard deviations of measured standards
+        self.srm_compile_measured(n_min)
+
+        # compile them into a table
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
-        if not hasattr(self, 'srmdat'):
-            elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
-            # load SRM info
-            srmdat = srms.read_table(self.srmfile)
-            srmdat = srmdat.loc[srms_used]
+        # load corresponding SRM database
+        self.srm_load_database(srms_used, reload_srm_database)
 
-            # get element name
-            internal_el = elnames.match(self.internal_standard).groups()[0]
-            # calculate ratios to internal_standard for all elements
-            for srm in srms_used:
-                ind = srmdat.index == srm
-
-                # find denominator
-                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
-                # calculate denominator composition (multiplier to account for stoichiometry,
-                # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
-                                  denom.Item.values[0])
-                # determine stoichiometric multiplier
-                N = [n for el, n in comp if el == internal_el][0]
-                if N == '':
-                    N = 1
-                else:
-                    N = float(N)
-
-                # calculate molar ratio
-                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
-                srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
-                                                     (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
-                                                    srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
-
-            # isolate measured elements
-            elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
-            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
-            # label elements
-            srmdat.loc[:, 'element'] = np.nan
-
-            elonly = re.compile('([A-Z][a-z]{0,})')
-            for e in elements:
-                ind = [e in elonly.findall(i) for i in srmdat.Item]
-                srmdat.loc[ind, 'element'] = str(e)
-
-            # convert to table in same format as stdtab
-            self.srmdat = srmdat.dropna()
-
+        # create blank srm table
         srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
 
         # Auto - ID STDs
@@ -1323,17 +1333,20 @@ class analyse(object):
                 return np.ones(a.shape)
 
         nmeas = meas_tab.apply(normalise, 0)
-        nmeas.replace(np.nan, 1, inplace=True)
+        nmeas.dropna(1, inplace=True)  # remove elements with NaN values
+        # nmeas.replace(np.nan, 1, inplace=True)
         nsrm_tab = srm_tab.apply(normalise, 0)
-        nsrm_tab.replace(np.nan, 1, inplace=True)
+        nsrm_tab.dropna(1, inplace=True)
+        # nsrm_tab.replace(np.nan, 1, inplace=True)
 
         for uT, r in nmeas.iterrows():  # for each standard...
+            idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
             idx = abs((nsrm_tab - r) * ranges).sum(1)
             # calculate the absolute difference between the normalised elemental
             # values for each measured SRM and the SRM table. Each element is
             # multiplied by the relative range seen in that element (i.e. range / mean
             # measuerd value), so that elements with a large difference are given
-            # more importance in identifying the SRM.
+            # more importance in identifying the SRM.   
             # This produces a table, where wach row contains the difference between
             # a known vs. measured SRM. The measured SRM is identified as the SRM that
             # has the smallest weighted sum value.
