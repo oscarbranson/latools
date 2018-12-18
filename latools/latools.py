@@ -1218,7 +1218,7 @@ class analyse(object):
             # load SRM info
             srmdat = srms.read_table(self.srmfile)
             srmdat = srmdat.loc[srms_used]
-
+            
             # get element name
             internal_el = elnames.match(self.internal_standard).groups()[0]
             # calculate ratios to internal_standard for all elements
@@ -1230,7 +1230,7 @@ class analyse(object):
                 # calculate denominator composition (multiplier to account for stoichiometry,
                 # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
                 comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
-                                denom.Item.values[0])
+                                    denom.Item.values[0])
                 # determine stoichiometric multiplier
                 N = [n for el, n in comp if el == internal_el][0]
                 if N == '':
@@ -1243,7 +1243,7 @@ class analyse(object):
                 srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
                                                     (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
-
+            
             # isolate measured elements
             elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
@@ -1254,9 +1254,9 @@ class analyse(object):
             for e in elements:
                 ind = [e in elonly.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
-
+            
             # convert to table in same format as stdtab
-            self.srmdat = srmdat.dropna()
+            self.srmdat = srmdat.loc[:, ['Item', 'mol_ratio', 'mol_ratio_err', 'element']].dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
         # compile mean and standard errors of samples
