@@ -17,7 +17,7 @@ def read_table(srm_file):
     -------
     SRM compositions : pandas.DataFrame
     """
-    return pd.read_csv(srm_file).set_index('SRM')
+    return pd.read_csv(srm_file).set_index('SRM').dropna(how='all')
 
 def get_defined_srms(srm_file):
     """
