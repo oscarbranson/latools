@@ -92,11 +92,16 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
         configuration is used.
     """
     # find SRM file from configuration    
-    src, conf = read_latoolscfg()
+    conf = read_configuration()
+
+    src = pkgrs.resource_filename('latools', conf['dataformat'])
 
     # work out destination path (if not given)
     if destination is None:
         destination = './LAtools_' + conf['config'] + '_SRMTable.csv'
+    
+    if os.path.isdir(destination):
+        destination += 'LAtools_' + conf['config'] + '_SRMTable.csv'
 
     copyfile(src, destination)
 
