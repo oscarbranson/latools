@@ -94,7 +94,7 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
     # find SRM file from configuration    
     conf = read_configuration()
 
-    src = pkgrs.resource_filename('latools', conf['dataformat'])
+    src = pkgrs.resource_filename('latools', conf['srmfile'])
 
     # work out destination path (if not given)
     if destination is None:
@@ -105,7 +105,7 @@ def copy_SRM_file(destination=None, config='DEFAULT'):
 
     copyfile(src, destination)
 
-    print(src + ' copied to ' + destination)
+    print(src + ' \n    copied to:\n      ' + destination)
     return
 
 def create(config_name, srmfile=None, dataformat=None, base_on='DEFAULT', make_default=False):
