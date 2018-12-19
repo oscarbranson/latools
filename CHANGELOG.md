@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.7] - 19/12/2018
+
+## Changed
+- Modified calibration process to cope with mismatches between measured analytes and those in the SRM database. 
+
 ## [0.3.6] - 11/12/2018
 
 ### Added
