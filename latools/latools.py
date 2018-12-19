@@ -1256,7 +1256,7 @@ class analyse(object):
                 srmdat.loc[ind, 'element'] = str(e)
             
             # convert to table in same format as stdtab
-            self.srmdat = srmdat.loc[:, ['Item', 'mol_ratio', 'mol_ratio_err', 'element']].dropna(how='all')
+            self.srmdat = srmdat.dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
         # compile mean and standard errors of samples
