@@ -1382,6 +1382,9 @@ class analyse(object):
             srmtabs[a] = srmtab
 
         self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
+        self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
+        # replace any nan error values with zeros - nans cause problems later.
+        self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
         return
 
     def clear_calibration(self):
@@ -1393,7 +1396,7 @@ class analyse(object):
     @_log
     def calibrate(self, analytes=None, drift_correct=True,
                   srms_used=['NIST610', 'NIST612', 'NIST614'],
-                  zero_intercept=True, n_min=10):
+                  zero_intercept=True, n_min=10, reload_srm_database=False):
         """
         Calibrates the data to measured SRM values.
 
@@ -1425,7 +1428,7 @@ class analyse(object):
             analytes = [analytes]
 
         if not hasattr(self, 'srmtabs'):
-            self.srm_id_auto(srms_used, n_min)
+            self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
         fill = False  # whether or not to pad with zero and max at end.
         # make container for calibration params
@@ -1435,7 +1438,9 @@ class analyse(object):
                                              index=uTime)
             fill = True
 
-        for a in analytes:
+        calib_analytes = self.srmtabs.index.get_level_values(0).unique()
+        
+        for a in calib_analytes:
             if zero_intercept:
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
