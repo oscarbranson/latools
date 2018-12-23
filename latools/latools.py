@@ -1457,7 +1457,6 @@ class analyse(object):
         -------
         None
         """
-
         if analytes is None:
             analytes = self.analytes[self.analytes != self.internal_standard]
         elif isinstance(analytes, str):
@@ -1488,17 +1487,27 @@ class analyse(object):
                     ind = idx[a, :, :, g]
                     if self.srmtabs.loc[ind].size == 0:
                         continue
-                    try:
-                        meas = self.srmtabs.loc[ind, 'meas_mean']
-                        srm = self.srmtabs.loc[ind, 'srm_mean']
-                        # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
-                        sigma = np.sqrt(self.srmtabs.loc[ind, 'meas_err']**2 + self.srmtabs.loc[ind, 'srm_err']**2)
+                    # try:
+                    meas = self.srmtabs.loc[ind, 'meas_mean']
+                    srm = self.srmtabs.loc[ind, 'srm_mean']
+                    # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
+                    merr = self.srmtabs.loc[ind, 'meas_err']
+                    serr = self.srmtabs.loc[ind, 'srm_err']
+                    sigma = np.sqrt(merr**2 + serr**2)
 
+                    if len(meas) > 1:
+                        # multiple SRMs - do a regression
                         p, cov = curve_fit(fn, meas, srm, sigma=sigma)
                         pe = unc.correlated_values(p, cov)                
                         self.calib_params.loc[g, (a, 'm')] = pe[0]
                         if not zero_intercept:
                             self.calib_params.loc[g, (a, 'c')] = pe[1]
+                    else:
+                        # deal with case where there's only one datum
+                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, serr) / 
+                                                              un.uarray(meas, merr))[0]
+                        if not zero_intercept:
+                            self.calib_params.loc[g, (a, 'c')] = 0
 
                     # This should be obsolete, because no-longer sourcing locator from calib_params index.
                     # except KeyError:
@@ -1511,13 +1520,21 @@ class analyse(object):
                 ind = idx[a, :, :, :]
                 meas = self.srmtabs.loc[ind, 'meas_mean']
                 srm = self.srmtabs.loc[ind, 'srm_mean']
-                sigma = np.sqrt(self.srmtabs.loc[ind, 'meas_err']**2 + self.srmtabs.loc[ind, 'srm_err']**2)
+                merr = self.srmtabs.loc[ind, 'meas_err']
+                serr = self.srmtabs.loc[ind, 'srm_err']
+                sigma = np.sqrt(merr**2 + serr**2)
                 
-                p, cov = curve_fit(fn, meas, srm, sigma=sigma)
-                pe = unc.correlated_values(p, cov)                
-                self.calib_params.loc[:, (a, 'm')] = pe[0]
-                if not zero_intercept:
-                    self.calib_params.loc[:, (a, 'c')] = pe[1]
+                if len(meas) > 1:
+                    p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+                    pe = unc.correlated_values(p, cov)                
+                    self.calib_params.loc[:, (a, 'm')] = pe[0]
+                    if not zero_intercept:
+                        self.calib_params.loc[:, (a, 'c')] = pe[1]
+                else:
+                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, serr) / 
+                                                          un.uarray(meas, merr))[0]
+                    if not zero_intercept:
+                        self.calib_params.loc[:, (a, 'c')] = 0
 
         # if fill:
         # fill in uTime=0 and uTime = max cases for interpolation
