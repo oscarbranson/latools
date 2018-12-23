@@ -1466,13 +1466,11 @@ class analyse(object):
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
-        fill = True  # whether or not to pad with zero and max at end.
         # make container for calibration params
         if not hasattr(self, 'calib_params'):
             gTime = self.stdtab.gTime.unique()
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
                                             index=gTime)
-            fill = True
 
         calib_analytes = self.srmtabs.index.get_level_values(0).unique()
 
@@ -1493,6 +1491,7 @@ class analyse(object):
                     try:
                         meas = self.srmtabs.loc[ind, 'meas_mean']
                         srm = self.srmtabs.loc[ind, 'srm_mean']
+                        # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
                         sigma = np.sqrt(self.srmtabs.loc[ind, 'meas_err']**2 + self.srmtabs.loc[ind, 'srm_err']**2)
 
                         p, cov = curve_fit(fn, meas, srm, sigma=sigma)
@@ -1501,13 +1500,13 @@ class analyse(object):
                         if not zero_intercept:
                             self.calib_params.loc[g, (a, 'c')] = pe[1]
 
-                    except KeyError:
-                        # If the calibration is being recalculated, calib_params
-                        # will have t=0 and t=max(uTime) values that are outside
-                        # the srmtabs index.
-                        # If this happens, drop them, and re-fill them at the end.
-                        self.calib_params.drop(g, inplace=True)
-                        fill = True
+                    # This should be obsolete, because no-longer sourcing locator from calib_params index.
+                    # except KeyError:
+                    #     # If the calibration is being recalculated, calib_params
+                    #     # will have t=0 and t=max(uTime) values that are outside
+                    #     # the srmtabs index.
+                    #     # If this happens, drop them, and re-fill them at the end.
+                    #     self.calib_params.drop(g, inplace=True)
             else:
                 ind = idx[a, :, :, :]
                 meas = self.srmtabs.loc[ind, 'meas_mean']
@@ -1535,6 +1534,8 @@ class analyse(object):
         # calculcate interpolators for applying calibrations
         self.calib_ps = Bunch()
         for a in analytes:
+            # TODO: revisit un_interp1d to see whether it plays well with correlated values. 
+            # Possible re-write to deal with covariance matrices?
             self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
                                                 self.calib_params.loc[:, (a, 'm')].values)}
             if not zero_intercept:
