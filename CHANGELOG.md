@@ -1,6 +1,13 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.8] - 23/12/2018
+
+## Changed
+- Calibration now treats blocks of sequentially measured SRMs as single calibration points in drift correction.
+- Re-wrote calibration function to allow flexible inclusion of multiple SRMS, which need not contain data for all measured analytes.
+- Improved scaling in calibration_plot to better highlight spurious values (e.g. counts/count less than 0)
+
 ## [0.3.7] - 19/12/2018
 
 ## Changed
