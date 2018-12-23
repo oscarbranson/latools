@@ -10,9 +10,9 @@ class test_docscode(unittest.TestCase):
         os.mkdir('./latools_demo_tmp')
     os.chdir('latools_demo_tmp')
 
-    la.get_example_data('./data')
+    la.get_example_data('./latools_demo_tmp')
 
-    eg = la.analyse(data_folder='./data/',
+    eg = la.analyse(data_folder='./latools_demo_tmp',
                     config='DEFAULT',
                     internal_standard='Ca43',
                     srm_identifier='STD')
