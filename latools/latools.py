@@ -1247,6 +1247,7 @@ class analyse(object):
             # isolate measured elements
             elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
             srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+
             # label elements
             srmdat.loc[:, 'element'] = np.nan
 
@@ -1254,7 +1255,10 @@ class analyse(object):
             for e in elements:
                 ind = [e in elonly.findall(i) for i in srmdat.Item]
                 srmdat.loc[ind, 'element'] = str(e)
-            
+
+            # remove any non-analysed elements that have made it through checks
+            srmdat.dropna(subset=['element'], inplace=True)
+
             # convert to table in same format as stdtab
             self.srmdat = srmdat.dropna(how='all')
     
@@ -1285,6 +1289,33 @@ class analyse(object):
 
             s.stdtab = stdtab
 
+        # compile them into a table
+        self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+
+        # identify groups of consecutive SRMs
+        ts = self.stdtab.index.values
+        start_times = [s.uTime[0] for s in self.data.values()]
+
+        i = 1
+        group = [1]
+        for t in ts[1:]:
+            pos = sum(t > start_times)
+            if pos == i + 1:
+                group.append(group[-1])
+                i += 1
+            else:
+                i = pos
+                group.append(group[-1] + 1)
+
+        self.stdtab.loc[:, 'group'] = group
+        # calculate centre time for the groups
+        self.stdtab.loc[:, 'gTime'] = np.nan
+
+        for g, d in self.stdtab.groupby('group'):
+            ind = self.stdtab.group == g
+            self.stdtab.loc[ind, 'gTime'] = self.stdtab.loc[ind].index.values.mean()
+
+
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
         """
         Function for automarically identifying SRMs
@@ -1303,9 +1334,7 @@ class analyse(object):
             
         # get mean and standard deviations of measured standards
         self.srm_compile_measured(n_min)
-
-        # compile them into a table
-        stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+        stdtab = self.stdtab.copy()
 
         # load corresponding SRM database
         self.srm_load_database(srms_used, reload_srm_database)
@@ -1357,15 +1386,15 @@ class analyse(object):
         stdtab.reset_index(inplace=True)
         stdtab.sort_index(1, inplace=True)
         # isolate STD and uTime
-        uT = stdtab.loc[:, ['uTime', 'STD']].set_index('STD')
+        uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
         uT.sort_index(inplace=True)
         uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
         # replace uTime values with means
         stdtab.set_index(['STD'], inplace=True)
-        stdtab.loc[:, 'uTime'] = uTm
+        stdtab.loc[:, 'gTime'] = uTm
         # reset index
         stdtab.reset_index(inplace=True)
-        stdtab.set_index(['STD', 'SRM', 'uTime'], inplace=True)
+        stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
 
         # combine to make SRM reference tables
         srmtabs = Bunch()
@@ -1385,12 +1414,19 @@ class analyse(object):
         self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
         # replace any nan error values with zeros - nans cause problems later.
         self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
+
+        # remove internal standard from calibration elements
+        self.srmtabs.drop(self.internal_standard, inplace=True)
         return
 
     def clear_calibration(self):
         del self.srmtabs
         del self.calib_params
         del self.calib_ps
+
+
+    def build_calib_table(self):
+        return
 
     # apply calibration to data
     @_log
@@ -1403,7 +1439,7 @@ class analyse(object):
         Assumes that y intercept is zero.
 
         Parameters
-        ----------
+        ----------  
         analytes : str or iterable
             Which analytes you'd like to calibrate. Defaults to all.
         drift_correct : bool
@@ -1430,102 +1466,68 @@ class analyse(object):
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
-        fill = False  # whether or not to pad with zero and max at end.
+        fill = True  # whether or not to pad with zero and max at end.
         # make container for calibration params
         if not hasattr(self, 'calib_params'):
-            uTime = self.srmtabs.index.get_level_values('uTime').unique().values
+            gTime = self.stdtab.gTime.unique()
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
-                                             index=uTime)
+                                            index=gTime)
             fill = True
 
         calib_analytes = self.srmtabs.index.get_level_values(0).unique()
-        
+
+        if zero_intercept:
+            fn  = lambda x, m: x * m
+        else:
+            fn = lambda x, m, c: x * m + c
+
         for a in calib_analytes:
             if zero_intercept:
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
-                if drift_correct:
-                    for t in self.calib_params.index:
-                        try:
-                            meas = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'],
-                                             self.srmtabs.loc[idx[a, :, :, t], 'meas_err'])
-                            srm = un.uarray(self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'],
-                                            self.srmtabs.loc[idx[a, :, :, t], 'srm_err'])
-                            self.calib_params.loc[t, a] = np.nanmean(srm / meas)
-                        except KeyError:
-                            # If the calibration is being recalculated, calib_params
-                            # will have t=0 and t=max(uTime) values that are outside
-                            # the srmtabs index.
-                            # If this happens, drop them, and re-fill them at the end.
-                            self.calib_params.drop(t, inplace=True)
-                            fill = True
-                else:
-                    meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
-                                     self.srmtabs.loc[a, 'meas_err'])
-                    srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
-                                    self.srmtabs.loc[a, 'srm_err'])
-                    self.calib_params.loc[:, a] = np.nanmean(srm / meas)
+            if drift_correct:
+                for g in self.stdtab.gTime.unique():
+                    ind = idx[a, :, :, g]
+                    if self.srmtabs.loc[ind].size == 0:
+                        continue
+                    try:
+                        meas = self.srmtabs.loc[ind, 'meas_mean']
+                        srm = self.srmtabs.loc[ind, 'srm_mean']
+                        sigma = np.sqrt(self.srmtabs.loc[ind, 'meas_err']**2 + self.srmtabs.loc[ind, 'srm_err']**2)
+
+                        p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+                        pe = unc.correlated_values(p, cov)                
+                        self.calib_params.loc[g, (a, 'm')] = pe[0]
+                        if not zero_intercept:
+                            self.calib_params.loc[g, (a, 'c')] = pe[1]
+
+                    except KeyError:
+                        # If the calibration is being recalculated, calib_params
+                        # will have t=0 and t=max(uTime) values that are outside
+                        # the srmtabs index.
+                        # If this happens, drop them, and re-fill them at the end.
+                        self.calib_params.drop(g, inplace=True)
+                        fill = True
             else:
-                self.calib_params.loc[:, (a, 'c')] = 0
-                if drift_correct:
-                    for t in self.calib_params.index:
-                        try:
-                            x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
-                            y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
+                ind = idx[a, :, :, :]
+                meas = self.srmtabs.loc[ind, 'meas_mean']
+                srm = self.srmtabs.loc[ind, 'srm_mean']
+                sigma = np.sqrt(self.srmtabs.loc[ind, 'meas_err']**2 + self.srmtabs.loc[ind, 'srm_err']**2)
+                
+                p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+                pe = unc.correlated_values(p, cov)                
+                self.calib_params.loc[:, (a, 'm')] = pe[0]
+                if not zero_intercept:
+                    self.calib_params.loc[:, (a, 'c')] = pe[1]
 
-                            # TODO : error estimation in drift corrected non-zero-intercept
-                            # case. Tricky because np.polyfit will only return cov
-                            # if n samples > order + 2 (rare, for laser ablation).
-                            #
-                            # First attempt (doesn't work):
-                            #
-                            # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
-                            # ferr = np.sqrt(np.diag(cov))
-                            # pe = un.uarray(p, ferr)
-                            # pe = np.polyfit(x, y, 1, w=errs)
-
-                            if len(x) == 1:
-                                m = x / y
-                                c = None
-                            elif len(x) == 2:
-                                m = y.ptp() / x.ptp()
-                                c = y[0] - m * x[0]
-                            elif len(x) > 2:
-                                def lin(x, m, c):
-                                    return x * m + c
-                                p, cov = curve_fit(lin, x, y)
-                                err = np.sqrt(np.diag(cov))
-                                m = unc.ufloat(p[0], err[0])
-                                c = unc.ufloat(p[1], err[1])
-
-                            self.calib_params.loc[t, (a, 'm')] = m  # pe[0]
-                            if c is not None:
-                                self.calib_params.loc[t, (a, 'c')] = c  # pe[1]
-                        except KeyError:
-                            # If the calibration is being recalculated, calib_params
-                            # will have t=0 and t=max(uTime) values that are outside
-                            # the srmtabs index and can't be interpolated.
-                            # If this happens, drop them, and re-fill them at the end.
-                            self.calib_params.drop(t, inplace=True)
-                            fill = True
-                else:
-                    x = self.srmtabs.loc[idx[a, :, :], 'meas_mean']
-                    y = self.srmtabs.loc[idx[a, :, :], 'srm_mean']
-                    errs = np.sqrt(self.srmtabs.loc[idx[a, :, :], 'meas_err']**2 +
-                                   self.srmtabs.loc[idx[a, :, :], 'srm_err']**2)
-
-                    p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
-                    ferr = np.sqrt(np.diag(cov))
-                    pe = un.uarray(p, ferr)
-
-                    self.calib_params.loc[:, idx[a, 'm']] = pe[0]
-                    self.calib_params.loc[:, idx[a, 'c']] = pe[1]
-
-        if fill:
-            # fill in uTime=0 and uTime = max cases for interpolation
-            self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-            maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
-            self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
+        # if fill:
+        # fill in uTime=0 and uTime = max cases for interpolation
+        if self.calib_params.index.min() == 0:
+            self.calib_params.drop(0, inplace=True)
+            self.calib_params.drop(self.calib_params.index.max(), inplace=True)
+        self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
+        maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
+        self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
         # sort indices for slice access
         self.calib_params.sort_index(1, inplace=True)
         self.calib_params.sort_index(0, inplace=True)
@@ -1534,7 +1536,7 @@ class analyse(object):
         self.calib_ps = Bunch()
         for a in analytes:
             self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
-                                                 self.calib_params.loc[:, (a, 'm')].values)}
+                                                self.calib_params.loc[:, (a, 'm')].values)}
             if not zero_intercept:
                 self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
                                                     self.calib_params.loc[:, (a, 'c')].values)
@@ -1547,6 +1549,135 @@ class analyse(object):
         self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
         return
+
+    #     if analytes is None:
+    #         analytes = self.analytes[self.analytes != self.internal_standard]
+    #     elif isinstance(analytes, str):
+    #         analytes = [analytes]
+
+    #     if not hasattr(self, 'srmtabs'):
+    #         self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
+
+    #     fill = False  # whether or not to pad with zero and max at end.
+    #     # make container for calibration params
+    #     if not hasattr(self, 'calib_params'):
+    #         uTime = self.srmtabs.index.get_level_values('uTime').unique().values
+    #         self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
+    #                                          index=uTime)
+    #         fill = True
+
+    #     calib_analytes = self.srmtabs.index.get_level_values(0).unique()
+        
+    #     for a in calib_analytes:
+    #         if zero_intercept:
+    #             if (a, 'c') in self.calib_params:
+    #                 self.calib_params.drop((a, 'c'), 1, inplace=True)
+    #             if drift_correct:
+    #                 for t in self.calib_params.index:
+    #                     ind = idx[a, :, :, t]
+    #                     if self.srmtabs.loc[ind].size == 0:
+    #                         continue
+    #                     try:
+    #                         meas = un.uarray(self.srmtabs.loc[ind, 'meas_mean'],
+    #                                          self.srmtabs.loc[ind, 'meas_err'])
+    #                         srm = un.uarray(self.srmtabs.loc[ind, 'srm_mean'],
+    #                                         self.srmtabs.loc[ind, 'srm_err'])
+    #                         self.calib_params.loc[t, a] = np.nanmean(srm / meas)
+    #                     except KeyError:
+    #                         # If the calibration is being recalculated, calib_params
+    #                         # will have t=0 and t=max(uTime) values that are outside
+    #                         # the srmtabs index.
+    #                         # If this happens, drop them, and re-fill them at the end.
+    #                         self.calib_params.drop(t, inplace=True)
+    #                         fill = True
+    #             else:
+    #                 meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
+    #                                  self.srmtabs.loc[a, 'meas_err'])
+    #                 srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
+    #                                 self.srmtabs.loc[a, 'srm_err'])
+    #                 self.calib_params.loc[:, a] = np.nanmean(srm / meas)
+    #         else:
+    #             self.calib_params.loc[:, (a, 'c')] = 0
+    #             if drift_correct:
+    #                 for t in self.calib_params.index:
+    #                     try:
+    #                         x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
+    #                         y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
+
+    #                         # TODO : error estimation in drift corrected non-zero-intercept
+    #                         # case. Tricky because np.polyfit will only return cov
+    #                         # if n samples > order + 2 (rare, for laser ablation).
+    #                         #
+    #                         # First attempt (doesn't work):
+    #                         #
+    #                         # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
+    #                         # ferr = np.sqrt(np.diag(cov))
+    #                         # pe = un.uarray(p, ferr)
+    #                         # pe = np.polyfit(x, y, 1, w=errs)
+
+    #                         if len(x) == 1:
+    #                             m = x / y
+    #                             c = None
+    #                         elif len(x) == 2:
+    #                             m = y.ptp() / x.ptp()
+    #                             c = y[0] - m * x[0]
+    #                         elif len(x) > 2:
+    #                             def lin(x, m, c):
+    #                                 return x * m + c
+    #                             p, cov = curve_fit(lin, x, y)
+    #                             err = np.sqrt(np.diag(cov))
+    #                             m = unc.ufloat(p[0], err[0])
+    #                             c = unc.ufloat(p[1], err[1])
+
+    #                         self.calib_params.loc[t, (a, 'm')] = m  # pe[0]
+    #                         if c is not None:
+    #                             self.calib_params.loc[t, (a, 'c')] = c  # pe[1]
+    #                     except KeyError:
+    #                         # If the calibration is being recalculated, calib_params
+    #                         # will have t=0 and t=max(uTime) values that are outside
+    #                         # the srmtabs index and can't be interpolated.
+    #                         # If this happens, drop them, and re-fill them at the end.
+    #                         self.calib_params.drop(t, inplace=True)
+    #                         fill = True
+    #             else:
+    #                 x = self.srmtabs.loc[idx[a, :, :], 'meas_mean']
+    #                 y = self.srmtabs.loc[idx[a, :, :], 'srm_mean']
+    #                 errs = np.sqrt(self.srmtabs.loc[idx[a, :, :], 'meas_err']**2 +
+    #                                self.srmtabs.loc[idx[a, :, :], 'srm_err']**2)
+
+    #                 p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
+    #                 ferr = np.sqrt(np.diag(cov))
+    #                 pe = un.uarray(p, ferr)
+
+    #                 self.calib_params.loc[:, idx[a, 'm']] = pe[0]
+    #                 self.calib_params.loc[:, idx[a, 'c']] = pe[1]
+
+    #     if fill:
+    #         # fill in uTime=0 and uTime = max cases for interpolation
+    #         self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
+    #         maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
+    #         self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
+    #     # sort indices for slice access
+    #     self.calib_params.sort_index(1, inplace=True)
+    #     self.calib_params.sort_index(0, inplace=True)
+
+    #     # calculcate interpolators for applying calibrations
+    #     self.calib_ps = Bunch()
+    #     for a in analytes:
+    #         self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
+    #                                              self.calib_params.loc[:, (a, 'm')].values)}
+    #         if not zero_intercept:
+    #             self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
+    #                                                 self.calib_params.loc[:, (a, 'c')].values)
+
+    #     with self.pbar.set(total=len(self.data), desc='Applying Calibrations') as prog:
+    #         for d in self.data.values():
+    #             d.calibrate(self.calib_ps, analytes)
+    #             prog.update()
+
+    #     self.stages_complete.update(['calibrated'])
+    #     self.focus_stage = 'calibrated'
+    #     return
 
     # data filtering
     # TODO: Re-factor filtering to use 'classifier' objects?
