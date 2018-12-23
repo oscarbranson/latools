@@ -252,8 +252,7 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
         if ret:
             return fig, ax
 
-def crossplot(dat, keys=None, lognorm=True,
-              bins=25, figsize=(12, 12),
+def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
               colourful=True, focus_stage=None, denominator=None,
               mode='hist2d', cmap=None, **kwargs):
     """
@@ -263,26 +262,31 @@ def crossplot(dat, keys=None, lognorm=True,
 
     Parameters
     ----------
+    dat : dict
+        A dictionary of key: data pairs, where data is the same
+        length in each entry.
     keys : optional, array_like or str
-        The analyte(s) to plot. Defaults to all analytes.
+        The keys of dat to plot. Defaults to all keys.
     lognorm : bool
         Whether or not to log normalise the colour scale
         of the 2D histogram.
     bins : int
         The number of bins in the 2D histogram.
+    figsize : tuple
+    colourful : bool
 
     Returns
     -------
     (fig, axes)
     """
     if keys is None:
-        keys = dat.keys()
+        keys = list(dat.keys())
 
-    if figsize[0] < 1.5 * len(keys):
-        figsize = [1.5 * len(keys)] * 2
-
-    numvars = len(keys)
-    fig, axes = plt.subplots(nrows=numvars, ncols=numvars,
+    numvar = len(keys)
+    if figsize[0] < 1.5 * numvar:
+        figsize = [1.5 * numvar] * 2
+    
+    fig, axes = plt.subplots(nrows=numvar, ncols=numvar,
                              figsize=(12, 12))
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
@@ -376,7 +380,7 @@ def crossplot(dat, keys=None, lognorm=True,
         axes[n, n].set_xlim(*rdict[a])
         axes[n, n].set_ylim(*rdict[a])
     # switch on alternating axes
-    for i, j in zip(range(numvars), itertools.cycle((-1, 0))):
+    for i, j in zip(range(numvar), itertools.cycle((-1, 0))):
         axes[j, i].xaxis.set_visible(True)
         for label in axes[j, i].get_xticklabels():
             label.set_rotation(90)
@@ -706,6 +710,9 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
     (fig, axes)
     """
 
+    if isinstance(analytes, str):
+        analytes = [analytes]
+    
     if analytes is None:
         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
@@ -736,24 +743,36 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             ax = fig.add_axes(p1)
             axh = fig.add_axes(p2)
             axes.append((ax, axh))
+        
+        x = self.srmtabs.loc[a, 'meas_mean'].values
+        xe = self.srmtabs.loc[a, 'meas_err'].values
+        y = self.srmtabs.loc[a, 'srm_mean'].values
+        ye = self.srmtabs.loc[a, 'srm_err'].values
 
         # plot calibration data
-        ax.errorbar(self.srmtabs.loc[a, 'meas_mean'].values,
-                    self.srmtabs.loc[a, 'srm_mean'].values,
-                    xerr=self.srmtabs.loc[a, 'meas_err'].values,
-                    yerr=self.srmtabs.loc[a, 'srm_err'].values,
+        ax.errorbar(x, y, xerr=xe, yerr=ye,
                     color=self.cmaps[a], alpha=0.6,
                     lw=0, elinewidth=1, marker='o',
                     capsize=0, markersize=5)
 
         # work out axis scaling
         if not loglog:
-            xmax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'meas_mean'].values) +
-                             nominal_values(self.srmtabs.loc[a, 'meas_err'].values))
-            ymax = np.nanmax(nominal_values(self.srmtabs.loc[a, 'srm_mean'].values) +
-                             nominal_values(self.srmtabs.loc[a, 'srm_err'].values))
-            xlim = [0, 1.05 * xmax]
-            ylim = [0, 1.05 * ymax]
+            xmax = np.nanmax(x + xe)
+            ymax = np.nanmax(y + ye)
+            if any(x - xe < 0):
+                xmin = np.nanmin(x - xe)
+                xpad = (xmax - xmin) * 0.05
+                xlim = [xmin - xpad, xmax + xpad]
+            else:
+                xlim = [0, xmax * 1.05]
+
+            if any(y - ye < 0):
+                ymin = np.nanmin(y - ye)
+                ypad = (ymax - ymin) * 0.05
+                ylim = [ymin - ypad, ymax + ypad]
+            else:
+                ylim = [0, ymax * 1.05]
+            
         else:
             xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
             yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
@@ -774,6 +793,11 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
+
+        if xlim[0] < 0:
+            ax.axvline(0, c=(1,0,0,0.3))
+        if ylim[0] < 0:
+            ax.axline(0, c=(1,0,0,0.3))
 
         # calculate line and R2
         if loglog:
