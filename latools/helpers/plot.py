@@ -794,10 +794,11 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
 
+        # warning flags if any < 0 values
         if xlim[0] < 0:
-            ax.axvline(0, c=(1,0,0,0.3))
+            ax.axvspan(xlim[0], 0, color=(1,0.8,0.8), zorder=-1)
         if ylim[0] < 0:
-            ax.axline(0, c=(1,0,0,0.3))
+            ax.axhspan(ylim[0], 0, color=(1,0.8,0.8), zorder=-1)
 
         # calculate line and R2
         if loglog:
@@ -897,64 +898,64 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
     return fig, axes
 
-def calibration_drift_plot(self, analytes=None, ncol=3, save=True):
-    """
-    Plot calibration slopes through the entire session.
+# def calibration_drift_plot(self, analytes=None, ncol=3, save=True):
+#     """
+#     Plot calibration slopes through the entire session.
 
-    Parameters
-    ----------
-    self : latools.analyse
-        Analyse object, containing 
-    analytes : optional, array_like or str
-        The analyte(s) to plot. Defaults to all analytes.
-    ncol : int
-        Number of columns of plots
-    save : bool
-        Whether or not to save the plot.
+#     Parameters
+#     ----------
+#     self : latools.analyse
+#         Analyse object, containing 
+#     analytes : optional, array_like or str
+#         The analyte(s) to plot. Defaults to all analytes.
+#     ncol : int
+#         Number of columns of plots
+#     save : bool
+#         Whether or not to save the plot.
 
-    Returns
-    -------
-    (fig, axes)
-    """
-    if not hasattr(self, 'calib_params'):
-        raise ValueError('Please run calibrate before making this plot.')
+#     Returns
+#     -------
+#     (fig, axes)
+#     """
+#     if not hasattr(self, 'calib_params'):
+#         raise ValueError('Please run calibrate before making this plot.')
 
-    if analytes is None:
-        analytes = [a for a in self.analytes if self.internal_standard not in a]
+#     if analytes is None:
+#         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
-    ncol = int(ncol)
-    n = len(analytes)
-    nrow = calc_nrow(n, ncol)
+#     ncol = int(ncol)
+#     n = len(analytes)
+#     nrow = calc_nrow(n, ncol)
 
-    axes = []
+#     axes = []
 
-    fig = plt.figure(figsize=[6 * ncol, 3 * nrow])
+#     fig = plt.figure(figsize=[6 * ncol, 3 * nrow])
 
-    gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
-                               hspace=0.35, wspace=0.3)
+#     gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
+#                                hspace=0.35, wspace=0.3)
 
-    cp = self.calib_params
+#     cp = self.calib_params
 
-    for g, a in zip(gs, analytes):
-        ax = fig.add_axes(g.get_position(fig))
-        axes.append(ax)
+#     for g, a in zip(gs, analytes):
+#         ax = fig.add_axes(g.get_position(fig))
+#         axes.append(ax)
 
-        ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), color=self.cmaps[a])
-        ax.fill_between(cp.index, 
-                        nominal_values(cp.loc[:, (a, 'm')]) - std_devs(cp.loc[:, (a, 'm')]),
-                        nominal_values(cp.loc[:, (a, 'm')]) + std_devs(cp.loc[:, (a, 'm')]),
-                        color=self.cmaps[a], alpha=0.2, lw=0)
+#         ax.plot(cp.index, nominal_values(cp.loc[:, (a, 'm')]), color=self.cmaps[a])
+#         ax.fill_between(cp.index, 
+#                         nominal_values(cp.loc[:, (a, 'm')]) - std_devs(cp.loc[:, (a, 'm')]),
+#                         nominal_values(cp.loc[:, (a, 'm')]) + std_devs(cp.loc[:, (a, 'm')]),
+#                         color=self.cmaps[a], alpha=0.2, lw=0)
 
 
-        ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
-                weight='bold', va='top', ha='left', size=12)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('mol/mol ' + self.internal_standard)
+#         ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
+#                 weight='bold', va='top', ha='left', size=12)
+#         ax.set_xlabel('Time (s)')
+#         ax.set_ylabel('mol/mol ' + self.internal_standard)
     
-    if save:
-        fig.savefig(self.report_dir + '/calibration_drift.pdf')
+#     if save:
+#         fig.savefig(self.report_dir + '/calibration_drift.pdf')
 
-    return fig, axes
+#     return fig, axes
 
 def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
     """
