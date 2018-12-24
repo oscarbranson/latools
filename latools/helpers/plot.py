@@ -5,6 +5,7 @@ import matplotlib as mpl
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit
 from IPython import display
+from pandas import IndexSlice as idx
 
 from tqdm import tqdm
 
@@ -688,7 +689,7 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
+def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
@@ -712,13 +713,25 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
     if isinstance(analytes, str):
         analytes = [analytes]
-    
+
     if analytes is None:
         analytes = [a for a in self.analytes if self.internal_standard not in a]
 
+    if srm_group is not None:
+        srm_groups = {int(g): t for g, t in self.stdtab.loc[:, ['group', 'gTime']].values}
+        try:
+            gTime = srm_groups[srm_group]
+        except KeyError:
+            text = ('Invalid SRM group selection. Valid options are:\n' +
+                    ' Key:  Time Centre\n' + 
+                    '\n'.join(['   {:}:  {:.1f}s'.format(k, v) for k, v in srm_groups.items()]))
+            print(text)
+    else:
+        gTime = None
+
     ncol = int(ncol)
     n = len(analytes)
-    nrow = calc_nrow(n, ncol)
+    nrow = calc_nrow(n + 1, ncol)
 
     axes = []
 
@@ -729,12 +742,14 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         self.get_focus()
 
     gs = mpl.gridspec.GridSpec(nrows=int(nrow), ncols=int(ncol),
-                               hspace=0.35, wspace=0.3)
+                            hspace=0.35, wspace=0.3)
+
+    mdict = self.srm_mdict
 
     for g, a in zip(gs, analytes):
         if not datarange:
             ax = fig.add_axes(g.get_position(fig))
-            axes.append(ax)
+            axes.append((ax,))
         else:
             f = 0.8
             p0 = g.get_position(fig)
@@ -744,16 +759,23 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             axh = fig.add_axes(p2)
             axes.append((ax, axh))
         
-        x = self.srmtabs.loc[a, 'meas_mean'].values
-        xe = self.srmtabs.loc[a, 'meas_err'].values
-        y = self.srmtabs.loc[a, 'srm_mean'].values
-        ye = self.srmtabs.loc[a, 'srm_err'].values
-
+        if gTime is None:
+            sub = idx[a]
+        else:
+            sub = idx[a, :, :, gTime]
+        x = self.srmtabs.loc[sub, 'meas_mean'].values
+        xe = self.srmtabs.loc[sub, 'meas_err'].values
+        y = self.srmtabs.loc[sub, 'srm_mean'].values
+        ye = self.srmtabs.loc[sub, 'srm_err'].values
+        srm = self.srmtabs.loc[sub].index.get_level_values('SRM')
+        
         # plot calibration data
-        ax.errorbar(x, y, xerr=xe, yerr=ye,
-                    color=self.cmaps[a], alpha=0.6,
-                    lw=0, elinewidth=1, marker='o',
-                    capsize=0, markersize=5)
+        for s, m in mdict.items():
+            ind = srm == s
+            ax.errorbar(x[ind], y[ind], xerr=xe[ind], yerr=ye[ind],
+                        color=self.cmaps[a], alpha=0.6,
+                        lw=0, elinewidth=1, marker=m, #'o',
+                        capsize=0, markersize=5, label='_')
 
         # work out axis scaling
         if not loglog:
@@ -772,7 +794,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
                 ylim = [ymin - ypad, ymax + ypad]
             else:
                 ylim = [0, ymax * 1.05]
-            
+
         else:
             xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
             yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
@@ -794,24 +816,31 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
 
-        # warning flags if any < 0 values
+        # visual warning if any values < 0
         if xlim[0] < 0:
             ax.axvspan(xlim[0], 0, color=(1,0.8,0.8), zorder=-1)
         if ylim[0] < 0:
             ax.axhspan(ylim[0], 0, color=(1,0.8,0.8), zorder=-1)
+        if any(x < 0) or any(y < 0):
+            ax.text(.5, .5, 'WARNING: Values below zero.', color='r', weight='bold',
+                    ha='center', va='center', rotation=40, transform=ax.transAxes, alpha=0.6)
 
         # calculate line and R2
         if loglog:
             x = np.logspace(*np.log10(xlim), 100)
         else:
             x = np.array(xlim)
-
-        coefs = self.calib_params[a]
-        m = coefs.m.values.mean()
+        
+        if gTime is None:
+            coefs = self.calib_params.loc[:, a]
+        else:
+            coefs = self.calib_params.loc[gTime, a]
+        
+        m = np.nanmean(coefs['m'])
         m_nom = nominal_values(m)
         # calculate case-specific paramers
         if 'c' in coefs:
-            c = coefs.c.values.mean()
+            c = np.nanmean(coefs['c'])
             c_nom = nominal_values(c)
             # calculate R2
             ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
@@ -883,7 +912,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             ax.set_ylim(ylim)  # ylim of calibration axis
             axh.set_xticks([])
             axh.set_yticklabels([])
-    
+
         # write calibration equation on graph
         cmax = np.nanmean(self.srmtabs.loc[a, 'srm_mean'].values)
         if cmax / ylim[1] > 0.5:
@@ -892,6 +921,19 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         else:
             ax.text(0.02, 0.75, label, transform=ax.transAxes,
                     va='top', ha='left')
+
+    if srm_group is None:
+        title = 'All SRMs'
+    else:
+        title = 'SRM Group {:} (centre at {:.1f}s)'.format(srm_group, gTime)
+    axes[0][0].set_title(title, loc='left', weight='bold', fontsize=12)
+            
+    # SRM legend
+    ax = fig.add_axes(gs[-1].get_position(fig))
+    for lab, m in mdict.items():
+        ax.scatter([],[],marker=m, label=lab, color=(0,0,0,0.6))
+    ax.legend()
+    ax.axis('off')
 
     if save:
         fig.savefig(self.report_dir + '/calibration.pdf')

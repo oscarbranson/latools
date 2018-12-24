@@ -1300,12 +1300,12 @@ class analyse(object):
         group = [1]
         for t in ts[1:]:
             pos = sum(t > start_times)
-            if pos == i + 1:
+            rpos = pos - i
+            if rpos <= 1:
                 group.append(group[-1])
-                i += 1
             else:
-                i = pos
                 group.append(group[-1] + 1)
+            i = pos
 
         self.stdtab.loc[:, 'group'] = group
         # calculate centre time for the groups
@@ -1417,16 +1417,14 @@ class analyse(object):
 
         # remove internal standard from calibration elements
         self.srmtabs.drop(self.internal_standard, inplace=True)
+
+        self.srms_ided = True
         return
 
     def clear_calibration(self):
         del self.srmtabs
         del self.calib_params
         del self.calib_ps
-
-
-    def build_calib_table(self):
-        return
 
     # apply calibration to data
     @_log
@@ -1564,8 +1562,17 @@ class analyse(object):
                 d.calibrate(self.calib_ps, analytes)
                 prog.update()
 
+        # record SRMs used for plotting
+        markers = 'osDsv<>PX'  # for future implementation of SRM-specific markers.
+        if not hasattr(self, 'srms_used'):
+            self.srms_used = set(srms_used)
+        else:
+            self.srms_used.update(srms_used)
+        self.srm_mdict = {k: markers[i] for i, k in enumerate(self.srms_used)}
+
         self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
+
         return
 
     #     if analytes is None:
