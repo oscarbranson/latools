@@ -914,7 +914,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             axh.set_yticklabels([])
 
         # write calibration equation on graph
-        cmax = np.nanmean(self.srmtabs.loc[a, 'srm_mean'].values)
+        cmax = np.nanmax(y)
         if cmax / ylim[1] > 0.5:
             ax.text(0.98, 0.04, label, transform=ax.transAxes,
                     va='bottom', ha='right')
