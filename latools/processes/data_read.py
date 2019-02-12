@@ -85,8 +85,9 @@ def read_data(data_file, dataformat, name_mode):
                                   **dataformat['genfromtext_args']).T
 
     # data dict
-    dind = np.ones(read_data.shape[0], dtype=bool)
-    dind[dataformat['column_id']['timecolumn']] = False
+    dind = np.zeros(read_data.shape[0], dtype=bool)
+    for a in analytes:
+        dind[columns == a] = True
 
     data = Bunch()
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
