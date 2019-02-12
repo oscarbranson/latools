@@ -1,8 +1,13 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(name='latools',
       version='0.3.9',
       description='Tools for LA-ICPMS data analysis.',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
       url='https://github.com/oscarbranson/latools',
       author='Oscar Branson',
       author_email='oscarbranson@gmail.com',
