@@ -1,0 +1,15 @@
+{
+    "meta_regex": {
+        "1": [["date"], "Date: \"(.*)\""]
+    },
+    "genfromtext_args": {
+        "delimiter": ",",
+        "skip_header": 26
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timecolumn": 1,
+        "name_row": 25,
+        "pattern": "([A-z]{1,2}\\([0-9]{1,3}\\))"
+    }
+}
