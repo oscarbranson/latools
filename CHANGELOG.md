@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.9] - 13/02/2019
+
+## Changed
+- Modified read_data function to properly identify and remove non-analyte columns.
+
 ## [0.3.8] - 23/12/2018
 
 ## Changed
