@@ -90,6 +90,9 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
     return outdir
 
 def long_file(data_file, dataformat, sample_list, savedir=None, srm_id=None, **autorange_args):
+    """
+    TODO: Check for existing files in savedir, don't overwrite?
+    """
     if isinstance(sample_list, str):
         if os.path.exists(sample_list):
             sample_list = np.genfromtxt(sample_list, dtype=str)
