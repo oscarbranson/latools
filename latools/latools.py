@@ -1263,10 +1263,23 @@ class analyse(object):
             self.srmdat = srmdat.dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
+        """
+        Compile mean and standard errors of measured SRMs
+
+        Parameters
+        ----------
+        n_min : int
+            The minimum number of points to consider as a valid measurement.
+            Default = 10.
+        """
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
             stdtab.index.name = 'uTime'
+
+            if not s.n > 0:
+                s.stdtab = stdtab
+                continue
 
             for n in range(1, s.n + 1):
                 ind = s.ns == n
@@ -1296,16 +1309,16 @@ class analyse(object):
         ts = self.stdtab.index.values
         start_times = [s.uTime[0] for s in self.data.values()]
 
-        i = 1
+        lastpos = sum(ts[0] > start_times)
         group = [1]
         for t in ts[1:]:
             pos = sum(t > start_times)
-            rpos = pos - i
+            rpos = pos - lastpos
             if rpos <= 1:
                 group.append(group[-1])
             else:
                 group.append(group[-1] + 1)
-            i = pos
+            lastpos = pos
 
         self.stdtab.loc[:, 'group'] = group
         # calculate centre time for the groups
@@ -2339,7 +2352,7 @@ class analyse(object):
 
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
-                f, a = self.data[s].correlation_plot(x_analyte=x_analyte, y_analyte=y_analyte,
+                f, _ = self.data[s].correlation_plot(x_analyte=x_analyte, y_analyte=y_analyte,
                                                      window=window, filt=filt, recalc=recalc)
                 f.savefig('{}/{}_{}-{}.pdf'.format(outdir, s, x_analyte, y_analyte))
                 plt.close(f)
