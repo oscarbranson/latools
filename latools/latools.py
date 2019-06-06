@@ -293,8 +293,8 @@ class analyse(object):
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
-            ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
-                       'analytes in\nyour data files. Please make sure it is specified correctly.')
+            raise ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
+                             'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = set([internal_standard])
 
         # keep record of which stages of processing have been performed
