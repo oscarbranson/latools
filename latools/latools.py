@@ -1166,7 +1166,7 @@ class analyse(object):
         ax.legend(labels=la[:len(analytes)], handles=ha[:len(analytes)], bbox_to_anchor=(1, 1))
 
         # scale x axis to range ± 2.5%
-        xlim = rangecalc(self.bkg['raw']['uTime'], 0.025)
+        xlim = [0, max([d.uTime[-1] for d in self.data.values()])]
         ax.set_xlim(xlim)
 
         # add sample labels
@@ -1429,15 +1429,26 @@ class analyse(object):
         self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
 
         # remove internal standard from calibration elements
-        self.srmtabs.drop(self.internal_standard, inplace=True)
+        self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
 
         self.srms_ided = True
         return
 
     def clear_calibration(self):
-        del self.srmtabs
-        del self.calib_params
-        del self.calib_ps
+        if self.srms_ided:
+            del self.stdtab
+            del self.srmdat
+            del self.srmtabs
+
+            self.srms_ided = False
+
+        if 'calibrated' in self.stages_complete:
+            del self.calib_params
+            del self.calib_ps
+
+            self.stages_complete.remove('calibrated')
+            self.focus_stage = 'ratios'
+            self.set_focus('ratios')
 
     # apply calibration to data
     @_log
@@ -1472,6 +1483,9 @@ class analyse(object):
             analytes = self.analytes[self.analytes != self.internal_standard]
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if isinstance(srms_used, str):
+            srms_used = [srms_used]
 
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
@@ -3150,9 +3164,9 @@ class analyse(object):
             analytes = [analytes]
         
         # calculate filtered and unfiltered stats
-        self.sample_stats(['La139', 'Ti49'], stats=stats, filt=False)
+        self.sample_stats(analytes, stats=stats, filt=False)
         suf = self.stats.copy()
-        self.sample_stats(['La139', 'Ti49'], stats=stats, filt=filt)
+        self.sample_stats(analytes, stats=stats, filt=filt)
         sf = self.stats.copy()
         
         # create dataframe for results
@@ -3517,7 +3531,7 @@ class analyse(object):
 
     @_log
     def sample_stats(self, analytes=None, filt=True,
-                     stats=['mean', 'std'],
+                     stats=['mean', 'std'], include_srms=False,
                      eachtrace=True, csf_dict={}):
         """
         Calculate sample statistics.
@@ -3596,14 +3610,18 @@ class analyse(object):
                 self.custom_stat_functions += inspect.getsource(s) + '\n\n\n\n'
 
         # calculate stats for each sample
-        with self.pbar.set(total=len(self.samples), desc='Calculating Stats') as prog:
-            for s in self.samples:
-                if self.srm_identifier not in s:
-                    self.data[s].sample_stats(analytes, filt=filt,
-                                            stat_fns=stat_fns,
-                                            eachtrace=eachtrace)
+        if include_srms:
+            samples = self.samples
+        else:
+            samples = [s for s in self.samples if self.srm_identifier not in s]
 
-                    self.stats[s] = self.data[s].stats
+        with self.pbar.set(total=len(self.samples), desc='Calculating Stats') as prog:
+            for s in samples:
+                self.data[s].sample_stats(analytes, filt=filt,
+                                          stat_fns=stat_fns,
+                                          eachtrace=eachtrace)
+
+                self.stats[s] = self.data[s].stats
                 prog.update()
 
     @_log
