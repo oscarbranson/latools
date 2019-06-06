@@ -286,8 +286,8 @@ class analyse(object):
         self.cmaps = data[0].cmap
 
         # get analytes
-        self.analytes = np.array(data[0].analytes)
-        if np.asanyarray(self.analytes).size == 0:
+        self.analytes = set(data[0].analytes)
+        if len(self.analytes) == 0:
             raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
 
         if internal_standard in self.analytes:
@@ -323,6 +323,13 @@ class analyse(object):
         self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
+        # remove any analytes for which all counts are zero
+        # self.get_focus()
+        # for a in self.analytes:
+        #     if np.nanmean(self.focus[a] == 0):
+        #         self.analytes.remove(a)
+        #         warnings.warn('{} contains no data - removed from analytes')
+        
         # initialise classifiers
         self.classifiers = Bunch()
 
@@ -1480,7 +1487,7 @@ class analyse(object):
         None
         """
         if analytes is None:
-            analytes = self.analytes[self.analytes != self.internal_standard]
+            analytes = self.analytes.difference(self.internal_standard)
         elif isinstance(analytes, str):
             analytes = [analytes]
 

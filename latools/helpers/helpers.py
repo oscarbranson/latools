@@ -90,6 +90,9 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
         a = nominal_values(a)
         a = np.percentile(a[~np.isnan(a)], 25)
 
+    if a == 0:
+        raise ValueError("Cannot calculate unit for zero.")
+
     if denominator is not None:
         pd = pretty_element(denominator)
     else:
