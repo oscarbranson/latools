@@ -89,9 +89,42 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
-def long_file(data_file, dataformat, sample_list, savedir=None, srm_id=None, **autorange_args):
+def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, **autorange_args):
     """
+    Split single long files containing multiple analyses into multiple files containing single analyses.
+
+    Imports a long datafile and uses `latools.processes.autorange` to 
+    identify ablations in the long file based on your chosen analyte.
+    The data are then saved as multiple files each containing a single 
+    ablation, named using the list of names you provide.
+
+    Data will be saved in latools' 'REPRODUCE' format.
+
+    WARNING: This functionality is currently *very beta*. Use carefully.
+
     TODO: Check for existing files in savedir, don't overwrite?
+
+    Parameters
+    ----------
+    data_file : str
+        The path to the data file you want to read.
+    dataformat : dataformat dict
+        A valid dataformat dict. See online documentation for more details.
+    sample_list : array-like
+        A list of strings that will be used to name the individual files.
+    analyte : str
+        The analyte that autorange uses to identify ablations. Can be any valid
+        analyte in the data. Defaults to 'total_counts'.
+    savedir : str
+        The directory to save the data in. Defaults to the name of the data_file,
+        appended with '_split'.
+    srm_id : str
+        If given, all file names containing srm_id will be replaced with srm_id.
+    **autorange_args
+        Additional arguments passed to la.processes.autorange used for identifying ablations.
+    Returns
+    -------
+    None
     """
     if isinstance(sample_list, str):
         if os.path.exists(sample_list):
@@ -115,8 +148,18 @@ def long_file(data_file, dataformat, sample_list, savedir=None, srm_id=None, **a
         d = dateutil.parser.parse(meta['date'])
     else:
         d = datetime.datetime.now()
+
+    # analyte handling
+    if analyte == 'total_counts':
+        y_data = dat['total_counts']
+    elif analyte in dat['rawdata'].keys():
+        y_data = dat['rawdata'][analyte]
+    else:
+        valid = list(dat['rawdata'].keys()) + ['total_counts']
+        raise ValueError("'{}' is not a valid analyte. Please use one of:\n  {}".format(analyte, valid))
+        
     # autorange
-    bkg, sig, trn, _ = autorange(dat['Time'], dat['total_counts'], **autorange_args)
+    bkg, sig, trn, _ = autorange(dat['Time'], y_data, **autorange_args)
     
     ns = np.zeros(sig.size)
     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
@@ -124,7 +167,7 @@ def long_file(data_file, dataformat, sample_list, savedir=None, srm_id=None, **a
     n = int(max(ns))
     
     if len(sample_list) != n:
-        warn('Length of sample list does not match number of ablations in file.\n' + 
+        warn('Length of sample list ({}) does not match number of ablations in file ({}).\n'.format(len(sample_list), n) + 
              'We will continue, but please make sure the assignments are correct.')
     
     # calculate split boundaries
