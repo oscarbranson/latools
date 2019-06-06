@@ -288,7 +288,7 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
         figsize = [1.5 * numvar] * 2
     
     fig, axes = plt.subplots(nrows=numvar, ncols=numvar,
-                             figsize=(12, 12))
+                             figsize=figsize)
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
     for ax in axes.flat:
