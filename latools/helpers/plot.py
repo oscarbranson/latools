@@ -1,3 +1,9 @@
+"""
+Plotting functions.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import itertools, re, warnings
 import numpy as np
 import matplotlib.pyplot as plt

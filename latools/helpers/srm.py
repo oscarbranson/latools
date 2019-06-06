@@ -1,3 +1,8 @@
+"""
+Functions for reading and manipulating SRM tables.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import numpy as np
 import pandas as pd
 

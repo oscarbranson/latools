@@ -1,3 +1,10 @@
+"""
+Functions for dealing with chemical formulae, and converting between molar 
+ratios and mass fractions.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import re
 import pkg_resources as pkgrs
 import pandas as pd

@@ -1,3 +1,9 @@
+"""
+Functions for calculating statistics and handling uncertainties.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import numpy as np
 import uncertainties.unumpy as un
 from scipy.stats import pearsonr

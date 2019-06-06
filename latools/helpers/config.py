@@ -1,3 +1,9 @@
+"""
+Functions to help configure LAtools.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import configparser
 import json
 import os

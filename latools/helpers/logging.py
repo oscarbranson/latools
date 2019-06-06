@@ -1,3 +1,9 @@
+"""
+Functions for recording and and reading/writing log files.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import os
 import re
 from functools import wraps

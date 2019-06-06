@@ -1,5 +1,7 @@
 """
 Helper functions used by multiple parts of LAtools.
+
+(c) Oscar Branson : https://github.com/oscarbranson
 """
 import os
 import shutil

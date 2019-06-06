@@ -1,3 +1,8 @@
+"""
+File handling and os-interface functions
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import os
 import re
 import shutil
