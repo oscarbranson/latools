@@ -146,13 +146,13 @@ class analyse(object):
 
         # make output directories
         self.report_dir = re.sub('//', '/',
-                                 self.parent_folder + '/' +
-                                 os.path.basename(self.folder) + '_reports/')
+                                 os.path.join(self.parent_folder,
+                                              os.path.basename(self.folder) + '_reports/'))
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
-                                 self.parent_folder + '/' +
-                                 os.path.basename(self.folder) + '_export/')
+                                 os.path.join(self.parent_folder,
+                                              os.path.basename(self.folder) + '_export/'))
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -232,7 +232,7 @@ class analyse(object):
         with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
             data = [None] * len(self.files)
             for i, f in enumerate(self.files):
-                data[i] = (D(self.folder + '/' + f,
+                data[i] = (D(os.path.join(self.folder, f),
                            dataformat=self.dataformat,
                            errorhunt=errorhunt,
                            cmap=cmap,
@@ -2766,7 +2766,7 @@ class analyse(object):
                 n = 1
                 for f, _ in figs:
                     if f is not None:
-                        f.savefig(outdir + '/' + s + '_optim_{:.0f}.pdf'.format(n))
+                        f.savefig(os.path.join(outdir, s + '_optim_{:.0f}.pdf'.format(n)))
                         plt.close(f)
                     n += 1
                 prog.update()
@@ -3066,9 +3066,9 @@ class analyse(object):
 
         if save or isinstance(save, str):
             if isinstance(save, str):
-                fig.savefig(self.report_dir + '/' + save, dpi=200)            
+                fig.savefig(os.path.join(self.report_dir, save), dpi=200)            
             else:
-                fig.savefig(self.report_dir + '/crossplot.png', dpi=200)
+                fig.savefig(os.path.join(self.report_dir, 'crossplot.png'), dpi=200)
 
         return fig, axes
 
@@ -3401,7 +3401,7 @@ class analyse(object):
         if focus is None:
             focus = self.focus_stage
         if outdir is None:
-            outdir = self.report_dir + '/' + focus
+            outdir = os.path.join(self.report_dir, focus)
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
@@ -3426,7 +3426,7 @@ class analyse(object):
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
                 # for l, u in s.bkgrng:
                 #     ax.axvspan(l, u, color='k', alpha=0.1)
-                f.savefig(outdir + '/' + s + '_traces.pdf')
+                f.savefig(os.path.join(outdir, s + '_traces.pdf'))
                 # TODO: on older(?) computers raises
                 # 'OSError: [Errno 24] Too many open files'
                 plt.close(f)
@@ -3481,7 +3481,7 @@ class analyse(object):
         if focus is None:
             focus = self.focus_stage
         if outdir is None:
-            outdir = self.report_dir + '/' + focus + '_gradient'
+            outdir = os.path.join(self.report_dir, focus + '_gradient')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
@@ -3504,7 +3504,7 @@ class analyse(object):
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
                 # for l, u in s.bkgrng:
                 #     ax.axvspan(l, u, color='k', alpha=0.1)
-                f.savefig(outdir + '/' + s + '_gradients.pdf')
+                f.savefig(os.path.join(outdir, s + '_gradients.pdf'))
                 # TODO: on older(?) computers raises
                 # 'OSError: [Errno 24] Too many open files'
                 plt.close(f)
@@ -3833,11 +3833,11 @@ class analyse(object):
         if save:
             if filename is None:
                 filename = 'stat_export.csv'
-            out.to_csv(self.export_dir + '/' + filename)
+            out.to_csv(os.path.join(self.export_dir, filename))
 
         self.stats_df = out
 
-        return out
+        return out 
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
