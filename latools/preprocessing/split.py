@@ -98,9 +98,9 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
 
-    Imports a long datafile and uses `latools.processes.autorange` to 
+    Imports a long datafile and uses `latools.processes.autorange` to
     identify ablations in the long file based on your chosen analyte.
-    The data are then saved as multiple files each containing a single 
+    The data are then saved as multiple files each containing a single
     ablation, named using the list of names you provide.
 
     Data will be saved in latools' 'REPRODUCE' format.
@@ -164,7 +164,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         raise ValueError("'{}' is not a valid analyte. Please use one of:\n  {}".format(analyte, valid))
         
     # autorange
-    bkg, sig, trn, _ = autorange(dat['Time'], y_data, **autorange_args)
+    bkg, sig, _, _ = autorange(dat['Time'], y_data, **autorange_args)
     
     ns = np.zeros(sig.size)
     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
@@ -172,7 +172,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     n = int(max(ns))
     
     if len(sample_list) != n:
-        warn('Length of sample list ({}) does not match number of ablations in file ({}).\n'.format(len(sample_list), n) + 
+        warn('Length of sample list ({}) does not match number of ablations in file ({}).\n'.format(len(sample_list), n) +
              'We will continue, but please make sure the assignments are correct.')
     
     # calculate split boundaries
