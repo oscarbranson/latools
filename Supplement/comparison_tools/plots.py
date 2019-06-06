@@ -107,7 +107,7 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         rt = rt[~np.isnan(rt)]
         rl = rl[~np.isnan(rl)]
         lims = np.percentile(np.hstack([rt, rl]), [99, 1])
-        lims += lims.ptp() * np.array((-1.25, 1.25))
+        lims += np.ptp(lims) * np.array((-1.25, 1.25))
         bins = np.linspace(*lims, 100)
         kdt = stats.gaussian_kde(rt, .4)
         kdl = stats.gaussian_kde(rl, .4)
@@ -206,7 +206,7 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         rt = rt[~np.isnan(rt)]
         rl = rl[~np.isnan(rl)]
         lims = np.percentile(np.hstack([rt, rl]), [99, 1])
-        lims += lims.ptp() * np.array((-1.25, 1.25))
+        lims += np.ptp(lims) * np.array((-1.25, 1.25))
         bins = np.linspace(*lims, 100)
         kdt = stats.gaussian_kde(rt, .4)
         kdl = stats.gaussian_kde(rl, .4)

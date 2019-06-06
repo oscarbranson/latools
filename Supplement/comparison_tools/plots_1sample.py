@@ -58,7 +58,7 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 'Zn', 'B']):
         # plot PDFs
         rl = rl[~np.isnan(rl)]
         lims = np.percentile(rl, [99, 1])
-        lims += lims.ptp() * np.array((-1.25, 1.25))
+        lims += np.ptp(lims * np.array((-1.25, 1.25))
         bins = np.linspace(*lims, 100)
         kdl = stats.gaussian_kde(rl, .4)
         hax.fill_between(bins, kdl(bins), facecolor=c, alpha=0.7, edgecolor='k', lw=0.5, label='LAtools')
@@ -142,7 +142,7 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 
         # plot PDFs
         rl = rl[~np.isnan(rl)]
         lims = np.percentile(rl, [99, 1])
-        lims += lims.ptp() * np.array((-1.25, 1.25))
+        lims += np.ptp(lims) * np.array((-1.25, 1.25))
         bins = np.linspace(*lims, 100)
         kdl = stats.gaussian_kde(rl, .4)
         hax.fill_betweenx(bins, kdl(bins), facecolor=c, alpha=0.7, edgecolor='k', lw=0.5, label='LAtools')
