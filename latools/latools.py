@@ -3351,7 +3351,7 @@ class analyse(object):
     def trace_plots(self, analytes=None, samples=None, ranges=False,
                     focus=None, outdir=None, filt=None, scale='log',
                     figsize=[10, 4], stats=False, stat='nanmean',
-                    err='nanstd', subset='All_Analyses'):
+                    err='nanstd', subset=None):
         """
         Plot analytes as a function of time.
 
