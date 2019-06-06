@@ -81,6 +81,33 @@ def calc_M(molecule):
         m += me * n
     return m
 
+def analyte_mass(analyte, in_name=True):
+    """
+    Returns the mass of a given analyte.
+
+    If the name contains a number (e.g. Ca43), that number is returned. If the name contains
+    no number but an element name (e.g. Ca), the average mass of that element is returned. 
+    
+    Parameters
+    ----------
+    analyte : str or array-like
+        The name or names of the analytes to be considered.
+    in_name : bool
+        If True, numbers in the analyte name are preferred.
+    """
+    if isinstance(analyte, str):
+        nums = re.findall('[0-9]+', analyte)
+        if in_name and nums:
+            return float(nums[0])
+        else:
+            return calc_M(re.findall('[A-z]+', analyte)[0])
+    else:
+        masses = {}
+        for i, a in enumerate(analyte):
+            masses[a] = analyte_mass(a, in_name)
+        return masses
+
+
 # functions for converting between mass fraction and molar ratio
 def to_molar_ratio(massfrac_numerator, massfrac_denominator, numerator_mass, denominator_mass):
     """
