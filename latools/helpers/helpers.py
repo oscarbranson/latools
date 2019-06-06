@@ -41,7 +41,7 @@ def get_date(datetime, time_format=None):
     if time_format is None:
         t = du.parser.parse(datetime)
     else:
-        t = dt.datetime.strftime(datetime, time_format)
+        t = dt.datetime.strptime(datetime, time_format)
     return t
 
 def get_total_n_points(d):
