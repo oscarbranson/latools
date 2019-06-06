@@ -103,7 +103,9 @@ class D(object):
         self.file = data_file
         self.internal_standard = internal_standard
 
-        self.sample, self.analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+        self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+
+        self.analytes = set(analytes)
 
         # calculate total counts
         self.data['total_counts'] = sum(self.data['rawdata'].values())
@@ -467,7 +469,7 @@ class D(object):
         self.data['bkgsub'][target_analyte] -= self.data['bkgsub'][source_analyte] * f
 
     @_log
-    def ratio(self, internal_standard=None):
+    def ratio(self, internal_standard=None, analytes=None):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -482,9 +484,14 @@ class D(object):
         """
         if internal_standard is not None:
             self.internal_standard = internal_standard
+        
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
         self.data['ratios'] = Bunch()
-        for a in self.analytes:
+        for a in analytes:
             self.data['ratios'][a] = (self.data['bkgsub'][a] /
                                       self.data['bkgsub'][self.internal_standard])
         self.setfocus('ratios')

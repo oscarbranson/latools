@@ -224,14 +224,14 @@ class analyse(object):
 
         # load data into list (initialise D objects)
         with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
-            data = []
-            for f in self.files:
-                data.append(D(self.folder + '/' + f,
-                            dataformat=self.dataformat,
-                            errorhunt=errorhunt,
-                            cmap=cmap,
-                            internal_standard=internal_standard,
-                            name=names))
+            data = [None] * len(self.files)
+            for i, f in enumerate(self.files):
+                data[i] = (D(self.folder + '/' + f,
+                           dataformat=self.dataformat,
+                           errorhunt=errorhunt,
+                           cmap=cmap,
+                           internal_standard=internal_standard,
+                           name=names))
                 prog.update()
 
         # create universal time scale
@@ -286,14 +286,36 @@ class analyse(object):
         self.cmaps = data[0].cmap
 
         # get analytes
-        self.analytes = set(data[0].analytes)
+        all_analytes = set()
+        extras = set()
+        for d in data:
+            all_analytes.update(d.analytes)
+            extras.update(all_analytes.symmetric_difference(d.analytes))
+        self.analytes = all_analytes.difference(extras)
+        if self.analytes != all_analytes:
+            mismatch = []
+            smax = 0
+            for d in data:
+                if d.analytes != self.analytes:
+                    mismatch.append((d.sample, d.analytes.difference(self.analytes)))
+                    if len(d.sample) > smax:
+                        smax = len(d.sample)
+            msg = ('\n' + '*' * 48 + '\n' +
+                   'All data files do not contain the same analytes.\n' + 
+                   'Only analytes present in all files will be processed.\n' + 
+                   'In the following files, these analytes will be excluded:\n')
+            for s, a in mismatch:
+                msg += ('  {0: <' + '{:}'.format(smax + 2) + '}:  ').format(s) + str(a) + '\n'
+            msg += '*' * 48 + '\n'
+            warnings.warn(msg)
+
         if len(self.analytes) == 0:
             raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
 
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
-            raise ValueError('The internal standard ({}) is not amongst the'.format(internal_standard) +
+            raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
                              'analytes in\nyour data files. Please make sure it is specified correctly.')
         self.minimal_analytes = set([internal_standard])
 
@@ -1189,7 +1211,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None):
+    def ratio(self, internal_standard=None, analytes=None):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1205,6 +1227,11 @@ class analyse(object):
         """
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
+        
+        if analytes is None:
+            analytes = self.analytes
+        elif isinstance(analytes, str):
+            analytes = [analytes]
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
@@ -1212,7 +1239,7 @@ class analyse(object):
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
-                s.ratio(internal_standard=self.internal_standard)
+                s.ratio(internal_standard=self.internal_standard, analytes=analytes)
                 prog.update()
 
         self.stages_complete.update(['ratios'])
