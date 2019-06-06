@@ -31,6 +31,7 @@ from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
                               findmins, stack_keys)
 from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
+from .helpers.chemistry import to_mass_fraction, analyte_mass
 
 class D(object):
     """
@@ -540,6 +541,23 @@ class D(object):
 
         self.setfocus('calibrated')
         return
+
+    def calc_mass_fraction(self, internal_standard_conc, analytes=None):
+        if analytes is None:
+            analytes = self.analytes.difference(self.internal_standard)
+        if 'mass_fraction' not in self.data.keys():
+            self.data['mass_fraction'] = Bunch()
+
+        masses = analyte_mass(self.analytes)
+        
+        if np.isnan(internal_standard_conc):
+            for a in analytes:
+                self.data['mass_fraction'][a] = np.full(self.data['calibrated'][a].shape, np.nan)
+        else:
+            for a in analytes:
+                self.data['mass_fraction'][a] = to_mass_fraction(self.data['calibrated'][a], internal_standard_conc,
+                                                                masses[a], masses[self.internal_standard])
+
 
     # Function for calculating sample statistics
     @_log

@@ -1774,6 +1774,66 @@ class analyse(object):
     # data filtering
     # TODO: Re-factor filtering to use 'classifier' objects?
 
+    # functions for calculating mass fraction (ppm)
+    def get_sample_list(self, save_as=None):
+        """
+        Save a csv list of of all samples to be populated with internal standard concentrations.
+
+        Parameters
+        ----------
+        save_as : str
+            Location to save the file. Defaults to the export directory.
+        """
+        if save_as is None:
+            save_as = os.path.join(self.export_dir, 'internal_standard_concentrations.csv')
+        empty = pd.DataFrame(index=self.samples, columns='internal_standard_concentration')
+        empty.to_csv(save_as)
+
+    def read_internal_standard_concs(self, sample_concs=None):
+        """
+        Load in a per-sample list of internal sample concentrations.
+        """
+        if sample_concs is None:
+            sample_concs = os.path.join(self.export_dir, 'internal_standard_concentrations.csv')
+        
+        return pd.read_csv(sample_concs)
+
+
+    @_log
+    def calculate_mass_fraction(self, internal_standard_conc, analytes=None):
+        """
+        Convert calibrated molar ratios to mass fraction.
+
+        Parameters
+        ----------
+        internal_standard_conc : float, pandas.DataFrame or str
+            The concentration of the internal standard in your samples.
+        """
+
+        if analytes is None:
+            analytes = self.analytes.difference(self.internal_standard)
+
+        internal_standard_conc = isc
+
+        if isinstance(isc, str) or isc is None:
+            isc = read_internal_standard_concs(isc)
+
+        if not isinstance(isc, pd.core.frame.DataFrame):
+            with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
+                for d in self.data.values():
+                    d.calc_mass_fraction(isc, analytes)
+                    prog.update() 
+        else:
+            with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
+                for k, d in self.data.items():
+                    if k in isc:
+                        d.calc_mass_fraction(isc.loc[k], analytes)
+                    else:
+                        d.calc_mass_fraction(np.nan, analytes)
+                    prog.update() 
+
+
+
     @_log
     def make_subset(self, samples=None, name=None):
         """
