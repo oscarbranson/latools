@@ -1,5 +1,8 @@
 """
-The Data object, used to contain single laser ablation data files.
+The Data object, used to store and manipulate the data contained in a 
+single laser ablation files. A core dependency of LAtools.
+
+(c) Oscar Branson : https://github.com/oscarbranson
 """
 import re
 import itertools

@@ -1,3 +1,9 @@
+"""
+Functions for automatically distinguishing between signal and background
+in LA-ICPMS data.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import numpy as np
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit

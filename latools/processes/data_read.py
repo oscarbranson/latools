@@ -1,3 +1,8 @@
+"""
+Function for reading LA-ICPMS data files.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import re, os
 import numpy as np
 from io import BytesIO

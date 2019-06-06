@@ -1,3 +1,8 @@
+"""
+Functions for splitting long files into multiple short ones.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import re
 import os
 import datetime

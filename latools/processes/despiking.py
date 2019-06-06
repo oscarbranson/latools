@@ -1,3 +1,8 @@
+"""
+Functions for de-spiking LA-ICPMS data (outlier removal).
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
 import numpy as np
 
 # Despiking functions

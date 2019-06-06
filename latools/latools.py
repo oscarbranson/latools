@@ -1,3 +1,9 @@
+"""
+Main functions for interacting with LAtools.
+
+(c) Oscar Branson : https://github.com/oscarbranson
+"""
+
 import configparser
 import itertools
 import inspect
