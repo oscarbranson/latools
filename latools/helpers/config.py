@@ -319,8 +319,8 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         raise
     
     print("  Test: read metadata using 'metadata_regex'...")
+    meta = Bunch()
     if 'meta_regex' in dataformat.keys():
-        meta = Bunch()
         got = []
         for k, v in dataformat['meta_regex'].items():
             rep = '    Line {:s}: '.format(k)
@@ -339,12 +339,12 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         print('    Finished - does the above look correct?')
         if 'date' not in got:
             print('        ***PROBLEM: ' + 
-                  'meta_regex must identify data collection start time as "date".')
-            raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
+                  'meta_regex must identify data collection start time as "date". LAtools may not behave as expected.')
+            # raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
     else:
         print('        ***PROBLEM: ' + 
-              'meta_regex not specified. At minimum, must identify data collection start time as "date".')
-        raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
+              'meta_regex not specified. At minimum, must identify data collection start time as "date". LAtools may not behave as expected.')
+        # raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
     
     # sample name
     print('  Test: Sample Name IDs...')
@@ -403,7 +403,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
                   '        If they look correct, think about including preformat_replace terms?')
             raise
     
-    print('    checking dimensions...')
+    print('    checking number of columns == number of analytes...')
     if read_data.shape[0] != len(analytes) + 1:
         print('        ***PROBLEM: ' + 
               'There are {:.0f} data columns, but {:.0f} column names.\n'.format(read_data.shape[0], len(analytes) + 1) +
@@ -422,6 +422,9 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
                                                   columns[dataformat['column_id']['timecolumn']]))
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
     
+    for a, d in zip(analytes, read_data[dind]):
+        data[a] = d
+
     print('    Calculating total counts...')
     data['total_counts'] = read_data[dind].sum(0)
     print('    Success!')
