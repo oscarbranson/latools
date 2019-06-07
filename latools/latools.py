@@ -144,6 +144,9 @@ class analyse(object):
         self.files = np.array([f for f in os.listdir(self.folder)
                                if extension in f])
 
+        # set line length for outputs
+        self._line_length = 80
+
         # make output directories
         self.report_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
@@ -158,7 +161,23 @@ class analyse(object):
 
         # load configuration parameters
         self.config = read_configuration(config)
-        print('Starting analysis using "' + self.config['config'] + '" configuration:')
+
+        # print some info about the analysis and setup.
+        startmsg = self._fill_line('-') + 'Starting analysis:'
+        if srm_file is None or dataformat is None:
+            startmsg += '\n  Using {} configuration'.format(self.config['config'])
+            if config == 'DEFAULT':
+                startmsg += ' (default).'
+            else:
+                startmsg += '.'
+        
+        if srm_file is not None:
+            startmsg += '\n  Using custom srm_file ({})'.format(srm_file)
+        if isinstance(dataformat, str):
+            startmsg += '\n  Using custom dataformat file ({})'.format(dataformat)
+        elif isinstance(dataformat, dict):
+            startmsg += '\n  Using custom dataformat dict'
+        print(startmsg)
 
         self._load_srmfile(srm_file)
 
@@ -199,11 +218,13 @@ class analyse(object):
             for d in data:
                 d.uTime = d.Time + ts
                 ts += d.Time[-1]
-            warnings.warn("Time not determined from dataformat. Universal time scale\n" +
-                          "approximated as continuously measured samples.\n" +
-                          "Samples might not be in the right order.\n"
-                          "Background correction and calibration may not behave\n" +
+            msg = self._overflow_text( 
+                          "Time not determined from dataformat. Universal time scale " +
+                          "approximated as continuously measured samples. " +
+                          "Samples might not be in the right order. "
+                          "Background correction and calibration may not behave " +
                           "as expected.")
+            warnings.warn(self._wrap_msg(msg, '*'))
 
         self.max_time = max([d.uTime.max() for d in data])
 
@@ -249,13 +270,13 @@ class analyse(object):
                     mismatch.append((d.sample, d.analytes.difference(self.analytes)))
                     if len(d.sample) > smax:
                         smax = len(d.sample)
-            msg = ('\n' + '*' * 48 + '\n' +
+            msg = (self._fill_line('*') +
                    'All data files do not contain the same analytes.\n' + 
                    'Only analytes present in all files will be processed.\n' + 
                    'In the following files, these analytes will be excluded:\n')
             for s, a in mismatch:
                 msg += ('  {0: <' + '{:}'.format(smax + 2) + '}:  ').format(s) + str(a) + '\n'
-            msg += '*' * 48 + '\n'
+            msg += self._fill_line('*')
             warnings.warn(msg)
 
         if len(self.analytes) == 0:
@@ -305,12 +326,37 @@ class analyse(object):
         self.classifiers = Bunch()
 
         # report
-        print(('  {:.0f} Data Files Loaded: {:.0f} standards, {:.0f} '
+        print(('Loading Data:\n  {:d} Data Files Loaded: {:d} standards, {:d} '
                'samples').format(len(self.data),
                                  len(self.stds),
                                  len(self.data) - len(self.stds)))
-        print('  Analytes: ' + ' '.join(self.analytes))
+        astr = self._overflow_text('Analytes: ' + ' '.join(self.analytes))
+        print(astr)
         print('  Internal Standard: {}'.format(self.internal_standard))
+
+    def _fill_line(self, char, newline=True):
+        """Generate a full line of given character"""
+        if newline:
+            return char * self._line_length + '\n'
+        else:
+            return char * self._line_length
+
+    def _overflow_text(self, text):
+        """Splits text over multiple lines to fit within self._line_length"""
+        out = ['']
+        for word in text.split():
+            if len(out[-1]) + len(word) <= self._line_length:
+                out[-1] += word
+            else:
+                out.append(word)
+            
+            if len(out[-1]) + 1 <= self._line_length:
+                out[-1] += ' '
+        out[-1] = out[-1][:-1]
+        return '\n  '.join(out)
+    
+    def _wrap_msg(self, msg, char):
+        return self._fill_line(char) + msg + '\n' + self._fill_line(char, False)
 
     def _load_dataformat(self, dataformat):
         """
