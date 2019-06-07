@@ -36,7 +36,7 @@ from .helpers.helpers import (rolling_window, enumerate_bool,
                       get_total_time_span)
 from .helpers import logging
 from .helpers.logging import _log
-from .helpers.config import read_configuration
+from .helpers.config import read_configuration, config_locator
 from .helpers.stat_fns import *
 from .helpers import utils
 from .helpers import srm as srms
@@ -160,67 +160,9 @@ class analyse(object):
         self.config = read_configuration(config)
         print('Starting analysis using "' + self.config['config'] + '" configuration:')
 
-        # check srmfile exists, and store it in a class attribute.
-        if srm_file is not None:
-            if os.path.exists(srm_file):
-                self.srmfile = srm_file
-            else:
-                raise ValueError(('Cannot find the specified SRM file:\n   ' +
-                                  srm_file +
-                                  'Please check that the file location is correct.'))
-        else:
-            if os.path.exists(self.config['srmfile']):
-                self.srmfile = self.config['srmfile']
-            elif os.path.exists(pkgrs.resource_filename('latools',
-                                                        self.config['srmfile'])):
-                self.srmfile = pkgrs.resource_filename('latools',
-                                                       self.config['srmfile'])
-            else:
-                raise ValueError(('The SRM file specified in the ' + config +
-                                  ' configuration cannot be found.\n'
-                                  'Please make sure the file exists, and that the '
-                                  'path in the config file is correct.\n'
-                                  'To locate the config file, run '
-                                  '`latools.config_locator()`.\n\n'
-                                  '' + config + ' file: ' + self.config['srmfile']))
+        self._load_srmfile(srm_file)
 
-        # load in dataformat information.
-        # check dataformat file exists, and store it in a class attribute.
-        # if dataformat is not provided during initialisation, assign it
-        # from configuration file
-        if dataformat is None:
-            if os.path.exists(self.config['dataformat']):
-                dataformat = self.config['dataformat']
-            elif os.path.exists(pkgrs.resource_filename('latools',
-                                                        self.config['dataformat'])):
-                dataformat = pkgrs.resource_filename('latools',
-                                                     self.config['dataformat'])
-            else:
-                raise ValueError(('The dataformat file specified in the ' +
-                                  config + ' configuration cannot be found.\n'
-                                  'Please make sure the file exists, and that '
-                                  'the path in the config file is correct.\n'
-                                  'To locate the config file, run '
-                                  '`latools.config_locator()`.\n\n' +
-                                  config + ' file: ' + dataformat))
-            self.dataformat_file = dataformat
-        else:
-            self.dataformat_file = 'None: dict provided'
-
-        # if it's a string, check the file exists and import it.
-        if isinstance(dataformat, str):
-            if os.path.exists(dataformat):
-                # self.dataformat = eval(open(dataformat).read())
-                self.dataformat = json.load(open(dataformat))
-            else:
-                warnings.warn(("The dataformat file (" + dataformat +
-                               ") cannot be found.\nPlease make sure the file "
-                               "exists, and that the path is correct.\n\nFile "
-                               "Path: " + dataformat))
-
-        # if it's a dict, just assign it straight away.
-        elif isinstance(dataformat, dict):
-            self.dataformat = dataformat
+        self._load_dataformat(dataformat)
 
         # link up progress bars
         if pbar is None:
@@ -292,6 +234,7 @@ class analyse(object):
         self.cmaps = data[0].cmap
 
         # get analytes
+        # TODO: does this preserve the *order* of the analytes?
         all_analytes = set()
         extras = set()
         for d in data:
@@ -368,6 +311,75 @@ class analyse(object):
                                  len(self.data) - len(self.stds)))
         print('  Analytes: ' + ' '.join(self.analytes))
         print('  Internal Standard: {}'.format(self.internal_standard))
+
+    def _load_dataformat(self, dataformat):
+        """
+        Load in dataformat.
+        
+        Check dataformat file exists, and store it in a class attribute.
+        If dataformat is not provided during initialisation, assign it
+        fom configuration file
+        """
+        if dataformat is None:
+            if os.path.exists(self.config['dataformat']):
+                dataformat = self.config['dataformat']
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        self.config['dataformat'])):
+                dataformat = pkgrs.resource_filename('latools',
+                                                     self.config['dataformat'])
+            else:
+                config_file = config_locator()
+                raise ValueError(('The dataformat file specified in the ' +
+                                  self.config['config'] + ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that'
+                                  'the path in the config file is correct.\n'
+                                  'Your configurations can be found here:'
+                                  '    {}\n'.format(config_file)))
+            self.dataformat_file = dataformat
+        else:
+            self.dataformat_file = 'None: dict provided'
+
+        # if it's a string, check the file exists and import it.
+        if isinstance(dataformat, str):
+            if os.path.exists(dataformat):
+                # self.dataformat = eval(open(dataformat).read())
+                self.dataformat = json.load(open(dataformat))
+            else:
+                warnings.warn(("The dataformat file (" + dataformat +
+                               ") cannot be found.\nPlease make sure the file "
+                               "exists, and that the path is correct.\n\nFile "
+                               "Path: " + dataformat))
+
+        # if it's a dict, just assign it straight away.
+        elif isinstance(dataformat, dict):
+            self.dataformat = dataformat
+    
+    def _load_srmfile(self, srm_file):
+        """
+        Check srmfile exists, and store it in a class attribute.
+        """
+        if srm_file is not None:
+            if os.path.exists(srm_file):
+                self.srmfile = srm_file
+            else:
+                raise ValueError(('Cannot find the specified SRM file:\n   ' +
+                                  srm_file +
+                                  'Please check that the file location is correct.'))
+        else:
+            if os.path.exists(self.config['srmfile']):
+                self.srmfile = self.config['srmfile']
+            elif os.path.exists(pkgrs.resource_filename('latools',
+                                                        self.config['srmfile'])):
+                self.srmfile = pkgrs.resource_filename('latools',
+                                                       self.config['srmfile'])
+            else:
+                config_file = config_locator()
+                raise ValueError(('The SRM file specified in the ' + self.config['config'] +
+                                  ' configuration cannot be found.\n'
+                                  'Please make sure the file exists, and that the '
+                                  'path in the config file is correct.\n'
+                                  'Your configurations can be found here:'
+                                  '    {}\n'.format(config_file)))
 
     def _get_samples(self, subset=None):
         """
