@@ -892,7 +892,7 @@ class analyse(object):
 
     @_log
     def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
-                              n_min=20, n_max=None, cstep=None,
+                              n_min=20, n_max=None, cstep=None, errtype='stderr',
                               bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
         Background calculation using a gaussian weighted mean.
@@ -964,11 +964,15 @@ class analyse(object):
                                                  self.bkg['raw'].loc[:, analytes].values,
                                                  self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
+        self.bkg_interps = {}
 
         for i, a in enumerate(analytes):
             self.bkg['calc'][a] = {'mean': mean[i],
                                     'std': std[i],
                                     'stderr': stderr[i]}
+            self.bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
+                                              y=un.uarray(self.bkg['calc'][a]['mean'],
+                                                          self.bkg['calc'][a][errtype]))
 
     @_log
     def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=30,
@@ -1041,12 +1045,14 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         d = self.bkg['summary']
+        self.bkg_interps = {}
         with self.pbar.set(total=len(analytes), desc='Calculating Analyte Backgrounds') as prog:
             for a in analytes:
                 p = un_interp1d(x=d.loc[:, ('uTime', 'mean')],
                                 y=un.uarray(d.loc[:, (a, 'mean')],
                                             d.loc[:, (a, errtype)]),
                                 kind=kind, bounds_error=False, fill_value='extrapolate')
+                self.bkg_interps[a] = p
                 self.bkg['calc'][a] = {'mean': p.new_nom(self.bkg['calc']['uTime']),
                                        errtype: p.new_std(self.bkg['calc']['uTime'])}
                 prog.update()
@@ -1092,18 +1098,18 @@ class analyse(object):
                 focus_stage = 'rawdata'
 
         # make uncertainty-aware background interpolators
-        bkg_interps = {}
-        for a in analytes:
-            bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
-                                         y=un.uarray(self.bkg['calc'][a]['mean'],
-                                                     self.bkg['calc'][a][errtype]))
-        self.bkg_interps = bkg_interps
+        # bkg_interps = {}
+        # for a in analytes:
+        #     bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
+        #                                  y=un.uarray(self.bkg['calc'][a]['mean'],
+        #                                              self.bkg['calc'][a][errtype]))
+        # self.bkg_interps = bkg_interps
 
         # apply background corrections
         with self.pbar.set(total=len(self.data), desc='Background Subtraction') as prog:
             for d in self.data.values():
                 # [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), None, focus_stage=focus_stage) for a in analytes]
-                [d.bkg_subtract(a, bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
+                [d.bkg_subtract(a, self.bkg_interps[a].new(d.uTime), ~d.sig, focus_stage=focus_stage) for a in analytes]
                 d.setfocus('bkgsub')
 
                 prog.update()
