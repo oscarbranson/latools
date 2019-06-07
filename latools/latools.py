@@ -170,13 +170,16 @@ class analyse(object):
                 startmsg += ' (default).'
             else:
                 startmsg += '.'
+            pretext = '  with'
+        else:
+            pretext = 'Using'
         
         if srm_file is not None:
-            startmsg += '\n  Using custom srm_file ({})'.format(srm_file)
+            startmsg += '\n  ' + pretext + ' custom srm_file ({})'.format(srm_file)
         if isinstance(dataformat, str):
-            startmsg += '\n  Using custom dataformat file ({})'.format(dataformat)
+            startmsg += '\n  ' + pretext + ' custom dataformat file ({})'.format(dataformat)
         elif isinstance(dataformat, dict):
-            startmsg += '\n  Using custom dataformat dict'
+            startmsg += '\n  ' + pretext + ' custom dataformat dict'
         print(startmsg)
 
         self._load_srmfile(srm_file)
@@ -968,8 +971,8 @@ class analyse(object):
                                     'stderr': stderr[i]}
 
     @_log
-    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=None,
-                          bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
+    def bkg_calc_interp1d(self, analytes=None, kind=1, n_min=10, n_max=None, cstep=30,
+                          bkg_filter=False, f_win=7, f_n_lim=3, errtype='stderr', focus_stage='despiked'):
         """
         Background calculation using a 1D interpolation.
 
@@ -982,7 +985,7 @@ class analyse(object):
         kind : str or int
             Integer specifying the order of the spline interpolation
             used, or string specifying a type of interpolation.
-            Passed to `scipy.interpolate.interp1D`
+            Passed to `scipy.interpolate.interp1D`.
         n_min : int
             Background regions with fewer than n_min points
             will not be included in the fit.
@@ -1030,13 +1033,9 @@ class analyse(object):
 
         if 'calc' not in self.bkg.keys():
             # create time points to calculate background
-            # if cstep is None:
-                # cstep = self.bkg['raw']['uTime'].ptp() / 100
-            # bkg_t = np.arange(self.bkg['summary']['uTime']['mean'].min(),
-            #                   self.bkg['summary']['uTime']['mean'].max(),
-            #                   cstep)
-
-            bkg_t = pad(self.bkg['summary'].loc[:, ('uTime', 'mean')], [0], [self.max_time])
+            
+            bkg_t = pad(np.ravel(self.bkg.raw.loc[:, ['uTime', 'ns']].groupby('ns').aggregate([min, max])))
+            bkg_t = np.unique(np.sort(np.concatenate([bkg_t, np.arange(0, self.max_time, cstep)])))
 
             self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
@@ -1044,12 +1043,15 @@ class analyse(object):
         d = self.bkg['summary']
         with self.pbar.set(total=len(analytes), desc='Calculating Analyte Backgrounds') as prog:
             for a in analytes:
-                self.bkg['calc'][a] = {'mean': pad(d.loc[:, (a, 'mean')].values),
-                                    'std': pad(d.loc[:, (a, 'std')].values),
-                                    'stderr': pad(d.loc[:, (a, 'stderr')].values)}
+                p = un_interp1d(x=d.loc[:, ('uTime', 'mean')],
+                                y=un.uarray(d.loc[:, (a, 'mean')],
+                                            d.loc[:, (a, errtype)]),
+                                kind=kind, bounds_error=False, fill_value='extrapolate')
+                self.bkg['calc'][a] = {'mean': p.new_nom(self.bkg['calc']['uTime']),
+                                       errtype: p.new_std(self.bkg['calc']['uTime'])}
                 prog.update()
 
-        self.bkg['calc']
+        # self.bkg['calc']
 
         return
 
@@ -1187,11 +1189,13 @@ class analyse(object):
         -------
         fig, ax : matplotlib.figure, matplotlib.axes
         """
+        # if not hasattr(self, 'bkg'):
+        #     raise ValueError("\nPlease calculate a background before attempting to\n" +
+        #                      "plot it... either:\n" +
+        #                      "   bkg_calc_interp1d\n" +
+        #                      "   bkg_calc_weightedmean\n")
         if not hasattr(self, 'bkg'):
-            raise ValueError("\nPlease calculate a background before attempting to\n" +
-                             "plot it... either:\n" +
-                             "   bkg_calc_interp1d\n" +
-                             "   bkg_calc_weightedmean\n")
+            self.get_background()
 
         if analytes is None:
             analytes = self.analytes
@@ -1200,9 +1204,9 @@ class analyse(object):
 
         if figsize is None:
             if len(self.samples) > 50:
-                figsize = (len(self.samples) * 0.15, 5)
+                figsize = (len(self.samples) * 0.2, 5)
             else:
-                figsize = (7.5, 5)
+                figsize = (10, 5)
 
         fig = plt.figure(figsize=figsize)
 
@@ -1232,21 +1236,25 @@ class analyse(object):
         else:
             ax.set_ylim(ax.get_ylim() * np.array([1, 10]))  # x10 to make sample names readable.
 
-        for a in analytes:
-            # draw confidence intervals of calculated
-            x = self.bkg['calc']['uTime']
-            y = self.bkg['calc'][a]['mean']
-            yl = self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err]
-            yu = self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err]
+        if 'calc' in self.bkg:
+            for a in analytes:
+                # draw confidence intervals of calculated
+                x = self.bkg['calc']['uTime']
+                y = self.bkg['calc'][a]['mean']
+                yl = self.bkg['calc'][a]['mean'] - self.bkg['calc'][a][err]
+                yu = self.bkg['calc'][a]['mean'] + self.bkg['calc'][a][err]
 
-            # trim values below zero if log scale=    
-            if yscale == 'log':
-                yl[yl < ax.get_ylim()[0]] = ax.get_ylim()[0]
+                # trim values below zero if log scale=    
+                if yscale == 'log':
+                    yl[yl < ax.get_ylim()[0]] = ax.get_ylim()[0]
 
-            ax.plot(x, y,
-                    c=self.cmaps[a], zorder=2, label=a)
-            ax.fill_between(x, yl, yu,
-                            color=self.cmaps[a], alpha=0.3, zorder=-1)
+                ax.plot(x, y,
+                        c=self.cmaps[a], zorder=2, label=a)
+                ax.fill_between(x, yl, yu,
+                                color=self.cmaps[a], alpha=0.3, zorder=-1)
+        else:
+            for a in analytes:
+                ax.plot([], [], c=self.cmaps[a], label=a)
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Background Counts')
