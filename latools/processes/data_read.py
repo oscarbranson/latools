@@ -6,6 +6,7 @@ Function for reading LA-ICPMS data files.
 import re, os
 import numpy as np
 from io import BytesIO
+import json
 from ..helpers.helpers import Bunch
 
 def read_data(data_file, dataformat, name_mode):
@@ -123,3 +124,15 @@ def read_data(data_file, dataformat, name_mode):
     data['total_counts'] = np.nansum(read_data[dind], 0)
 
     return sample, analytes, data, meta
+
+def read_dataformat(file):
+    """
+    Reads a dataformat .json file and returns it as a dict.
+
+    Parameters
+    ----------
+    file : str
+        Path to dataformat.json file.
+    """
+
+    return json.load(open(file))
