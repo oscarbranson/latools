@@ -32,6 +32,12 @@ def read_configuration(config='DEFAULT'):
     conf['config'] = config
     return conf
 
+def config_locator():
+    """
+    Returns the path to the file containing your LAtools configurations.
+    """
+    return pkgrs.resource_filename('latools', 'latools.cfg')
+
 # under-the-hood functions
 def read_latoolscfg():
     """
