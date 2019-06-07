@@ -14,6 +14,7 @@ from .latools import analyse as analyze  # for the yanks
 from .helpers.helpers import get_example_data
 from .helpers.stat_fns import nominal_values, std_devs
 from .helpers import config
+from .helpers import chemistry
 from . import preprocessing
 
 def cite(output='text'):
