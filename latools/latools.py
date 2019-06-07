@@ -13,6 +13,7 @@ import re
 import time
 import warnings
 import dateutil
+import textwrap
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -146,7 +147,7 @@ class analyse(object):
                                if extension in f])
 
         # set line length for outputs
-        self._line_length = 80
+        self._line_width = 80
 
         # make output directories
         self.report_dir = re.sub('//', '/',
@@ -222,7 +223,7 @@ class analyse(object):
             for d in data:
                 d.uTime = d.Time + ts
                 ts += d.Time[-1]
-            msg = self._overflow_text( 
+            msg = self._wrap_text( 
                           "Time not determined from dataformat. Universal time scale " +
                           "approximated as continuously measured samples. " +
                           "Samples might not be in the right order. "
@@ -334,30 +335,22 @@ class analyse(object):
                'samples').format(len(self.data),
                                  len(self.stds),
                                  len(self.data) - len(self.stds)))
-        astr = self._overflow_text('Analytes: ' + ' '.join(self.analytes))
+        astr = self._wrap_text('Analytes: ' + ' '.join(self.analytes))
         print(astr)
         print('  Internal Standard: {}'.format(self.internal_standard))
 
     def _fill_line(self, char, newline=True):
         """Generate a full line of given character"""
         if newline:
-            return char * self._line_length + '\n'
+            return char * self._line_width + '\n'
         else:
-            return char * self._line_length
+            return char * self._line_width
 
-    def _overflow_text(self, text):
-        """Splits text over multiple lines to fit within self._line_length"""
-        out = ['']
-        for word in text.split():
-            if len(out[-1]) + len(word) <= self._line_length:
-                out[-1] += word
-            else:
-                out.append(word)
-            
-            if len(out[-1]) + 1 <= self._line_length:
-                out[-1] += ' '
-        out[-1] = out[-1][:-1]
-        return '\n  '.join(out)
+    def _wrap_text(self, text):
+        """Splits text over multiple lines to fit within self._line_width"""
+        return '\n'.join(textwrap.wrap(text, width=self._line_width, 
+                                       break_long_words=False))
+
     
     def _wrap_msg(self, msg, char):
         return self._fill_line(char) + msg + '\n' + self._fill_line(char, False)
@@ -1848,7 +1841,7 @@ class analyse(object):
     # TODO: Re-factor filtering to use 'classifier' objects?
 
     # functions for calculating mass fraction (ppm)
-    def get_sample_list(self, save_as=None):
+    def get_sample_list(self, save_as=None, overwrite=False):
         """
         Save a csv list of of all samples to be populated with internal standard concentrations.
 
@@ -1858,18 +1851,23 @@ class analyse(object):
             Location to save the file. Defaults to the export directory.
         """
         if save_as is None:
-            save_as = os.path.join(self.export_dir, 'internal_standard_concentrations.csv')
-        empty = pd.DataFrame(index=self.samples, columns='internal_standard_concentration')
+            save_as = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+        if os.path.exists(save_as):
+            if not overwrite:
+                raise IOError('File exists. Please change the save location or specify overwrite=True')
+
+        empty = pd.DataFrame(index=self.samples, columns=['int_stand_massfrac'])
         empty.to_csv(save_as)
+        print(self._wrap_text('Sample List saved to {} \nPlease modify and re-import using read_internal_standard_concs()'.format(save_as)))
 
     def read_internal_standard_concs(self, sample_concs=None):
         """
         Load in a per-sample list of internal sample concentrations.
         """
         if sample_concs is None:
-            sample_concs = os.path.join(self.export_dir, 'internal_standard_concentrations.csv')
+            sample_concs = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
         
-        return pd.read_csv(sample_concs)
+        return pd.read_csv(sample_concs, index_col=0)
 
 
     @_log
@@ -1902,8 +1900,8 @@ class analyse(object):
         else:
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
                 for k, d in self.data.items():
-                    if k in isc:
-                        d.calc_mass_fraction(isc.loc[k], analytes, analyte_masses)
+                    if k in isc.index:
+                        d.calc_mass_fraction(isc.loc[k].values[0], analytes, analyte_masses)
                     else:
                         d.calc_mass_fraction(np.nan, analytes, analyte_masses)
                     prog.update()
