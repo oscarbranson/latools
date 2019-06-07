@@ -161,7 +161,8 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
               'ratios': 'counts/{:s} count',
-              'calibrated': 'mol/mol {:s}'}
+              'calibrated': 'mol/mol {:s}',
+              'mass_fraction': 'Mass Fraction'}
         if focus_stage in ['ratios', 'calibrated']:
             ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
@@ -242,7 +243,8 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
               'despiked': 'counts/s',
               'bkgsub': 'background corrected counts/s',
               'ratios': 'counts/{:s} count/s',
-              'calibrated': 'mol/mol {:s}/s'}
+              'calibrated': 'mol/mol {:s}/s',
+              'mass_fraction': 'Mass Fraction/s'}
         if focus_stage in ['ratios', 'calibrated']:
             ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
