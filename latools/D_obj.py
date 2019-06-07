@@ -542,13 +542,14 @@ class D(object):
         self.setfocus('calibrated')
         return
 
-    def calc_mass_fraction(self, internal_standard_conc, analytes=None):
+    def calc_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
         if analytes is None:
             analytes = self.analytes.difference(self.internal_standard)
         if 'mass_fraction' not in self.data.keys():
             self.data['mass_fraction'] = Bunch()
 
-        masses = analyte_mass(self.analytes)
+        if analyte_masses is None:
+            analyte_masses = analyte_mass(self.analytes)
         
         if np.isnan(internal_standard_conc):
             for a in analytes:
@@ -556,7 +557,9 @@ class D(object):
         else:
             for a in analytes:
                 self.data['mass_fraction'][a] = to_mass_fraction(self.data['calibrated'][a], internal_standard_conc,
-                                                                masses[a], masses[self.internal_standard])
+                                                                analyte_masses[a], analyte_masses[self.internal_standard])
+        
+        self.setfocus('mass_fraction')
 
 
     # Function for calculating sample statistics

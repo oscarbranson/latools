@@ -41,6 +41,7 @@ from .helpers.stat_fns import *
 from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
+from .helpers.chemistry import analyte_mass
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1872,7 +1873,7 @@ class analyse(object):
 
 
     @_log
-    def calculate_mass_fraction(self, internal_standard_conc, analytes=None):
+    def calculate_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
         """
         Convert calibrated molar ratios to mass fraction.
 
@@ -1885,24 +1886,30 @@ class analyse(object):
         if analytes is None:
             analytes = self.analytes.difference(self.internal_standard)
 
-        internal_standard_conc = isc
+        if analyte_masses is None:
+            analyte_masses = analyte_mass(self.analytes, False)
+
+        isc = internal_standard_conc
 
         if isinstance(isc, str) or isc is None:
-            isc = read_internal_standard_concs(isc)
+            isc = self.read_internal_standard_concs(isc)
 
         if not isinstance(isc, pd.core.frame.DataFrame):
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
                 for d in self.data.values():
-                    d.calc_mass_fraction(isc, analytes)
+                    d.calc_mass_fraction(isc, analytes, analyte_masses)
                     prog.update() 
         else:
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
                 for k, d in self.data.items():
                     if k in isc:
-                        d.calc_mass_fraction(isc.loc[k], analytes)
+                        d.calc_mass_fraction(isc.loc[k], analytes, analyte_masses)
                     else:
-                        d.calc_mass_fraction(np.nan, analytes)
-                    prog.update() 
+                        d.calc_mass_fraction(np.nan, analytes, analyte_masses)
+                    prog.update()
+
+        self.stages_complete.update(['mass_fraction'])
+        self.focus_stage = 'mass_fraction'
 
 
 
@@ -3787,7 +3794,7 @@ class analyse(object):
         else:
             samples = [s for s in self.samples if self.srm_identifier not in s]
 
-        with self.pbar.set(total=len(self.samples), desc='Calculating Stats') as prog:
+        with self.pbar.set(total=len(samples), desc='Calculating Stats') as prog:
             for s in samples:
                 self.data[s].sample_stats(analytes, filt=filt,
                                           stat_fns=stat_fns,
