@@ -57,15 +57,14 @@ def read_data(data_file, dataformat, name_mode):
                 for line in lines:
                     if pattern in line:
                         break
-                out = re.search(v[-1], line).groups()
             else:
-                try:
-                    out = re.search(v[-1], lines[int(k)]).groups()
-                except:
-                    raise ValueError('Failed reading metadata when applying:\n  regex: {}\nto\n  line: {}'.format(v[-1], lines[int(k)]))
-            for i in np.arange(len(v[0])):
-                meta[v[0][i]] = out[i]
+                line = lines[int(k)]
 
+            if re.match(v[-1], line):
+                out = re.search(v[-1], line).groups()
+                for i in np.arange(len(v[0])):
+                    meta[v[0][i]] = out[i]
+ 
     # sample name
     if name_mode == 'file_names':
         sample = os.path.basename(os.path.splitext(data_file)[0])
