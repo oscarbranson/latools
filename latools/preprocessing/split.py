@@ -14,7 +14,7 @@ import pkg_resources as pkgrs
 from warnings import warn
 from ..processes import read_data, autorange
 from ..helpers.helpers import analyte_2_namemass, bool_2_indices
-from ..helpers.config import read_configuration
+from ..helpers.io import read_dataformat
 
 import matplotlib.pyplot as plt
 
@@ -152,16 +152,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             srm_replace.append(s)
         sample_list = srm_replace
     
-    if isinstance(dataformat, str):
-        if os.path.exists(dataformat):
-            print('Reading dataformat.json file...')
-            dataformat = json.load(open(dataformat))
-        else:
-            print('Getting dataformat from {} configuration...'.format(dataformat))
-            config = read_configuration(dataformat)
-            df_file = pkgrs.resource_filename('latools', config['dataformat'])
-            print('Reading dataformat.json file...')
-            dataformat = json.load(open(df_file))
+    dataformat = read_dataformat(dataformat, silent=False)
                     
     _, _, dat, meta = read_data(data_file, dataformat=dataformat, name_mode='file')
     
