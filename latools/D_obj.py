@@ -45,9 +45,8 @@ class D(object):
         Whether or not to print each data file name before
         import. This is useful for tracing which data file
         is causing the import to fail.
-    dataformat : str or dict
-        Either a path to a data format file, or a
-        dataformat dict. See documentation for more details.
+    dataformat : dict
+        A dataformat dict. See documentation for more details.
 
     Attributes
     ----------
