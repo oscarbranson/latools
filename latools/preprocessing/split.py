@@ -13,8 +13,10 @@ import pandas as pd
 import pkg_resources as pkgrs
 from warnings import warn
 from ..processes import read_data, autorange
-from ..helpers.helpers import analyte_2_namemass
+from ..helpers.helpers import analyte_2_namemass, bool_2_indices
 from ..helpers.config import read_configuration
+
+import matplotlib.pyplot as plt
 
 def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=0, trim_head_lines=0):
     """
@@ -97,7 +99,7 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
-def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, **autorange_args):
+def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, **autorange_args):
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
 
@@ -250,6 +252,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         for k, v in dat['rawdata'].items():
             sections[s]['rawdata'][k] = v[lo:hi]
         sections[s]['starttime'] = d + datetime.timedelta(seconds=np.nanmin(sections[s]['oTime']))
+        sections[s]['total_counts'] = dat['total_counts'][lo:hi]
     
     # save output
     if savedir is None:
@@ -266,14 +269,14 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         header.append('# ')
     
     flist = [savedir]
-    for s, dat in sections.items():
+    for s, sdat in sections.items():
         iheader = header.copy()
         iheader.append('# Sample: {}'.format(s))
-        iheader.append('# Analysis Time: {}'.format(dat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
+        iheader.append('# Analysis Time: {}'.format(sdat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
     
         iheader = '\n'.join(iheader) + '\n'
         
-        out = pd.DataFrame({analyte_2_namemass(k): v for k, v in dat['rawdata'].items()}, index=dat['Time'])
+        out = pd.DataFrame({analyte_2_namemass(k): v for k, v in sdat['rawdata'].items()}, index=sdat['Time'])
         out.index.name = 'Time'
         csv = out.to_csv()
         
@@ -283,4 +286,38 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         flist.append('   {}.csv'.format(s))
     
     print("Success! File split into {} sections.\n Saved to: {}\n\nImport the split files using the 'REPRODUCE' configuration.".format(n, '\n'.join(flist)))
-    return None
+    
+    if plot:
+        return plot_long_file_split(dat, sig, bkg, sections)
+    else:
+        return None
+    # return dat, sig, sections
+
+def plot_long_file_split(dat, sig, bkg, sections):
+    n = len(sections)
+
+    fig, ax = plt.subplots(1, 1, figsize=(n * 1.5, 2.5))
+
+    ax.plot(dat['Time'], dat['total_counts'], c=(0,0,0,0))
+    ax.set_yscale('log')
+    ax.set_xlim(dat['Time'].min(), dat['Time'].max())
+
+    ylim = ax.get_ylim()
+    yrng = np.ptp(ylim)
+    xlim = ax.get_xlim()
+    xrng = np.ptp(xlim)
+
+    for s, d in sections.items():
+        line = ax.plot(d['oTime'], d['total_counts'])
+        ax.axvline(d['oTime'][0], color=line[0].get_color())
+        ax.text(d['oTime'][0] + 0.02 * xrng / n, ylim[0] + 0.95 * yrng, s, rotation=90, ha='left', va='top', color=line[0].get_color())
+
+    sigs = bool_2_indices(sig)
+    for slo, shi in sigs:
+        ax.axvspan(dat['Time'][slo], dat['Time'][shi], zorder=-2, color=(.8,.7,0,0.15), lw=0)
+
+    bkgs = bool_2_indices(bkg)
+    for blo, bhi in bkgs:
+        ax.axvspan(dat['Time'][blo], dat['Time'][bhi], zorder=-2, color=(.2,.2,0,0.1), lw=0)
+    
+    return fig, ax
