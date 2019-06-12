@@ -59,12 +59,11 @@ def read_data(data_file, dataformat, name_mode):
                         break
             else:
                 line = lines[int(k)]
-
-            if re.match(v[-1], line):
+            if re.search(v[-1], line):
                 out = re.search(v[-1], line).groups()
-                for i in np.arange(len(v[0])):
-                    meta[v[0][i]] = out[i]
- 
+                for p, r in zip(v[0], out):
+                    meta[p] = r
+
     # sample name
     if name_mode == 'file_names':
         sample = os.path.basename(os.path.splitext(data_file)[0])
