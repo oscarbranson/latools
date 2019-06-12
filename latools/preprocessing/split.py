@@ -5,13 +5,16 @@ Functions for splitting long files into multiple short ones.
 """
 import re
 import os
+import json
 import datetime
 import dateutil
 import numpy as np
 import pandas as pd
+import pkg_resources as pkgrs
 from warnings import warn
 from ..processes import read_data, autorange
 from ..helpers.helpers import analyte_2_namemass
+from ..helpers.config import read_configuration
 
 def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=0, trim_head_lines=0):
     """
@@ -94,7 +97,7 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
-def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, **autorange_args):
+def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, **autorange_args):
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
 
@@ -136,8 +139,8 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             sample_list = np.genfromtxt(sample_list, dtype=str)
         else:
             raise ValueError('File {} not found.')
-    elif not isinstance(sample_list, (list, np.ndarray)):
-        raise ValueError('sample_list should be an array_like or a file.')
+    else:
+        sample_list = np.asanyarray(sample_list)
         
     if srm_id is not None:
         srm_replace = []
@@ -146,7 +149,18 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
                 s = srm_id
             srm_replace.append(s)
         sample_list = srm_replace
-                
+    
+    if isinstance(dataformat, str):
+        if os.path.exists(dataformat):
+            print('Reading dataformat.json file...')
+            dataformat = json.load(open(dataformat))
+        else:
+            print('Getting dataformat from {} configuration...'.format(dataformat))
+            config = read_configuration(dataformat)
+            df_file = pkgrs.resource_filename('latools', config['dataformat'])
+            print('Reading dataformat.json file...')
+            dataformat = json.load(open(df_file))
+                    
     _, _, dat, meta = read_data(data_file, dataformat=dataformat, name_mode='file')
     
     if 'date' in meta:
@@ -162,29 +176,53 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     else:
         valid = list(dat['rawdata'].keys()) + ['total_counts']
         raise ValueError("'{}' is not a valid analyte. Please use one of:\n  {}".format(analyte, valid))
-        
+    
     # autorange
     bkg, sig, _, _ = autorange(dat['Time'], y_data, **autorange_args)
     
     ns = np.zeros(sig.size)
     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
-    
     n = int(max(ns))
-    
-    if len(sample_list) != n:
-        warn('Length of sample list ({}) does not match number of ablations in file ({}).\n'.format(len(sample_list), n) +
-             'We will continue, but please make sure the assignments are correct.')
-    
+
+    nsamples = len(sample_list)
+
+    if nsamples != n:
+        print('Number of samples in list ({}) does not match number of ablations ({}).'.format(nsamples, n))
+        if nsamples < n:
+            print('  -> There are more ablations than samples...')
+            if defrag_to_match_sample_list:
+                print('     Removing data fragments to match sample list length.')
+                while nsamples < n:
+                    min_points += 1
+                    sig = sig & np.roll(sig, min_points)
+                    ns = np.zeros(sig.size)
+                    ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
+                    n = int(max(ns))
+                print('       (Removed data fragments < {} points long)'.format(min_points))
+        elif isinstance(min_points, (int, float)):
+            # minimum point filter
+            sig = sig & np.roll(sig, min_points)
+            ns = np.zeros(sig.size)
+            ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
+            n = int(max(ns))
+        else:
+            print('  -> There are more samples than ablations...')
+            print('     Check your sample list is correct. If so, consider')
+            print('     adding autorange_params to change the signal detection.')
+            return
+
+    minn = min([len(sample_list), n])
+
     # calculate split boundaries
     bounds = []
     lower = 0
     sn = 0
     next_sample = ''
-    for ni in range(n-1):
+    for ni in range(minn-1):
         sample = sample_list[sn]
         next_sample = sample_list[sn + 1]
-                
-        if sample != next_sample:
+        
+        if not combine_same_name or sample != next_sample:
             current_end = np.argwhere(dat['Time'] == dat['Time'][ns == ni + 1].max())[0]
             next_start = np.argwhere(dat['Time'] == dat['Time'][ns == ni + 2].min())[0]
             upper = (current_end + next_start) // 2
@@ -192,7 +230,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             bounds.append((sample, (int(lower), int(upper))))
 
             lower = upper + 1
-
+                
         sn += 1
 
     bounds.append((sample_list[-1], (int(upper) + 1, len(ns))))
@@ -244,5 +282,5 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             f.write(csv)
         flist.append('   {}.csv'.format(s))
     
-    print("File split into {} sections.\n Saved to: {}\n\n Import using the 'REPRODUCE' configuration.".format(n, '\n'.join(flist)))
+    print("Success! File split into {} sections.\n Saved to: {}\n\nImport the split files using the 'REPRODUCE' configuration.".format(n, '\n'.join(flist)))
     return None
