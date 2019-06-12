@@ -49,17 +49,22 @@ def read_data(data_file, dataformat, name_mode):
     with open(data_file) as f:
         lines = f.readlines()
 
+    meta = Bunch()
     if 'meta_regex' in dataformat.keys():
-        meta = Bunch()
         for k, v in dataformat['meta_regex'].items():
-            try:
-                out = re.search(v[-1], lines[int(k)]).groups()
-            except:
-                raise ValueError('Failed reading metadata when applying:\n  regex: {}\nto\n  line: {}'.format(v[-1], lines[int(k)]))
+            if 'contains__' in k:
+                pattern = k.split('__')[-1]
+                for line in lines:
+                    if pattern in line:
+                        break
+                out = re.search(v[-1], line).groups()
+            else:
+                try:
+                    out = re.search(v[-1], lines[int(k)]).groups()
+                except:
+                    raise ValueError('Failed reading metadata when applying:\n  regex: {}\nto\n  line: {}'.format(v[-1], lines[int(k)]))
             for i in np.arange(len(v[0])):
                 meta[v[0][i]] = out[i]
-    else:
-        meta = {}
 
     # sample name
     if name_mode == 'file_names':
