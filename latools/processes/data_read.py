@@ -68,7 +68,7 @@ def read_data(data_file, dataformat, name_mode):
 
     # sample name
     if name_mode == 'file_names':
-        sample = os.path.basename(data_file).split('.')[0]
+        sample = os.path.basename(os.path.splitext(data_file)[0])
     elif name_mode == 'metadata_names':
         sample = meta['name']
     else:
