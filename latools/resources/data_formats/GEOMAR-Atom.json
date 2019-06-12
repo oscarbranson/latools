@@ -1,0 +1,17 @@
+{
+    "__note__": "Be aware of rules regarding the use of special characters in .json files. Google this.",
+    "meta_regex": {
+       "contains__Date:": [["date"], ".*([0-9:]{8} [0-9/]+).*"]
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timecolumn": 1,
+        "name_row": 48,
+        "pattern": "([A-z]{1,3}\\([0-9]{1,3}\\))"
+    },
+    "genfromtext_args": {
+        "delimiter": ",",
+        "skip_header": 52
+    },
+    "time_format": "%H:%M:%S %d/%b/%Y"
+}
