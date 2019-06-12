@@ -1,7 +1,18 @@
 {
     "__note__": "Be aware of rules regarding the use of special characters in .json files. Google this.",
     "meta_regex": {
-       "contains__Date:": [["date"], ".*([0-9:]{8} [0-9/]+).*"]
+       "contains__Date:": [["date"], ".*([0-9:]{8} [0-9/]+).*"],
+       "contains__Run:": [["run"], ".*\"(.*)\""],
+       "contains__Cycles": [["n_cycles"], "([0-9]+)"],
+       "contains__Sweeps": [["n_sweeps"], "([0-9]+)"],
+       "contains__IC Deadtime": [["ic_deadtime"], "([0-9+-E]+)"],
+       "contains__IC Attenuation": [["ic_attenuation_factor"], "([0-9.]+)"],
+       "contains__IC Faraday": [["ic_faraday_factor"], "([0-9.]+)"],
+       "contains__Peak Integration Window": [["peak_window_size"], "([0-9]+)"],
+       "contains__Faraday Baseline": [["faraday_baseline"], "([0-9.]+)"],
+       "contains__Resolution": [["resolution"], "([0-9.]+)"],
+       "contains__Servo Integration": [["servo_integration_time"], "([0-9.]+)"],
+       "contains__TRA Integration": [["tra_integration_time"], "([0-9.]+)"]
     },
     "column_id": {
         "delimiter": ",",
