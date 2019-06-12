@@ -26,11 +26,17 @@ def read_configuration(config='DEFAULT'):
     if config == 'DEFAULT':
         config = conf['DEFAULT']['config']
 
-    # grab the chosen configuration
-    conf = dict(conf[config])
-    # update config name with chosen
-    conf['config'] = config
-    return conf
+    try:
+        # grab the chosen configuration
+        conf = dict(conf[config])
+        # update config name with chosen
+        conf['config'] = config
+        return conf
+    except KeyError:
+        msg = "\nError: '{}' is not a valid configuration.\n".format(config)
+        msg += 'Please use one of:\n  DEFAULT\n  ' + '\n  '.join(conf.sections())
+        print(msg + '\n')
+        raise KeyError('Invalid configuration: {}'.format(config))
 
 def config_locator():
     """
@@ -372,6 +378,10 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
             raise ValueError('no analyte names identified. Check pattern in column_id section.')
         print('    Cleaned Analyte Names: ' + ', '.join(analytes))
         print('        ***This should only contain analyte names... does it?***')
+    
+    if 'junk_column_patterns' in dataformat['column_id'].keys():
+        jr = re.compile('|'.join(dataformat['column_id']['junk_column_patterns']))
+        read_columns = [c for c in columns if jr.match(c) or c in analytes]
 
     # do any required pre-formatting
     if 'preformat_replace' in dataformat.keys():
@@ -403,8 +413,8 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
                   '        If they look correct, think about including preformat_replace terms?')
             raise
     
-    print('    checking number of columns == number of analytes...')
-    if read_data.shape[0] != len(analytes) + 1:
+    print('    checking number of columns...')
+    if read_data.shape[0] != len(read_columns) + 1:
         print('        ***PROBLEM: ' + 
               'There are {:.0f} data columns, but {:.0f} column names.\n'.format(read_data.shape[0], len(analytes) + 1) +
               '        Check your identification of column names, or your pre-formatting parameters')
