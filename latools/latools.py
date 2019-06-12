@@ -1403,7 +1403,6 @@ class analyse(object):
             stdtab.sort_index(inplace=True)
 
             # create 'SRM' column for naming SRM
-            stdtab.loc[:, 'SRM'] = ''
             stdtab.loc[:, 'STD'] = s.sample
 
             s.stdtab = stdtab
@@ -1454,6 +1453,8 @@ class analyse(object):
         # get mean and standard deviations of measured standards
         self.srm_compile_measured(n_min)
         stdtab = self.stdtab.copy()
+        stdtab.loc[:, 'SRM'] = ''
+
 
         # load corresponding SRM database
         self.srm_load_database(srms_used, reload_srm_database)
