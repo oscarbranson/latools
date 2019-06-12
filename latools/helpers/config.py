@@ -309,12 +309,12 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
           '  Data File: {:s}'.format(data_file) + '\n' +
           '*************************************************')
     
-    print('  Test: open data file...')
+    print('\n  Test: open data file...')
     with open(data_file) as f:
         lines = f.readlines()    
     print('    Success!')
     
-    print('  Test: read dataformat file...')
+    print('\n  Test: read dataformat file...')
     # if dataformat is not a dict, load the json
     try:
         with open(dataformat_file) as f:
@@ -324,22 +324,32 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         print("        ***PROBLEM: The dataformat file isn't in a valid .json format")
         raise
     
-    print("  Test: read metadata using 'metadata_regex'...")
+    print("\n  Test: read metadata using 'metadata_regex'...")
     meta = Bunch()
     if 'meta_regex' in dataformat.keys():
         got = []
         for k, v in dataformat['meta_regex'].items():
-            rep = '    Line {:s}: '.format(k)
+            rep = '    Line "{:s}":'.format(k)
             try:
-                out = re.search(v[-1], lines[int(k)]).groups()
+                if 'contains__' in k:
+                    pattern = k.split('__')[-1]
+                    for line in lines:
+                        if pattern in line:
+                            break
+                else:
+                    line = lines[int(k)]
+                
+                out = re.search(v[-1], line).groups()
+
+                print(rep)
                 for i in np.arange(len(v[0])):
                     meta[v[0][i]] = out[i]
-                    print(rep + v[0][i] + ': ' + out[i])
+                    print('      ' + v[0][i] + ': ' + out[i])
                     got.append(v[0][i])
             except:
-                print(rep + '***PROBLEM in meta_regex:\n'.format(k) + 
+                print(rep + '\n    ***PROBLEM in meta_regex:\n' + 
                       '        [' + ', '.join(v[0]) + '] cannot be derived from "' + v[1] + '".\n' + 
-                      '        Test regex against: "{:s}"'.format(lines[int(k)].strip()) + '\n' + 
+                      '        Test regex against: "{:s}"'.format(line.strip()) + '\n' + 
                       '        at https://regex101.com/.')
                 raise
         print('    Finished - does the above look correct?')
@@ -353,7 +363,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         # raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
     
     # sample name
-    print('  Test: Sample Name IDs...')
+    print('\n  Test: Sample Name IDs...')
     if name_mode == 'file_names':
         sample = os.path.basename(data_file).split('.')[0]
         print('    Sample name grabbed from file: ' + sample)
@@ -367,7 +377,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     print('        ***Is the sample name correct?***')
     
     # column and analyte names
-    print('  Test: Getting Column Names...')
+    print('\n  Test: Getting Column Names...')
     columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
     print('    Columns from line {:.0f}: '.format(dataformat['column_id']['name_row']) + ', '.join(columns))
     if 'pattern' in dataformat['column_id'].keys():
@@ -379,13 +389,9 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         print('    Cleaned Analyte Names: ' + ', '.join(analytes))
         print('        ***This should only contain analyte names... does it?***')
     
-    if 'junk_column_patterns' in dataformat['column_id'].keys():
-        jr = re.compile('|'.join(dataformat['column_id']['junk_column_patterns']))
-        read_columns = [c for c in columns if jr.match(c) or c in analytes]
-
     # do any required pre-formatting
     if 'preformat_replace' in dataformat.keys():
-        print('  Test: preformat_replace...')
+        print('\n  Test: preformat_replace...')
         with open(data_file) as f:
             fbuffer = f.read()
         for k, v in dataformat['preformat_replace'].items():
@@ -393,7 +399,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
             fbuffer = re.sub(k, v, fbuffer)
         print('    Done.')
         
-        print('  Test: Reading Pre-Formatted Data...')
+        print('\n  Test: Reading Pre-Formatted Data...')
         # dead data
         try:
             read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
@@ -403,7 +409,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
                   '        and preformat_replace terms?')
             raise
     else:
-        print('  Test: Reading Data...')
+        print('\n  Test: Reading Data...')
         # read data
         try:
             read_data = np.genfromtxt(data_file,
@@ -413,17 +419,18 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
                   '        If they look correct, think about including preformat_replace terms?')
             raise
     
-    print('    checking number of columns...')
-    if read_data.shape[0] != len(read_columns) + 1:
-        print('        ***PROBLEM: ' + 
-              'There are {:.0f} data columns, but {:.0f} column names.\n'.format(read_data.shape[0], len(analytes) + 1) +
-              '        Check your identification of column names, or your pre-formatting parameters')
-        raise ValueError('Data - Column Name mismatch')
-    else:
-        print('    Success!')
+    # print('    checking number of columns...')
+    # if read_data.shape[0] != len(analytes) + 1:
+    #     print('***\nPROBLEM:\n' + 
+    #           'There are {:.0f} data columns, but {:.0f} column names.\n'.format(read_data.shape[0], len(analytes) + 1) +
+    #           '   This shouldn't be a problem
+    #           '   Check your identification of column names, or your pre-formatting parameters.\n***')
+    #     # raise ValueError('Data - Column Name mismatch')
+    # else:
+    #     print('    Success!')
     
     # data dict
-    print('  Test: Combine data into dictionary...')    
+    print('\n  Test: Combine data into dictionary...')    
     dind = np.ones(read_data.shape[0], dtype=bool)
     dind[dataformat['column_id']['timecolumn']] = False
 
@@ -439,7 +446,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     data['total_counts'] = read_data[dind].sum(0)
     print('    Success!')
     
-    print('Tests completed successfully.\n' +
+    print('\nTests completed successfully.\n' +
           '  **This does not necessarily mean everything has worked!**\n' +
           '    Look carefully through the output of this function, and\n' +
           '    make sure it looks right.\n\n' +
