@@ -23,12 +23,11 @@ An ideal data structure would look something like this:
 
 Where each of the .csv files within the 'data/' contains one or more ablations of a single sample, or numerous standards (i.e. STD-1 could contain ablations of three different standards).
 The names of the .csv files are used to label the data throughout analysis, so should be unique, and meaningful.
-Standards are recognised by :mod:`latools.analyse` by the presence of identifying characters that are present in all standard names, in this case ``'STD'``.
+Standards are recognised by :meth:`~latools.latools.analyse` by the presence of identifying characters that are present in all standard names, in this case ``'STD'``.
 
-When importing the data, you give :mod:`latools.analyse` the ``data/`` folder, and some information about the SRM identifier (``srm_identifier='STD'``) and the file extension (``extension='.csv'``), and it imports all data files in the folder.
+When importing the data, you give :meth:`~latools.latools.analyse` the ``data/`` folder, and some information about the SRM identifier (``srm_identifier='STD'``) and the file extension (``extension='.csv'``), and it imports all data files in the folder.
 
-
-.. TODO:: Some labs save an entire analytical session in a single data file. There are plans to accommodate this in future, but it's not implemented yet. At present, the only way to analyse this type of data in ``latools`` is to split them up into separate files, following the file structure above. If you would like us to work on this, please `let us know <https://github.com/oscarbranson/latools/issues/16>`_, otherwise it will stay near the bottom of the pile...
+.. important:: If you data are not in this format (e.g. all your data are stored in one long file), you'll need to convert them into this format to use ``latools``. You can find Information on how to do this in the :ref:`preprocessing` pages.
 
 2. Data Format
 ==============
@@ -41,33 +40,41 @@ The data format description is stored in a plain-text file, in the `JSON <https:
 In practice, the format description consists of a number of names entries with corresponding values, which are read and interpreted by ``latools``.
 A generic JSON file might look something like this:
 
-.. code-block:: python
+.. code-block:: JSON
 
     {
-    'entry_1': 'value',
-    'entry_2': ['this', 'is', 'a', 'list'],
-    'entry_3': (['a', 'set', 'of'], 'three', 'values')
+        'entry_1': 'value',
+        'entry_2': ['this', 'is', 'a', 'list'],
+        'entry_3': (['a', 'set', 'of'], 'three', 'values')
     }
+
+.. tip:: There are a number of characters that are special in the JSON format (e.g. ``/ \ "``). If you want to include these characters in the file, you have to 'escape' them (i.e. mark them as special) by preceding them with a ``\``. If this sounds too confusing, you can just use an `online formatter <https://www.freeformatter.com/json-escape.html>`_ to make sure all your entries are JSON-safe.
 
 Required Sections
 ^^^^^^^^^^^^^^^^^
-
-To work correctly, the ``latools`` dataformat file must contain three, specific entries:
   - ``meta_regex`` contains information on how to read the 'metadata' in the file header. Each entry has the form:
-  ::
 
-    {
-        "meta_regex": {
-            "line_number": [["metadata_name"], "Regular Expression with a capture group."]
+    .. code-block:: JSON
+
+        {
+            "meta_regex": {
+                "line": [["metadata_name"], "Regular Expression with a capture group."],
+            }
         }
-    }
 
-  Don't worry at this point if 'Regular Expression' and 'capture group' mean nothing to you. :ref:`We'll get to that later <regex>`.
+    Don't worry at this point if 'Regular Expression' and 'capture group' mean nothing to you. :ref:`We'll get to that later <regex>`.
 
-  .. warning:: The ``meta_regex`` component of the dataformat description **must** contain an entry that finds the 'date' of the analysis. Background and drift correction depend upon having this information. That is, it must have an entry like ``{"N": {["date"], "regex_string"}}``, where ``"N"`` is a line number (in quotation), and ``regex_string`` isolates the analysis date of the file, as demonstrated `here <https://regex101.com/r/jfPV3Z/1>`_.
+    Replace ``line`` with an identifier that selects the line in the data file that the regex is applied to. There are two ways to do this.
+
+    **What should** ``"line"`` **be?**:
+        - A number in quotations to pick out a line in the file, e.g. ``"3"`` to extract the fourth line of the file (remember here that python starts counting at zero). This works well if the file header is *always* the same.
+        - A word or string of characters that is *always* in the line (i.e. won't change from file to file). For example you could use ``"Date:"``, and ``latools`` will find the first line in the file that contains ``Date:`` and apply your regular expression to it. This is useful for formats where the header size can vary depending on the analysis.
+
+    .. tip:: The ``meta_regex`` component of the dataformat description should contain an entry that finds the 'date' of the analysis. This is used to define the time scale of the whole session which background and drift correction depend upon. This should be specified as``{"line": {["date"], "regex_string"}}`` where ``regex_string`` isolates the analysis date of the file in a capture group, as demonstrated `here <https://regex101.com/r/jfPV3Z/1>`_. If you don't identify a date in the metadata, ``latools`` will assume all your analyses were done consecutively with no time gaps between them, and in the order of their sample names. This can cause some unexpected behaviour in the analysis...
 
   - ``column_id`` contains information on where the column names of the data are, and how to interpret them. This requires 4 specific entries, and should look something like:
-  ::
+
+  .. code-block:: JSON
 
     {
         "column_id": {
@@ -78,7 +85,8 @@ To work correctly, the ``latools`` dataformat file must contain three, specific 
         }
     }
   - ``genfromtext_args`` contains information on how to read the actual data table. ``latools`` uses Numpy's :func:`~numpy.genfromtxt` function to read the raw data, so this section can contain any valid arguments for the :func:`~numpy.genfromtxt` function. For example, you might include:
-  ::
+  
+  .. code-block:: JSON
 
     {
         "genfromtext_args": {
@@ -90,7 +98,8 @@ To work correctly, the ``latools`` dataformat file must contain three, specific 
 Optional Sections
 ^^^^^^^^^^^^^^^^^
   - ``preformat_replace``. Particularly awkward data formats may require some 'cleaning' before they're readable by :func:`~numpy.genfromtxt` (e.g. the removal of non-numeric characters). You can do this by optionally including a ``preformat_replace`` section in your dataformat description. This consists of ``{"regex_expression": "replacement_text"}`` pairs, which are applied to the data before import. For example:
-  ::
+  
+  .. code-block:: JSON
 
     {
         "preformat_replace": {
@@ -99,7 +108,8 @@ Optional Sections
     }
   will replace all non-numeric characters that are not ``.``, ``,`` or a space with ``""`` (i.e. no text - remove them). The use of ``preformat_replace`` should not be necessary for most dataformats.
   - ``time_format``. ``latools`` attempts to automatically read the ``date`` information identified by ``meta_regex`` (using ``dateutil``'s :func:`~dateutil.parser.parse`), but in rare cases this will fail. If it fails, you'll need to manually specify the date format. Specify the date format using `standard notation for formatting and reading times <https://docs.python.org/3.6/library/datetime.html#strftime-and-strptime-behavior>`_. For example:
-  ::
+
+  .. code-block:: JSON
 
     {
         "time_format": "%d-%b-%Y %H:%M:%S"
@@ -162,65 +172,74 @@ This step-by-step guide will go through the process of writing a dataformat desc
 .. tip:: We're working from scratch here for illustrative purposes. When doing this in reality, you might find the :func:`~latools.helpers.config.get_dataformat_template` (accessible via ``latools.config.get_dataformat_template()``), which creates an annotated data format file for you to adapt.
 
 1. Create an empty file, name it, and give it a ``.json`` extension. Open the file in your favourite text editor. Data in ``.json`` files can be stored in lists (comma separated values inside square brackets, e.g. [1,2,3]) or as {'key': 'value'} pairs inside curly brackets.
+
 2. The data format description contains three named sections - ``meta_regex``, ``column_id`` and ``genfromtext_args``, which we'll store as {'key': 'value'} pairs. Create empty entries for these in your new ``.json`` file. Your file should now look like this:
 
-.. code-block:: python
-    :linenos:
+  .. code-block:: JSON
 
     {
-        'meta_regex': {},
-        'column_id': {},
-        'genfromtext_args': {}
+        "meta_regex": {},
+        "column_id": {},
+        "genfromtext_args": {}
     }
 
-3. Define the start time of the analysis. In this case, it's ``Oct 29 2015  03:11:05 pm``, but it will be different in other files. We therefore use a 'regular expression' to define a *pattern* that describes the date. To do this, we'll isolate the line containing the date (line 2 - numbers start at zero in Python!), and head on over to `Regex101 to write our expression <https://regex101.com/r/P1chhB/1>`_. Add this expression to the meta_regex session, with the line number as its key:
+3. Define the start time of the analysis. In this case, it's ``Oct 29 2015  03:11:05 pm``, but it will be different in other files. We therefore use a regular expression' to define a *pattern* that describes the date. To do this, we'll isolate the line containing the date (line 2 - numbers start at ero in Python!), and head on over to `Regex101 to write our expression <https://regex101.com/r/P1chhB/1>`_. Add this expression to the meta_regex ession, with the line number as its key:
 
-.. code-block:: python
-    :linenos:
+.. code-block:: JSON
 
     {
-        'meta_regex': {'2': (['date'],
-                             '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)')},
-        'column_id': {},
-        'genfromtext_args': {}
+        "meta_regex": {
+            "2": [["date"],
+                   "([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)"]
+        },
+        "column_id": {},
+        "genfromtext_args": {}
     }
+
 .. tip:: Having trouble with Regular Expressions? We really recommend `Regex101 <http://regex101.com>`_!
 
-4. Set some parameters that define where the column names are. ``name_row`` defines which row the column names are in (`3`), ``delimeter`` describes what character separates the column names (`,`), ``timecolumn`` is the numberical index of the column containing the 'time' data (in this case, `0`). This will grab everything in row 3 that's separated by a comma, and tell ``latools`` that the first column contains the time info. Now we need to tell it which columns contain the analyte names. We'll do this with a regular expression again, copying the entire column over to `Regex101 to help us write the expression <https://regex101.com/r/cOG8dN/1>`_. Put all this information into the 'column_id' section:
+4. Set some parameters that define where the column names are. ``name_row`` defines which row the column names are in (`3`), ``delimeter`` describes hat character separates the column names (`,`), ``timecolumn`` is the numberical index of the column containing the 'time' data (in this case, `0`). his will grab everything in row 3 that's separated by a comma, and tell ``latools`` that the first column contains the time info. Now we need to tell t which columns contain the analyte names. We'll do this with a regular expression again, copying the entire column over to `Regex101 to help us write he expression <https://regex101.com/r/cOG8dN/1>`_. Put all this information into the "column_id" section:
 
-.. code-block:: python
-    :linenos:
-
-    {
-     'meta_regex': {'2': (['date'],
-                          '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)')},
-     'column_id': {'name_row': 3,
-                   'delimiter': ',',
-                   'timecolumn': 0,
-                   'pattern': '([A-z]{1,2}[0-9]{1,3})'},
-     'genfromtext_args': {}
-    }
-
-5. Finally, we need to add some parameters that tell ``latools`` how to read the actual data table. In this case, we want to skip the first 4 lines, and then tell it that the values are separated by commas. Add this information to the ``genfromtext_args`` section:
-
-.. code-block:: python
-    :linenos:
+.. code-block:: JSON
 
     {
-     'meta_regex': {'2': (['date'],
-                          '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)')},
-     'column_id': {'name_row': 3,
-                   'delimiter': ',',
-                   'timecolumn': 0,
-                   'pattern': '([A-z]{1,2}[0-9]{1,3})'},
-     'genfromtext_args': {'delimiter': ',',
-                          'skip_header': 4}
+        "meta_regex": {
+            "2": [["date"],
+                   "([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)"]
+        },
+        "column_id": {
+            "name_row": 3,
+            "delimiter": ",",
+            "timecolumn": 0,
+            "pattern": "([A-z]{1,2}[0-9]{1,3})"
+        },
+        "genfromtext_args": {}
     }
 
-5. Test the format description, using the :func:`~latools.helpers.config.test_dataformat` function. In Python:
+5. Finally, we need to add some parameters that tell ``latools`` how to read the actual data table. In this case, we want to skip the first 4 lines, nd then tell it that the values are separated by commas. Add this information to the ``genfromtext_args`` section:
+
+.. code-block:: JSON
+
+    {
+        "meta_regex": {
+            "2": [["date"],
+                   "([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+)"]
+        },
+        "column_id": {
+            "name_row": 3,
+            "delimiter": ",",
+            "timecolumn": 0,
+            "pattern": "([A-z]{1,2}[0-9]{1,3})"
+        },
+        "genfromtext_args": {
+            "delimiter": ",",
+            "skip_header": 4
+        }
+    }
+
+6. Test the format description, using the :func:`~latools.helpers.config.test_dataformat` function. In Python:
 
 .. code-block:: python
-    :linenos:
 
     import latools as la
 
@@ -228,9 +247,10 @@ This step-by-step guide will go through the process of writing a dataformat desc
     my_datafile = 'path/to/my/datafile.csv
 
     la.config.test_dataformat(my_datafile, my_dataformat)
-This will go through the data import process for you file, printing out the results of each stage, so if it fails you can see *where* if failed, and fix the problem.
 
-Fix any errors, and you're done! You have a working data description.
+This will go through the data import process for you file, printing out the results of each stage, so if it fails you can see *where* if failed, and ix the problem.
+
+7. Fix any errors, and you're done! You have a working data description.
 
 
 I've written my dataformat, now what?
