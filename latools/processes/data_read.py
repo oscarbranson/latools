@@ -36,8 +36,8 @@ def read_data(data_file, dataformat, name_mode):
                    'timecolumn': 0,  # which column contains the 'time' variable
                    'pattern': '([A-z]{1,2}[0-9]{1,3})'},  # a regex pattern which captures the column names
      'meta_regex': {  # a dict of (line_no: ([descriptors], [regexs])) pairs
-                    0: (['path'], '(.*)'),
-                    2: (['date', 'method'],  # MUST include date
+                    "0": (['path'], '(.*)'),
+                    "2": (['date', 'method'],  # should include date
                      '([A-Z][a-z]+ [0-9]+ [0-9]{4}[ ]+[0-9:]+ [amp]+).* ([A-z0-9]+\.m)')
                    }
     }
@@ -52,13 +52,15 @@ def read_data(data_file, dataformat, name_mode):
     meta = Bunch()
     if 'meta_regex' in dataformat.keys():
         for k, v in dataformat['meta_regex'].items():
-            if 'contains__' in k:
-                pattern = k.split('__')[-1]
-                for line in lines:
-                    if pattern in line:
-                        break
-            else:
+            if k.isdigit():
+                # if k is a number, use it to extract that line in the file.
                 line = lines[int(k)]
+            else:
+                # otherwise, find the first line that contains k
+                for line in lines:
+                    if k in line:
+                        break
+            
             if re.search(v[-1], line):
                 out = re.search(v[-1], line).groups()
                 for p, r in zip(v[0], out):

@@ -2,7 +2,7 @@
     "__note__": "Be aware of rules regarding the use of special characters in .json files. Google this.",
     "meta_regex": {
         "line_number (in quotes)": [["group", "names"], "regex with same number of capture groups as items in list on left"],
-        "contains__KEY": [["group", "names"], "the same as specifying a line number, except that latools applies the regex to the first line that contains 'KEY'. Useful if line numbers are not static. Note the double underscore."],
+        "KEY": [["group", "names"], "the same as specifying a line number, except that latools applies the regex to the first line that contains 'KEY'. Useful if line numbers are not static."],
         "line_number (in quotes)": [["date"], "regex that identifies the start time of data collection in a capture group. THIS IS REQUIRED."]
     },
     "column_id": {

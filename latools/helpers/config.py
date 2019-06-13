@@ -331,13 +331,13 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         for k, v in dataformat['meta_regex'].items():
             rep = '    Line "{:s}":'.format(k)
             try:
-                if 'contains__' in k:
+                if k.isdigit():
+                    line = lines[int(k)]
+                else:
                     pattern = k.split('__')[-1]
                     for line in lines:
                         if pattern in line:
                             break
-                else:
-                    line = lines[int(k)]
                 
                 out = re.search(v[-1], line).groups()
 
