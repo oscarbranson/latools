@@ -256,8 +256,9 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         header.append('# Warning: No date specified in file - Analysis Times are date file was split. ')
     else:
         header.append('# ')
-        header.append('# ')
-        header.append('# ')
+
+    header.append('# ')
+    header.append('# ')
     
     flist = []
     for s, sdat in sections.items():
@@ -312,4 +313,5 @@ def plot_long_file_split(dat, sig, bkg, sections):
     for blo, bhi in bkgs:
         ax.axvspan(dat['Time'][blo], dat['Time'][bhi], zorder=-2, color=(.2,.2,0,0.1), lw=0)
     
+    fig.tight_layout()
     return fig, ax
