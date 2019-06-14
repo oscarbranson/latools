@@ -12,7 +12,7 @@ To get your data into ``latools``, you need to think about two things:
 At present, ``latools`` is designed for data that is collected so that each text file contains ablations of a single sample or (a set of) standards, with a name corresponding to the identity of the sample.
 An ideal data structure would look something like this:
 
-.. code-block:: bash
+.. code-block :: bash
 
     data/
       STD-1.csv
@@ -29,6 +29,7 @@ When importing the data, you give :meth:`~latools.latools.analyse` the ``data/``
 
 .. important:: If you data are not in this format (e.g. all your data are stored in one long file), you'll need to convert them into this format to use ``latools``. You can find Information on how to do this in the :ref:`preprocessing` pages.
 
+.. _data_format_description:
 2. Data Format
 ==============
 We tried to make the data import mechanism as simple as possible, but because of the diversity and complexity of formats from different instruments, it can still be a bit tricky to understand. The following will hopefully give you everything you need to write your data format description.
