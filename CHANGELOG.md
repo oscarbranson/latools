@@ -1,6 +1,20 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.10] - 14/06/2019
+
+## Added
+- Fully functional long-file splitting, with documentation
+- Ability to calculate mass fraction (i.e. ppm)
+- Configurations for GEOMAR Atom and FIN2.
+
+## Changed
+- Improved dataformat description flexibility
+- Improved handling of missing SRMs
+- clear_calibration now works as intended
+- Minor bug fixes throughout
+- Parsed out io functions
+
 ## [0.3.9] - 13/02/2019
 
 ## Changed
