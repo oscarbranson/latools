@@ -306,6 +306,10 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     -------
     sample, analytes, data, meta : tuple
     """
+    if isinstance(dataformat_file, dict):
+        dataformat = dataformat_file
+        dataformat_file = '[dict provided]'
+
     print('*************************************************\n' + 
           'Testing suitability of data format description...\n' + 
           '  Dataformat File: {:s}'.format(dataformat_file) + '\n' +  
@@ -316,16 +320,17 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     with open(data_file) as f:
         lines = f.readlines()    
     print('    Success!')
-    
-    print('\n  Test: read dataformat file...')
-    # if dataformat is not a dict, load the json
-    try:
-        with open(dataformat_file) as f:
-            dataformat = json.load(f)
-        print('    Success!')
-    except:
-        print("        ***PROBLEM: The dataformat file isn't in a valid .json format")
-        raise
+
+    if dataformat_file != '[dict provided]':
+        print('\n  Test: read dataformat file...')
+        # if dataformat is not a dict, load the json
+        try:
+            with open(dataformat_file) as f:
+                dataformat = json.load(f)
+            print('    Success!')
+        except:
+            print("        ***PROBLEM: The dataformat file isn't in a valid .json format")
+            raise
     
     print("\n  Test: read metadata using 'metadata_regex'...")
     meta = Bunch()
