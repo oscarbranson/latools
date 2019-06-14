@@ -75,8 +75,15 @@ def read_data(data_file, dataformat, name_mode):
         sample = name_mode
 
     # column and analyte names
-    columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(
-        dataformat['column_id']['delimiter']))
+    if isinstance(dataformat['column_id']['name_row'], int):
+        name_row = dataformat['column_id']['name_row']
+        column_line = lines[dataformat['column_id']['name_row']].strip()
+    elif isinstance(dataformat['column_id']['name_row'], str):
+        for name_row, column_line in enumerate(lines):
+            if dataformat['column_id']['name_row'] in column_line:
+                break
+    columns = np.array(column_line.split(dataformat['column_id']['delimiter']))
+
     if 'pattern' in dataformat['column_id'].keys():
         pr = re.compile(dataformat['column_id']['pattern'])
         analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
@@ -87,13 +94,20 @@ def read_data(data_file, dataformat, name_mode):
             fbuffer = f.read()
         for k, v in dataformat['preformat_replace'].items():
             fbuffer = re.sub(k, v, fbuffer)
-        # dead data
-        read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
-                                  **dataformat['genfromtext_args']).T
+        # put modified data into IO object data
+        fdata = BytesIO(fbuffer.encode())
     else:
-        # read data
-        read_data = np.genfromtxt(data_file,
-                                  **dataformat['genfromtext_args']).T
+        fdata = data_file
+    
+    # if skip_header not provided, calculate it.
+    if 'skip_header' not in dataformat['genfromtext_args']:
+        skip_header = name_row + 1
+        while not lines[skip_header].strip():
+            skip_header += 1
+        dataformat['genfromtext_args']['skip_header'] = skip_header
+
+    # read data
+    read_data = np.genfromtxt(fdata, **dataformat['genfromtext_args']).T
 
     # data dict
     dind = np.zeros(read_data.shape[0], dtype=bool)

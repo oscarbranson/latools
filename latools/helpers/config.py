@@ -9,11 +9,14 @@ import json
 import os
 import re
 import numpy as np
+import textwrap as tw
 import pkg_resources as pkgrs
 from .helpers import Bunch
 
 from io import BytesIO
 from shutil import copyfile
+
+line_width = 80
 
 # functions used by latools to read configurations
 def read_configuration(config='DEFAULT'):
@@ -378,16 +381,27 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     
     # column and analyte names
     print('\n  Test: Getting Column Names...')
-    columns = np.array(lines[dataformat['column_id']['name_row']].strip().split(dataformat['column_id']['delimiter']))
-    print('    Columns from line {:.0f}: '.format(dataformat['column_id']['name_row']) + ', '.join(columns))
+    if isinstance(dataformat['column_id']['name_row'], int):
+        print('    Getting names from line {:.0f}: '.format(dataformat['column_id']['name_row']))
+        name_row = dataformat['column_id']['name_row']
+        column_line = lines[dataformat['column_id']['name_row']]
+    elif isinstance(dataformat['column_id']['name_row'], str):
+        print('    Column row not provided, using first line containing "{}": '.format(dataformat['column_id']['name_row']))
+        for name_row, column_line in enumerate(lines):
+            if dataformat['column_id']['name_row'] in column_line:
+                break
+    columns = np.array(column_line.strip().split(dataformat['column_id']['delimiter']))
+    # return tw.wrap(', '.join(columns), line_width)
+    print('    Columns found:\n' + '\n'.join(tw.wrap(', '.join(columns), line_width, subsequent_indent='      ', initial_indent='      ')))
+    
     if 'pattern' in dataformat['column_id'].keys():
         print('    Cleaning up using column_id/pattern...')
         pr = re.compile(dataformat['column_id']['pattern'])
         analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
         if len(analytes) == 0:
             raise ValueError('no analyte names identified. Check pattern in column_id section.')
-        print('    Cleaned Analyte Names: ' + ', '.join(analytes))
-        print('        ***This should only contain analyte names... does it?***')
+        print('    Cleaned Analyte Names: \n' + '\n'.join(tw.wrap(', '.join(analytes), line_width, subsequent_indent='      ', initial_indent='      ')))
+        print('    ***This should only contain analyte names... does it?***')
     
     # do any required pre-formatting
     if 'preformat_replace' in dataformat.keys():
@@ -397,27 +411,30 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         for k, v in dataformat['preformat_replace'].items():
             print('    replacing "' + k + '" with "' + v + '"')
             fbuffer = re.sub(k, v, fbuffer)
+            fdata = BytesIO(fbuffer.encode())
+        else:
+            fdata = data_file
         print('    Done.')
-        
-        print('\n  Test: Reading Pre-Formatted Data...')
-        # dead data
-        try:
-            read_data = np.genfromtxt(BytesIO(fbuffer.encode()),
-                                    **dataformat['genfromtext_args']).T
-        except:
-            print('        ***PROBLEM during data read - check genfromtext_args\n' + 
-                  '        and preformat_replace terms?')
-            raise
-    else:
-        print('\n  Test: Reading Data...')
-        # read data
-        try:
-            read_data = np.genfromtxt(data_file,
-                                    **dataformat['genfromtext_args']).T
-        except:
-            print('        ***PROBLEM during data read - check genfromtext_args.\n' + 
-                  '        If they look correct, think about including preformat_replace terms?')
-            raise
+
+    print('\n  Test: Reading Data...')
+    # if skip_header not provided, calculate it.
+    if 'skip_header' not in dataformat['genfromtext_args']:
+        print('    "skip_header" not specified... finding header size.')
+        skip_header = name_row + 1
+        while not lines[skip_header].strip():
+            skip_header += 1
+        dataformat['genfromtext_args']['skip_header'] = skip_header
+        print('      -> Header is {} lines long'.format(skip_header))
+    
+    # read data
+    try:
+        read_data = np.genfromtxt(data_file,
+                                **dataformat['genfromtext_args']).T
+        print('      Success!')
+    except:
+        print('        ***PROBLEM during data read - check genfromtext_args.\n' + 
+                '        If they look correct, think about including preformat_replace terms?')
+        raise
     
     # print('    checking number of columns...')
     # if read_data.shape[0] != len(analytes) + 1:
