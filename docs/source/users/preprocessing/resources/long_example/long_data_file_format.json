@@ -1,0 +1,16 @@
+{
+    "__note__": "Be aware of rules regarding the use of special characters in .json files. Google this.",
+    "meta_regex": {
+       "Date:": [["date"], "([0-9:]{8} [0-9/]+)"]
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timecolumn": 1,
+        "name_row": "Cycle,Timestamp",
+        "pattern": "([A-z]{1,3}\\([0-9]{1,3}\\))"
+    },
+    "genfromtext_args": {
+        "delimiter": ","
+    },
+    "time_format": "%H:%M:%S %d/%b/%Y"
+}
