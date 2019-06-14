@@ -26,7 +26,6 @@ Example usage:
 
 .. code-block :: python
 
-    # Create the filter.
     import latools as la
 
     la.preprocessing.long_file('path/to/long_data_file.csv', dataformat='DEFAULT', 

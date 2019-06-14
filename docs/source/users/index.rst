@@ -18,5 +18,5 @@ User Guide
     beginners/index.rst
     examples.rst
     filters/index.rst
+    preprocessing/index.rst
     configuration/index.rst
-    advanced/index.rst
