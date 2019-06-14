@@ -259,7 +259,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         header.append('# ')
         header.append('# ')
     
-    flist = [savedir]
+    flist = []
     for s, sdat in sections.items():
         iheader = header.copy()
         iheader.append('# Sample: {}'.format(s))
@@ -276,7 +276,8 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             f.write(csv)
         flist.append('   {}.csv'.format(s))
     
-    print("Success! File split into {} sections.\n Saved to: {}\n\nImport the split files using the 'REPRODUCE' configuration.".format(n, '\n'.join(flist)))
+    print("Success! File split into {} sections.".format(n))
+    print("New files saved to:\n{}/\n{}\n\nImport the split files using the 'REPRODUCE' configuration.".format(os.path.relpath(savedir), '\n'.join(flist)))
     
     if plot:
         return plot_long_file_split(dat, sig, bkg, sections)
