@@ -1042,12 +1042,10 @@ class analyse(object):
         self.bkg_interps = {}
         with self.pbar.set(total=len(analytes), desc='Calculating Analyte Backgrounds') as prog:
             for a in analytes:
-                fill_vals = (un.uarray(d.loc[:, (a, 'mean')].iloc[0], d.loc[:, (a, errtype)].iloc[0]),
-                             un.uarray(d.loc[:, (a, 'mean')].iloc[-1], d.loc[:, (a, errtype)].iloc[-1]))
                 p = un_interp1d(x=d.loc[:, ('uTime', 'mean')],
                                 y=un.uarray(d.loc[:, (a, 'mean')],
                                             d.loc[:, (a, errtype)]),
-                                kind=kind, bounds_error=False, fill_value=fill_vals)
+                                kind=kind, bounds_error=False, fill_value='extrapolate')
                 self.bkg_interps[a] = p
                 self.bkg['calc'][a] = {'mean': p.new_nom(self.bkg['calc']['uTime']),
                                        errtype: p.new_std(self.bkg['calc']['uTime'])}
@@ -1874,7 +1872,7 @@ class analyse(object):
 
 
     @_log
-    def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
+    def calculate_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
         """
         Convert calibrated molar ratios to mass fraction.
 
