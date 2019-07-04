@@ -52,7 +52,7 @@ def read_data(data_file, dataformat, name_mode):
     meta = Bunch()
     if 'meta_regex' in dataformat.keys():
         for k, v in dataformat['meta_regex'].items():
-            if str(k).isdigit():
+            if k.isdigit():
                 # if k is a number, use it to extract that line in the file.
                 line = lines[int(k)]
             else:
