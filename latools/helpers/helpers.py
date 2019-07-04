@@ -313,11 +313,18 @@ class un_interp1d(object):
     object for handling interpolation of values with uncertainties.
     """
 
-    def __init__(self, x, y, **kwargs):
+    def __init__(self, x, y, fill_value=np.nan, **kwargs):
+        if isinstance(fill_value, tuple):
+            nom_fill = tuple([un.nominal_values(v) for v in fill_value])
+            std_fill = tuple([un.std_devs(v) for v in fill_value])
+        else:
+            nom_fill = std_fill = fill_value
         self.nom_interp = interp.interp1d(un.nominal_values(x),
-                                          un.nominal_values(y), **kwargs)
+                                          un.nominal_values(y), 
+                                          fill_value=nom_fill, **kwargs)
         self.std_interp = interp.interp1d(un.nominal_values(x),
-                                          un.std_devs(y), **kwargs)
+                                          un.std_devs(y), 
+                                          fill_value=std_fill, **kwargs)
 
     def new(self, xn):
         yn = self.nom_interp(xn)
