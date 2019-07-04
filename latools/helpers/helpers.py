@@ -320,10 +320,10 @@ class un_interp1d(object):
         else:
             nom_fill = std_fill = fill_value
         self.nom_interp = interp.interp1d(un.nominal_values(x),
-                                          un.nominal_values(y), 
+                                          un.nominal_values(y),
                                           fill_value=nom_fill, **kwargs)
         self.std_interp = interp.interp1d(un.nominal_values(x),
-                                          un.std_devs(y), 
+                                          un.std_devs(y),
                                           fill_value=std_fill, **kwargs)
 
     def new(self, xn):
