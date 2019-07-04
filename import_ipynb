@@ -1,3 +1,0 @@
-import sys
-sys.path.append('/Users/oscarbranson/UCDrive/Projects/latools/')
-import latools as la
