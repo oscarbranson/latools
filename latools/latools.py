@@ -1872,7 +1872,7 @@ class analyse(object):
 
 
     @_log
-    def calculate_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
+    def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
         """
         Convert calibrated molar ratios to mass fraction.
 
