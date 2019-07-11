@@ -1414,7 +1414,7 @@ class analyse(object):
 
         if len(warns) > 0:
             print('WARNING: Some SRM ablations have been excluded because they do not contain enough data:')
-            print('\n'.join(warns)
+            print('\n'.join(warns))
             print("To *include* these ablations, reduce the value of n_min (currently {:})".format(n_min))
 
         # compile them into a table
