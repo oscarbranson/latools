@@ -17,6 +17,8 @@ from .helpers import config
 from .helpers import chemistry
 from . import preprocessing
 
+__version__ = '0.3.12-dev'
+
 def cite(output='text'):
     """
     Citation for LAtools.
