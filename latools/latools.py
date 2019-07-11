@@ -1380,6 +1380,7 @@ class analyse(object):
             The minimum number of points to consider as a valid measurement.
             Default = 10.
         """
+        warns = []
         # compile mean and standard errors of samples
         for s in self.stds:
             stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
@@ -1398,6 +1399,8 @@ class analyse(object):
                                    (a, 'mean')] = np.nanmean(s.focus[a][aind])
                         stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
+                else:
+                    warns.append('   Ablation {:} of SRM measurement {:} ({:} points)'.format(n, s.sample, sum(ind)))
 
             # sort column multiindex
             stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
@@ -1408,6 +1411,11 @@ class analyse(object):
             stdtab.loc[:, 'STD'] = s.sample
 
             s.stdtab = stdtab
+
+        if len(warns) > 0:
+            print('WARNING: Some SRM ablations have been excluded because they do not contain enough data:')
+            print('\n'.join(warns)
+            print("To *include* these ablations, reduce the value of n_min (currently {:})".format(n_min))
 
         # compile them into a table
         self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
