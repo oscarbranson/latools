@@ -15,7 +15,8 @@ from pandas import IndexSlice as idx
 
 from tqdm import tqdm
 
-from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element, calc_grads
+from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, calc_grads
+from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def calc_nrow(n, ncol):

@@ -27,8 +27,8 @@ from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, unitpicker, pretty_element,
-                              findmins, stack_keys)
+                              calc_grads, unitpicker, findmins, stack_keys)
+from .helpers.analyte_names import pretty_element, analyte_sort_fn
 from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
 from .helpers.chemistry import to_mass_fraction, analyte_mass
@@ -155,6 +155,9 @@ class D(object):
             print('   -> OK')
 
         return
+
+    def analytes_sorted():
+        return sorted(self.analytes, analyte_sort_fn)
 
     @_log
     def setfocus(self, focus):

@@ -32,9 +32,9 @@ from .filtering.classifier_obj import classifier
 
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, pretty_element, get_date,
+                      un_interp1d, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, get_analyte_name, analyte_2_massname)
+                      get_total_time_span)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -43,6 +43,7 @@ from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
 from .helpers.chemistry import analyte_mass, decompose_molecule
+from .helpers.analyte_names import get_analyte_name, analyte_2_massname, pretty_element, analyte_sort_fn
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -453,6 +454,9 @@ class analyse(object):
                 'data_folder :: {}'.format(self.folder),
                 '# Analysis Log Start: \n'
                 ]
+
+    def analytes_sorted():
+        return sorted(self.analytes, analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -1460,7 +1464,7 @@ class analyse(object):
                     for a in s.analytes:
                         aind = ind & ~np.isnan(nominal_values(s.focus[a]))
                         stddat.loc[np.nanmean(s.uTime[s.ns == n]),
-                                   (a, 'mean')] = np.nanmean(s.focus[a][aind])
+                                   (a, 'mean')] = np.nanmean(nominal_values(s.focus[a][aind]))
                         stddat.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
                 else:
