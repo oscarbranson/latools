@@ -20,10 +20,12 @@ import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import pkg_resources as pkgrs
+
 import uncertainties as unc
 import uncertainties.unumpy as un
-from sklearn.preprocessing import minmax_scale
 
+from sklearn.preprocessing import minmax_scale, scale
+from sklearn.cluster import KMeans
 from scipy.optimize import curve_fit
 
 from .helpers import plot
@@ -1514,9 +1516,10 @@ class analyse(object):
 
         # fit KMeans classifier to srm database
         classifier = KMeans(len(srms_used)).fit(_srmid)
-
-        # 
+        # apply classifier to measured data
         std_classes = classifier.predict(_stdid)
+
+        # get srm names from classes
         std_srm_labels = np.array([srm_labels[np.argwhere(classifier.labels_ == i)][0][0] for i in std_classes])
 
         self.stdtab.loc[:, 'SRM'] = std_srm_labels
