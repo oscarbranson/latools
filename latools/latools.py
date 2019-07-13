@@ -1481,6 +1481,9 @@ class analyse(object):
         """
         Function for automarically identifying SRMs using KMeans clustering.
 
+        KMeans is performed on the log of SRM composition, which aids separation
+        of relatively similar SRMs within a large compositional range.
+
         Parameters
         ----------
         srms_used : iterable
@@ -1509,12 +1512,12 @@ class analyse(object):
         
         # get and scale mean srm values for all analytes
         srmid = self.srmtab.loc[:, idx[:, 'mean']]
-        _srmid = scale(srmid)
+        _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
         stdid = self.stdtab.loc[:, idx[:, 'mean']]
-        _stdid = scale(stdid)
+        _stdid = scale(np.log(stdid))
 
         # fit KMeans classifier to srm database
         classifier = KMeans(len(srms_used)).fit(_srmid)
