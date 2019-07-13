@@ -1589,7 +1589,7 @@ class analyse(object):
         None
         """
         if analytes is None:
-            analytes = self.analytes.difference(self.internal_standard)
+            analytes = self.analytes.difference([self.internal_standard])
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -1605,14 +1605,12 @@ class analyse(object):
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
                                             index=gTime)
 
-        calib_analytes = self.srmtabs.index.get_level_values(0).unique()
-
         if zero_intercept:
             fn  = lambda x, m: x * m
         else:
             fn = lambda x, m, c: x * m + c
 
-        for a in calib_analytes:
+        for a in analytes:
             if zero_intercept:
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
