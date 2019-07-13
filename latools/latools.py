@@ -4331,12 +4331,11 @@ class analyse(object):
             log_header.append('srm_table :: ./srm.table')
 
             # export srm table
-            els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
-            srmdat = []
-            for e in els:
-                srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
-            srmdat = pd.concat(srmdat)
-
+            items = set()
+            for a in self.minimal_analytes:
+                for srm, ad in self._analyte_srmdat_link.items():
+                    items.update([ad[a]])
+            srmdat = self.srmdat.loc[idx[:, list(items)], :]
             with open(path + '/srm.table', 'w') as f:
                 f.write(srmdat.to_csv())
 
