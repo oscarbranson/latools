@@ -30,7 +30,8 @@ setup(name='latools',
                         'scipy',
                         'Ipython',
                         'configparser',
-                        'tqdm'
+                        'tqdm',
+                        'python-dateutil'
                         ],
       package_data={
         'latools': ['latools.cfg',
