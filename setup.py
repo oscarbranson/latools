@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='latools',
-      version=latools.__version__,
+      version=__version__,
       description='Tools for LA-ICPMS data analysis.',
       long_description=long_description,
       long_description_content_type="text/markdown",
