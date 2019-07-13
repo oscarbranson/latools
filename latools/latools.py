@@ -1396,56 +1396,6 @@ class analyse(object):
             if len(warns) > 0:
                 print('WARNING: Some analytes are not present in the SRM database:')
                 print('\n'.join(warns))
-
-    # def srm_load_database(self, srms_used=None, reload=False):
-    #     if not hasattr(self, 'srmdat') or reload:
-    #         elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
-    #         # load SRM info
-    #         srmdat = srms.read_table(self.srmfile)
-    #         srmdat = srmdat.loc[srms_used]
-            
-    #         # get element name
-    #         internal_el = elnames.match(self.internal_standard).groups()[0]
-    #         # calculate ratios to internal_standard for all elements
-    #         for srm in srms_used:
-    #             ind = srmdat.index == srm
-
-    #             # find denominator
-    #             denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
-    #             # calculate denominator composition (multiplier to account for stoichiometry,
-    #             # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-    #             comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
-    #                                 denom.Item.values[0])
-    #             # determine stoichiometric multiplier
-    #             N = [n for el, n in comp if el == internal_el][0]
-    #             if N == '':
-    #                 N = 1
-    #             else:
-    #                 N = float(N)
-
-    #             # calculate molar ratio
-    #             srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
-    #             srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
-    #                                                 (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
-    #                                                 srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
-            
-    #         # isolate measured elements
-    #         elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
-    #         srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
-
-    #         # label elements
-    #         srmdat.loc[:, 'element'] = np.nan
-
-    #         elonly = re.compile('([A-Z][a-z]{0,})')
-    #         for e in elements:
-    #             ind = [e in elonly.findall(i) for i in srmdat.Item]
-    #             srmdat.loc[ind, 'element'] = str(e)
-
-    #         # remove any non-analysed elements that have made it through checks
-    #         srmdat.dropna(subset=['element'], inplace=True)
-
-    #         # convert to table in same format as stdtab
-    #         self.srmdat = srmdat.dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
         """
