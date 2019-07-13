@@ -34,7 +34,7 @@ from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span)
+                      get_total_time_span, get_analyte_name)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -42,7 +42,7 @@ from .helpers.stat_fns import *
 from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
-from .helpers.chemistry import analyte_mass
+from .helpers.chemistry import analyte_mass, decompose_molecule
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -1321,54 +1321,107 @@ class analyse(object):
         return
 
     def srm_load_database(self, srms_used=None, reload=False):
-        if not hasattr(self, 'srmdat') and not reload:
-            elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
+        if not hasattr(self, 'srmdat') or reload:
             # load SRM info
             srmdat = srms.read_table(self.srmfile)
             srmdat = srmdat.loc[srms_used]
-            
+            srmdat.reset_index(inplace=True)
+            srmdat.set_index(['SRM', 'Item'], inplace=True)
+            srmdat.loc[:, 'mol_ratio'] = np.nan
+            srmdat.loc[:, 'mol_ratio_err'] = np.nan
+
             # get element name
-            internal_el = elnames.match(self.internal_standard).groups()[0]
+            internal_el = get_analyte_name(self.internal_standard)
             # calculate ratios to internal_standard for all elements
+
+            analyte_srm_link = {}
+            warns = []
+            srmsubs = []
+
             for srm in srms_used:
-                ind = srmdat.index == srm
+                srmsub = srmdat.loc[srm]
+
+                # determine analyte - Item pairs in table
+                ad = {}
+                for a in self.analytes:
+                    if a in srmsub.index:
+                        ad[a] = a
+                    else:
+                        item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
+                        if len(item) > 1:
+                            item = item[item == get_analyte_name(a)]
+                        if len(item) == 1:
+                            ad[a] = item[0]
+                        else:
+                            warns.append('No {:} value for {:} in database.'.format(a, srm))
+
+                analyte_srm_link[srm] = ad
 
                 # find denominator
-                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+                denom = srmsub.loc[ad[self.internal_standard]]
                 # calculate denominator composition (multiplier to account for stoichiometry,
                 # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
-                                    denom.Item.values[0])
-                # determine stoichiometric multiplier
-                N = [n for el, n in comp if el == internal_el][0]
-                if N == '':
-                    N = 1
-                else:
-                    N = float(N)
+                N = float(decompose_molecule(ad[self.internal_standard])[internal_el])
 
                 # calculate molar ratio
-                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+                ind = (srm, list(ad.values()))
+                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'] * N)
                 srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
-                                                    (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+                                                    (denom['mol/g_err'] / denom['mol/g']))**0.5 *
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
+
+            srmdat.dropna(subset=['mol_ratio'], inplace=True)
+            self.srmdat = srmdat
+
+    # def srm_load_database(self, srms_used=None, reload=False):
+    #     if not hasattr(self, 'srmdat') or reload:
+    #         elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
+    #         # load SRM info
+    #         srmdat = srms.read_table(self.srmfile)
+    #         srmdat = srmdat.loc[srms_used]
             
-            # isolate measured elements
-            elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
-            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
+    #         # get element name
+    #         internal_el = elnames.match(self.internal_standard).groups()[0]
+    #         # calculate ratios to internal_standard for all elements
+    #         for srm in srms_used:
+    #             ind = srmdat.index == srm
 
-            # label elements
-            srmdat.loc[:, 'element'] = np.nan
+    #             # find denominator
+    #             denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+    #             # calculate denominator composition (multiplier to account for stoichiometry,
+    #             # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+    #             comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
+    #                                 denom.Item.values[0])
+    #             # determine stoichiometric multiplier
+    #             N = [n for el, n in comp if el == internal_el][0]
+    #             if N == '':
+    #                 N = 1
+    #             else:
+    #                 N = float(N)
 
-            elonly = re.compile('([A-Z][a-z]{0,})')
-            for e in elements:
-                ind = [e in elonly.findall(i) for i in srmdat.Item]
-                srmdat.loc[ind, 'element'] = str(e)
+    #             # calculate molar ratio
+    #             srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+    #             srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
+    #                                                 (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+    #                                                 srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
+            
+    #         # isolate measured elements
+    #         elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
+    #         srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
 
-            # remove any non-analysed elements that have made it through checks
-            srmdat.dropna(subset=['element'], inplace=True)
+    #         # label elements
+    #         srmdat.loc[:, 'element'] = np.nan
 
-            # convert to table in same format as stdtab
-            self.srmdat = srmdat.dropna(how='all')
+    #         elonly = re.compile('([A-Z][a-z]{0,})')
+    #         for e in elements:
+    #             ind = [e in elonly.findall(i) for i in srmdat.Item]
+    #             srmdat.loc[ind, 'element'] = str(e)
+
+    #         # remove any non-analysed elements that have made it through checks
+    #         srmdat.dropna(subset=['element'], inplace=True)
+
+    #         # convert to table in same format as stdtab
+    #         self.srmdat = srmdat.dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
         """

@@ -151,6 +151,12 @@ def pretty_element(s):
 
     return '$^{' + m + '}$' + el
 
+def get_analyte_name(s):
+    return re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
+
+def get_analyte_mass(s):
+    return re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+
 def analyte_2_namemass(s):
     """
     Converts analytes in format '27Al' to 'Al27'.
