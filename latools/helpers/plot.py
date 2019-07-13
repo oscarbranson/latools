@@ -724,7 +724,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         analytes = [analytes]
 
     if analytes is None:
-        analytes = [a for a in self.analytes if self.internal_standard not in a]
+        analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
 
     if srm_group is not None:
         srm_groups = {int(g): t for g, t in self.stdtab.loc[:, ['group', 'gTime']].values}
@@ -771,7 +771,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         if gTime is None:
             sub = idx[:,:]
         else:
-            sub = idx[gtime, :]
+            sub = idx[gTime, :]
         x = self.caltab.loc[sub, (a, 'meas_mean')].values
         xe = self.caltab.loc[sub, (a, 'meas_err')].values
         y = self.caltab.loc[sub, (a, 'srm_mean')].values
