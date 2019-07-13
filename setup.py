@@ -1,6 +1,10 @@
 from setuptools import setup, find_packages
 
-from latools import __version__
+# bcause TravisCI was being a jerK
+try:
+  from latools import __version__
+except:
+  __version__ = "version_missing"
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
