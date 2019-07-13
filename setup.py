@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-import latools
+from latools import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -30,8 +30,7 @@ setup(name='latools',
                         'scipy',
                         'Ipython',
                         'configparser',
-                        'tqdm',
-                        'python-dateutil'
+                        'tqdm'
                         ],
       package_data={
         'latools': ['latools.cfg',
