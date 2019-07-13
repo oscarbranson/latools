@@ -3944,7 +3944,7 @@ class analyse(object):
                 self.stats[s] = self.data[s].stats
                 prog.update()
 
-        return self.getstats()
+        return 
 
     @_log
     def ablation_times(self, samples=None, subset=None):
