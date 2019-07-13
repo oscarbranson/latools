@@ -4,7 +4,7 @@ Convenience wrappers for progress bars to allow interface with pyQT.
 (c) Oscar Branson : https://github.com/oscarbranson
 """
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 class progressbar(tqdm):
     def __init__(self):
