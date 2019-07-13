@@ -3720,7 +3720,7 @@ class analyse(object):
     @_log
     def sample_stats(self, analytes=None, filt=True,
                      stats=['mean', 'std'], include_srms=False,
-                     eachtrace=True, csf_dict={}):
+                     eachtrace=True, focus_stage=None, csf_dict={}):
         """
         Calculate sample statistics.
 
@@ -3755,6 +3755,20 @@ class analyse(object):
             Whether to calculate the statistics for each analysis
             spot individually, or to produce per - sample means.
             Default is True.
+        focus_stage : str
+            Which stage of analysis to calculate stats for. 
+            Defaults to current stage. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
+            * 'massfrac': mass fraction of each element.
 
         Returns
         -------
@@ -3766,6 +3780,9 @@ class analyse(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
 
         self.stats = Bunch()
 
@@ -3807,7 +3824,8 @@ class analyse(object):
             for s in samples:
                 self.data[s].sample_stats(analytes, filt=filt,
                                           stat_fns=stat_fns,
-                                          eachtrace=eachtrace)
+                                          eachtrace=eachtrace,
+                                          focus_stage=focus_stage)
 
                 self.stats[s] = self.data[s].stats
                 prog.update()

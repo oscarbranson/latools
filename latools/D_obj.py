@@ -565,7 +565,8 @@ class D(object):
     @_log
     def sample_stats(self, analytes=None, filt=True,
                      stat_fns={},
-                     eachtrace=True):
+                     eachtrace=True,
+                     focus_stage=None):
         """
         Calculate sample statistics
 
@@ -608,7 +609,7 @@ class D(object):
                 self.stats[n] = []
                 for a in analytes:
                     ind = self.filt.grab_filt(filt, a)
-                    dat = nominal_values(self.focus[a])
+                    dat = nominal_values(self.data[focus_stage][a])
                     if eachtrace:
                         sts = []
                         for t in np.arange(self.n) + 1:
