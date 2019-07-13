@@ -1473,112 +1473,163 @@ class analyse(object):
 
         self.stdtab = stdtab
 
-    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], analytes=None, n_min=10, reload_srm_database=False):
         """
-        Function for automarically identifying SRMs
-    
+        Function for automarically identifying SRMs using KMeans clustering.
+
         Parameters
         ----------
         srms_used : iterable
             Which SRMs have been used. Must match SRM names
             in SRM database *exactly* (case sensitive!).
+        analytes : array-like
+            Which analytes to base the identification on. If None,
+            all analytes are used (default).
         n_min : int
             The minimum number of data points a SRM measurement
             must contain to be included.
+        reload_srm_database : bool
+            Whether or not to re-load the SRM database before running the function.
         """
         if isinstance(srms_used, str):
             srms_used = [srms_used]
-            
-        # get mean and standard deviations of measured standards
+                
+        if analytes is None:
+            analytes = self.analytes
+        
+        # compile measured SRM data
         self.srm_compile_measured(n_min)
-        stdtab = self.stdtab.copy()
-        stdtab.loc[:, 'SRM'] = ''
 
-
-        # load corresponding SRM database
+        # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
+        
+        # get and scale mean srm values for all analytes
+        srmid = self.srmtab.loc[:, idx[:, 'mean']]
+        _srmid = scale(srmid)
+        srm_labels = srmid.index.values
 
-        # create blank srm table
-        srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
+        # get and scale measured srm values for all analytes
+        stdid = self.stdtab.loc[:, idx[:, 'mean']]
+        _stdid = scale(stdid)
 
-        # Auto - ID STDs
-        # 1. identify elements in measured SRMS with biggest range of values
-        meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
-        meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
-        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
-        meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+        # fit KMeans classifier to srm database
+        classifier = KMeans(len(srms_used)).fit(_srmid)
 
-        ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
-        # (used as weights later)
+        # 
+        std_classes = classifier.predict(_stdid)
+        std_srm_labels = np.array([srm_labels[np.argwhere(classifier.labels_ == i)][0][0] for i in std_classes])
 
-        # 2. Work out which standard is which
-        # normalise all elements between 0-1
-        def normalise(a):
-            a = nominal_values(a)
-            if np.nanmin(a) < np.nanmax(a):
-                return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
-            else:
-                return np.ones(a.shape)
-
-        nmeas = meas_tab.apply(normalise, 0)
-        nmeas.dropna(1, inplace=True)  # remove elements with NaN values
-        # nmeas.replace(np.nan, 1, inplace=True)
-        nsrm_tab = srm_tab.apply(normalise, 0)
-        nsrm_tab.dropna(1, inplace=True)
-        # nsrm_tab.replace(np.nan, 1, inplace=True)
-
-        for uT, r in nmeas.iterrows():  # for each standard...
-            idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
-            idx = abs((nsrm_tab - r) * ranges).sum(1)
-            # calculate the absolute difference between the normalised elemental
-            # values for each measured SRM and the SRM table. Each element is
-            # multiplied by the relative range seen in that element (i.e. range / mean
-            # measuerd value), so that elements with a large difference are given
-            # more importance in identifying the SRM.   
-            # This produces a table, where wach row contains the difference between
-            # a known vs. measured SRM. The measured SRM is identified as the SRM that
-            # has the smallest weighted sum value.
-            stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-
-        # calculate mean time for each SRM
-        # reset index and sort
-        stdtab.reset_index(inplace=True)
-        stdtab.sort_index(1, inplace=True)
-        # isolate STD and uTime
-        uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
-        uT.sort_index(inplace=True)
-        uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
-        # replace uTime values with means
-        stdtab.set_index(['STD'], inplace=True)
-        stdtab.loc[:, 'gTime'] = uTm
-        # reset index
-        stdtab.reset_index(inplace=True)
-        stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
-
-        # combine to make SRM reference tables
-        srmtabs = Bunch()
-        for a in self.analytes:
-            el = re.findall('[A-Za-z]+', a)[0]
-
-            sub = stdtab.loc[:, a]
-
-            srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
-
-            srmtab = sub.join(srmsub)
-            srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
-
-            srmtabs[a] = srmtab
-
-        self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
-        self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
-        # replace any nan error values with zeros - nans cause problems later.
-        self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
-
-        # remove internal standard from calibration elements
-        self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
+        self.stdtab.loc[:, 'SRM'] = std_srm_labels
 
         self.srms_ided = True
-        return
+
+    
+    # def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
+    #     """
+    #     Function for automarically identifying SRMs
+    
+    #     Parameters
+    #     ----------
+    #     srms_used : iterable
+    #         Which SRMs have been used. Must match SRM names
+    #         in SRM database *exactly* (case sensitive!).
+    #     n_min : int
+    #         The minimum number of data points a SRM measurement
+    #         must contain to be included.
+    #     """
+    #     if isinstance(srms_used, str):
+    #         srms_used = [srms_used]
+            
+    #     # get mean and standard deviations of measured standards
+    #     self.srm_compile_measured(n_min)
+    #     stdtab = self.stdtab.copy()
+    #     stdtab.loc[:, 'SRM'] = ''
+
+
+    #     # load corresponding SRM database
+    #     self.srm_load_database(srms_used, reload_srm_database)
+
+    #     # create blank srm table
+    #     srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
+
+    #     # Auto - ID STDs
+    #     # 1. identify elements in measured SRMS with biggest range of values
+    #     meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
+    #     meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
+    #     meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+    #     meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+
+    #     ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
+    #     # (used as weights later)
+
+    #     # 2. Work out which standard is which
+    #     # normalise all elements between 0-1
+    #     def normalise(a):
+    #         a = nominal_values(a)
+    #         if np.nanmin(a) < np.nanmax(a):
+    #             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
+    #         else:
+    #             return np.ones(a.shape)
+
+    #     nmeas = meas_tab.apply(normalise, 0)
+    #     nmeas.dropna(1, inplace=True)  # remove elements with NaN values
+    #     # nmeas.replace(np.nan, 1, inplace=True)
+    #     nsrm_tab = srm_tab.apply(normalise, 0)
+    #     nsrm_tab.dropna(1, inplace=True)
+    #     # nsrm_tab.replace(np.nan, 1, inplace=True)
+
+    #     for uT, r in nmeas.iterrows():  # for each standard...
+    #         idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
+    #         idx = abs((nsrm_tab - r) * ranges).sum(1)
+    #         # calculate the absolute difference between the normalised elemental
+    #         # values for each measured SRM and the SRM table. Each element is
+    #         # multiplied by the relative range seen in that element (i.e. range / mean
+    #         # measuerd value), so that elements with a large difference are given
+    #         # more importance in identifying the SRM.   
+    #         # This produces a table, where wach row contains the difference between
+    #         # a known vs. measured SRM. The measured SRM is identified as the SRM that
+    #         # has the smallest weighted sum value.
+    #         stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+
+    #     # calculate mean time for each SRM
+    #     # reset index and sort
+    #     stdtab.reset_index(inplace=True)
+    #     stdtab.sort_index(1, inplace=True)
+    #     # isolate STD and uTime
+    #     uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
+    #     uT.sort_index(inplace=True)
+    #     uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
+    #     # replace uTime values with means
+    #     stdtab.set_index(['STD'], inplace=True)
+    #     stdtab.loc[:, 'gTime'] = uTm
+    #     # reset index
+    #     stdtab.reset_index(inplace=True)
+    #     stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
+
+    #     # combine to make SRM reference tables
+    #     srmtabs = Bunch()
+    #     for a in self.analytes:
+    #         el = re.findall('[A-Za-z]+', a)[0]
+
+    #         sub = stdtab.loc[:, a]
+
+    #         srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
+
+    #         srmtab = sub.join(srmsub)
+    #         srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
+
+    #         srmtabs[a] = srmtab
+
+    #     self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
+    #     self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
+    #     # replace any nan error values with zeros - nans cause problems later.
+    #     self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
+
+    #     # remove internal standard from calibration elements
+    #     self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
+
+    #     self.srms_ided = True
+    #     return
 
     def clear_calibration(self):
         if self.srms_ided:
