@@ -14,6 +14,7 @@ import pkg_resources as pkgrs
 import uncertainties.unumpy as un
 import scipy.interpolate as interp
 from .stat_fns import nominal_values
+from .analyte_names import pretty_element
 
 # Bunch modifies dict to allow item access using dot (.) operator
 class Bunch(dict):
