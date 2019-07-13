@@ -34,7 +34,7 @@ from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, pretty_element, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, get_analyte_name)
+                      get_total_time_span, get_analyte_name, analyte_2_massname)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -1327,6 +1327,7 @@ class analyse(object):
             srmdat = srmdat.loc[srms_used]
             srmdat.reset_index(inplace=True)
             srmdat.set_index(['SRM', 'Item'], inplace=True)
+            # empty columns for mol_ratio and mol_ratio_err
             srmdat.loc[:, 'mol_ratio'] = np.nan
             srmdat.loc[:, 'mol_ratio_err'] = np.nan
 
@@ -1344,16 +1345,19 @@ class analyse(object):
                 # determine analyte - Item pairs in table
                 ad = {}
                 for a in self.analytes:
-                    if a in srmsub.index:
-                        ad[a] = a
+                    # check ig there's an exact match of form [Mass][Element] in srmdat
+                    mna = analyte_2_massname(a)
+                    if mna in srmsub.index:
+                        ad[a] = mna
                     else:
+                        # if not, match by element name.
                         item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
                         if len(item) > 1:
                             item = item[item == get_analyte_name(a)]
                         if len(item) == 1:
                             ad[a] = item[0]
                         else:
-                            warns.append('No {:} value for {:} in database.'.format(a, srm))
+                            warns.append('   No {:} value for {:}.'.format(a, srm))
 
                 analyte_srm_link[srm] = ad
 
@@ -1370,8 +1374,15 @@ class analyse(object):
                                                     (denom['mol/g_err'] / denom['mol/g']))**0.5 *
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
+            # record outputs
+            self._analyte_srmdat_link = analyte_srm_link
             srmdat.dropna(subset=['mol_ratio'], inplace=True)
             self.srmdat = srmdat
+
+            # Print any warnings
+            if len(warns) > 0:
+                print('WARNING: Some analytes are not present in the SRM database:')
+                print('\n'.join(warns))
 
     # def srm_load_database(self, srms_used=None, reload=False):
     #     if not hasattr(self, 'srmdat') or reload:
@@ -1420,7 +1431,7 @@ class analyse(object):
     #         # remove any non-analysed elements that have made it through checks
     #         srmdat.dropna(subset=['element'], inplace=True)
 
-    #         # convert to table in same format as stdtab
+    #         # convert to table in same format as stddat
     #         self.srmdat = srmdat.dropna(how='all')
     
     def srm_compile_measured(self, n_min=10):
@@ -1436,11 +1447,11 @@ class analyse(object):
         warns = []
         # compile mean and standard errors of samples
         for s in self.stds:
-            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
-            stdtab.index.name = 'uTime'
+            stddat = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
+            stddat.index.name = 'uTime'
 
             if not s.n > 0:
-                s.stdtab = stdtab
+                s.stddat = stddat
                 continue
 
             for n in range(1, s.n + 1):
@@ -1448,22 +1459,22 @@ class analyse(object):
                 if sum(ind) >= n_min:
                     for a in s.analytes:
                         aind = ind & ~np.isnan(nominal_values(s.focus[a]))
-                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                        stddat.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'mean')] = np.nanmean(s.focus[a][aind])
-                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                        stddat.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
                 else:
                     warns.append('   Ablation {:} of SRM measurement {:} ({:} points)'.format(n, s.sample, sum(ind)))
 
             # sort column multiindex
-            stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
+            stddat = stddat.loc[:, stddat.columns.sort_values()]
             # sort row index
-            stdtab.sort_index(inplace=True)
+            stddat.sort_index(inplace=True)
 
             # create 'SRM' column for naming SRM
-            stdtab.loc[:, 'STD'] = s.sample
+            stddat.loc[:, 'STD'] = s.sample
 
-            s.stdtab = stdtab
+            s.stddat = stddat
 
         if len(warns) > 0:
             print('WARNING: Some SRM ablations have been excluded because they do not contain enough data:')
@@ -1471,10 +1482,10 @@ class analyse(object):
             print("To *include* these ablations, reduce the value of n_min (currently {:})".format(n_min))
 
         # compile them into a table
-        self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+        self.stddat = pd.concat([s.stddat for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
 
         # identify groups of consecutive SRMs
-        ts = self.stdtab.index.values
+        ts = self.stddat.index.values
         start_times = [s.uTime[0] for s in self.data.values()]
 
         lastpos = sum(ts[0] > start_times)
@@ -1488,13 +1499,13 @@ class analyse(object):
                 group.append(group[-1] + 1)
             lastpos = pos
 
-        self.stdtab.loc[:, 'group'] = group
+        self.stddat.loc[:, 'group'] = group
         # calculate centre time for the groups
-        self.stdtab.loc[:, 'gTime'] = np.nan
+        self.stddat.loc[:, 'gTime'] = np.nan
 
-        for g, d in self.stdtab.groupby('group'):
-            ind = self.stdtab.group == g
-            self.stdtab.loc[ind, 'gTime'] = self.stdtab.loc[ind].index.values.mean()
+        for g, d in self.stddat.groupby('group'):
+            ind = self.stddat.group == g
+            self.stddat.loc[ind, 'gTime'] = self.stddat.loc[ind].index.values.mean()
 
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
@@ -1515,8 +1526,8 @@ class analyse(object):
             
         # get mean and standard deviations of measured standards
         self.srm_compile_measured(n_min)
-        stdtab = self.stdtab.copy()
-        stdtab.loc[:, 'SRM'] = ''
+        stddat = self.stddat.copy()
+        stddat.loc[:, 'SRM'] = ''
 
 
         # load corresponding SRM database
@@ -1527,7 +1538,7 @@ class analyse(object):
 
         # Auto - ID STDs
         # 1. identify elements in measured SRMS with biggest range of values
-        meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
+        meas_tab = stddat.loc[:, (slice(None), 'mean')]  # isolate means of standards
         meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
         meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
         meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
@@ -1562,29 +1573,29 @@ class analyse(object):
             # This produces a table, where wach row contains the difference between
             # a known vs. measured SRM. The measured SRM is identified as the SRM that
             # has the smallest weighted sum value.
-            stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+            stddat.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
 
         # calculate mean time for each SRM
         # reset index and sort
-        stdtab.reset_index(inplace=True)
-        stdtab.sort_index(1, inplace=True)
+        stddat.reset_index(inplace=True)
+        stddat.sort_index(1, inplace=True)
         # isolate STD and uTime
-        uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
+        uT = stddat.loc[:, ['gTime', 'STD']].set_index('STD')
         uT.sort_index(inplace=True)
         uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
         # replace uTime values with means
-        stdtab.set_index(['STD'], inplace=True)
-        stdtab.loc[:, 'gTime'] = uTm
+        stddat.set_index(['STD'], inplace=True)
+        stddat.loc[:, 'gTime'] = uTm
         # reset index
-        stdtab.reset_index(inplace=True)
-        stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
+        stddat.reset_index(inplace=True)
+        stddat.set_index(['STD', 'SRM', 'gTime'], inplace=True)
 
         # combine to make SRM reference tables
         srmtabs = Bunch()
         for a in self.analytes:
             el = re.findall('[A-Za-z]+', a)[0]
 
-            sub = stdtab.loc[:, a]
+            sub = stddat.loc[:, a]
 
             srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
 
@@ -1606,7 +1617,7 @@ class analyse(object):
 
     def clear_calibration(self):
         if self.srms_ided:
-            del self.stdtab
+            del self.stddat
             del self.srmdat
             del self.srmtabs
 
@@ -1662,7 +1673,7 @@ class analyse(object):
 
         # make container for calibration params
         if not hasattr(self, 'calib_params'):
-            gTime = self.stdtab.gTime.unique()
+            gTime = self.stddat.gTime.unique()
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
                                             index=gTime)
 
@@ -1678,7 +1689,7 @@ class analyse(object):
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
             if drift_correct:
-                for g in self.stdtab.gTime.unique():
+                for g in self.stddat.gTime.unique():
                     ind = idx[a, :, :, g]
                     if self.srmtabs.loc[ind].size == 0:
                         continue
