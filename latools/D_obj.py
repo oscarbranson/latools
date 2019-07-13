@@ -156,8 +156,10 @@ class D(object):
 
         return
 
-    def analytes_sorted(self):
-        return sorted(self.analytes, key=analyte_sort_fn)
+    def analytes_sorted(self, a=None):
+        if a is None:
+            a = self.analytes
+        return sorted(a, key=analyte_sort_fn)
 
     @_log
     def setfocus(self, focus):
