@@ -156,8 +156,8 @@ class D(object):
 
         return
 
-    def analytes_sorted():
-        return sorted(self.analytes, analyte_sort_fn)
+    def analytes_sorted(self):
+        return sorted(self.analytes, key=analyte_sort_fn)
 
     @_log
     def setfocus(self, focus):
