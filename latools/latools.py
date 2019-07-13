@@ -3944,6 +3944,8 @@ class analyse(object):
                 self.stats[s] = self.data[s].stats
                 prog.update()
 
+        return self.getstats()
+
     @_log
     def ablation_times(self, samples=None, subset=None):
 
@@ -4117,7 +4119,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out 
+        return out.reindex(self.analytes_sorted(out.columns), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
