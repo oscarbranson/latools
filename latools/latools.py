@@ -270,8 +270,8 @@ class analyse(object):
             all_analytes.update(d.analytes)
             extras.update(all_analytes.symmetric_difference(d.analytes))
         self.analytes = all_analytes.difference(extras)
+        mismatch = []
         if self.analytes != all_analytes:
-            mismatch = []
             smax = 0
             for d in data:
                 if d.analytes != self.analytes:
@@ -302,7 +302,11 @@ class analyse(object):
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
-
+        
+        # remove mismatch analytes - QUICK-FIX - SHOULD BE DONE HIGHER UP?
+        for s, a in mismatch:
+            self.data[s].analytes = self.data[s].analytes.difference(a)
+            
         # get SRM info
         self.srm_identifier = srm_identifier
         self.stds = []  # make this a dict
@@ -1748,8 +1752,8 @@ class analyse(object):
                             self.calib_params.loc[g, (a, 'c')] = pe[1]
                     else:
                         # deal with case where there's only one datum
-                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, serr) / 
-                                                              un.uarray(meas, merr))[0]
+                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                                                              un.uarray(meas, meas_err))[0]
                         if not zero_intercept:
                             self.calib_params.loc[g, (a, 'c')] = 0
             else:
@@ -1767,8 +1771,8 @@ class analyse(object):
                     if not zero_intercept:
                         self.calib_params.loc[:, (a, 'c')] = pe[1]
                 else:
-                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, serr) / 
-                                                          un.uarray(meas, merr))[0]
+                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                                                          un.uarray(meas, meas_err))[0]
                     if not zero_intercept:
                         self.calib_params.loc[:, (a, 'c')] = 0
 
@@ -4241,7 +4245,7 @@ class analyse(object):
             ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
-            for a in analytes:
+            for a in self.analytes_sorted(analytes):
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])
