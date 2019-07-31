@@ -105,8 +105,11 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
 
     if thresh is None:
         if tsigs.ndim == 1:
+            scale = False
             tsigs = tsigs.reshape(-1, 1)
-        fsig = separate_signal(tsigs).astype(bool)
+        else:
+            scale = True
+        fsig = separate_signal(tsigs, scaleX=scale).astype(bool)
     else:
         fsig = tsigs > thresh
     fsig[0] = False  # the first value must always be background
@@ -120,6 +123,8 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
     
     if zeros is not None:
         zeros = zeros.flatten()
+        if sigs.ndim > 1:
+            sigs = sigs.sum(axis=1)
 
         # 2. calculate the absolute gradient of the target trace.
         grad = abs(fastgrad(sigs, gwin))  # gradient of untransformed data.
