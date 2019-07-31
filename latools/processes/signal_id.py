@@ -4,27 +4,42 @@ in LA-ICPMS data.
 
 (c) Oscar Branson : https://github.com/oscarbranson
 """
+import warnings
 import numpy as np
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit
+from sklearn.preprocessing import scale
+from sklearn.cluster import KMeans
 
-from ..helpers.helpers import Bunch, fastgrad, fastsmooth, findmins, bool_2_indices
+from ..helpers.helpers import Bunch, fastgrad, fastsmooth, findmins, bool_2_indices, bool_transitions
 from ..helpers.stat_fns import gauss
 
-def autorange(t, sig, gwin=7, swin=None, win=30,
+warnings.filterwarnings("ignore")
+
+def separate_signal(X, transform=None, scaleX=True):
+    if transform is not None:
+        X = transform(X)
+    if scale:
+        X = scale(X)
+    
+    init = np.percentile(X, [5, 95], 0)
+    
+    return KMeans(2, init=init).fit_predict(X)
+
+def log_nozero(a, **kwargs):
+    a[a == 0] = a[a != 0].min()
+    return np.log(a)
+
+
+def autorange(xvar, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
               nbin=10, transform='log', thresh=None):
     """
     Automatically separates signal and background in an on/off data stream.
 
     **Step 1: Thresholding.**
-    The background signal is determined using a gaussian kernel density
-    estimator (kde) of all the data. Under normal circumstances, this
-    kde should find two distinct data distributions, corresponding to
-    'signal' and 'background'. The minima between these two distributions
-    is taken as a rough threshold to identify signal and background
-    regions. Any point where the trace crosses this thrshold is identified
-    as a 'transition'.
+    KMeans clustering is used to identify data where the laser is 'on' vs
+    where the laser is 'off'.
 
     **Step 2: Transition Removal.**
     The width of the transition regions between signal and background are
@@ -40,10 +55,11 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
 
     Parameters
     ----------
-    t : array-like
+    xvar : array-like
         Independent variable (usually time).
     sig : array-like
-        Dependent signal, with distinctive 'on' and 'off' regions.
+        Dependent signal, of shape (nsamples, nfeatures). Should be clear 
+        distinction between laser 'on' and 'off' regions.
     gwin : int
         The window used for calculating first derivative.
         Defaults to 7.
@@ -73,6 +89,7 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
         has failed.
     """
     failed = []
+    sig = np.asanyarray(sig)
 
     # smooth signal
     if swin is not None:
@@ -82,41 +99,31 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
 
     # transform signal
     if transform == 'log':
-        tsigs = np.log10(sigs)
+        tsigs = log_nozero(sigs)
     else:
         tsigs = sigs
 
     if thresh is None:
-        bins = 50
-        kde_x = np.linspace(tsigs.min(), tsigs.max(), bins)
-
-        kde = gaussian_kde(tsigs)
-        yd = kde.pdf(kde_x)
-        mins = findmins(kde_x, yd)  # find minima in kde
-
-        if len(mins) > 0:
-            bkg = tsigs < (mins[0])  # set background as lowest distribution
-        else:
-            bkg = np.ones(tsigs.size, dtype=bool)
-        # bkg[0] = True  # the first value must always be background
+        if tsigs.ndim == 1:
+            tsigs = tsigs.reshape(-1, 1)
+        fsig = separate_signal(tsigs).astype(bool)
     else:
-        bkg = tsigs < thresh
-
-    # assign rough background and signal regions based on kde minima
-    fbkg = bkg
-    fsig = ~bkg
+        fsig = tsigs > thresh
+    fsig[0] = False  # the first value must always be background
+    fbkg = ~fsig
 
     # remove transitions by fitting a gaussian to the gradients of
     # each transition
 
     # 1. determine the approximate index of each transition
     zeros = bool_2_indices(fsig)
-
-    # 2. calculate the absolute gradient of the target trace.
-    g = abs(fastgrad(sigs, gwin))  # gradient of untransformed data.
     
     if zeros is not None:
         zeros = zeros.flatten()
+
+        # 2. calculate the absolute gradient of the target trace.
+        grad = abs(fastgrad(sigs, gwin))  # gradient of untransformed data.
+
         for z in zeros:  # for each approximate transition
             # isolate the data around the transition
             if z - win < 0:
@@ -129,8 +136,8 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
                 lo = int(z - win)
                 hi = int(z + win)
 
-            xs = t[lo:hi]
-            ys = g[lo:hi]
+            xs = xvar[lo:hi]
+            ys = grad[lo:hi]
 
             # determine type of transition (on/off)
             mid = (hi + lo) // 2
@@ -148,15 +155,15 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
             # even if the data window has captured two independent
             # transitions (i.e. end of one ablation and start of next)
             # ablation are < win time steps apart).
-            c = t[z]  # center of transition
-            width = (t[1] - t[0]) * 2
+            centre = xvar[z]  # center of transition
+            width = (xvar[1] - xvar[0]) * 2
 
             try:
                 pg, _ = curve_fit(gauss, xs, ys,
                                   p0=(np.nanmax(ys),
-                                      c,
+                                      centre,
                                       width),
-                                  sigma=(xs - c)**2 + .01)
+                                  sigma=(xs - centre)**2 + .01)
                 # get the x positions when the fitted gaussian is at 'conf' of
                 # maximum
                 # determine transition FWHM
@@ -167,11 +174,11 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
                 else:
                     lim = np.array([-fwhm, fwhm]) * off_mult + pg[1]
 
-                fbkg[(t > lim[0]) & (t < lim[1])] = False
-                fsig[(t > lim[0]) & (t < lim[1])] = False
+                fbkg[(xvar > lim[0]) & (xvar < lim[1])] = False
+                fsig[(xvar > lim[0]) & (xvar < lim[1])] = False
 
             except RuntimeError:
-                failed.append([c, tp])
+                failed.append([centre, tp])
                 pass
 
     ftrn = ~fbkg & ~fsig
@@ -179,15 +186,15 @@ def autorange(t, sig, gwin=7, swin=None, win=30,
     # if there are any failed transitions, exclude the mean transition width
     # either side of the failures
     if len(failed) > 0:
-        trns = t[bool_2_indices(ftrn)]
+        trns = xvar[bool_2_indices(ftrn)]
         tr_mean = (trns[:, 1] - trns[:, 0]).mean() / 2
         for f, tp in failed:
             if tp:
-                ind = (t >= f - tr_mean *
-                       on_mult[0]) & (t <= f + tr_mean * on_mult[0])
+                ind = (xvar >= f - tr_mean *
+                       on_mult[0]) & (xvar <= f + tr_mean * on_mult[0])
             else:
-                ind = (t >= f - tr_mean *
-                       off_mult[0]) & (t <= f + tr_mean * off_mult[0])
+                ind = (xvar >= f - tr_mean *
+                       off_mult[0]) & (xvar <= f + tr_mean * off_mult[0])
             fsig[ind] = False
             fbkg[ind] = False
             ftrn[ind] = False

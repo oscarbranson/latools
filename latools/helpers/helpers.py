@@ -166,6 +166,12 @@ def collate_data(in_dir, extension='.csv', out_dir=None):
                 shutil.copy(p + '/' + f, out_dir + '/' + f)
     return
 
+def bool_transitions(a):
+    """
+    Return indices where a boolean array changes from True to False
+    """
+    return np.where(a[:-1] != a[1:])[0]
+
 def bool_2_indices(a):
     """
     Convert boolean array into a 2D array of (start, stop) pairs.
