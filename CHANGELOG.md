@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.12] - 28/10/2019
+
+### Changed
+ - Fixed analyte ordering in stat export.
+
 ## [0.3.11] - 04/07/2019
 Fixing minor bugs introduced in 0.3.10.
 
