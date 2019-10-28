@@ -7,8 +7,7 @@ build:
 	python setup.py sdist bdist_wheel
 
 upload:
-	PVER=$(python setup.py --version)
-	twine upload dist/latools-$$PVER*
+	twine upload dist/latools-$$(python setup.py --version)*
 
 distribute:
 	make test
