@@ -342,7 +342,7 @@ class analyse(object):
                'samples').format(len(self.data),
                                  len(self.stds),
                                  len(self.data) - len(self.stds)))
-        astr = self._wrap_text('Analytes: ' + ' '.join(self.analytes))
+        astr = self._wrap_text('Analytes: ' + ' '.join(self.analytes_sorted()))
         print(astr)
         print('  Internal Standard: {}'.format(self.internal_standard))
 
