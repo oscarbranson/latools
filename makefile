@@ -8,7 +8,7 @@ build:
 
 upload:
 	PVER=$(python setup.py --version)
-	twine upload dist/latools-$PVER*
+	twine upload dist/latools-$$PVER*
 
 distribute:
 	make test
