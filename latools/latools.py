@@ -1709,6 +1709,7 @@ class analyse(object):
         """
         if analytes is None:
             analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
+
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -1723,7 +1724,7 @@ class analyse(object):
         if not hasattr(self, 'calib_params'):
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
                                              index=gTime)
-        
+
         if zero_intercept:
             fn  = lambda x, m: x * m
         else:
