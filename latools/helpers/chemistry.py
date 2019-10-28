@@ -81,6 +81,49 @@ def calc_M(molecule):
         m += me * n
     return m
 
+def decompose_molecule(molecule, n=1):
+    """
+    Returns the chemical constituents of the molecule, and their number.
+
+    Parameters
+    ----------
+    molecule : str
+        A molecule in standard chemical notation, 
+        e.g. 'CO2', 'HCO3' or 'B(OH)4'.
+    
+    Returns
+    -------
+    All elements in molecule with their associated counts : dict
+    """
+    if isinstance(n, str):
+        n = int(n)
+    
+    # define regexs
+    parens = re.compile('\(([A-z0-9()]+)\)([0-9]+)?')
+    stoich = re.compile('([A-Z][a-z]?)([0-9]+)?')
+
+    ps = parens.findall(molecule)  # find subgroups in parentheses
+    rem = parens.sub('', molecule)  # get remainder
+    
+    if len(ps) > 0:
+        for s, ns in ps:
+            comp = decompose_molecule(s, ns)
+        for k, v in comp.items():
+            comp[k] = v * n
+    else:
+        comp = {}
+        
+    for e, ns in stoich.findall(rem):
+        if e not in comp:
+            comp[e] = 0
+        if ns == '':
+            ns = 1 * n
+        else:
+            ns = int(ns) * n
+        comp[e] += ns
+
+    return comp
+
 def analyte_mass(analyte, in_name=True):
     """
     Returns the mass of a given analyte.

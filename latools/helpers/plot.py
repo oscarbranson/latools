@@ -15,7 +15,8 @@ from pandas import IndexSlice as idx
 
 from tqdm import tqdm
 
-from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, pretty_element, calc_grads
+from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, calc_grads
+from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def calc_nrow(n, ncol):
@@ -723,7 +724,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         analytes = [analytes]
 
     if analytes is None:
-        analytes = [a for a in self.analytes if self.internal_standard not in a]
+        analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
 
     if srm_group is not None:
         srm_groups = {int(g): t for g, t in self.stdtab.loc[:, ['group', 'gTime']].values}
@@ -768,14 +769,14 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             axes.append((ax, axh))
         
         if gTime is None:
-            sub = idx[a]
+            sub = idx[:,:]
         else:
-            sub = idx[a, :, :, gTime]
-        x = self.srmtabs.loc[sub, 'meas_mean'].values
-        xe = self.srmtabs.loc[sub, 'meas_err'].values
-        y = self.srmtabs.loc[sub, 'srm_mean'].values
-        ye = self.srmtabs.loc[sub, 'srm_err'].values
-        srm = self.srmtabs.loc[sub].index.get_level_values('SRM')
+            sub = idx[gTime, :]
+        x = self.caltab.loc[sub, (a, 'meas_mean')].values
+        xe = self.caltab.loc[sub, (a, 'meas_err')].values
+        y = self.caltab.loc[sub, (a, 'srm_mean')].values
+        ye = self.caltab.loc[sub, (a, 'srm_err')].values
+        srm = self.caltab.loc[sub, ('SRM')]
         
         # plot calibration data
         for s, m in mdict.items():
@@ -804,8 +805,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
                 ylim = [0, ymax * 1.05]
 
         else:
-            xd = self.srmtabs.loc[a, 'meas_mean'][self.srmtabs.loc[a, 'meas_mean'] > 0].values
-            yd = self.srmtabs.loc[a, 'srm_mean'][self.srmtabs.loc[a, 'srm_mean'] > 0].values
+            xd = self.caltab.loc[:, (a, 'meas_mean')][self.caltab.loc[:, (a, 'meas_mean')] > 0].values
+            yd = self.caltab.loc[:, (a, 'srm_mean')][self.caltab.loc[:, (a, 'srm_mean')] > 0].values
 
             xlim = [10**np.floor(np.log10(np.nanmin(xd))),
                     10**np.ceil(np.log10(np.nanmax(xd)))]
@@ -851,8 +852,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
             c = np.nanmean(coefs['c'])
             c_nom = nominal_values(c)
             # calculate R2
-            ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom + c_nom
-            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=False)
+            ym = self.caltab.loc[:, (a, 'meas_mean')] * m_nom + c_nom
+            R2 = R2calc(self.caltab.loc[:, (a, 'srm_mean')], ym, force_zero=False)
             # generate line and label
             line = x * m_nom + c_nom
             label = 'y = {:.2e} x'.format(m)
@@ -862,8 +863,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
                 label += '\n {:.2e}'.format(c)
         else:
             # calculate R2
-            ym = self.srmtabs.loc[a, 'meas_mean'] * m_nom
-            R2 = R2calc(self.srmtabs.loc[a, 'srm_mean'], ym, force_zero=True)
+            ym = self.caltab.loc[:, (a, 'meas_mean')] * m_nom
+            R2 = R2calc(self.caltab.loc[:, (a, 'srm_mean')], ym, force_zero=True)
             # generate line and label
             line = x * m_nom
             label = 'y = {:.2e} x'.format(m)

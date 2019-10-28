@@ -20,10 +20,12 @@ import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import pkg_resources as pkgrs
+
 import uncertainties as unc
 import uncertainties.unumpy as un
-from sklearn.preprocessing import minmax_scale
 
+from sklearn.preprocessing import minmax_scale, scale
+from sklearn.cluster import KMeans
 from scipy.optimize import curve_fit
 
 from .helpers import plot
@@ -32,7 +34,7 @@ from .filtering.classifier_obj import classifier
 
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, pretty_element, get_date,
+                      un_interp1d, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
                       get_total_time_span)
 from .helpers import logging
@@ -42,7 +44,8 @@ from .helpers.stat_fns import *
 from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
-from .helpers.chemistry import analyte_mass
+from .helpers.chemistry import analyte_mass, decompose_molecule
+from .helpers.analyte_names import get_analyte_name, analyte_2_massname, pretty_element, analyte_sort_fn
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -267,8 +270,8 @@ class analyse(object):
             all_analytes.update(d.analytes)
             extras.update(all_analytes.symmetric_difference(d.analytes))
         self.analytes = all_analytes.difference(extras)
+        mismatch = []
         if self.analytes != all_analytes:
-            mismatch = []
             smax = 0
             for d in data:
                 if d.analytes != self.analytes:
@@ -299,7 +302,11 @@ class analyse(object):
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
-
+        
+        # remove mismatch analytes - QUICK-FIX - SHOULD BE DONE HIGHER UP?
+        for s, a in mismatch:
+            self.data[s].analytes = self.data[s].analytes.difference(a)
+            
         # get SRM info
         self.srm_identifier = srm_identifier
         self.stds = []  # make this a dict
@@ -453,6 +460,11 @@ class analyse(object):
                 'data_folder :: {}'.format(self.folder),
                 '# Analysis Log Start: \n'
                 ]
+
+    def analytes_sorted(self, a=None):
+        if a is None:
+            a = self.analytes
+        return sorted(a, key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -1321,56 +1333,79 @@ class analyse(object):
         return
 
     def srm_load_database(self, srms_used=None, reload=False):
-        if not hasattr(self, 'srmdat') and not reload:
-            elnames = re.compile('.*([A-Z][a-z]{0,}).*')  # regex to ID element names
+        if not hasattr(self, 'srmdat') or reload:
             # load SRM info
             srmdat = srms.read_table(self.srmfile)
             srmdat = srmdat.loc[srms_used]
-            
+            srmdat.reset_index(inplace=True)
+            srmdat.set_index(['SRM', 'Item'], inplace=True)
+            # empty columns for mol_ratio and mol_ratio_err
+            srmdat.loc[:, 'mol_ratio'] = np.nan
+            srmdat.loc[:, 'mol_ratio_err'] = np.nan
+
             # get element name
-            internal_el = elnames.match(self.internal_standard).groups()[0]
+            internal_el = get_analyte_name(self.internal_standard)
             # calculate ratios to internal_standard for all elements
+
+            analyte_srm_link = {}
+            warns = []
+            srmsubs = []
+
             for srm in srms_used:
-                ind = srmdat.index == srm
+                srmsub = srmdat.loc[srm]
+
+                # determine analyte - Item pairs in table
+                ad = {}
+                for a in self.analytes:
+                    # check ig there's an exact match of form [Mass][Element] in srmdat
+                    mna = analyte_2_massname(a)
+                    if mna in srmsub.index:
+                        ad[a] = mna
+                    else:
+                        # if not, match by element name.
+                        item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
+                        if len(item) > 1:
+                            item = item[item == get_analyte_name(a)]
+                        if len(item) == 1:
+                            ad[a] = item[0]
+                        else:
+                            warns.append('   No {:} value for {:}.'.format(a, srm))
+
+                analyte_srm_link[srm] = ad
 
                 # find denominator
-                denom = srmdat.loc[srmdat.Item.str.contains(internal_el) & ind]
+                denom = srmsub.loc[ad[self.internal_standard]]
                 # calculate denominator composition (multiplier to account for stoichiometry,
                 # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-                comp = re.findall('([A-Z][a-z]{0,})([0-9]{0,})',
-                                    denom.Item.values[0])
-                # determine stoichiometric multiplier
-                N = [n for el, n in comp if el == internal_el][0]
-                if N == '':
-                    N = 1
-                else:
-                    N = float(N)
+                N = float(decompose_molecule(ad[self.internal_standard])[internal_el])
 
                 # calculate molar ratio
-                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'].values * N)
+                ind = (srm, list(ad.values()))
+                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'] * N)
                 srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
-                                                    (denom['mol/g_err'].values / denom['mol/g'].values))**0.5 *
+                                                    (denom['mol/g_err'] / denom['mol/g']))**0.5 *
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
-            
-            # isolate measured elements
-            elements = np.unique([elnames.findall(a)[0] for a in self.analytes])
-            srmdat = srmdat.loc[srmdat.Item.apply(lambda x: any([a in x for a in elements]))]
 
-            # label elements
-            srmdat.loc[:, 'element'] = np.nan
+            srmdat.dropna(subset=['mol_ratio'], inplace=True)
 
-            elonly = re.compile('([A-Z][a-z]{0,})')
-            for e in elements:
-                ind = [e in elonly.findall(i) for i in srmdat.Item]
-                srmdat.loc[ind, 'element'] = str(e)
+            # compile stand-alone table of SRM values
+            srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analytes, ['mean', 'err']]))
+            for srm, ad in analyte_srm_link.items():
+                for a, k in ad.items():
+                    srmtab.loc[srm, (a, 'mean')] = srmdat.loc[(srm, k), 'mol_ratio']
+                    srmtab.loc[srm, (a, 'err')] = srmdat.loc[(srm, k), 'mol_ratio_err']
 
-            # remove any non-analysed elements that have made it through checks
-            srmdat.dropna(subset=['element'], inplace=True)
+            # record outputs
+            self.srmdat = srmdat  # the full SRM table
+            self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
+            self.srmtab = srmtab.reindex(self.analytes_sorted(), level=0, axis=1).astype(float)  # a summary of relevant mol/mol values only
 
-            # convert to table in same format as stdtab
-            self.srmdat = srmdat.dropna(how='all')
+            # Print any warnings
+            if len(warns) > 0:
+                print('WARNING: Some analytes are not present in the SRM database:')
+                print('\n'.join(warns))
     
-    def srm_compile_measured(self, n_min=10):
+    def srm_compile_measured(self, n_min=10, focus_stage='ratios'):
         """
         Compile mean and standard errors of measured SRMs
 
@@ -1380,40 +1415,49 @@ class analyse(object):
             The minimum number of points to consider as a valid measurement.
             Default = 10.
         """
+        warns = []
         # compile mean and standard errors of samples
         for s in self.stds:
-            stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
-            stdtab.index.name = 'uTime'
+            s_stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
+            s_stdtab.index.name = 'uTime'
 
             if not s.n > 0:
-                s.stdtab = stdtab
+                s.stdtab = s_stdtab
                 continue
 
             for n in range(1, s.n + 1):
                 ind = s.ns == n
                 if sum(ind) >= n_min:
                     for a in s.analytes:
-                        aind = ind & ~np.isnan(nominal_values(s.focus[a]))
-                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                                   (a, 'mean')] = np.nanmean(s.focus[a][aind])
-                        stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                                   (a, 'err')] = np.nanstd(nominal_values(s.focus[a][aind])) / np.sqrt(sum(aind))
+                        aind = ind & ~np.isnan(nominal_values(s.data[focus_stage][a]))
+                        s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'mean')] = np.nanmean(nominal_values(s.data[focus_stage][a][aind]))
+                        s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
+                                   (a, 'err')] = np.nanstd(nominal_values(s.data[focus_stage][a][aind])) / np.sqrt(sum(aind))
+                else:
+                    warns.append('   Ablation {:} of SRM measurement {:} ({:} points)'.format(n, s.sample, sum(ind)))
 
             # sort column multiindex
-            stdtab = stdtab.loc[:, stdtab.columns.sort_values()]
+            s_stdtab = s_stdtab.loc[:, s_stdtab.columns.sort_values()]
             # sort row index
-            stdtab.sort_index(inplace=True)
+            s_stdtab.sort_index(inplace=True)
 
             # create 'SRM' column for naming SRM
-            stdtab.loc[:, 'STD'] = s.sample
+            s_stdtab.loc[:, 'STD'] = s.sample
 
-            s.stdtab = stdtab
+            s.stdtab = s_stdtab
+
+        if len(warns) > 0:
+            print('WARNING: Some SRM ablations have been excluded because they do not contain enough data:')
+            print('\n'.join(warns))
+            print("To *include* these ablations, reduce the value of n_min (currently {:})".format(n_min))
 
         # compile them into a table
-        self.stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+        stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
+        stdtab = stdtab.reindex(self.analytes_sorted() + ['STD'], level=0, axis=1)
 
         # identify groups of consecutive SRMs
-        ts = self.stdtab.index.values
+        ts = stdtab.index.values
         start_times = [s.uTime[0] for s in self.data.values()]
 
         lastpos = sum(ts[0] > start_times)
@@ -1427,127 +1471,202 @@ class analyse(object):
                 group.append(group[-1] + 1)
             lastpos = pos
 
-        self.stdtab.loc[:, 'group'] = group
+        stdtab.loc[:, 'group'] = group
         # calculate centre time for the groups
-        self.stdtab.loc[:, 'gTime'] = np.nan
+        stdtab.loc[:, 'gTime'] = np.nan
 
-        for g, d in self.stdtab.groupby('group'):
-            ind = self.stdtab.group == g
-            self.stdtab.loc[ind, 'gTime'] = self.stdtab.loc[ind].index.values.mean()
+        for g, d in stdtab.groupby('group'):
+            ind = stdtab.group == g
+            stdtab.loc[ind, 'gTime'] = stdtab.loc[ind].index.values.mean()
 
+        self.stdtab = stdtab
 
-    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
+    def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], analytes=None, n_min=10, reload_srm_database=False):
         """
-        Function for automarically identifying SRMs
-    
+        Function for automarically identifying SRMs using KMeans clustering.
+
+        KMeans is performed on the log of SRM composition, which aids separation
+        of relatively similar SRMs within a large compositional range.
+
         Parameters
         ----------
         srms_used : iterable
             Which SRMs have been used. Must match SRM names
             in SRM database *exactly* (case sensitive!).
+        analytes : array-like
+            Which analytes to base the identification on. If None,
+            all analytes are used (default).
         n_min : int
             The minimum number of data points a SRM measurement
             must contain to be included.
+        reload_srm_database : bool
+            Whether or not to re-load the SRM database before running the function.
         """
         if isinstance(srms_used, str):
             srms_used = [srms_used]
-            
-        # get mean and standard deviations of measured standards
+                
+        if analytes is None:
+            analytes = self.analytes
+        
+        # compile measured SRM data
         self.srm_compile_measured(n_min)
-        stdtab = self.stdtab.copy()
-        stdtab.loc[:, 'SRM'] = ''
 
-
-        # load corresponding SRM database
+        # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
+        
+        # get and scale mean srm values for all analytes
+        srmid = self.srmtab.loc[:, idx[:, 'mean']]
+        _srmid = scale(np.log(srmid))
+        srm_labels = srmid.index.values
 
-        # create blank srm table
-        srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
+        # get and scale measured srm values for all analytes
+        stdid = self.stdtab.loc[:, idx[:, 'mean']]
+        _stdid = scale(np.log(stdid))
 
-        # Auto - ID STDs
-        # 1. identify elements in measured SRMS with biggest range of values
-        meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
-        meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
-        meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
-        meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+        # fit KMeans classifier to srm database
+        classifier = KMeans(len(srms_used)).fit(_srmid)
+        # apply classifier to measured data
+        std_classes = classifier.predict(_stdid)
 
-        ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
-        # (used as weights later)
+        # get srm names from classes
+        std_srm_labels = np.array([srm_labels[np.argwhere(classifier.labels_ == i)][0][0] for i in std_classes])
 
-        # 2. Work out which standard is which
-        # normalise all elements between 0-1
-        def normalise(a):
-            a = nominal_values(a)
-            if np.nanmin(a) < np.nanmax(a):
-                return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
-            else:
-                return np.ones(a.shape)
-
-        nmeas = meas_tab.apply(normalise, 0)
-        nmeas.dropna(1, inplace=True)  # remove elements with NaN values
-        # nmeas.replace(np.nan, 1, inplace=True)
-        nsrm_tab = srm_tab.apply(normalise, 0)
-        nsrm_tab.dropna(1, inplace=True)
-        # nsrm_tab.replace(np.nan, 1, inplace=True)
-
-        for uT, r in nmeas.iterrows():  # for each standard...
-            idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
-            idx = abs((nsrm_tab - r) * ranges).sum(1)
-            # calculate the absolute difference between the normalised elemental
-            # values for each measured SRM and the SRM table. Each element is
-            # multiplied by the relative range seen in that element (i.e. range / mean
-            # measuerd value), so that elements with a large difference are given
-            # more importance in identifying the SRM.   
-            # This produces a table, where wach row contains the difference between
-            # a known vs. measured SRM. The measured SRM is identified as the SRM that
-            # has the smallest weighted sum value.
-            stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-
-        # calculate mean time for each SRM
-        # reset index and sort
-        stdtab.reset_index(inplace=True)
-        stdtab.sort_index(1, inplace=True)
-        # isolate STD and uTime
-        uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
-        uT.sort_index(inplace=True)
-        uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
-        # replace uTime values with means
-        stdtab.set_index(['STD'], inplace=True)
-        stdtab.loc[:, 'gTime'] = uTm
-        # reset index
-        stdtab.reset_index(inplace=True)
-        stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
-
-        # combine to make SRM reference tables
-        srmtabs = Bunch()
-        for a in self.analytes:
-            el = re.findall('[A-Za-z]+', a)[0]
-
-            sub = stdtab.loc[:, a]
-
-            srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
-
-            srmtab = sub.join(srmsub)
-            srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
-
-            srmtabs[a] = srmtab
-
-        self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
-        self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
-        # replace any nan error values with zeros - nans cause problems later.
-        self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
-
-        # remove internal standard from calibration elements
-        self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
-
+        self.stdtab.loc[:, 'SRM'] = std_srm_labels
         self.srms_ided = True
-        return
+
+        self.srm_build_calib_table()
+
+    def srm_build_calib_table(self):
+        """
+        Combine SRM database values and identified measured values into a calibration database.
+        """
+        caltab = self.stdtab.reset_index()
+        caltab.set_index(['gTime', 'uTime'], inplace=True)
+        levels = ['meas_' + c if c != '' else c for c in caltab.columns.levels[1]]
+        caltab.columns.set_levels(levels, 1, inplace=True)
+
+        for a in self.analytes:
+            if a == self.internal_standard:
+                continue
+
+            caltab.loc[:, (a, 'srm_mean')] = self.srmtab.loc[caltab.SRM, (a, 'mean')].values
+            caltab.loc[:, (a, 'srm_err')] = self.srmtab.loc[caltab.SRM, (a, 'err')].values
+            
+        self.caltab = caltab.reindex(self.stdtab.columns.levels[0], axis=1, level=0)
+
+    
+    # def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
+    #     """
+    #     Function for automarically identifying SRMs
+    
+    #     Parameters
+    #     ----------
+    #     srms_used : iterable
+    #         Which SRMs have been used. Must match SRM names
+    #         in SRM database *exactly* (case sensitive!).
+    #     n_min : int
+    #         The minimum number of data points a SRM measurement
+    #         must contain to be included.
+    #     """
+    #     if isinstance(srms_used, str):
+    #         srms_used = [srms_used]
+            
+    #     # get mean and standard deviations of measured standards
+    #     self.srm_compile_measured(n_min)
+    #     stdtab = self.stdtab.copy()
+    #     stdtab.loc[:, 'SRM'] = ''
+
+
+    #     # load corresponding SRM database
+    #     self.srm_load_database(srms_used, reload_srm_database)
+
+    #     # create blank srm table
+    #     srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
+
+    #     # Auto - ID STDs
+    #     # 1. identify elements in measured SRMS with biggest range of values
+    #     meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
+    #     meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
+    #     meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
+    #     meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
+
+    #     ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
+    #     # (used as weights later)
+
+    #     # 2. Work out which standard is which
+    #     # normalise all elements between 0-1
+    #     def normalise(a):
+    #         a = nominal_values(a)
+    #         if np.nanmin(a) < np.nanmax(a):
+    #             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
+    #         else:
+    #             return np.ones(a.shape)
+
+    #     nmeas = meas_tab.apply(normalise, 0)
+    #     nmeas.dropna(1, inplace=True)  # remove elements with NaN values
+    #     # nmeas.replace(np.nan, 1, inplace=True)
+    #     nsrm_tab = srm_tab.apply(normalise, 0)
+    #     nsrm_tab.dropna(1, inplace=True)
+    #     # nsrm_tab.replace(np.nan, 1, inplace=True)
+
+    #     for uT, r in nmeas.iterrows():  # for each standard...
+    #         idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
+    #         idx = abs((nsrm_tab - r) * ranges).sum(1)
+    #         # calculate the absolute difference between the normalised elemental
+    #         # values for each measured SRM and the SRM table. Each element is
+    #         # multiplied by the relative range seen in that element (i.e. range / mean
+    #         # measuerd value), so that elements with a large difference are given
+    #         # more importance in identifying the SRM.   
+    #         # This produces a table, where wach row contains the difference between
+    #         # a known vs. measured SRM. The measured SRM is identified as the SRM that
+    #         # has the smallest weighted sum value.
+    #         stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
+
+    #     # calculate mean time for each SRM
+    #     # reset index and sort
+    #     stdtab.reset_index(inplace=True)
+    #     stdtab.sort_index(1, inplace=True)
+    #     # isolate STD and uTime
+    #     uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
+    #     uT.sort_index(inplace=True)
+    #     uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
+    #     # replace uTime values with means
+    #     stdtab.set_index(['STD'], inplace=True)
+    #     stdtab.loc[:, 'gTime'] = uTm
+    #     # reset index
+    #     stdtab.reset_index(inplace=True)
+    #     stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
+
+    #     # combine to make SRM reference tables
+    #     srmtabs = Bunch()
+    #     for a in self.analytes:
+    #         el = re.findall('[A-Za-z]+', a)[0]
+
+    #         sub = stdtab.loc[:, a]
+
+    #         srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
+
+    #         srmtab = sub.join(srmsub)
+    #         srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
+
+    #         srmtabs[a] = srmtab
+
+    #     self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
+    #     self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
+    #     # replace any nan error values with zeros - nans cause problems later.
+    #     self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
+
+    #     # remove internal standard from calibration elements
+    #     self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
+
+    #     self.srms_ided = True
+    #     return
 
     def clear_calibration(self):
         if self.srms_ided:
             del self.stdtab
             del self.srmdat
-            del self.srmtabs
+            del self.srmtab
 
             self.srms_ided = False
 
@@ -1589,7 +1708,8 @@ class analyse(object):
         None
         """
         if analytes is None:
-            analytes = self.analytes.difference([self.internal_standard])
+            analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
+
         elif isinstance(analytes, str):
             analytes = [analytes]
 
@@ -1600,10 +1720,10 @@ class analyse(object):
             self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
         # make container for calibration params
+        gTime = np.asanyarray(self.caltab.index.levels[0])
         if not hasattr(self, 'calib_params'):
-            gTime = self.stdtab.gTime.unique()
             self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
-                                            index=gTime)
+                                             index=gTime)
 
         if zero_intercept:
             fn  = lambda x, m: x * m
@@ -1615,18 +1735,15 @@ class analyse(object):
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
             if drift_correct:
-                for g in self.stdtab.gTime.unique():
-                    ind = idx[a, :, :, g]
-                    if self.srmtabs.loc[ind].size == 0:
+                for g in gTime:
+                    if self.caltab.loc[g].size == 0:
                         continue
-                    # try:
-                    meas = self.srmtabs.loc[ind, 'meas_mean']
-                    srm = self.srmtabs.loc[ind, 'srm_mean']
-                    # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
-                    merr = self.srmtabs.loc[ind, 'meas_err']
-                    serr = self.srmtabs.loc[ind, 'srm_err']
-                    sigma = np.sqrt(merr**2 + serr**2)
-
+                    meas = self.caltab.loc[g, (a, 'meas_mean')].values
+                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values
+                    srm = self.caltab.loc[g, (a, 'srm_mean')].values
+                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values
+                    # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
+                    sigma = np.sqrt(meas_err**2 + srm_err**2)
                     if len(meas) > 1:
                         # multiple SRMs - do a regression
                         p, cov = curve_fit(fn, meas, srm, sigma=sigma)
@@ -1636,25 +1753,17 @@ class analyse(object):
                             self.calib_params.loc[g, (a, 'c')] = pe[1]
                     else:
                         # deal with case where there's only one datum
-                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, serr) / 
-                                                              un.uarray(meas, merr))[0]
+                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                                                              un.uarray(meas, meas_err))[0]
                         if not zero_intercept:
                             self.calib_params.loc[g, (a, 'c')] = 0
-
-                    # This should be obsolete, because no-longer sourcing locator from calib_params index.
-                    # except KeyError:
-                    #     # If the calibration is being recalculated, calib_params
-                    #     # will have t=0 and t=max(uTime) values that are outside
-                    #     # the srmtabs index.
-                    #     # If this happens, drop them, and re-fill them at the end.
-                    #     self.calib_params.drop(g, inplace=True)
             else:
-                ind = idx[a, :, :, :]
-                meas = self.srmtabs.loc[ind, 'meas_mean']
-                srm = self.srmtabs.loc[ind, 'srm_mean']
-                merr = self.srmtabs.loc[ind, 'meas_err']
-                serr = self.srmtabs.loc[ind, 'srm_err']
-                sigma = np.sqrt(merr**2 + serr**2)
+                meas = self.caltab.loc[:, (a, 'meas_mean')].values
+                meas_err = self.caltab.loc[:, (a, 'meas_err')].values
+                srm = self.caltab.loc[:, (a, 'srm_mean')].values
+                srm_err = self.caltab.loc[:, (a, 'srm_err')].values
+                # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
+                sigma = np.sqrt(meas_err**2 + srm_err**2)
                 
                 if len(meas) > 1:
                     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
@@ -1663,13 +1772,11 @@ class analyse(object):
                     if not zero_intercept:
                         self.calib_params.loc[:, (a, 'c')] = pe[1]
                 else:
-                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, serr) / 
-                                                          un.uarray(meas, merr))[0]
+                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                                                          un.uarray(meas, meas_err))[0]
                     if not zero_intercept:
                         self.calib_params.loc[:, (a, 'c')] = 0
 
-        # if fill:
-        # fill in uTime=0 and uTime = max cases for interpolation
         if self.calib_params.index.min() == 0:
             self.calib_params.drop(0, inplace=True)
             self.calib_params.drop(self.calib_params.index.max(), inplace=True)
@@ -1709,113 +1816,123 @@ class analyse(object):
 
         return
 
+    # def calibrate(self, analytes=None, drift_correct=True,
+    #               srms_used=['NIST610', 'NIST612', 'NIST614'],
+    #               zero_intercept=True, n_min=10, reload_srm_database=False):
+    #     """
+    #     Calibrates the data to measured SRM values.
+
+    #     Assumes that y intercept is zero.
+
+    #     Parameters
+    #     ----------  
+    #     analytes : str or iterable
+    #         Which analytes you'd like to calibrate. Defaults to all.
+    #     drift_correct : bool
+    #         Whether to pool all SRM measurements into a single calibration,
+    #         or vary the calibration through the run, interpolating
+    #         coefficients between measured SRMs.
+    #     srms_used : str or iterable
+    #         Which SRMs have been measured. Must match names given in
+    #         SRM data file *exactly*.
+    #     n_min : int
+    #         The minimum number of data points an SRM measurement
+    #         must have to be included.
+
+    #     Returns
+    #     -------
+    #     None
+    #     """
     #     if analytes is None:
-    #         analytes = self.analytes[self.analytes != self.internal_standard]
+    #         analytes = self.analytes.difference(self.internal_standard)
     #     elif isinstance(analytes, str):
     #         analytes = [analytes]
+
+    #     if isinstance(srms_used, str):
+    #         srms_used = [srms_used]
 
     #     if not hasattr(self, 'srmtabs'):
     #         self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
-    #     fill = False  # whether or not to pad with zero and max at end.
     #     # make container for calibration params
     #     if not hasattr(self, 'calib_params'):
-    #         uTime = self.srmtabs.index.get_level_values('uTime').unique().values
+    #         gTime = self.stdtab.gTime.unique()
     #         self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
-    #                                          index=uTime)
-    #         fill = True
+    #                                         index=gTime)
 
     #     calib_analytes = self.srmtabs.index.get_level_values(0).unique()
-        
+
+    #     if zero_intercept:
+    #         fn  = lambda x, m: x * m
+    #     else:
+    #         fn = lambda x, m, c: x * m + c
+
     #     for a in calib_analytes:
     #         if zero_intercept:
     #             if (a, 'c') in self.calib_params:
     #                 self.calib_params.drop((a, 'c'), 1, inplace=True)
-    #             if drift_correct:
-    #                 for t in self.calib_params.index:
-    #                     ind = idx[a, :, :, t]
-    #                     if self.srmtabs.loc[ind].size == 0:
-    #                         continue
-    #                     try:
-    #                         meas = un.uarray(self.srmtabs.loc[ind, 'meas_mean'],
-    #                                          self.srmtabs.loc[ind, 'meas_err'])
-    #                         srm = un.uarray(self.srmtabs.loc[ind, 'srm_mean'],
-    #                                         self.srmtabs.loc[ind, 'srm_err'])
-    #                         self.calib_params.loc[t, a] = np.nanmean(srm / meas)
-    #                     except KeyError:
-    #                         # If the calibration is being recalculated, calib_params
-    #                         # will have t=0 and t=max(uTime) values that are outside
-    #                         # the srmtabs index.
-    #                         # If this happens, drop them, and re-fill them at the end.
-    #                         self.calib_params.drop(t, inplace=True)
-    #                         fill = True
-    #             else:
-    #                 meas = un.uarray(self.srmtabs.loc[a, 'meas_mean'],
-    #                                  self.srmtabs.loc[a, 'meas_err'])
-    #                 srm = un.uarray(self.srmtabs.loc[a, 'srm_mean'],
-    #                                 self.srmtabs.loc[a, 'srm_err'])
-    #                 self.calib_params.loc[:, a] = np.nanmean(srm / meas)
+    #         if drift_correct:
+    #             for g in self.stdtab.gTime.unique():
+    #                 ind = idx[a, :, :, g]
+    #                 if self.srmtabs.loc[ind].size == 0:
+    #                     continue
+    #                 # try:
+    #                 meas = self.srmtabs.loc[ind, 'meas_mean']
+    #                 srm = self.srmtabs.loc[ind, 'srm_mean']
+    #                 # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
+    #                 merr = self.srmtabs.loc[ind, 'meas_err']
+    #                 serr = self.srmtabs.loc[ind, 'srm_err']
+    #                 sigma = np.sqrt(merr**2 + serr**2)
+
+    #                 if len(meas) > 1:
+    #                     # multiple SRMs - do a regression
+    #                     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+    #                     pe = unc.correlated_values(p, cov)                
+    #                     self.calib_params.loc[g, (a, 'm')] = pe[0]
+    #                     if not zero_intercept:
+    #                         self.calib_params.loc[g, (a, 'c')] = pe[1]
+    #                 else:
+    #                     # deal with case where there's only one datum
+    #                     self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, serr) / 
+    #                                                           un.uarray(meas, merr))[0]
+    #                     if not zero_intercept:
+    #                         self.calib_params.loc[g, (a, 'c')] = 0
+
+    #                 # This should be obsolete, because no-longer sourcing locator from calib_params index.
+    #                 # except KeyError:
+    #                 #     # If the calibration is being recalculated, calib_params
+    #                 #     # will have t=0 and t=max(uTime) values that are outside
+    #                 #     # the srmtabs index.
+    #                 #     # If this happens, drop them, and re-fill them at the end.
+    #                 #     self.calib_params.drop(g, inplace=True)
     #         else:
-    #             self.calib_params.loc[:, (a, 'c')] = 0
-    #             if drift_correct:
-    #                 for t in self.calib_params.index:
-    #                     try:
-    #                         x = self.srmtabs.loc[idx[a, :, :, t], 'meas_mean'].values
-    #                         y = self.srmtabs.loc[idx[a, :, :, t], 'srm_mean'].values
-
-    #                         # TODO : error estimation in drift corrected non-zero-intercept
-    #                         # case. Tricky because np.polyfit will only return cov
-    #                         # if n samples > order + 2 (rare, for laser ablation).
-    #                         #
-    #                         # First attempt (doesn't work):
-    #                         #
-    #                         # p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
-    #                         # ferr = np.sqrt(np.diag(cov))
-    #                         # pe = un.uarray(p, ferr)
-    #                         # pe = np.polyfit(x, y, 1, w=errs)
-
-    #                         if len(x) == 1:
-    #                             m = x / y
-    #                             c = None
-    #                         elif len(x) == 2:
-    #                             m = y.ptp() / x.ptp()
-    #                             c = y[0] - m * x[0]
-    #                         elif len(x) > 2:
-    #                             def lin(x, m, c):
-    #                                 return x * m + c
-    #                             p, cov = curve_fit(lin, x, y)
-    #                             err = np.sqrt(np.diag(cov))
-    #                             m = unc.ufloat(p[0], err[0])
-    #                             c = unc.ufloat(p[1], err[1])
-
-    #                         self.calib_params.loc[t, (a, 'm')] = m  # pe[0]
-    #                         if c is not None:
-    #                             self.calib_params.loc[t, (a, 'c')] = c  # pe[1]
-    #                     except KeyError:
-    #                         # If the calibration is being recalculated, calib_params
-    #                         # will have t=0 and t=max(uTime) values that are outside
-    #                         # the srmtabs index and can't be interpolated.
-    #                         # If this happens, drop them, and re-fill them at the end.
-    #                         self.calib_params.drop(t, inplace=True)
-    #                         fill = True
+    #             ind = idx[a, :, :, :]
+    #             meas = self.srmtabs.loc[ind, 'meas_mean']
+    #             srm = self.srmtabs.loc[ind, 'srm_mean']
+    #             merr = self.srmtabs.loc[ind, 'meas_err']
+    #             serr = self.srmtabs.loc[ind, 'srm_err']
+    #             sigma = np.sqrt(merr**2 + serr**2)
+                
+    #             if len(meas) > 1:
+    #                 p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+    #                 pe = unc.correlated_values(p, cov)                
+    #                 self.calib_params.loc[:, (a, 'm')] = pe[0]
+    #                 if not zero_intercept:
+    #                     self.calib_params.loc[:, (a, 'c')] = pe[1]
     #             else:
-    #                 x = self.srmtabs.loc[idx[a, :, :], 'meas_mean']
-    #                 y = self.srmtabs.loc[idx[a, :, :], 'srm_mean']
-    #                 errs = np.sqrt(self.srmtabs.loc[idx[a, :, :], 'meas_err']**2 +
-    #                                self.srmtabs.loc[idx[a, :, :], 'srm_err']**2)
+    #                 self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, serr) / 
+    #                                                       un.uarray(meas, merr))[0]
+    #                 if not zero_intercept:
+    #                     self.calib_params.loc[:, (a, 'c')] = 0
 
-    #                 p, cov = np.polyfit(x, y, 1, w=errs, cov=True)
-    #                 ferr = np.sqrt(np.diag(cov))
-    #                 pe = un.uarray(p, ferr)
-
-    #                 self.calib_params.loc[:, idx[a, 'm']] = pe[0]
-    #                 self.calib_params.loc[:, idx[a, 'c']] = pe[1]
-
-    #     if fill:
-    #         # fill in uTime=0 and uTime = max cases for interpolation
-    #         self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-    #         maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
-    #         self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
+    #     # if fill:
+    #     # fill in uTime=0 and uTime = max cases for interpolation
+    #     if self.calib_params.index.min() == 0:
+    #         self.calib_params.drop(0, inplace=True)
+    #         self.calib_params.drop(self.calib_params.index.max(), inplace=True)
+    #     self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
+    #     maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
+    #     self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
     #     # sort indices for slice access
     #     self.calib_params.sort_index(1, inplace=True)
     #     self.calib_params.sort_index(0, inplace=True)
@@ -1823,8 +1940,10 @@ class analyse(object):
     #     # calculcate interpolators for applying calibrations
     #     self.calib_ps = Bunch()
     #     for a in analytes:
+    #         # TODO: revisit un_interp1d to see whether it plays well with correlated values. 
+    #         # Possible re-write to deal with covariance matrices?
     #         self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
-    #                                              self.calib_params.loc[:, (a, 'm')].values)}
+    #                                             self.calib_params.loc[:, (a, 'm')].values)}
     #         if not zero_intercept:
     #             self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
     #                                                 self.calib_params.loc[:, (a, 'c')].values)
@@ -1834,9 +1953,19 @@ class analyse(object):
     #             d.calibrate(self.calib_ps, analytes)
     #             prog.update()
 
+    #     # record SRMs used for plotting
+    #     markers = 'osDsv<>PX'  # for future implementation of SRM-specific markers.
+    #     if not hasattr(self, 'srms_used'):
+    #         self.srms_used = set(srms_used)
+    #     else:
+    #         self.srms_used.update(srms_used)
+    #     self.srm_mdict = {k: markers[i] for i, k in enumerate(self.srms_used)}
+
     #     self.stages_complete.update(['calibrated'])
     #     self.focus_stage = 'calibrated'
+
     #     return
+
 
     # data filtering
     # TODO: Re-factor filtering to use 'classifier' objects?
@@ -3710,7 +3839,7 @@ class analyse(object):
     @_log
     def sample_stats(self, analytes=None, filt=True,
                      stats=['mean', 'std'], include_srms=False,
-                     eachtrace=True, csf_dict={}):
+                     eachtrace=True, focus_stage=None, csf_dict={}):
         """
         Calculate sample statistics.
 
@@ -3745,6 +3874,20 @@ class analyse(object):
             Whether to calculate the statistics for each analysis
             spot individually, or to produce per - sample means.
             Default is True.
+        focus_stage : str
+            Which stage of analysis to calculate stats for. 
+            Defaults to current stage. 
+            Can be one of:
+            * 'rawdata': raw data, loaded from csv file.
+            * 'despiked': despiked data.
+            * 'signal'/'background': isolated signal and background data.
+              Created by self.separate, after signal and background
+              regions have been identified by self.autorange.
+            * 'bkgsub': background subtracted data, created by 
+              self.bkg_correct
+            * 'ratios': element ratio data, created by self.ratio.
+            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
+            * 'massfrac': mass fraction of each element.
 
         Returns
         -------
@@ -3756,6 +3899,9 @@ class analyse(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
 
         self.stats = Bunch()
 
@@ -3797,10 +3943,13 @@ class analyse(object):
             for s in samples:
                 self.data[s].sample_stats(analytes, filt=filt,
                                           stat_fns=stat_fns,
-                                          eachtrace=eachtrace)
+                                          eachtrace=eachtrace,
+                                          focus_stage=focus_stage)
 
                 self.stats[s] = self.data[s].stats
                 prog.update()
+
+        return 
 
     @_log
     def ablation_times(self, samples=None, subset=None):
@@ -3975,7 +4124,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out 
+        return out.reindex(self.analytes_sorted(out.columns), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
@@ -4097,7 +4246,7 @@ class analyse(object):
             ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
-            for a in analytes:
+            for a in self.analytes_sorted(analytes):
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])
@@ -4192,12 +4341,11 @@ class analyse(object):
             log_header.append('srm_table :: ./srm.table')
 
             # export srm table
-            els = np.unique([re.sub('[0-9]', '', a) for a in self.minimal_analytes])
-            srmdat = []
-            for e in els:
-                srmdat.append(self.srmdat.loc[self.srmdat.element == e, :])
-            srmdat = pd.concat(srmdat)
-
+            items = set()
+            for a in self.minimal_analytes:
+                for srm, ad in self._analyte_srmdat_link.items():
+                    items.update([ad[a]])
+            srmdat = self.srmdat.loc[idx[:, list(items)], :]
             with open(path + '/srm.table', 'w') as f:
                 f.write(srmdat.to_csv())
 

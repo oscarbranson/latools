@@ -1,10 +1,16 @@
 from setuptools import setup, find_packages
 
+# bcause TravisCI was being a jerK
+try:
+  from latools import __version__
+except:
+  __version__ = "version_missing"
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='latools',
-      version='0.3.11',
+      version=__version__,
       description='Tools for LA-ICPMS data analysis.',
       long_description=long_description,
       long_description_content_type="text/markdown",
