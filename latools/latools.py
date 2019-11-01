@@ -1493,7 +1493,7 @@ class analyse(object):
         srms_used : iterable
             Which SRMs have been used. Must match SRM names
             in SRM database *exactly* (case sensitive!).
-        analytes : array-like
+        analytes : array_like
             Which analytes to base the identification on. If None,
             all analytes are used (default).
         n_min : int
@@ -2008,6 +2008,15 @@ class analyse(object):
         ----------
         internal_standard_conc : float, pandas.DataFrame or str
             The concentration of the internal standard in your samples.
+            If a string, should be the file name pointing towards the
+            [completed] output of get_sample_list().
+        analytes : str of array_like
+            The analytes you want to calculate.
+        analyte_masses : dict
+            A dict containing the masses to use for each analyte.
+            If None and the analyte names contain a number, that number
+            is used as the mass. If None and the analyte names do *not*
+            contain a number, the average mass for the element is used. 
         """
 
         if analytes is None:
@@ -2047,7 +2056,7 @@ class analyse(object):
 
         Parameters
         ----------
-        samples : str or array - like
+        samples : str or array_like
             Name of sample, or list of sample names.
         name : (optional) str or number
             The name of the sample group. Defaults to n + 1, where n is
@@ -2960,7 +2969,7 @@ class analyse(object):
         ----------
         d : latools.D object
             An latools data object.
-        analytes : str or array-like
+        analytes : str or array_like
             Which analytes to consider.
         min_points : int
             The minimum number of contiguous points to
@@ -2971,7 +2980,7 @@ class analyse(object):
             or 'bayes_mvs', or a custom function. If a
             function, must take a 1D array, and return a
             single, real number.
-        weights : array-like of length len(analytes)
+        weights : array_like of length len(analytes)
             An array of numbers specifying the importance of
             each analyte considered. Larger number makes the
             analyte have a greater effect on the optimisation.
@@ -3212,7 +3221,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        bins : None or array-like
+        bins : None or array_like
             The bins to use in the histogram
         samples : str or list
             which samples to get
@@ -4199,10 +4208,10 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
             Defaults to the most recent stage of analysis.
-        analytes : str or array - like
+        analytes : str or array_like
             Either a single analyte, or list of analytes to export.
             Defaults to all analytes.
-        samples : str or array - like
+        samples : str or array_like
             Either a single sample name, or list of samples to export.
             Defaults to all samples.
         filt : str, dict or bool
