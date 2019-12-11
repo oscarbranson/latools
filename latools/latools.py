@@ -1369,7 +1369,7 @@ class analyse(object):
                         if len(item) == 1:
                             ad[a] = item[0]
                         else:
-                            warns.append('   No {:} value for {:}.'.format(a, srm))
+                            warns.append(f'   No {a} value for {srm}.')
 
                 analyte_srm_link[srm] = ad
 
@@ -1387,6 +1387,9 @@ class analyse(object):
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
             srmdat.dropna(subset=['mol_ratio'], inplace=True)
+            
+            # where uncertainties are missing, replace with zeros
+            srmdat.loc[srmdat.mol_ratio_err.isnull(), 'mol_ratio_err'] = 0
 
             # compile stand-alone table of SRM values
             srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analytes, ['mean', 'err']]))
@@ -1399,6 +1402,13 @@ class analyse(object):
             self.srmdat = srmdat  # the full SRM table
             self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
             self.srmtab = srmtab.reindex(self.analytes_sorted(), level=0, axis=1).astype(float)  # a summary of relevant mol/mol values only
+
+            # record which analytes have missing CRM data
+            means = self.srmtab.loc[:, idx[:, 'mean']]
+            means.columns = means.columns.droplevel(1)
+            self._analytes_missing_srm = means.columns.values[means.isnull().any()]
+            self._srm_id_analytes = means.columns.values[~means.isnull().any()]
+            self._calib_analytes = means.columns.values[~means.isnull().all()]
 
             # Print any warnings
             if len(warns) > 0:
@@ -1493,7 +1503,7 @@ class analyse(object):
         srms_used : iterable
             Which SRMs have been used. Must match SRM names
             in SRM database *exactly* (case sensitive!).
-        analytes : array-like
+        analytes : array_like
             Which analytes to base the identification on. If None,
             all analytes are used (default).
         n_min : int
@@ -1502,25 +1512,28 @@ class analyse(object):
         reload_srm_database : bool
             Whether or not to re-load the SRM database before running the function.
         """
+        # TODO: srm_id_plot!
         if isinstance(srms_used, str):
             srms_used = [srms_used]
-                
-        if analytes is None:
-            analytes = self.analytes
         
         # compile measured SRM data
         self.srm_compile_measured(n_min)
 
         # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
-        
+
+        if analytes is None:
+            analytes = self._srm_id_analytes
+        else:
+            analytes = [a for a in analytes if a in self._srm_id_analytes]
+
         # get and scale mean srm values for all analytes
-        srmid = self.srmtab.loc[:, idx[:, 'mean']]
+        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]
         _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
-        stdid = self.stdtab.loc[:, idx[:, 'mean']]
+        stdid = self.stdtab.loc[:, idx[analytes, 'mean']]
         _stdid = scale(np.log(stdid))
 
         # fit KMeans classifier to srm database
@@ -2009,6 +2022,15 @@ class analyse(object):
         ----------
         internal_standard_conc : float, pandas.DataFrame or str
             The concentration of the internal standard in your samples.
+            If a string, should be the file name pointing towards the
+            [completed] output of get_sample_list().
+        analytes : str of array_like
+            The analytes you want to calculate.
+        analyte_masses : dict
+            A dict containing the masses to use for each analyte.
+            If None and the analyte names contain a number, that number
+            is used as the mass. If None and the analyte names do *not*
+            contain a number, the average mass for the element is used. 
         """
 
         if analytes is None:
@@ -2048,7 +2070,7 @@ class analyse(object):
 
         Parameters
         ----------
-        samples : str or array - like
+        samples : str or array_like
             Name of sample, or list of sample names.
         name : (optional) str or number
             The name of the sample group. Defaults to n + 1, where n is
@@ -2961,7 +2983,7 @@ class analyse(object):
         ----------
         d : latools.D object
             An latools data object.
-        analytes : str or array-like
+        analytes : str or array_like
             Which analytes to consider.
         min_points : int
             The minimum number of contiguous points to
@@ -2972,7 +2994,7 @@ class analyse(object):
             or 'bayes_mvs', or a custom function. If a
             function, must take a 1D array, and return a
             single, real number.
-        weights : array-like of length len(analytes)
+        weights : array_like of length len(analytes)
             An array of numbers specifying the importance of
             each analyte considered. Larger number makes the
             analyte have a greater effect on the optimisation.
@@ -3041,9 +3063,10 @@ class analyse(object):
 
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
         return plot.calibration_plot(self=self, analytes=analytes, datarange=datarange, 
-                                     loglog=loglog, ncol=ncol, save=save)
+                                     loglog=loglog, ncol=ncol, srm_group=srm_group, 
+                                     percentile_data_cutoff=percentile_data_cutoff, save=save)
 
     # set the focus attribute for specified samples
     @_log
@@ -3213,7 +3236,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        bins : None or array-like
+        bins : None or array_like
             The bins to use in the histogram
         samples : str or list
             which samples to get
@@ -4200,10 +4223,10 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
 
             Defaults to the most recent stage of analysis.
-        analytes : str or array - like
+        analytes : str or array_like
             Either a single analyte, or list of analytes to export.
             Defaults to all analytes.
-        samples : str or array - like
+        samples : str or array_like
             Either a single sample name, or list of samples to export.
             Defaults to all samples.
         filt : str, dict or bool
