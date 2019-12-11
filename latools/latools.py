@@ -1369,7 +1369,7 @@ class analyse(object):
                         if len(item) == 1:
                             ad[a] = item[0]
                         else:
-                            warns.append('   No {:} value for {:}.'.format(a, srm))
+                            warns.append(f'   No {a} value for {srm}.')
 
                 analyte_srm_link[srm] = ad
 
@@ -1387,6 +1387,9 @@ class analyse(object):
                                                     srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
 
             srmdat.dropna(subset=['mol_ratio'], inplace=True)
+            
+            # where uncertainties are missing, replace with zeros
+            srmdat.loc[srmdat.mol_ratio_err.isnull(), 'mol_ratio_err'] = 0
 
             # compile stand-alone table of SRM values
             srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analytes, ['mean', 'err']]))
@@ -1399,6 +1402,13 @@ class analyse(object):
             self.srmdat = srmdat  # the full SRM table
             self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
             self.srmtab = srmtab.reindex(self.analytes_sorted(), level=0, axis=1).astype(float)  # a summary of relevant mol/mol values only
+
+            # record which analytes have missing CRM data
+            means = self.srmtab.loc[:, idx[:, 'mean']]
+            means.columns = means.columns.droplevel(1)
+            self._analytes_missing_srm = means.columns.values[means.isnull().any()]
+            self._srm_id_analytes = means.columns.values[~means.isnull().any()]
+            self._calib_analytes = means.columns.values[~means.isnull().all()]
 
             # Print any warnings
             if len(warns) > 0:
@@ -1502,25 +1512,28 @@ class analyse(object):
         reload_srm_database : bool
             Whether or not to re-load the SRM database before running the function.
         """
+        # TODO: srm_id_plot!
         if isinstance(srms_used, str):
             srms_used = [srms_used]
-                
-        if analytes is None:
-            analytes = self.analytes
         
         # compile measured SRM data
         self.srm_compile_measured(n_min)
 
         # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
-        
+
+        if analytes is None:
+            analytes = self._srm_id_analytes
+        else:
+            analytes = [a for a in analytes if a in self._srm_id_analytes]
+
         # get and scale mean srm values for all analytes
-        srmid = self.srmtab.loc[:, idx[:, 'mean']]
+        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]
         _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
-        stdid = self.stdtab.loc[:, idx[:, 'mean']]
+        stdid = self.stdtab.loc[:, idx[analytes, 'mean']]
         _stdid = scale(np.log(stdid))
 
         # fit KMeans classifier to srm database
@@ -3041,9 +3054,10 @@ class analyse(object):
 
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, save=True):
+    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
         return plot.calibration_plot(self=self, analytes=analytes, datarange=datarange, 
-                                     loglog=loglog, ncol=ncol, save=save)
+                                     loglog=loglog, ncol=ncol, srm_group=srm_group, 
+                                     percentile_data_cutoff=percentile_data_cutoff, save=save)
 
     # set the focus attribute for specified samples
     @_log

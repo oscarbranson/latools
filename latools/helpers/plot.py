@@ -698,7 +698,7 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, save=True):
+def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
@@ -714,6 +714,12 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         useful if you have two low standards very close together,
         and want to check whether your data are between them, or
         below them.
+    ncol : int
+        The number of columns in the plot
+    srm_group : int
+        Which groups of SRMs to plot in the analysis.
+    percentile_data_cutoff : float
+        The upper percentile of data to display in the histogram. 
 
     Returns
     -------
@@ -724,7 +730,9 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         analytes = [analytes]
 
     if analytes is None:
-        analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
+        # analytes = self._calib_analytes
+        analytes = self.analytes_sorted(set(self._calib_analytes).difference([self.internal_standard]))
+        # analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
 
     if srm_group is not None:
         srm_groups = {int(g): t for g, t in self.stdtab.loc[:, ['group', 'gTime']].values}
@@ -897,15 +905,14 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
                     ylim[0] = 10**np.floor(np.log10(np.nanmin(mmeas)))
                 else:
                     ylim[0] = 0
-                ax.set_ylim(ylim)
 
-            m95 = np.percentile(meas[~np.isnan(meas)], 95) * 1.05
-            if m95 > ylim[1]:
+            mquant = np.percentile(meas[~np.isnan(meas)], percentile_data_cutoff) * 1.05
+            if mquant > ylim[1]:
                 if loglog:
-                    ylim[1] = 10**np.ceil(np.log10(m95))
+                    ylim[1] = 10**np.ceil(np.log10(mquant))
                 else:
-                    ylim[1] = m95
-
+                    ylim[1] = mquant
+            
             # hist
             if loglog:
                 bins = np.logspace(*np.log10(ylim), 30)
