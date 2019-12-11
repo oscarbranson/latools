@@ -719,7 +719,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
     srm_group : int
         Which groups of SRMs to plot in the analysis.
     percentile_data_cutoff : float
-        The upper percentile of data to display in the histogram. 
+        The upper percentile of data to display in the histogram.
 
     Returns
     -------
