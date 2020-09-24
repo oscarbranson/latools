@@ -961,7 +961,7 @@ class analyse(object):
                               "might not behave as expected.\n")
             bkg_t = np.linspace(0,
                                 self.max_time,
-                                self.max_time // cstep)
+                                int(self.max_time // cstep))
             self.bkg['calc'] = Bunch()
             self.bkg['calc']['uTime'] = bkg_t
 
