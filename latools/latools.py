@@ -319,13 +319,7 @@ class analyse(object):
         self.focus = Bunch()
 
         # set up subsets
-        self._has_subsets = False
-        self._subset_names = []
-        self.subsets = Bunch()
-        self.subsets['All_Analyses'] = self.samples
-        self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
-        self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
-        self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
+        self.clear_subsets()
 
         # remove any analytes for which all counts are zero
         # self.get_focus()
@@ -2061,7 +2055,18 @@ class analyse(object):
         self.stages_complete.update(['mass_fraction'])
         self.focus_stage = 'mass_fraction'
 
-
+    @_log
+    def clear_subsets(self):
+        """
+        Clears all subsets
+        """
+        self._has_subsets = False
+        self._subset_names = []
+        self.subsets = Bunch()
+        self.subsets['All_Analyses'] = self.samples
+        self.subsets[self.srm_identifier] = [s for s in self.samples if self.srm_identifier in s]
+        self.subsets['All_Samples'] = [s for s in self.samples if self.srm_identifier not in s]
+        self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
     @_log
     def make_subset(self, samples=None, name=None):
