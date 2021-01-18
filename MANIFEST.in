@@ -1,2 +1,5 @@
 include latools.cfg
 graft latools/resources
+prune Supplement/
+prune docs/
+prune dist/
