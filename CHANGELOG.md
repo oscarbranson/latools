@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.16] - 18/01/2021
+
+### Added
+ - `clear_subsets` function.
+
 ## [0.3.12] - 28/10/2019
 
 ### Changed
