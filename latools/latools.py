@@ -4100,7 +4100,7 @@ class analyse(object):
         return fig, ax
 
     @_log
-    def getstats(self, save=True, filename=None, samples=None, subset=None, ablation_time=False):
+    def getstats(self, save=True, filename=None, samples=None, subset=None, ablation_time=False, drop_internal_std=True):
         """
         Return pandas dataframe of all sample statistics.
         """
@@ -4110,10 +4110,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
-
         for s in self.stats_calced:
-            for nm in [n for n in samples if self.srm_identifier
-                       not in n]:
+            for nm in samples:
                 if self.stats[nm][s].ndim == 2:
                     # make multi - index
                     reps = np.arange(self.stats[nm][s].shape[-1])
@@ -4143,7 +4141,8 @@ class analyse(object):
 
             out = out.join(ats)
 
-        out.drop(self.internal_standard, 1, inplace=True)
+        if drop_internal_std:
+            out.drop(self.internal_standard, 1, inplace=True)
 
         if save:
             if filename is None:
