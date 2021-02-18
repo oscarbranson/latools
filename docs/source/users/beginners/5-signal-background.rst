@@ -75,4 +75,4 @@ Once the background is calculated, it subtracted from the signal regions using :
    :dedent: 4
    :lines: 32
 
-.. tip:: Remember that you can plot the data and examine it at any stage of your processing. running ``eg.trace_plot()`` now would create a new subdirectory called 'bkgcorrect' in your 'reports_data' directory, and plot all the background corrected data.
+.. tip:: Remember that you can plot the data and examine it at any stage of your processing. running ``eg.trace_plots()`` now would create a new subdirectory called 'bkgcorrect' in your 'reports_data' directory, and plot all the background corrected data.
