@@ -891,7 +891,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=600,
                               n_min=20, n_max=None, cstep=None, errtype='stderr',
                               bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
@@ -937,9 +937,6 @@ class analyse(object):
             self.bkg = Bunch()
         elif isinstance(analytes, str):
             analytes = [analytes]
-        
-        if weight_fwhm is None:
-            weight_fwhm = 600  # 10 minute default window
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
