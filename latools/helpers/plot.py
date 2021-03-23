@@ -62,17 +62,13 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         -------
         figure, axis
         """
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
-
         if focus_stage is None:
             focus_stage = self.focus_stage
-        
-        # exclude internal standard from analytes
-        if focus_stage in ['ratios', 'calibrated']:
-            analytes = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
+
+        if analytes is None:
+            analytes = self.analytes        
+            if focus_stage in ['ratios', 'calibrated']:
+                analytes = self.analyte_ratios
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
