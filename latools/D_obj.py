@@ -110,6 +110,9 @@ class D(object):
 
         self.analytes = set(analytes)
 
+        # set for recording calculated ratios
+        self.analyte_ratios = set()
+
         # calculate total counts
         self.data['total_counts'] = sum(self.data['rawdata'].values())
 
@@ -149,7 +152,8 @@ class D(object):
         self.sigrng = np.array([]).reshape(0, 2)
 
         # set up filtering environment
-        self.filt = filt(self.Time.size, self.analytes)
+        # self.filt = filt(self.Time.size, self.analytes)
+        self.filt = None
 
         if errorhunt:
             print('   -> OK')
@@ -160,6 +164,9 @@ class D(object):
         if a is None:
             a = self.analytes
         return sorted(a, key=analyte_sort_fn)
+
+    def _init_filts(self, analytes):
+        self.filt = filt(self.Time.size, analytes)
 
     @_log
     def setfocus(self, focus):
@@ -497,16 +504,22 @@ class D(object):
             analytes = self.analytes
         elif isinstance(analytes, str):
             analytes = [analytes]
-
-        self.data['ratios'] = Bunch()
+        
+        if 'ratios' not in self.data.keys():
+            self.data['ratios'] = Bunch()
         for a in analytes:
-            self.data['ratios'][a] = (self.data['bkgsub'][a] /
+            if a == internal_standard:
+                continue
+            analyte_ratio = f'{a}_{self.internal_standard}'
+            self.data['ratios'][analyte_ratio] = (self.data['bkgsub'][a] /
                                       self.data['bkgsub'][self.internal_standard])
+            self.analyte_ratios.update([analyte_ratio])
+            self.cmap[analyte_ratio] = self.cmap[a]
         self.setfocus('ratios')
         return
 
     @_log
-    def calibrate(self, calib_ps, analytes=None):
+    def calibrate(self, calib_ps, analyte_ratios=None):
         """
         Apply calibration to data.
 
@@ -523,13 +536,13 @@ class D(object):
         None
         """
         # can have calibration function stored in self and pass *coefs?
-        if analytes is None:
-            analytes = self.analytes
+        if analyte_ratios is None:
+            analyte_ratios = self.analyte_ratios
 
         if 'calibrated' not in self.data.keys():
             self.data['calibrated'] = Bunch()
 
-        for a in analytes:
+        for a in analyte_ratios:
             m = calib_ps[a]['m'].new(self.uTime)
 
             if 'c' in calib_ps[a]:
@@ -539,9 +552,8 @@ class D(object):
 
             self.data['calibrated'][a] = self.data['ratios'][a] * m + c
 
-        if self.internal_standard not in analytes:
-            self.data['calibrated'][self.internal_standard] = \
-                np.empty(len(self.data['ratios'][self.internal_standard]))
+        # initialise filtering framework
+        self._init_filts(self.analyte_ratios)
 
         self.setfocus('calibrated')
         return
