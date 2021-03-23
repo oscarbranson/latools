@@ -6,6 +6,7 @@ from .stats import fmt_RSS
 from .plots import element_colour, rangecalc, rangecalcx, bland_altman, get_panel_bounds
 
 def fmt_el(el):
+    el = el.split('_')[0]
     e = re.match('.*?([A-z]+).*?', el).groups()[0]
     m = re.match('.*?([0-9]+).*?', el).groups()[0]
     return e + m
@@ -31,9 +32,9 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 'Zn', 'B']):
 
     for e in els:
         if e == 'Sr':
-            As.append('88Sr')
+            As.append('88Sr_Ca43')
         elif e == 'Mg':
-            As.append('24Mg')
+            As.append('24Mg_Ca43')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0])
@@ -53,12 +54,12 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 'Zn', 'B']):
         rl = yl - x
         
         # plot residuals
-        lax.scatter(x, yl, c=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
+        lax.scatter(x, yl, color=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
         
         # plot PDFs
         rl = rl[~np.isnan(rl)]
         lims = np.percentile(rl, [99, 1])
-        lims += np.ptp(lims * np.array((-1.25, 1.25))
+        lims += np.ptp(lims * np.array((-1.25, 1.25)))
         bins = np.linspace(*lims, 100)
         kdl = stats.gaussian_kde(rl, .4)
         hax.fill_between(bins, kdl(bins), facecolor=c, alpha=0.7, edgecolor='k', lw=0.5, label='LAtools')
@@ -115,9 +116,9 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 
 
     for e in els:
         if e == 'Sr':
-            As.append('88Sr')
+            As.append('88Sr_Ca43')
         elif e == 'Mg':
-            As.append('24Mg')
+            As.append('24Mg_Ca43')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0])
@@ -137,7 +138,7 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 
         rl = yl - x
         
         # plot residuals
-        lax.scatter(x, rl, c=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
+        lax.scatter(x, rl, color=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
         
         # plot PDFs
         rl = rl[~np.isnan(rl)]
@@ -186,13 +187,13 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'C
 
     for e in els:
         if e == 'Sr':
-            As.append('88Sr')
+            As.append('88Sr_43Ca')
         elif e == 'Mg':
-            As.append('24Mg')
+            As.append('24Mg_43Ca')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0])
-    
+
     cols = 2
     rows = len(els) // cols
     bounds = [.05,.05,.9,.9]
@@ -235,7 +236,7 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'C
             CI = None
         else:
             CI = rep_stats[e][0]
-        bland_altman(x, yl, interval=.75, indep_conf=CI, ax=lax, c=c)
+        bland_altman(x, yl, interval=.75, indep_conf=CI, ax=lax, color=c)
 
         if row == rows:
             lax.set_xlabel('Mean')
