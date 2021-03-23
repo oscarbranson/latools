@@ -1280,12 +1280,12 @@ class analyse(object):
                     yl[yl < ax.get_ylim()[0]] = ax.get_ylim()[0]
 
                 ax.plot(x, y,
-                        c=self.cmaps[a], zorder=2, label=a)
+                        c=self.cmaps[a], zorder=2, label=pretty_element(a))
                 ax.fill_between(x, yl, yu,
                                 color=self.cmaps[a], alpha=0.3, zorder=-1)
         else:
             for a in analytes:
-                ax.plot([], [], c=self.cmaps[a], label=a)
+                ax.plot([], [], c=self.cmaps[a], label=pretty_element(a))
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Background Counts')
@@ -1751,6 +1751,9 @@ class analyse(object):
             if zero_intercept:
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
+            else:
+                self.calib_params.loc[:, (a, 'c')] = 0
+                self.calib_params.loc[:, (a, 'c')] = self.calib_params[(a, 'c')].astype(object, copy=False)  # set new column to objet type
             if drift_correct:
                 for g in gTime:
                     if self.caltab.loc[g].size == 0:
@@ -4346,7 +4349,6 @@ class analyse(object):
         for a in self.minimal_analytes:
             export_analytes.update(a.split('_'))
         export_analytes = self.analytes_sorted(export_analytes, check_ratios=False)
-        print(export_analytes)
 
         # export data
         self._minimal_export_traces(path + '/data', analytes=export_analytes)
