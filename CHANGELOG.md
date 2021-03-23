@@ -1,6 +1,19 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.18]
+
+### Added
+ - Change ratio calibration framework to support multiple internal standards. Internal standard is now stored alongside analyte name after ratio calculation as 'XX_YY'. This involved a lot of tweaks to discrimnate between pre- and post- ratio treatment of data. All tests passing & manuscript supplement notebooks run fine, **but some more advanced features may be broken**. Please log an issue if you find anything.
+
+### Changed
+ - `latools.preprocessing.split.long_file` can now accept wildcards in sample names to allow for repeat ablations of single samples.
+
+## [0.3.17]
+
+### Changed
+ - Removed extraneous in with Manifest.in
+
 ## [0.3.16] - 18/01/2021
 
 ### Added

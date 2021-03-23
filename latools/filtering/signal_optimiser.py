@@ -452,27 +452,27 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
                     nonan[:, 0].min() + min_points,  # y min
                     nonan[:, 0].max() + np.ceil(0.1 * ydif) + min_points)  # y max
 
-            mm = ma.imshow(means, origin='bottomleft', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
+            mm = ma.imshow(means, origin='lower', cmap=cmm, vmin=mlim[0], vmax=mlim[1],
                         extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
             ma.set_ylabel('N points')
             ma.set_xlabel('Center')
             fig.colorbar(mm, ax=ma, label='Amplitude')
 
-            mr = ra.imshow(stds, origin='bottomleft', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
+            mr = ra.imshow(stds, origin='lower', cmap=cmr, vmin=rlim[0], vmax=rlim[1],
                         extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
             ra.set_xlabel('Center')
             fig.colorbar(mr, ax=ra, label='std')
 
             # view limits
-            ra.imshow(~rind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+            ra.imshow(~rind, origin='lower', cmap=plt.cm.Greys, alpha=overlay_alpha,
                     extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
-            ma.imshow(~mind, origin='bottomleft', cmap=plt.cm.Greys, alpha=overlay_alpha,
+            ma.imshow(~mind, origin='lower', cmap=plt.cm.Greys, alpha=overlay_alpha,
                     extent=(centres.min(), centres.max(), npoints.min(), npoints.max()))
 
             for ax in [ma, ra]:
-                ax.scatter(opt_centre, opt_n_points, c=(1,1,1,0.7), edgecolor='k',marker='o')
+                ax.scatter(opt_centre, opt_n_points, color=(1,1,1,0.7), edgecolor='k',marker='o')
                 ax.set_xlim(extent[:2])
                 ax.set_ylim(extent[-2:])
 

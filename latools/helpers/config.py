@@ -465,7 +465,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         data[a] = d
 
     print('    Calculating total counts...')
-    data['total_counts'] = read_data[dind].sum(0)
+    data['total_counts'] = np.nansum(read_data[dind], axis=0)
     print('    Success!')
     
     print('\nTests completed successfully.\n' +

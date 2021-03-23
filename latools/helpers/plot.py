@@ -62,17 +62,13 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         -------
         figure, axis
         """
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
-
         if focus_stage is None:
             focus_stage = self.focus_stage
-        
-        # exclude internal standard from analytes
-        if focus_stage in ['ratios', 'calibrated']:
-            analytes = [a for a in analytes if a != self.internal_standard]
+
+        if analytes is None:
+            analytes = self.analytes        
+            if focus_stage in ['ratios', 'calibrated']:
+                analytes = self.analyte_ratios
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
@@ -101,12 +97,12 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
                     yerrf[~ind] = np.nan
                 if any(~ind):
                     ax.plot(x, y, color=self.cmap[a], alpha=.2, lw=0.6)
-                ax.plot(xf, yf, color=self.cmap[a], label=a)
+                ax.plot(xf, yf, color=self.cmap[a], label=pretty_element(a))
                 if err_envelope:
                     ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
             else:
-                ax.plot(x, y, color=self.cmap[a], label=a)
+                ax.plot(x, y, color=self.cmap[a], label=pretty_element(a))
                 if err_envelope:
                     ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
@@ -161,11 +157,9 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
-              'ratios': 'counts/{:s} count',
-              'calibrated': 'mol/mol {:s}',
+              'ratios': 'counts/count',
+              'calibrated': 'mol/mol',
               'mass_fraction': 'Mass Fraction'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
 
         # if interactive:
@@ -224,7 +218,7 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
             self.grads_calce = True
 
         for a in analytes:
-            ax.plot(x, self.grads[a], color=self.cmap[a], label=a)
+            ax.plot(x, self.grads[a], color=self.cmap[a], label=pretty_element(a))
 
         if ranges:
             for lims in self.bkgrng:
@@ -243,11 +237,9 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
         ud = {'rawdata': 'counts/s',
               'despiked': 'counts/s',
               'bkgsub': 'background corrected counts/s',
-              'ratios': 'counts/{:s} count/s',
-              'calibrated': 'mol/mol {:s}/s',
+              'ratios': 'counts/count/s',
+              'calibrated': 'mol/mol/s',
               'mass_fraction': 'Mass Fraction/s'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
         # y tick format
 
@@ -698,14 +690,14 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
+def calibration_plot(self, analyte_ratios=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
     Parameters
     ----------
-    analytes : optional, array_like or str
-        The analyte(s) to plot. Defaults to all analytes.
+    analyte_ratios : optional, array_like or str
+        The analyte ratio(s) to plot. Defaults to all analyte ratios.
     datarange : boolean
         Whether or not to show the distribution of the measured data
         alongside the calibration curve.
@@ -726,12 +718,12 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
     (fig, axes)
     """
 
-    if isinstance(analytes, str):
-        analytes = [analytes]
+    if isinstance(analyte_ratios, str):
+        analyte_ratios = [analyte_ratios]
 
-    if analytes is None:
+    if analyte_ratios is None:
         # analytes = self._calib_analytes
-        analytes = self.analytes_sorted(set(self._calib_analytes).difference([self.internal_standard]))
+        analyte_ratios = self.analytes_sorted(self._srm_id_analyte_ratios)
         # analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
 
     if srm_group is not None:
@@ -747,7 +739,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         gTime = None
 
     ncol = int(ncol)
-    n = len(analytes)
+    n = len(analyte_ratios)
     nrow = calc_nrow(n + 1, ncol)
 
     axes = []
@@ -763,7 +755,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
     mdict = self.srm_mdict
 
-    for g, a in zip(gs, analytes):
+    for g, a in zip(gs, analyte_ratios):
+        num, denom = a.split('_')
         if not datarange:
             ax = fig.add_axes(g.get_position(fig))
             axes.append((ax,))
@@ -888,8 +881,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
         ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                 weight='bold', va='top', ha='left', size=12)
-        ax.set_xlabel('counts/counts ' + self.internal_standard)
-        ax.set_ylabel('mol/mol ' + self.internal_standard)
+        ax.set_xlabel('counts/counts')
+        ax.set_ylabel('mol/mol')
         # write calibration equation on graph happens after data distribution
 
         # plot data distribution historgram alongside calibration plot

@@ -10,7 +10,7 @@ class test_latools(unittest.TestCase):
     print('\n\nTest LATOOLS on static data.')
 
     # load test data
-    d = la.analyse('./tests/test_dir/test_data', internal_standard="Ca43")
+    d = la.analyse('./tests/test_dir/test_data', internal_standard="Ca43", config="UCD-AGILENT")
 
     # despike
     d.despike(expdecay_despiker=True, noise_despiker=True)

@@ -111,6 +111,8 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             scale = True
         fsig = separate_signal(tsigs, scaleX=scale).astype(bool)
     else:
+        if transform == 'log':
+            thresh = np.log(thresh)
         fsig = tsigs > thresh
     fsig[0] = False  # the first value must always be background
     fbkg = ~fsig

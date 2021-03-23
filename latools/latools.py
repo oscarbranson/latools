@@ -287,6 +287,9 @@ class analyse(object):
             msg += self._fill_line('*')
             warnings.warn(msg)
 
+        # set for recording calculated ratios
+        self.analyte_ratios = set()
+
         if len(self.analytes) == 0:
             raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
 
@@ -295,7 +298,10 @@ class analyse(object):
         else:
             raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
                              'analytes in\nyour data files. Please make sure it is specified correctly.')
-        self.minimal_analytes = set([internal_standard])
+        self.minimal_analytes = set()
+        
+        # record which analytes are needed for calibration
+        self.calibration_analytes = set()
 
         # keep record of which stages of processing have been performed
         self.stages_complete = set(['rawdata'])
@@ -454,11 +460,39 @@ class analyse(object):
                 'data_folder :: {}'.format(self.folder),
                 '# Analysis Log Start: \n'
                 ]
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+        """
+        Return valid analytes depending on the analysis stage
+        """
+        if isinstance(analytes, str):
+            analytes = [analytes]
 
-    def analytes_sorted(self, a=None):
-        if a is None:
-            a = self.analytes
-        return sorted(a, key=analyte_sort_fn)
+        out = set()
+        if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
+            if analytes is None:
+                analytes = self.analytes
+            out = self.analytes.intersection(analytes)
+        else:
+            if analytes is None:
+                analytes = self.analyte_ratios
+            # case 1: provided analytes are an exact match for items in analyte_ratios
+            valid1 = self.analyte_ratios.intersection(analytes)
+            # case 2: provided analytes are in numerator of ratios
+            valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
+            out = valid1.union(valid2)
+        
+        if len(out) == 0:
+            raise ValueError(f'{analytes} does not match any valid analyte names.')
+
+        if single:
+            if len(out) > 1:
+                raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
+            return out.pop()
+
+        return out
+
+    def analytes_sorted(self, a=None, check_ratios=True):
+        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -581,9 +615,7 @@ class analyse(object):
             if 'despiked' not in self.stages_complete:
                 focus_stage = 'rawdata'
 
-        if analyte is None:
-            analyte = self.internal_standard
-        elif analyte in self.analytes:
+        if analyte in self.analytes:
             self.minimal_analytes.update([analyte])
 
         fails = {}  # list for catching failures.
@@ -891,7 +923,7 @@ class analyse(object):
         return
 
     @_log
-    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=None,
+    def bkg_calc_weightedmean(self, analytes=None, weight_fwhm=600,
                               n_min=20, n_max=None, cstep=None, errtype='stderr',
                               bkg_filter=False, f_win=7, f_n_lim=3, focus_stage='despiked'):
         """
@@ -937,9 +969,6 @@ class analyse(object):
             self.bkg = Bunch()
         elif isinstance(analytes, str):
             analytes = [analytes]
-        
-        if weight_fwhm is None:
-            weight_fwhm = 600  # 10 minute default window
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
@@ -1090,10 +1119,7 @@ class analyse(object):
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         if focus_stage == 'despiked':
             if 'despiked' not in self.stages_complete:
@@ -1205,10 +1231,7 @@ class analyse(object):
         if not hasattr(self, 'bkg'):
             self.get_background()
 
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         if figsize is None:
             if len(self.samples) > 50:
@@ -1257,12 +1280,12 @@ class analyse(object):
                     yl[yl < ax.get_ylim()[0]] = ax.get_ylim()[0]
 
                 ax.plot(x, y,
-                        c=self.cmaps[a], zorder=2, label=a)
+                        c=self.cmaps[a], zorder=2, label=pretty_element(a))
                 ax.fill_between(x, yl, yu,
                                 color=self.cmaps[a], alpha=0.3, zorder=-1)
         else:
             for a in analytes:
-                ax.plot([], [], c=self.cmaps[a], label=a)
+                ax.plot([], [], c=self.cmaps[a], label=pretty_element(a))
 
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Background Counts')
@@ -1308,18 +1331,20 @@ class analyse(object):
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
         
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes, check_ratios=False)
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
             self.minimal_analytes.update([internal_standard])
+            self.calibration_analytes.update([internal_standard])
+
+        self.calibration_analytes.update(analytes)
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
                 s.ratio(internal_standard=self.internal_standard, analytes=analytes)
+                self.analyte_ratios.update(s.analyte_ratios)
+                self.cmaps.update(s.cmap)
                 prog.update()
 
         self.stages_complete.update(['ratios'])
@@ -1333,76 +1358,71 @@ class analyse(object):
             srmdat = srmdat.loc[srms_used]
             srmdat.reset_index(inplace=True)
             srmdat.set_index(['SRM', 'Item'], inplace=True)
-            # empty columns for mol_ratio and mol_ratio_err
-            srmdat.loc[:, 'mol_ratio'] = np.nan
-            srmdat.loc[:, 'mol_ratio_err'] = np.nan
 
-            # get element name
-            internal_el = get_analyte_name(self.internal_standard)
-            # calculate ratios to internal_standard for all elements
-
+            # calculate ratios to internal_standard for calibration ratios
             analyte_srm_link = {}
             warns = []
-            srmsubs = []
+
+            # create an empty SRM table
+            srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analyte_ratios, ['mean', 'err']]))
 
             for srm in srms_used:
                 srmsub = srmdat.loc[srm]
 
                 # determine analyte - Item pairs in table
                 ad = {}
-                for a in self.analytes:
-                    # check ig there's an exact match of form [Mass][Element] in srmdat
-                    mna = analyte_2_massname(a)
-                    if mna in srmsub.index:
-                        ad[a] = mna
-                    else:
-                        # if not, match by element name.
-                        item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
-                        if len(item) > 1:
-                            item = item[item == get_analyte_name(a)]
-                        if len(item) == 1:
-                            ad[a] = item[0]
+                for a in self.analyte_ratios:
+                    a_num, a_denom = a.split('_')  # separate numerator and denominator
+                    for a in [a_num, a_denom]:
+                        if a in ad.keys():
+                            continue
+                        # check if there's an exact match of form [Mass][Element] in srmdat
+                        mna = analyte_2_massname(a)
+                        if mna in srmsub.index:
+                            ad[a] = mna
                         else:
-                            warns.append(f'   No {a} value for {srm}.')
+                            # if not, match by element name.
+                            item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
+                            if len(item) > 1:
+                                item = item[item == get_analyte_name(a)]
+                            if len(item) == 1:
+                                ad[a] = item[0]
+                            else:
+                                warns.append(f'   No {a} value for {srm}.')
 
                 analyte_srm_link[srm] = ad
+                    
+                # build calibration database for given ratios
+                for a in self.analyte_ratios:
+                    a_num, a_denom = a.split('_')
+                    
+                    # calculate SRM polyatom multiplier (multiplier to account for stoichiometry,
+                    # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+                    N_denom = float(decompose_molecule(ad[a_denom])[get_analyte_name(a_denom)])
+                    N_num = float(decompose_molecule(ad[a_num])[get_analyte_name(a_num)])
+                    
+                    # calculate molar ratio
+                    srmtab.loc[srm, (a, 'mean')] = ((srmdat.loc[(srm, ad[a_num]), 'mol/g'] * N_num) / 
+                                                    (srmdat.loc[(srm, ad[a_denom]), 'mol/g'] * N_denom))
+                    srmtab.loc[srm, (a, 'err')] = (srmtab.loc[srm, (a, 'mean')] * 
+                                                ((srmdat.loc[(srm, ad[a_num]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_num]), 'mol/g']))**2 +
+                                                    (srmdat.loc[(srm, ad[a_denom]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_denom]), 'mol/g']))**2)**0.5)
+                
+                # where uncertainties are missing, replace with zeros
+                srmtab[srmtab.loc[:, idx[:, 'err']].isnull()] = 0
 
-                # find denominator
-                denom = srmsub.loc[ad[self.internal_standard]]
-                # calculate denominator composition (multiplier to account for stoichiometry,
-                # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-                N = float(decompose_molecule(ad[self.internal_standard])[internal_el])
 
-                # calculate molar ratio
-                ind = (srm, list(ad.values()))
-                srmdat.loc[ind, 'mol_ratio'] = srmdat.loc[ind, 'mol/g'] / (denom['mol/g'] * N)
-                srmdat.loc[ind, 'mol_ratio_err'] = (((srmdat.loc[ind, 'mol/g_err'] / srmdat.loc[ind, 'mol/g'])**2 +
-                                                    (denom['mol/g_err'] / denom['mol/g']))**0.5 *
-                                                    srmdat.loc[ind, 'mol_ratio'])  # propagate uncertainty
+                # record outputs
+                self.srmdat = srmdat  # the full SRM table
+                self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
+                self.srmtab = srmtab.astype(float)  # a summary of relevant mol/mol values only
 
-            srmdat.dropna(subset=['mol_ratio'], inplace=True)
-            
-            # where uncertainties are missing, replace with zeros
-            srmdat.loc[srmdat.mol_ratio_err.isnull(), 'mol_ratio_err'] = 0
-
-            # compile stand-alone table of SRM values
-            srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analytes, ['mean', 'err']]))
-            for srm, ad in analyte_srm_link.items():
-                for a, k in ad.items():
-                    srmtab.loc[srm, (a, 'mean')] = srmdat.loc[(srm, k), 'mol_ratio']
-                    srmtab.loc[srm, (a, 'err')] = srmdat.loc[(srm, k), 'mol_ratio_err']
-
-            # record outputs
-            self.srmdat = srmdat  # the full SRM table
-            self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
-            self.srmtab = srmtab.reindex(self.analytes_sorted(), level=0, axis=1).astype(float)  # a summary of relevant mol/mol values only
-
-            # record which analytes have missing CRM data
-            means = self.srmtab.loc[:, idx[:, 'mean']]
-            means.columns = means.columns.droplevel(1)
-            self._analytes_missing_srm = means.columns.values[means.isnull().any()]
-            self._srm_id_analytes = means.columns.values[~means.isnull().any()]
-            self._calib_analytes = means.columns.values[~means.isnull().all()]
+                # record which analytes have missing CRM data
+                means = self.srmtab.loc[:, idx[:, 'mean']]
+                means.columns = means.columns.droplevel(1)
+                self._analytes_missing_srm = means.columns.values[means.isnull().any()]  # analyte ratios missing from SRM table
+                self._srm_id_analyte_ratios = means.columns.values[~means.isnull().any()]  # analyte ratioes identified
+                # self._calib_analyte_ratios = means.columns.values[~means.isnull().all()]
 
             # Print any warnings
             if len(warns) > 0:
@@ -1422,7 +1442,7 @@ class analyse(object):
         warns = []
         # compile mean and standard errors of samples
         for s in self.stds:
-            s_stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analytes, ['err', 'mean']]))
+            s_stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analyte_ratios, ['err', 'mean']]))
             s_stdtab.index.name = 'uTime'
 
             if not s.n > 0:
@@ -1432,7 +1452,7 @@ class analyse(object):
             for n in range(1, s.n + 1):
                 ind = s.ns == n
                 if sum(ind) >= n_min:
-                    for a in s.analytes:
+                    for a in s.analyte_ratios:
                         aind = ind & ~np.isnan(nominal_values(s.data[focus_stage][a]))
                         s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'mean')] = np.nanmean(nominal_values(s.data[focus_stage][a][aind]))
@@ -1458,7 +1478,7 @@ class analyse(object):
 
         # compile them into a table
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
-        stdtab = stdtab.reindex(self.analytes_sorted() + ['STD'], level=0, axis=1)
+        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios) + ['STD'], level=0, axis=1)
 
         # identify groups of consecutive SRMs
         ts = stdtab.index.values
@@ -1498,8 +1518,8 @@ class analyse(object):
             Which SRMs have been used. Must match SRM names
             in SRM database *exactly* (case sensitive!).
         analytes : array_like
-            Which analytes to base the identification on. If None,
-            all analytes are used (default).
+            Which analyte ratios to base the identification on. If None,
+            all analyte ratios are used (default).
         n_min : int
             The minimum number of data points a SRM measurement
             must contain to be included.
@@ -1516,10 +1536,7 @@ class analyse(object):
         # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
 
-        if analytes is None:
-            analytes = self._srm_id_analytes
-        else:
-            analytes = [a for a in analytes if a in self._srm_id_analytes]
+        analytes = self._analyte_checker(analytes)
 
         # get and scale mean srm values for all analytes
         srmid = self.srmtab.loc[:, idx[analytes, 'mean']]
@@ -1552,10 +1569,7 @@ class analyse(object):
         levels = ['meas_' + c if c != '' else c for c in caltab.columns.levels[1]]
         caltab.columns.set_levels(levels, 1, inplace=True)
 
-        for a in self.analytes:
-            if a == self.internal_standard:
-                continue
-
+        for a in self.analyte_ratios:
             caltab.loc[:, (a, 'srm_mean')] = self.srmtab.loc[caltab.SRM, (a, 'mean')].values
             caltab.loc[:, (a, 'srm_err')] = self.srmtab.loc[caltab.SRM, (a, 'err')].values
             
@@ -1714,12 +1728,8 @@ class analyse(object):
         -------
         None
         """
-        if analytes is None:
-            analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
-
-        elif isinstance(analytes, str):
-            analytes = [analytes]
-
+        analytes = self._analyte_checker(analytes)
+        
         if isinstance(srms_used, str):
             srms_used = [srms_used]
 
@@ -1741,6 +1751,9 @@ class analyse(object):
             if zero_intercept:
                 if (a, 'c') in self.calib_params:
                     self.calib_params.drop((a, 'c'), 1, inplace=True)
+            else:
+                self.calib_params.loc[:, (a, 'c')] = 0
+                self.calib_params.loc[:, (a, 'c')] = self.calib_params[(a, 'c')].astype(object, copy=False)  # set new column to objet type
             if drift_correct:
                 for g in gTime:
                     if self.caltab.loc[g].size == 0:
@@ -2027,8 +2040,7 @@ class analyse(object):
             contain a number, the average mass for the element is used. 
         """
 
-        if analytes is None:
-            analytes = self.analytes.difference(self.internal_standard)
+        analytes = self._analyte_checker(analytes)
 
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
@@ -2167,6 +2179,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        analyte = self._analyte_checker(analyte, single=True)
         self.minimal_analytes.update([analyte])
 
         with self.pbar.set(total=len(samples), desc='Threshold Filter') as prog:
@@ -2213,7 +2226,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
-
+        
+        analyte = self._analyte_checker(analyte, single=True)
         self.minimal_analytes.update([analyte])
 
         if isinstance(percentiles, (int, float)):
@@ -2304,6 +2318,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        analyte = self._analyte_checker(analyte, single=True)
         self.minimal_analytes.update([analyte])
         
         with self.pbar.set(total=len(samples), desc='Gradient Threshold Filter') as prog:
@@ -2350,6 +2365,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        analyte = self._analyte_checker(analyte, single=True)
         self.minimal_analytes.update([analyte])
 
         # Calculate gradients of all samples
@@ -2473,9 +2489,7 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
-        if isinstance(analytes, str):
-            analytes = [analytes]
-
+        analytes = self.analytes_sorted(analytes)
         self.minimal_analytes.update(analytes)
 
         if level == 'sample':
@@ -2556,6 +2570,9 @@ class analyse(object):
         # isolate data
         if samples is not None:
             subset = self.make_subset(samples)
+
+        analytes = self.analytes_sorted(analytes)
+        self.minimal_analytes.update(analytes)
 
         self.get_focus(subset=subset, filt=filt)
 
@@ -2654,6 +2671,8 @@ class analyse(object):
 
         samples = self._get_samples(subset)
 
+        x_analyte = self._analyte_checker(x_analyte, single=True)
+        y_analyte = self._analyte_checker(y_analyte, single=True)
         self.minimal_analytes.update([x_analyte, y_analyte])
 
         with self.pbar.set(total=len(samples), desc='Correlation Filter') as prog:
@@ -2690,7 +2709,10 @@ class analyse(object):
             outdir = self.report_dir + '/correlations/'
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
-        
+
+        x_analyte = self._analyte_checker(x_analyte, single=True)
+        y_analyte = self._analyte_checker(y_analyte, single=True)
+
         if subset is not None:
             samples = self._get_samples(subset)
         elif samples is None:
@@ -2706,8 +2728,6 @@ class analyse(object):
                 plt.close(f)
                 prog.update()
         return
-        
-
 
     @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
@@ -2735,6 +2755,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
+
+        analyte = self._analyte_checker(analyte)
 
         for s in samples:
             try:
@@ -2772,6 +2794,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
+
+        analyte = self._analyte_checker(analyte)
 
         for s in samples:
             try:
@@ -3009,8 +3033,7 @@ class analyse(object):
             subset = self.make_subset(samples)
         samples = self._get_samples(subset)
 
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         self.minimal_analytes.update(analytes)
 
@@ -3068,8 +3091,8 @@ class analyse(object):
 
     # plot calibrations
     @_log
-    def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
-        return plot.calibration_plot(self=self, analytes=analytes, datarange=datarange, 
+    def calibration_plot(self, analyte_ratios=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
+        return plot.calibration_plot(self=self, analyte_ratios=analyte_ratios, datarange=datarange, 
                                      loglog=loglog, ncol=ncol, srm_group=srm_group, 
                                      percentile_data_cutoff=percentile_data_cutoff, save=save)
 
@@ -3151,15 +3174,20 @@ class analyse(object):
         
         samples = self._get_samples(subset)
 
-        # t = 0
         focus = {'uTime': []}
-        focus.update({a: [] for a in self.analytes})
+
+        if self.focus_stage not in ['ratios', 'calibrated']:
+            columns = self.analytes
+        else:
+            columns = self.analyte_ratios
+
+        focus.update({a: [] for a in columns})
 
         for sa in samples:
             s = self.data[sa]
             focus['uTime'].append(s.uTime)
             ind = s.filt.grab_filt(filt)
-            for a in self.analytes:
+            for a in columns:
                 tmp = s.focus[a].copy()
                 tmp[~ind] = np.nan
                 focus[a].append(tmp)
@@ -3192,8 +3220,7 @@ class analyse(object):
         -------
         None
         """
-        if analytes is None:
-            analytes = self.analytes
+        analytes = self._analyte_checker(analytes)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3254,8 +3281,8 @@ class analyse(object):
         -------
         fig, ax
         """
-        if analytes is None:
-            analytes = [a for a in self.analytes if self.internal_standard not in a]
+        analytes = self._analyte_checker(analytes)
+
         if not hasattr(self, 'gradients'):
             self.gradients = Bunch()
 
@@ -3341,10 +3368,7 @@ class analyse(object):
         -------
         (fig, axes)
         """
-        if analytes is None:
-            analytes = self.analytes
-        if self.focus_stage in ['ratio', 'calibrated']:
-            analytes = [a for a in analytes if self.internal_standard not in a]
+        analytes = self.analytes_sorted(analytes)
 
         # sort analytes
         try:
@@ -3405,16 +3429,7 @@ class analyse(object):
         (fig, axes)
         """
 
-        if analytes is None:
-            analytes = self.analytes
-        if self.focus_stage in ['ratio', 'calibrated']:
-            analytes = [a for a in analytes if self.internal_standard not in a]
-
-        # sort analytes
-        try:
-            analytes = sorted(analytes, key=lambda x: float(re.findall('[0-9.-]+', x)[0]))
-        except IndexError:
-            analytes = sorted(analytes)
+        analytes = self.analytes_sorted(analytes)
 
         samples = self._get_samples(subset)
 
@@ -3458,10 +3473,7 @@ class analyse(object):
         -------
         (fig, axes)
         """
-        if analytes is None:
-            analytes = self.analytes
-        if self.focus_stage in ['ratio', 'calibrated']:
-            analytes = [a for a in analytes if self.internal_standard not in a]
+        analytes = self.analytes_sorted(analytes)
         if colourful:
             cmap = self.cmaps
         else:
@@ -3493,10 +3505,7 @@ class analyse(object):
             Contains statistics calculated for filtered and
             unfiltered data, and the filtered/unfiltered ratio.
         """
-        if analytes is None:
-            analytes = self.analytes
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self.analytes_sorted(analytes)
         
         # calculate filtered and unfiltered stats
         self.sample_stats(analytes, stats=stats, filt=False)
@@ -3554,9 +3563,7 @@ class analyse(object):
         -------
         fig, axes objects
         """
-
-        if analytes is None:
-            analytes = [a for a in self.analytes if self.internal_standard not in a]
+        analytes = self.analytes_sorted(analytes)
 
         if samples is None:
             samples = self._get_samples(subset)
@@ -3700,6 +3707,8 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
+        analytes = self.analytes_sorted(analytes)
+
         # if samples is not None:
         #     subset = self.make_subset(samples)
 
@@ -3780,6 +3789,8 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
+        analytes = self.analytes_sorted(analytes)
+
         # if samples is not None:
         #     subset = self.make_subset(samples)
 
@@ -3820,6 +3831,8 @@ class analyse(object):
                 os.mkdir(self.report_dir + '/filters')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
+
+        analytes = self.analytes_sorted(analytes)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3923,10 +3936,7 @@ class analyse(object):
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self.analytes_sorted(analytes)
 
         if focus_stage is None:
             focus_stage = self.focus_stage
@@ -4029,18 +4039,13 @@ class analyse(object):
         if not hasattr(self, 'stats'):
             self.sample_stats()
 
-        if analytes is None:
-                analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self.analytes_sorted(analytes)
 
         if samples is not None:
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
 
-        analytes = [a for a in analytes if a !=
-                    self.internal_standard]
 
         if figsize is None:
             figsize = (1.5 * len(self.stats), 3 * len(analytes))
@@ -4110,10 +4115,8 @@ class analyse(object):
             subset = self.make_subset(samples)
 
         samples = self._get_samples(subset)
-
         for s in self.stats_calced:
-            for nm in [n for n in samples if self.srm_identifier
-                       not in n]:
+            for nm in samples:
                 if self.stats[nm][s].ndim == 2:
                     # make multi - index
                     reps = np.arange(self.stats[nm][s].shape[-1])
@@ -4143,8 +4146,6 @@ class analyse(object):
 
             out = out.join(ats)
 
-        out.drop(self.internal_standard, 1, inplace=True)
-
         if save:
             if filename is None:
                 filename = 'stat_export.csv'
@@ -4160,11 +4161,6 @@ class analyse(object):
         """
         Used for exporting minimal dataset. DON'T USE.
         """
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
-
         if samples is not None:
             subset = self.make_subset(samples)
 
@@ -4239,10 +4235,7 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         """
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self.analytes_sorted(analytes)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -4261,10 +4254,8 @@ class analyse(object):
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
-              'ratios': 'counts/count {:s}',
-              'calibrated': 'mol/mol {:s}'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
+              'ratios': 'counts/count',
+              'calibrated': 'mol/mol'}
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
@@ -4340,12 +4331,8 @@ class analyse(object):
             If it ends with .zip, a zip file is created.
             If it's a folder, all data are exported to a folder.
         """
-        if target_analytes is None:
-            target_analytes = self.analytes
-        if isinstance(target_analytes, str):
-            target_analytes = [target_analytes]
+        target_analytes = self._analyte_checker(target_analytes, check_ratios=False)
 
-        self.minimal_analytes.update(target_analytes)
         zip_archive = False
 
         # set up data path
@@ -4357,8 +4344,14 @@ class analyse(object):
         if not os.path.isdir(path):
             os.mkdir(path)
 
+        # parse minimal analytes (exclude ratios, include target_analytes)
+        export_analytes = target_analytes
+        for a in self.minimal_analytes:
+            export_analytes.update(a.split('_'))
+        export_analytes = self.analytes_sorted(export_analytes, check_ratios=False)
+
         # export data
-        self._minimal_export_traces(path + '/data', analytes=self.minimal_analytes)
+        self._minimal_export_traces(path + '/data', analytes=export_analytes)
 
          # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
@@ -4370,7 +4363,7 @@ class analyse(object):
 
             # export srm table
             items = set()
-            for a in self.minimal_analytes:
+            for a in export_analytes:
                 for srm, ad in self._analyte_srmdat_link.items():
                     items.update([ad[a]])
             srmdat = self.srmdat.loc[idx[:, list(items)], :]

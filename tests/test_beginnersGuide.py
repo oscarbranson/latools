@@ -12,10 +12,10 @@ class test_docscode(unittest.TestCase):
 
     la.get_example_data('./latools_demo_tmp')
 
-    eg = la.analyse(data_folder='./latools_demo_tmp',
-                    config='DEFAULT',
-                    internal_standard='Ca43',
-                    srm_identifier='STD')
+    eg = la.analyse(data_folder='./latools_demo_tmp',  # the location of your data
+                    config='UCD-AGILENT',  # the configuration to use
+                    internal_standard='Ca43',  # the internal standard in your analyses
+                    srm_identifier='STD')  # the text that identifies which files contain standard reference materials
     eg.trace_plots()
 
     eg.despike(expdecay_despiker=True,
