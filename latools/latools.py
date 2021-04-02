@@ -2820,6 +2820,7 @@ class analyse(object):
         stds : bool
             Whether or not to include standards.
         """
+        # TODO: Update to work with new filtering implementation
         s = ''
         if sample is None and subset is None:
             if not self._has_subsets:
