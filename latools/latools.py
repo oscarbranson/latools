@@ -2284,6 +2284,7 @@ class analyse(object):
 
     @_log
     def filter_gradient_threshold(self, analyte, threshold, win=15,
+                                  recalc=True, win_mode='mid', win_exclude_outside=True, absolute_gradient=True,
                                   samples=None, subset=None):
         """
         Calculate a gradient threshold filter to the data.
@@ -2299,9 +2300,19 @@ class analyse(object):
             The window over which to calculate the moving gradient
         threshold : float
             The threshold value.
-        filt : bool
-            Whether or not to apply existing filters to the data before
-            calculating this filter.
+        recalc : bool
+            Whether or not to re-calculate the gradients.
+        win_mode : str
+            Whether the rolling window should be centered on the left, middle or centre
+            of the returned value. Can be 'left', 'mid' or 'right'.
+        win_exclude_outside : bool
+            If True, regions at the start and end where the gradient cannot be calculated
+            (depending on win_mode setting) will be excluded by the filter.
+        absolute_gradient : bool
+            If True, the filter is applied to the absolute gradient (i.e. always positive),
+            allowing the selection of 'flat' vs 'steep' regions regardless of slope direction.
+            If Falose, the sign of the gradient matters, allowing the selection of positive or
+            negative slopes only.
         samples : array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
@@ -2323,7 +2334,9 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Gradient Threshold Filter') as prog:
             for s in samples:
-                self.data[s].filter_gradient_threshold(analyte, win, threshold)
+                self.data[s].filter_gradient_threshold(analyte=analyte, win=win, threshold=threshold, recalc=recalc, 
+                                                       win_mode=win_mode, win_exclude_outside=win_exclude_outside,
+                                                       absolute_gradient=absolute_gradient)
                 prog.update()
 
     @_log
@@ -2807,6 +2820,7 @@ class analyse(object):
             self.filter_status(subset=subset)
         return
 
+
     def filter_status(self, sample=None, subset=None, stds=False):
         """
         Prints the current status of filters for specified samples.
@@ -2819,44 +2833,38 @@ class analyse(object):
             Specify a subset
         stds : bool
             Whether or not to include standards.
-        """
-        s = ''
+        """        
         if sample is None and subset is None:
             if not self._has_subsets:
-                s += 'Subset: All Samples\n\n'
-                s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()
+                return self.data[self.subsets['All_Samples'][0]].filt.filter_table
             else:
+                fdfs = {}
                 for n in sorted(str(sn) for sn in self._subset_names):
                     if n in self.subsets:
                         pass
                     elif int(n) in self.subsets:
                         n = int(n)
                         pass
-                    s += 'Subset: ' + str(n) + '\n'
-                    s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                    s += self.data[self.subsets[n][0]].filt.__repr__()
+                    subset_name = str(n)
+                    fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
                 if len(self.subsets['not_in_set']) > 0:
-                    s += '\nNot in Subset:\n'
-                    s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
-                    s += self.data[self.subsets['not_in_set'][0]].filt.__repr__()
-            print(s)
-            return
+                    fdfs['Not in Subset'] = self.data[self.subsets['not_in_set'][0]].filt.filter_table
+                
+                return pd.concat(fdfs, names=['subset'])
 
         elif sample is not None:
-            s += 'Sample: ' + sample + '\n'
-            s += self.data[sample].filt.__repr__()
-            print(s)
-            return
+            fdfs = {}
+            fdfs[sample] = self.data[sample].filt.filter_table
+            return pd.concat(fdfs, names=['sample'])
 
         elif subset is not None:
             if isinstance(subset, (str, int, float)):
                 subset = [subset]
+            fdfs = {}
             for n in subset:
-                s += 'Subset: ' + str(n) + '\n'
-                s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                s += self.data[self.subsets[n][0]].filt.__repr__()
-            print(s)
-            return
+                subset_name = str(n)
+                fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
+            return pd.concat(fdfs, names=['subset'])
 
     @_log
     def filter_clear(self, samples=None, subset=None):
@@ -3739,8 +3747,8 @@ class analyse(object):
 
     # Plot gradients
     @_log
-    def gradient_plots(self, analytes=None, win=15, samples=None, ranges=False,
-                       focus=None, outdir=None,
+    def gradient_plots(self, analytes=None, win=None, samples=None, ranges=False,
+                       focus=None, filt=False, recalc=False, outdir=None,
                        figsize=[10, 4], subset='All_Analyses'):
         """
         Plot analyte gradients as a function of time.
@@ -3804,7 +3812,7 @@ class analyse(object):
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
                 f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                        ranges=ranges, focus_stage=focus)
+                                        ranges=ranges, focus_stage=focus, filt=filt, recalc=recalc)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
