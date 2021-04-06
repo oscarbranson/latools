@@ -2807,6 +2807,7 @@ class analyse(object):
             self.filter_status(subset=subset)
         return
 
+
     def filter_status(self, sample=None, subset=None, stds=False):
         """
         Prints the current status of filters for specified samples.
@@ -2819,45 +2820,38 @@ class analyse(object):
             Specify a subset
         stds : bool
             Whether or not to include standards.
-        """
-        # TODO: Update to work with new filtering implementation
-        s = ''
+        """        
         if sample is None and subset is None:
             if not self._has_subsets:
-                s += 'Subset: All Samples\n\n'
-                s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()
+                return self.data[self.subsets['All_Samples'][0]].filt.filter_table
             else:
+                fdfs = {}
                 for n in sorted(str(sn) for sn in self._subset_names):
                     if n in self.subsets:
                         pass
                     elif int(n) in self.subsets:
                         n = int(n)
                         pass
-                    s += 'Subset: ' + str(n) + '\n'
-                    s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                    s += self.data[self.subsets[n][0]].filt.__repr__()
+                    subset_name = str(n)
+                    fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
                 if len(self.subsets['not_in_set']) > 0:
-                    s += '\nNot in Subset:\n'
-                    s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
-                    s += self.data[self.subsets['not_in_set'][0]].filt.__repr__()
-            print(s)
-            return
+                    fdfs['Not in Subset'] = self.data[self.subsets['not_in_set'][0]].filt.filter_table
+                
+                return pd.concat(fdfs, names=['subset'])
 
         elif sample is not None:
-            s += 'Sample: ' + sample + '\n'
-            s += self.data[sample].filt.__repr__()
-            print(s)
-            return
+            fdfs = {}
+            fdfs[sample] = self.data[sample].filt.filter_table
+            return pd.concat(fdfs, names=['sample'])
 
         elif subset is not None:
             if isinstance(subset, (str, int, float)):
                 subset = [subset]
+            fdfs = {}
             for n in subset:
-                s += 'Subset: ' + str(n) + '\n'
-                s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                s += self.data[self.subsets[n][0]].filt.__repr__()
-            print(s)
-            return
+                subset_name = str(n)
+                fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
+            return pd.concat(fdfs, names=['subset'])
 
     @_log
     def filter_clear(self, samples=None, subset=None):
