@@ -698,7 +698,7 @@ class D(object):
                         params, setn=setn)
 
     @_log
-    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True):
+    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True, win_mode='mid', win_exclude_outside=True, absolute_gradient=True):
         """
         Apply gradient threshold filter.
 
@@ -722,6 +722,17 @@ class D(object):
             Window used to calculate gradients (n points)
         recalc : bool
             Whether or not to re-calculate the gradients.
+        win_mode : str
+            Whether the rolling window should be centered on the left, middle or centre
+            of the returned value. Can be 'left', 'mid' or 'right'.
+        win_exclude_outside : bool
+            If True, regions at the start and end where the gradient cannot be calculated
+            (depending on win_mode setting) will be excluded by the filter.
+        absolute_gradient : bool
+            If True, the filter is applied to the absolute gradient (i.e. always positive),
+            allowing the selection of 'flat' vs 'steep' regions regardless of slope direction.
+            If Falose, the sign of the gradient matters, allowing the selection of positive or
+            negative slopes only.
 
         Returns
         -------
@@ -732,11 +743,14 @@ class D(object):
 
         # calculate absolute gradient
         if recalc or not self.grads_calced:
-            self.grads = calc_grads(self.Time, self.focus,
-                                    [analyte], win)
+            self.grads = calc_grads(x=self.Time, dat=self.focus,
+                                    keys=[analyte], win=win, win_mode=win_mode)
             self.grads_calced = True
 
-        below, above = filters.threshold(abs(self.grads[analyte]), threshold)
+        if absolute_gradient:
+            below, above = filters.threshold(abs(self.grads[analyte]), threshold)
+        else:
+            below, above = filters.threshold(self.grads[analyte], threshold)
 
         setn = self.filt.maxset + 1
 
@@ -1360,7 +1374,7 @@ class D(object):
                           focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 
     @_log
-    def gplot(self, analytes=None, win=5, figsize=[10, 4],
+    def gplot(self, analytes=None, win=5, figsize=[10, 4], filt=False, recalc=False,
               ranges=False, focus_stage=None, ax=None):
         """
         Plot analytes gradients as a function of Time.
@@ -1382,8 +1396,8 @@ class D(object):
         figure, axis
         """
 
-        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize,
-                          ranges=ranges, focus_stage=focus_stage, ax=ax)
+        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize, filt=filt,
+                          ranges=ranges, focus_stage=focus_stage, ax=ax, recalc=recalc)
 
         # if type(analytes) is str:
         #     analytes = [analytes]
