@@ -344,8 +344,6 @@ def rolling_window(a, window, window_mode='mid', pad=None):
             postpad = np.full((npost, window), out[-1])
         else:
             raise ValueError("`pad` must be either 'ends', 'mean_ends' or 'repeat_ends'.")
-        print(prepad)
-        print(postpad)
         return np.concatenate((prepad, out, postpad))
     elif pad is not None:
         pre_blankpad = np.empty(((npre, window)))
@@ -447,22 +445,16 @@ def calc_grads(x, dat, keys=None, win=5, win_mode='mid'):
         keys = dat.keys()
 
     def grad(xy):
-        if (~np.isnan(xy)).all():
+        idx = np.isfinite(xy[1])
+        if sum(idx) > 2:
             try:
-                return np.polyfit(xy[0], xy[1], 1)[0]
+                return np.polyfit(xy[0][idx], xy[1][idx], 1)[0]
             except ValueError:
                 return np.nan
         else:
             return np.nan
 
-    # if win_mode == 'mid':
     xs = rolling_window(x, win, pad='repeat_ends', window_mode=win_mode)
-    # elif win_mode == 'left':
-    #     xs = x[:-win]
-    # elif win_mode == 'right':
-    #     xs = x[win:]
-    # else:
-    #     raise ValueError("`window_mode` must be 'left', 'mid' or 'right'.")
 
     grads = Bunch()
     for k in keys:
