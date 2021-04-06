@@ -1,6 +1,14 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.19]
+
+### Changed
+- Filters now use pandas to keep track of filter components and switches.
+- Quality of life improvements using pandas DataFrames to display filter status
+- Improvements to the calculation of rolling statistics. Can choose justification window relative to data position, and rolling gradient calculation now handles nans better (excludes them).
+- Improvements to `gradient_threshold` filters. Can now set `absolute_gradient=False` to select 'up' or 'down' components separately. `gplot` now shows the effect of filters directly, similar to `tplot`.
+
 ## [0.3.18]
 
 ### Added
