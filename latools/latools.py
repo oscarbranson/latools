@@ -2284,6 +2284,7 @@ class analyse(object):
 
     @_log
     def filter_gradient_threshold(self, analyte, threshold, win=15,
+                                  recalc=True, win_mode='mid', win_exclude_outside=True, absolute_gradient=True,
                                   samples=None, subset=None):
         """
         Calculate a gradient threshold filter to the data.
@@ -2299,9 +2300,19 @@ class analyse(object):
             The window over which to calculate the moving gradient
         threshold : float
             The threshold value.
-        filt : bool
-            Whether or not to apply existing filters to the data before
-            calculating this filter.
+        recalc : bool
+            Whether or not to re-calculate the gradients.
+        win_mode : str
+            Whether the rolling window should be centered on the left, middle or centre
+            of the returned value. Can be 'left', 'mid' or 'right'.
+        win_exclude_outside : bool
+            If True, regions at the start and end where the gradient cannot be calculated
+            (depending on win_mode setting) will be excluded by the filter.
+        absolute_gradient : bool
+            If True, the filter is applied to the absolute gradient (i.e. always positive),
+            allowing the selection of 'flat' vs 'steep' regions regardless of slope direction.
+            If Falose, the sign of the gradient matters, allowing the selection of positive or
+            negative slopes only.
         samples : array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
@@ -2323,7 +2334,9 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Gradient Threshold Filter') as prog:
             for s in samples:
-                self.data[s].filter_gradient_threshold(analyte, win, threshold)
+                self.data[s].filter_gradient_threshold(analyte=analyte, win=win, threshold=threshold, recalc=recalc, 
+                                                       win_mode=win_mode, win_exclude_outside=win_exclude_outside,
+                                                       absolute_gradient=absolute_gradient)
                 prog.update()
 
     @_log
@@ -3734,8 +3747,8 @@ class analyse(object):
 
     # Plot gradients
     @_log
-    def gradient_plots(self, analytes=None, win=15, samples=None, ranges=False,
-                       focus=None, outdir=None,
+    def gradient_plots(self, analytes=None, win=None, samples=None, ranges=False,
+                       focus=None, filt=False, recalc=False, outdir=None,
                        figsize=[10, 4], subset='All_Analyses'):
         """
         Plot analyte gradients as a function of time.
@@ -3799,7 +3812,7 @@ class analyse(object):
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
                 f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                        ranges=ranges, focus_stage=focus)
+                                        ranges=ranges, focus_stage=focus, filt=filt, recalc=recalc)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)

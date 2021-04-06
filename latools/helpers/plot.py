@@ -174,8 +174,8 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         if ret:
             return fig, ax
 
-def gplot(self, analytes=None, win=25, figsize=[10, 4],
-              ranges=False, focus_stage=None, ax=None, recalc=True):
+def gplot(self, analytes=None, win=25, figsize=[10, 4], filt=False,
+          ranges=False, focus_stage=None, ax=None, recalc=True):
         """
         Plot analytes gradients as a function of Time.
 
@@ -195,14 +195,16 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
         -------
         figure, axis
         """
-
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
-
         if focus_stage is None:
             focus_stage = self.focus_stage
+        
+        if isinstance(analytes, str):
+            analytes = [analytes]
+        elif analytes is None:
+            if self.grads_calced:
+                analytes = self.grads.keys()
+            else:
+                analytes = self.data[focus_stage].keys()
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
@@ -218,7 +220,20 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
             self.grads_calce = True
 
         for a in analytes:
-            ax.plot(x, self.grads[a], color=self.cmap[a], label=pretty_element(a))
+            y = self.grads[a]
+            if filt:
+                ind = self.filt.grab_filt(filt, a)
+                xf = x.copy()
+                yf = y.copy()
+                if any(~ind):
+                    xf[~ind] = np.nan
+                    yf[~ind] = np.nan
+                if any(~ind):
+                    ax.plot(x, y, color=self.cmap[a], alpha=.2, lw=0.6)
+                ax.plot(xf, yf, color=self.cmap[a], label=pretty_element(a))
+            else:
+                ax.plot(x, y, color=self.cmap[a], label=pretty_element(a))
+            # ax.plot(x, self.grads[a], color=self.cmap[a], label=pretty_element(a))
 
         if ranges:
             for lims in self.bkgrng:
