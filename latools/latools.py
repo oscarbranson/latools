@@ -36,7 +36,7 @@ from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span)
+                      get_total_time_span, analyte_checker)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -464,32 +464,8 @@ class analyse(object):
         """
         Return valid analytes depending on the analysis stage
         """
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
 
-        out = set()
-        if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
-            if analytes is None:
-                analytes = self.analytes
-            out = self.analytes.intersection(analytes)
-        else:
-            if analytes is None:
-                analytes = self.analyte_ratios
-            # case 1: provided analytes are an exact match for items in analyte_ratios
-            valid1 = self.analyte_ratios.intersection(analytes)
-            # case 2: provided analytes are in numerator of ratios
-            valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
-            out = valid1.union(valid2)
-        
-        if len(out) == 0:
-            raise ValueError(f'{analytes} does not match any valid analyte names.')
-
-        if single:
-            if len(out) > 1:
-                raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
-            return out.pop()
-
-        return out
 
     def analytes_sorted(self, a=None, check_ratios=True):
         return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
@@ -3824,6 +3800,48 @@ class analyse(object):
                 plt.close(f)
                 prog.update()
         return
+
+    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, **kwargs):
+        """
+        Plot a stacked histograms of analytes for all given samples (or a pre-defined subset)
+
+        Parameters
+        ----------
+        subset : str
+            The subset of samples to plot. Overruled by 'samples', if provided.
+        samples : array-like
+            The samples to plot. If blank, reverts to 'All_Samples' subset.
+        analytes : str or array-like
+            The analytes to plot
+        axs : array-like
+            An array of matplotlib.Axes objects the same length as analytes.
+        **kwargs
+            passed to matplotlib.pyplot.bar() plotting function
+        """
+        analytes = self._analyte_checker(analytes)
+        
+        if axs is None:
+            fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
+                                    constrained_layout=True, sharey=True)
+        elif len(axs) != len(analytes):
+            raise ValueError(f'Must provide the same number of axes ({len(axes)}) and analytes ({len(analytes)})')
+            
+        if samples is None:
+            samples = self.subsets[subset]
+        elif isinstance(samples, str):
+            samples = [samples]
+        
+        self.get_focus(filt=True, samples=samples)
+        for i, a in enumerate(analytes):
+            m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
+            arrays = []
+            for s in samples:
+                sub = self.data[s].get_individual_ablations(analytes)
+                arrays += [nominal_values(d[a]) * m for d in sub]
+            
+            stackhist(arrays, ax=axs[i], **kwargs)
+            
+            axs[i].set_xlabel(pretty_element(a) + '\n' + unit)
 
     # filter reports
     @_log
