@@ -72,7 +72,7 @@ def get_total_time_span(d):
     
     return tmax
 
-def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
+def unitpicker(a, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
 
@@ -103,35 +103,32 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
 
     if focus_stage == 'calibrated':
         udict = {0: 'mol/mol ' + pd,
-                 1: 'mmol/mol ' + pd,
-                 2: '$\mu$mol/mol ' + pd,
-                 3: 'nmol/mol ' + pd,
-                 4: 'pmol/mol ' + pd,
-                 5: 'fmol/mol ' + pd}
+                 3: 'mmol/mol ' + pd,
+                 6: '$\mu$mol/mol ' + pd,
+                 9: 'nmol/mol ' + pd,
+                 12: 'pmol/mol ' + pd,
+                 15: 'fmol/mol ' + pd}
     elif focus_stage == 'ratios':
         udict = {0: 'counts/count ' + pd,
-                 1: '$10^{-3}$ counts/count ' + pd,
-                 2: '$10^{-6}$ counts/count ' + pd,
-                 3: '$10^{-9}$ counts/count ' + pd,
-                 4: '$10^{-12}$ counts/count ' + pd,
-                 5: '$10^{-15}$ counts/count ' + pd}
+                 3: '$10^{-3}$ counts/count ' + pd,
+                 6: '$10^{-6}$ counts/count ' + pd,
+                 9: '$10^{-9}$ counts/count ' + pd,
+                 12: '$10^{-12}$ counts/count ' + pd,
+                 15: '$10^{-15}$ counts/count ' + pd}
     elif focus_stage in ('rawdata', 'despiked', 'bkgsub'):
         udict = udict = {0: 'counts',
-                         1: '$10^{-3}$ counts',
-                         2: '$10^{-6}$ counts',
-                         3: '$10^{-9}$ counts',
-                         4: '$10^{-12}$ counts',
-                         5: '$10^{-15}$ counts'}
+                         3: '$10^{-3}$ counts',
+                         6: '$10^{-6}$ counts',
+                         9: '$10^{-9}$ counts',
+                         12: '$10^{-12}$ counts',
+                         15: '$10^{-15}$ counts'}
     else:
-        udict = {0: '', 1: '', 2: '', 3: '', 4: '', 5: ''}
+        udict = {0: '', 3: '', 6: '', 9: '', 12: '', 15: ''}
 
     a = abs(a)
-    n = 0
-    if a < llim:
-        while a < llim:
-            a *= 1000
-            n += 1
-    return float(1000**n), udict[n]
+    order = np.log10(a)
+    m = np.ceil(-order / 3) * 3
+    return float(10**m), udict[m]
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
     """
