@@ -501,3 +501,34 @@ def stack_keys(ddict, keys, extra=None):
     if extra is not None:
         d = extra + d
     return np.vstack(d).T
+
+def analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    """
+    Return valid analytes depending on the analysis stage
+    """
+    if isinstance(analytes, str):
+        analytes = [analytes]
+
+    out = set()
+    if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
+        if analytes is None:
+            analytes = self.analytes
+        out = self.analytes.intersection(analytes)
+    else:
+        if analytes is None:
+            analytes = self.analyte_ratios
+        # case 1: provided analytes are an exact match for items in analyte_ratios
+        valid1 = self.analyte_ratios.intersection(analytes)
+        # case 2: provided analytes are in numerator of ratios
+        valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
+        out = valid1.union(valid2)
+    
+    if len(out) == 0:
+        raise ValueError(f'{analytes} does not match any valid analyte names.')
+
+    if single:
+        if len(out) > 1:
+            raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
+        return out.pop()
+
+    return out
