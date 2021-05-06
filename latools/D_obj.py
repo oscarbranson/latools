@@ -27,7 +27,8 @@ from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, unitpicker, findmins, stack_keys)
+                              calc_grads, unitpicker, findmins, stack_keys,
+                              analyte_checker)
 from .helpers.analyte_names import pretty_element, analyte_sort_fn
 from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
@@ -160,10 +161,14 @@ class D(object):
 
         return
 
-    def analytes_sorted(self, a=None):
-        if a is None:
-            a = self.analytes
-        return sorted(a, key=analyte_sort_fn)
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+        """
+        Return valid analytes depending on the analysis stage
+        """
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+
+    def analytes_sorted(self, a=None, check_ratios=True):
+        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
@@ -612,10 +617,7 @@ class D(object):
         -------
         None
         """
-        if analytes is None:
-                analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         self.stats = Bunch()
         self.stats['analytes'] = analytes
@@ -652,6 +654,18 @@ class D(object):
             t = self.Time[self.ns == n]
             ats[n - 1] = t.max() - t.min()
         return ats
+
+    def get_individual_ablations(self, analytes=None, focus_stage=None):
+        analytes = self._analyte_checker(analytes)
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        out = []
+        for n in range(1, self.n + 1):
+            sub = {}
+            for a in analytes:
+                sub[a] = self.data[focus_stage][a][self.ns == n]
+            out.append(sub)
+        return out
 
     # Data Selections Tools
     @_log
