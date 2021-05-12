@@ -48,6 +48,9 @@ class D(object):
         is causing the import to fail.
     dataformat : dict
         A dataformat dict. See documentation for more details.
+    passthrough : iterable
+        If data loading happens at a higher level, pass a tuple of
+        (file_name, sample_name, analytes, data, metadata)
 
     Attributes
     ----------
@@ -95,7 +98,7 @@ class D(object):
         An object for storing, selecting and creating data filters.F
     """
 
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names'):
+    def __init__(self, data_file=None, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names', passthrough=None):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -104,10 +107,13 @@ class D(object):
         del(params['self'])
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
-        self.file = data_file
         self.internal_standard = internal_standard
 
-        self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+        if passthrough is not None:
+            self.file, self.sample, analytes, self.data, self.meta = passthrough
+        else:
+            self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+            self.file = data_file
 
         self.analytes = set(analytes)
 

@@ -32,6 +32,8 @@ from .helpers import plot
 from .filtering import filters
 from .filtering.classifier_obj import classifier
 
+from .processes import read_data
+
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, get_date,
@@ -201,12 +203,15 @@ class analyse(object):
         with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
             data = [None] * len(self.files)
             for i, f in enumerate(self.files):
-                data[i] = (D(os.path.join(self.folder, f),
-                           dataformat=self.dataformat,
-                           errorhunt=errorhunt,
-                           cmap=cmap,
-                           internal_standard=internal_standard,
-                           name=names))
+                data_passthrough = read_data(data_file=os.path.join(self.folder, f), dataformat=self.dataformat, name_mode=names)
+
+                data[i] = D(passthrough=(f, *data_passthrough))
+                # data[i] = (D(os.path.join(self.folder, f),
+                #            dataformat=self.dataformat,
+                #            errorhunt=errorhunt,
+                #            cmap=cmap,
+                #            internal_standard=internal_standard,
+                #            name=names))
                 prog.update()
 
         # create universal time scale
