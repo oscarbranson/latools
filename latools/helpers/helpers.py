@@ -41,10 +41,12 @@ def get_date(datetime, time_format=None):
         String describing the datetime format. If missing uses
         dateutil.parser to guess time format.
     """
-    if time_format is None:
-        t = du.parser.parse(datetime)
-    else:
+    if isinstance(datetime, dt.datetime):
+        t = datetime
+    elif time_format is not None:
         t = dt.datetime.strptime(datetime, time_format)
+    else:
+        t = du.parser.parse(datetime)        
     return t
 
 def get_total_n_points(d):
