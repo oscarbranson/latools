@@ -114,8 +114,6 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
 
     Data will be saved in latools' 'REPRODUCE' format.
 
-    WARNING: This functionality is currently *very beta*. Use carefully.
-
     TODO: Check for existing files in savedir, don't overwrite?
 
     Parameters

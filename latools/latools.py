@@ -33,6 +33,7 @@ from .filtering import filters
 from .filtering.classifier_obj import classifier
 
 from .processes import read_data
+from .preprocessing.split import long_file
 
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
@@ -99,10 +100,27 @@ class analyse(object):
     internal_standard : str
         The name of the analyte used as an internal standard throughout
         analysis.
-    names : str
+    file_structure : str
+        This specifies whether latools should expect multiplte files in a folder ('multi')
+        or a single file containing multiple analyses ('long'). Default is 'multi'. 
+    names : str or array-like
+        If file_structure is 'multi', this should be either:
         * 'file_names' : use the file names as labels (default)
         * 'metadata_names' : used the 'names' attribute of metadata as the name
           anything else : use numbers.
+        If file_structure is 'long', this should be a list of names for the ablations
+        in the file. The wildcards '+' and '*' are supported in file names, and are used
+        when the number of ablations does not match the number of sample names provided.
+        If a sample name contains '+', all ablations that are not specified in the list
+        are combined into a single file and given this name. If a sample name contains '*'
+        these are analyses are numbered sequentially and split into separate files.
+        For example, if you have 5 ablations with one standard at the start and stop you
+        could provide one of:
+        * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample (containing three ablations), std].
+        * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample0, sample1, sample2, std], where each
+          name is associated with a single ablation.
+    split_kwargs : dict
+        Arguments to pass to latools.split.long_file()
 
     Attributes
     ----------
@@ -137,7 +155,7 @@ class analyse(object):
     def __init__(self, data_path, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names', srm_file=None, pbar=None):
+                 file_structure='multi', names='file_names', srm_file=None, pbar=None, split_kwargs={}):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -146,10 +164,8 @@ class analyse(object):
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         # assign file paths
-        self.folder = os.path.realpath(data_path)
-        self.parent_folder = os.path.dirname(self.folder)
-        self.files = np.array([f for f in os.listdir(self.folder)
-                               if extension in f])
+        self.path = os.path.realpath(data_path)
+        self.parent_folder = os.path.dirname(self.path)
 
         # set line length for outputs
         self._line_width = 80
@@ -157,12 +173,12 @@ class analyse(object):
         # make output directories
         self.report_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.folder) + '_reports/'))
+                                              os.path.basename(self.path) + '_reports/'))
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.folder) + '_export/'))
+                                              os.path.basename(self.path) + '_export/'))
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -199,20 +215,30 @@ class analyse(object):
         else:
             self.pbar = pbar
 
-        # load data into list (initialise D objects)
-        with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
-            data = [None] * len(self.files)
-            for i, f in enumerate(self.files):
-                data_passthrough = read_data(data_file=os.path.join(self.folder, f), dataformat=self.dataformat, name_mode=names)
+        if file_structure == 'multi':
+            self.files = np.array([f for f in os.listdir(self.path)
+                               if extension in f])
 
-                data[i] = D(passthrough=(f, *data_passthrough))
-                # data[i] = (D(os.path.join(self.folder, f),
-                #            dataformat=self.dataformat,
-                #            errorhunt=errorhunt,
-                #            cmap=cmap,
-                #            internal_standard=internal_standard,
-                #            name=names))
-                prog.update()
+            # load data into list (initialise D objects)
+            with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
+                data = [None] * len(self.files)
+                for i, f in enumerate(self.files):
+                    data_passthrough = read_data(data_file=os.path.join(self.path, f), dataformat=self.dataformat, name_mode=names)
+
+                    data[i] = D(passthrough=(f, *data_passthrough))
+                    # data[i] = (D(os.path.join(self.path, f),
+                    #            dataformat=self.dataformat,
+                    #            errorhunt=errorhunt,
+                    #            cmap=cmap,
+                    #            internal_standard=internal_standard,
+                    #            name=names))
+                    prog.update()
+        elif file_structure == 'long':
+            data = []
+            print(self.path)
+
+            for data_passthrough in long_file(data_file=self.path, dataformat=self.dataformat, sample_list=names, passthrough=True, **split_kwargs):
+                data.append(D(passthrough=data_passthrough))
 
         # create universal time scale
         if 'date' in data[0].meta.keys():
@@ -258,6 +284,8 @@ class analyse(object):
                     samples[ind] = new  # rename in samples
                     for s, ns in zip([data[i] for i in np.where(ind)[0]], new):
                         s.sample = ns  # rename in D objects
+        elif file_structure == 'long':
+            samples = np.array([s.sample for s in data], dtype=object)
         else:
             samples = np.arange(len(data))  # assign a range of numbers
             for i, s in enumerate(samples):
@@ -462,7 +490,7 @@ class analyse(object):
     
     def _log_header(self):
         return ['# LATOOLS analysis log saved at {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
-                'data_path :: {}'.format(self.folder),
+                'data_path :: {}'.format(self.path),
                 '# Analysis Log Start: \n'
                 ]
     def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
