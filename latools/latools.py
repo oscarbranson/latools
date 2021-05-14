@@ -66,7 +66,7 @@ class analyse(object):
 
     Parameters
     ----------
-    data_folder : str
+    data_path : str
         The path to a directory containing multiple data files.
     errorhunt : bool
         If True, latools prints the name of each file before it
@@ -106,9 +106,9 @@ class analyse(object):
 
     Attributes
     ----------
-    folder : str
+    path : str
         Path to the directory containing the data files, as
-        specified by `data_folder`.
+        specified by `data_path`.
     dirname : str
         The name of the directory containing the data files,
         without the entire path.
@@ -134,7 +134,7 @@ class analyse(object):
         An analyte - specific colour map, used for plotting.
     """
 
-    def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
+    def __init__(self, data_path, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
                  names='file_names', srm_file=None, pbar=None):
@@ -146,7 +146,7 @@ class analyse(object):
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         # assign file paths
-        self.folder = os.path.realpath(data_folder)
+        self.folder = os.path.realpath(data_path)
         self.parent_folder = os.path.dirname(self.folder)
         self.files = np.array([f for f in os.listdir(self.folder)
                                if extension in f])
@@ -462,7 +462,7 @@ class analyse(object):
     
     def _log_header(self):
         return ['# LATOOLS analysis log saved at {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
-                'data_folder :: {}'.format(self.folder),
+                'data_path :: {}'.format(self.folder),
                 '# Analysis Log Start: \n'
                 ]
     def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
@@ -4387,7 +4387,7 @@ class analyse(object):
          # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      'data_folder :: ./data/']
+                      'data_path :: ./data/']
                       
         if hasattr(self, 'srmdat'):
             log_header.append('srm_table :: ./srm.table')
@@ -4424,7 +4424,7 @@ class analyse(object):
         return
 
 
-def reproduce(past_analysis, plotting=False, data_folder=None,
+def reproduce(past_analysis, plotting=False, data_path=None,
               srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
@@ -4442,7 +4442,7 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
         The path to the log file produced by :func:`~latools.analyse.minimal_export`.
     plotting : bool
         Whether or not to output plots.
-    data_folder : str
+    data_path : str
         Optional. Specify a different data folder. Data folder
         should normally be in the same folder as the log file.
     srm_table : str
