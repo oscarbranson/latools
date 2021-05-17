@@ -61,6 +61,8 @@ np.seterr(invalid='ignore')
 # TODO: Allow full sklearn integration by allowing sample-wise application of custom classifiers. i.e. Provide data collection (get_data) ajd filter addition API.
 # Especially: PCA, Gaussian Mixture Models
 
+# TODO: Move away from single `internal_standard` specification towards specifying multiple internal standards.
+
 class analyse(object):
     """
     For processing and analysing whole LA - ICPMS datasets.
@@ -329,8 +331,11 @@ class analyse(object):
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
-            raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
-                             'analytes in\nyour data files. Please make sure it is specified correctly.')
+            self.internal_standard = None
+            warnings.warn(
+                self._wrap_text(f'The specified internal_standard {internal_standard} is not in the list of analytes ({self.analytes}). You will have to specify a valid analyte when calling the `ratio()` function later in the analysis.')
+                )
+
         self.minimal_analytes = set()
         
         # record which analytes are needed for calibration
@@ -1344,10 +1349,14 @@ class analyse(object):
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
+
+        if self.internal_standard in self.analytes:
             self.minimal_analytes.update([internal_standard])
             self.calibration_analytes.update([internal_standard])
-
-        self.calibration_analytes.update(analytes)
+            self.calibration_analytes.update(analytes)
+        else:
+            raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
+                                'analytes in\nyour data files. Please make sure it is specified correctly.')
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
@@ -2102,13 +2111,13 @@ class analyse(object):
             The name of the sample group. Defaults to n + 1, where n is
             the highest existing group number
         """
+        if isinstance(samples, str):
+            samples = [samples]
+
         # Check if a subset containing the same samples already exists.
         for k, v in self.subsets.items():
             if set(v) == set(samples) and k != 'not_in_set':
                 return k
-
-        if isinstance(samples, str):
-            samples = [samples]
 
         not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
         if len(not_exists) > 0:
@@ -3834,7 +3843,7 @@ class analyse(object):
                 prog.update()
         return
 
-    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, **kwargs):
+    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, filt=True, **kwargs):
         """
         Plot a stacked histograms of analytes for all given samples (or a pre-defined subset)
 
@@ -3857,14 +3866,14 @@ class analyse(object):
             fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
                                     constrained_layout=True, sharey=True)
         elif len(axs) != len(analytes):
-            raise ValueError(f'Must provide the same number of axes ({len(axes)}) and analytes ({len(analytes)})')
+            raise ValueError(f'Must provide the same number of axes ({len(axs)}) and analytes ({len(analytes)})')
             
         if samples is None:
             samples = self.subsets[subset]
         elif isinstance(samples, str):
             samples = [samples]
         
-        self.get_focus(filt=True, samples=samples)
+        self.get_focus(filt=filt, samples=samples)
         for i, a in enumerate(analytes):
             m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
             arrays = []
@@ -3872,7 +3881,7 @@ class analyse(object):
                 sub = self.data[s].get_individual_ablations(analytes)
                 arrays += [nominal_values(d[a]) * m for d in sub]
             
-            stackhist(arrays, ax=axs[i], **kwargs)
+            plot.stackhist(arrays, ax=axs[i], **kwargs)
             
             axs[i].set_xlabel(pretty_element(a) + '\n' + unit)
 
