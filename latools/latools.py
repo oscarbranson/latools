@@ -4414,7 +4414,7 @@ class analyse(object):
 
         # parse minimal analytes (exclude ratios, include target_analytes)
         export_analytes = target_analytes
-        for a in self.minimal_analytes:
+        for a in self.minimal_analytes.difference([None]):
             export_analytes.update(a.split('_'))
         export_analytes = self.analytes_sorted(export_analytes, check_ratios=False)
 
