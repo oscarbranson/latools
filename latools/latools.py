@@ -175,12 +175,12 @@ class analyse(object):
         # make output directories
         self.report_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.path) + '_reports/'))
+                                              os.path.splitext(os.path.basename(self.path))[0] + '_reports/'))
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.path) + '_export/'))
+                                              os.path.splitext(os.path.basename(self.path))[0] + '_export/'))
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -3873,12 +3873,12 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
         
-        self.get_focus(filt=filt, samples=samples)
+        # self.get_focus(filt=filt, samples=samples)
         for i, a in enumerate(analytes):
             m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
             arrays = []
             for s in samples:
-                sub = self.data[s].get_individual_ablations(analytes)
+                sub = self.data[s].get_individual_ablations(analytes, filt=filt)
                 arrays += [nominal_values(d[a]) * m for d in sub]
             
             plot.stackhist(arrays, ax=axs[i], **kwargs)
