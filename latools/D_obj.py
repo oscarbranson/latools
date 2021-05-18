@@ -661,15 +661,16 @@ class D(object):
             ats[n - 1] = t.max() - t.min()
         return ats
 
-    def get_individual_ablations(self, analytes=None, focus_stage=None):
+    def get_individual_ablations(self, analytes=None, filt=True, focus_stage=None):
         analytes = self._analyte_checker(analytes)
         if focus_stage is None:
             focus_stage = self.focus_stage
         out = []
+        ind = self.filt.grab_filt(filt)
         for n in range(1, self.n + 1):
             sub = {}
             for a in analytes:
-                sub[a] = self.data[focus_stage][a][self.ns == n]
+                sub[a] = self.data[focus_stage][a][(self.ns == n) & ind]
             out.append(sub)
         return out
 
