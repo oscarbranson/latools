@@ -344,6 +344,10 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
     # determine ranges for all analytes
     rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                  np.nanmax(focus[a] * udict[a][0])) for a in keys}
+    # check for nans
+    for k, v in rdict.items():
+        if any(np.isnan(v)):
+            rdict[k] = (-1,1)
 
     for i, j in tqdm(zip(*np.triu_indices_from(axes, k=1)), desc='Drawing Plots',
                      total=sum(range(len(keys)))):
