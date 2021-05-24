@@ -64,7 +64,7 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
         The window used for calculating first derivative.
         Defaults to 7.
     swin : int
-        The window used for signal smoothing. If None, ``gwin // 2``.
+        The window used for signal smoothing. If None, signal is not smoothed.
     win : int
         The width (c +/- win) of the transition data subsets.
         Defaults to 20.
@@ -111,6 +111,8 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             scale = True
         fsig = separate_signal(tsigs, scaleX=scale).astype(bool)
     else:
+        if transform == 'log':
+            thresh = np.log(thresh)
         fsig = tsigs > thresh
     fsig[0] = False  # the first value must always be background
     fbkg = ~fsig

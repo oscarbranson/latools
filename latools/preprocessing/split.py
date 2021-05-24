@@ -8,6 +8,7 @@ import os
 import json
 import datetime
 import dateutil
+import textwrap
 import numpy as np
 import pandas as pd
 import pkg_resources as pkgrs
@@ -18,6 +19,8 @@ from ..helpers.analyte_names import analyte_2_namemass
 from ..helpers.io import read_dataformat
 
 import matplotlib.pyplot as plt
+
+textwidth = 70  # characters, for printing
 
 def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=0, trim_head_lines=0):
     """
@@ -100,7 +103,7 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
-def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, **autorange_args):
+def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, passthrough=False, **autorange_args):
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
 
@@ -110,8 +113,6 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     ablation, named using the list of names you provide.
 
     Data will be saved in latools' 'REPRODUCE' format.
-
-    WARNING: This functionality is currently *very beta*. Use carefully.
 
     TODO: Check for existing files in savedir, don't overwrite?
 
@@ -123,6 +124,12 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         A valid dataformat dict. See online documentation for more details.
     sample_list : array-like
         A list of strings that will be used to name the individual files.
+        One sample name can contain a 'wildcard' character '+' or '*'. If
+        we find more ablations than the number of names in sample_list, we'll
+        expand this wildcard to name each unlabelled ablation. If the wildcard
+        is '+' the abltations are given unique numbered names and split up into
+        separate files, whereas for '*' the ablations are given the same and
+        saved into a single file. One *one* sample name can contain a wildcard.
     analyte : str
         The analyte that autorange uses to identify ablations. Can be any valid
         analyte in the data. Defaults to 'total_counts'.
@@ -131,6 +138,9 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         appended with '_split'.
     srm_id : str
         If given, all file names containing srm_id will be replaced with srm_id.
+    passthrough : bool
+        If False data are saved, if True data are yielded in correct format for 
+        loading by latools.analyse object. 
     **autorange_args
         Additional arguments passed to la.processes.autorange used for identifying ablations.
     Returns
@@ -144,7 +154,29 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             raise ValueError('File {} not found.')
     else:
         sample_list = np.asanyarray(sample_list)
-        
+
+    # detect wildcard samples
+    # * = multiple analyses to be numbered
+    # + = multiple analyses to be combined
+    mode = 'strict'
+    wilds = []
+    for s in sample_list:
+        if '*' in s:
+            mode = '*'
+            wilds.append(s)
+        if '+' in s:
+            mode = '+'
+            wilds.append(s)
+    if len(wilds) > 1:
+        errmsg = (
+            ["More than one sample name contains a wildcard:"] + 
+            [f"   {w}" for w in wilds] + 
+            ["I don't know how to cope with this..."])
+        raise ValueError('\n'.join(errmsg))
+    if len(wilds) == 1:
+        wildind = np.argwhere(sample_list == wilds[0]).item()
+        wildsample = wilds[0].replace('+','').replace('*','')
+
     if srm_id is not None:
         srm_replace = []
         for s in sample_list:
@@ -152,11 +184,11 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
                 s = srm_id
             srm_replace.append(s)
         sample_list = srm_replace
-    
+
     dataformat = read_dataformat(dataformat, silent=False)
-                    
+
     _, _, dat, meta = read_data(data_file, dataformat=dataformat, name_mode='file')
-    
+
     if 'date' in meta:
         d = dateutil.parser.parse(meta['date'])
     else:
@@ -170,15 +202,39 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     else:
         valid = list(dat['rawdata'].keys()) + ['total_counts']
         raise ValueError("'{}' is not a valid analyte. Please use one of:\n  {}".format(analyte, valid))
-    
+
     # autorange
     bkg, sig, _, _ = autorange(dat['Time'], y_data, **autorange_args)
-    
+
     ns = np.zeros(sig.size)
     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
     n = int(max(ns))
 
     nsamples = len(sample_list)
+
+    # deal with wildcards
+    if nsamples <= n and mode != 'strict':
+        msg = f"There are more ablations than samples in list, but you've given wildcard '{mode}' for sample '{wildsample}'..."
+        print('\n'.join(textwrap.wrap(msg, textwidth)))
+
+        pre = sample_list[:wildind]
+        post = sample_list[wildind + 1:]
+        nnew = n - nsamples + 1
+        
+        # deal with '*' wildcard
+        if mode == '+':
+            newnames = [f"{wildsample}_{n}" for n in range(nnew)]
+            msg = f'  -> These {nnew} ablations will be prepended with consecutive numbers and split into separate files.'
+
+        # deal with '+' wildcard
+        if mode == '*':
+            newnames = [f"{wildsample}" for n in range(nnew)]
+            msg = f'  -> These {nnew} ablations will be given the same name and combined into a single file.'
+        
+        print('\n     '.join(textwrap.wrap(msg, textwidth - 5)))
+
+        sample_list = np.concatenate([pre, newnames, post])
+        nsamples = len(sample_list)
 
     if nsamples != n:
         print('Number of samples in list ({}) does not match number of ablations ({}).'.format(nsamples, n))
@@ -247,39 +303,59 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         sections[s]['total_counts'] = dat['total_counts'][lo:hi]
     
     # save output
-    if savedir is None:
-        savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
-    if not os.path.isdir(savedir):
-        os.makedirs(savedir)
-    
-    header = ['# Long data file split by latools on {}'.format(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))]
-    if 'date' not in meta:
-        header.append('# Warning: No date specified in file - Analysis Times are date file was split. ')
-    else:
-        header.append('# ')
+    if passthrough:
+        print(f"Success! {n} ablations identified.")
+        for sample, sdat in sections.items():
+            
+            sanalytes = list(sdat['rawdata'].keys())
+            
+            sdata = {
+                'Time': sdat['Time'],
+                'rawdata': sdat['rawdata'],
+                'total_counts': sdat['total_counts']
+            }
 
-    header.append('# ')
-    header.append('# ')
-    
-    flist = []
-    for s, sdat in sections.items():
-        iheader = header.copy()
-        iheader.append('# Sample: {}'.format(s))
-        iheader.append('# Analysis Time: {}'.format(sdat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
-    
-        iheader = '\n'.join(iheader) + '\n'
+            # minimal meta - datetime only
+            smeta = {
+                'date': sdat['starttime']
+            }
+
+            yield data_file, sample, sanalytes, sdata, smeta
+            # yield file : str, sample : str, analytes : set, data : dict, meta : dict
+    else:
+        if savedir is None:
+            savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
+        if not os.path.isdir(savedir):
+            os.makedirs(savedir)
         
-        out = pd.DataFrame({analyte_2_namemass(k): v for k, v in sdat['rawdata'].items()}, index=sdat['Time'])
-        out.index.name = 'Time'
-        csv = out.to_csv()
+        header = ['# Long data file split by latools on {}'.format(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))]
+        if 'date' not in meta:
+            header.append('# Warning: No date specified in file - Analysis Times are date file was split. ')
+        else:
+            header.append('# ')
+
+        header.append('# ')
+        header.append('# ')
         
-        with open('{}/{}.csv'.format(savedir, s), 'w') as f:
-            f.write(iheader)
-            f.write(csv)
-        flist.append('   {}.csv'.format(s))
-    
-    print("Success! File split into {} sections.".format(n))
-    print("New files saved to:\n{}/\n{}\n\nImport the split files using the 'REPRODUCE' configuration.".format(os.path.relpath(savedir), '\n'.join(flist)))
+        flist = []
+        for s, sdat in sections.items():
+            iheader = header.copy()
+            iheader.append('# Sample: {}'.format(s))
+            iheader.append('# Analysis Time: {}'.format(sdat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
+        
+            iheader = '\n'.join(iheader) + '\n'
+            
+            out = pd.DataFrame({analyte_2_namemass(k): v for k, v in sdat['rawdata'].items()}, index=sdat['Time'])
+            out.index.name = 'Time'
+            csv = out.to_csv()
+            
+            with open('{}/{}.csv'.format(savedir, s), 'w') as f:
+                f.write(iheader)
+                f.write(csv)
+            flist.append('   {}.csv'.format(s))
+        
+        print("Success! File split into {} sections.".format(n))
+        print("New files saved to:\n{}/\n{}\n\nImport the split files using the 'REPRODUCE' configuration.".format(os.path.relpath(savedir), '\n'.join(flist)))
     
     if plot:
         return plot_long_file_split(dat, sig, bkg, sections)

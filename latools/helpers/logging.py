@@ -85,7 +85,7 @@ def read_logfile(log_file):
         if fname == '__init__':
             runargs[-1][-1]['kwargs']['config'] = 'REPRODUCE'
             runargs[-1][-1]['kwargs']['dataformat'] = None
-            runargs[-1][-1]['kwargs']['data_folder'] = paths['data_folder']
+            runargs[-1][-1]['kwargs']['data_path'] = paths['data_path']
             if 'srm_table' in paths:
                 runargs[-1][-1]['kwargs']['srm_file'] = paths['srm_table']
 

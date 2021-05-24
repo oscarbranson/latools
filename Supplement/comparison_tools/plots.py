@@ -4,6 +4,7 @@ from scipy import stats
 from .stats import fmt_RSS
 
 def element_colour(el):
+    el = el.split('_')[0]
     cdict = {'B11': [0.58039216, 0.40392157, 0.74117647, 1.],
              'Mg24': [0.12156863, 0.46666667, 0.70588235, 1.],
              'Mg25': [0.68235294, 0.78039216, 0.90980392, 1.],
@@ -100,8 +101,8 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         rl = yl - x
         
         # plot residuals
-        tax.scatter(x, yt, c=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
-        lax.scatter(x, yl, c=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
+        tax.scatter(x, yt, color=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
+        lax.scatter(x, yl, color=c, s=15, lw=0.5, edgecolor='k', alpha=0.5)
         
         # plot PDFs
         rt = rt[~np.isnan(rt)]
@@ -115,7 +116,7 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         hax.fill_between(bins, kdt(bins), facecolor=c, alpha=0.4, edgecolor='k', lw=0.5, label='Test User')
         hax.set_ylim([0, hax.get_ylim()[-1]])
         hax.set_xlim(lims)
-        hax.axvline(0, c='k', ls='dashed', alpha=0.6)
+        hax.axvline(0, color='k', ls='dashed', alpha=0.6)
         # hax.set_yticklabels([])
         hax.set_ylabel('Density')
         
@@ -171,9 +172,9 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
 
     for e in els:
         if e == 'Sr':
-            As.append('Sr88')
+            As.append('Sr88_Ca43')
         elif e == 'Mg':
-            As.append('Mg24')
+            As.append('Mg24_Ca43')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0][:-2])
@@ -247,7 +248,7 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
 
     return fig, axs
 
-def bland_altman(x, y, interval=None, indep_conf=None, ax=None, c=None, **kwargs):
+def bland_altman(x, y, interval=None, indep_conf=None, ax=None, color=None, **kwargs):
     """
     Draw a Bland-Altman plot of x and y data.
     
@@ -281,18 +282,18 @@ def bland_altman(x, y, interval=None, indep_conf=None, ax=None, c=None, **kwargs
     xy_mean = (x + y) / 2
     xy_resid = (y - x)
 
-    ax.scatter(xy_mean, xy_resid, lw=0.5, edgecolor='k', alpha=0.6, c=c, s=15, **kwargs)
+    ax.scatter(xy_mean, xy_resid, lw=0.5, edgecolor='k', alpha=0.6, color=color, s=15, **kwargs)
 
     # markup
     ax.axhline(0, ls='dashed', c='k', alpha=0.6, zorder=-1)
     
-    ax.axhline(np.median(xy_resid), ls='dashed', c=c, alpha=0.8)
+    ax.axhline(np.median(xy_resid), ls='dashed', c=color, alpha=0.8)
     
     if interval is not None:
         perc = 100 - interval * 100
         ints = [perc / 2, 100 - perc / 2]
         lims = np.percentile(xy_resid, ints)
-        ax.axhspan(*lims, color=c, alpha=0.1, zorder=-3)
+        ax.axhspan(*lims, color=color, alpha=0.1, zorder=-3)
     
     if indep_conf is not None:
         ax.axhspan(-indep_conf, indep_conf, color=(0,0,0,0.1), zorder=-2)
@@ -313,9 +314,9 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
 
     for e in els:
         if e == 'Sr':
-            As.append('Sr88')
+            As.append('Sr88_Ca43')
         elif e == 'Mg':
-            As.append('Mg24')
+            As.append('Mg24_Ca43')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0][:-2])
@@ -342,8 +343,8 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
             CI = None
         else:
             CI = rep_stats[e][0]
-        bland_altman(x, yt, interval=.75, indep_conf=CI, ax=tax, c=c)
-        bland_altman(x, yl, interval=.75, indep_conf=CI, ax=lax, c=c)
+        bland_altman(x, yt, interval=.75, indep_conf=CI, ax=tax, color=c)
+        bland_altman(x, yl, interval=.75, indep_conf=CI, ax=lax, color=c)
         
         xlim = (min(tax.get_xlim()[0], lax.get_xlim()[0]), max(tax.get_xlim()[1], lax.get_xlim()[1]))
         tax.set_xlim(xlim)

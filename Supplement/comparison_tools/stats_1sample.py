@@ -37,9 +37,9 @@ def comparison_stats(df, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 'Zn', 'B']):
 
     for e in els:
         if e == 'Sr':
-            As.append('88Sr')
+            As.append('88Sr_43Ca')
         elif e == 'Mg':
-            As.append('24Mg')
+            As.append('24Mg_43Ca')
         else:
             As.append([a for a in analytes if e in a][0])
         Rs.append([r for r in ratios if e in r][0])

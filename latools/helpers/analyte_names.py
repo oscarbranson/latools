@@ -77,7 +77,8 @@ def pretty_element(s):
     str
         LaTeX formatted string with superscript numbers.
     """
-    el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
-    m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+    els = re.findall('([A-Za-z]{1,3})', s)
+    ms = re.findall('([0-9]{1,3})', s)
 
-    return '$^{' + m + '}$' + el
+    pretty = ['^{' + f'{m}' + '}' + f'{el}' for el, m in zip(els, ms)]
+    return "$" + "/".join(pretty) + "$"

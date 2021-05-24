@@ -20,7 +20,7 @@ from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def calc_nrow(n, ncol):
-    if n % ncol is 0:
+    if n % ncol == 0:
         nrow = n / ncol
     else:
         nrow = n // ncol + 1
@@ -62,17 +62,13 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         -------
         figure, axis
         """
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
-
         if focus_stage is None:
             focus_stage = self.focus_stage
-        
-        # exclude internal standard from analytes
-        if focus_stage in ['ratios', 'calibrated']:
-            analytes = [a for a in analytes if a != self.internal_standard]
+
+        if analytes is None:
+            analytes = self.analytes        
+            if focus_stage in ['ratios', 'calibrated']:
+                analytes = self.analyte_ratios
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
@@ -86,7 +82,7 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             x = self.Time
             y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
-            if scale is 'log':
+            if scale == 'log':
                 ax.set_yscale('log')
                 y[y == 0] = np.nan
 
@@ -101,12 +97,12 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
                     yerrf[~ind] = np.nan
                 if any(~ind):
                     ax.plot(x, y, color=self.cmap[a], alpha=.2, lw=0.6)
-                ax.plot(xf, yf, color=self.cmap[a], label=a)
+                ax.plot(xf, yf, color=self.cmap[a], label=pretty_element(a))
                 if err_envelope:
                     ax.fill_between(xf, yf - yerrf, yf + yerrf, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
             else:
-                ax.plot(x, y, color=self.cmap[a], label=a)
+                ax.plot(x, y, color=self.cmap[a], label=pretty_element(a))
                 if err_envelope:
                     ax.fill_between(x, y - yerr, y + yerr, color=self.cmap[a],
                                     alpha=0.2, zorder=-1)
@@ -161,11 +157,9 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         ud = {'rawdata': 'counts',
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
-              'ratios': 'counts/{:s} count',
-              'calibrated': 'mol/mol {:s}',
+              'ratios': 'counts/count',
+              'calibrated': 'mol/mol',
               'mass_fraction': 'Mass Fraction'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
 
         # if interactive:
@@ -180,8 +174,8 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         if ret:
             return fig, ax
 
-def gplot(self, analytes=None, win=25, figsize=[10, 4],
-              ranges=False, focus_stage=None, ax=None, recalc=True):
+def gplot(self, analytes=None, win=25, figsize=[10, 4], filt=False,
+          ranges=False, focus_stage=None, ax=None, recalc=True):
         """
         Plot analytes gradients as a function of Time.
 
@@ -201,14 +195,16 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
         -------
         figure, axis
         """
-
-        if type(analytes) is str:
-            analytes = [analytes]
-        if analytes is None:
-            analytes = self.analytes
-
         if focus_stage is None:
             focus_stage = self.focus_stage
+        
+        if isinstance(analytes, str):
+            analytes = [analytes]
+        elif analytes is None:
+            if self.grads_calced:
+                analytes = self.grads.keys()
+            else:
+                analytes = self.data[focus_stage].keys()
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
@@ -224,7 +220,20 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
             self.grads_calce = True
 
         for a in analytes:
-            ax.plot(x, self.grads[a], color=self.cmap[a], label=a)
+            y = self.grads[a]
+            if filt:
+                ind = self.filt.grab_filt(filt, a)
+                xf = x.copy()
+                yf = y.copy()
+                if any(~ind):
+                    xf[~ind] = np.nan
+                    yf[~ind] = np.nan
+                if any(~ind):
+                    ax.plot(x, y, color=self.cmap[a], alpha=.2, lw=0.6)
+                ax.plot(xf, yf, color=self.cmap[a], label=pretty_element(a))
+            else:
+                ax.plot(x, y, color=self.cmap[a], label=pretty_element(a))
+            # ax.plot(x, self.grads[a], color=self.cmap[a], label=pretty_element(a))
 
         if ranges:
             for lims in self.bkgrng:
@@ -243,11 +252,9 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4],
         ud = {'rawdata': 'counts/s',
               'despiked': 'counts/s',
               'bkgsub': 'background corrected counts/s',
-              'ratios': 'counts/{:s} count/s',
-              'calibrated': 'mol/mol {:s}/s',
+              'ratios': 'counts/count/s',
+              'calibrated': 'mol/mol/s',
               'mass_fraction': 'Mass Fraction/s'}
-        if focus_stage in ['ratios', 'calibrated']:
-            ud[focus_stage] = ud[focus_stage].format(self.internal_standard)
         ax.set_ylabel(ud[focus_stage])
         # y tick format
 
@@ -502,16 +509,15 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     -------
     fig, axes
     """
-    if swin is None:
-        swin = gwin // 2
-
-    sigs = fastsmooth(sig, swin)
+    if swin is not None:
+        sigs = fastsmooth(sig, swin)
+    else:
+        sigs = sig
 
     # perform autorange calculations
     
     # bins = 50
-    bins = sig.size // nbin
-    kde_x = np.linspace(sig.min(), sig.max(), bins)
+    kde_x = np.linspace(sig.min(), sig.max(), nbin)
 
     kde = gaussian_kde(sigs)
     yd = kde.pdf(kde_x)
@@ -698,14 +704,14 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
 
     return fig, axs
 
-def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
+def calibration_plot(self, analyte_ratios=None, datarange=True, loglog=False, ncol=3, srm_group=None, percentile_data_cutoff=85, save=True):
     """
     Plot the calibration lines between measured and known SRM values.
 
     Parameters
     ----------
-    analytes : optional, array_like or str
-        The analyte(s) to plot. Defaults to all analytes.
+    analyte_ratios : optional, array_like or str
+        The analyte ratio(s) to plot. Defaults to all analyte ratios.
     datarange : boolean
         Whether or not to show the distribution of the measured data
         alongside the calibration curve.
@@ -726,12 +732,12 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
     (fig, axes)
     """
 
-    if isinstance(analytes, str):
-        analytes = [analytes]
+    if isinstance(analyte_ratios, str):
+        analyte_ratios = [analyte_ratios]
 
-    if analytes is None:
+    if analyte_ratios is None:
         # analytes = self._calib_analytes
-        analytes = self.analytes_sorted(set(self._calib_analytes).difference([self.internal_standard]))
+        analyte_ratios = self.analytes_sorted(self._srm_id_analyte_ratios)
         # analytes = self.analytes_sorted(self.analytes.difference([self.internal_standard]))
 
     if srm_group is not None:
@@ -747,7 +753,7 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
         gTime = None
 
     ncol = int(ncol)
-    n = len(analytes)
+    n = len(analyte_ratios)
     nrow = calc_nrow(n + 1, ncol)
 
     axes = []
@@ -763,7 +769,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
     mdict = self.srm_mdict
 
-    for g, a in zip(gs, analytes):
+    for g, a in zip(gs, analyte_ratios):
+        num, denom = a.split('_')
         if not datarange:
             ax = fig.add_axes(g.get_position(fig))
             axes.append((ax,))
@@ -888,8 +895,8 @@ def calibration_plot(self, analytes=None, datarange=True, loglog=False, ncol=3, 
 
         ax.text(.05, .95, pretty_element(a), transform=ax.transAxes,
                 weight='bold', va='top', ha='left', size=12)
-        ax.set_xlabel('counts/counts ' + self.internal_standard)
-        ax.set_ylabel('mol/mol ' + self.internal_standard)
+        ax.set_xlabel('counts/counts')
+        ax.set_ylabel('mol/mol')
         # write calibration equation on graph happens after data distribution
 
         # plot data distribution historgram alongside calibration plot
@@ -1036,16 +1043,12 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
     (fig, axes)
     """
     if filt is None or filt == 'all':
-        sets = Data.filt.sets
+        sets = Data.filt.filter_table
     else:
-        sets = {k: v for k, v in Data.filt.sets.items() if any(filt in f for f in v)}
-
-    regex = re.compile('^([0-9]+)_([A-Za-z0-9-]+)_'
-                    '([A-Za-z0-9-]+)[_$]?'
-                    '([a-z0-9]+)?')
+        sets = Data.filt.filter_table.loc[idx[:, [i for i in Data.filt.filter_table.index.levels[1] if filt in i]], :]
 
     cm = plt.cm.get_cmap('Spectral')
-    ngrps = len(sets)
+    ngrps = sets.shape[0]
 
     if analytes is None:
         analytes = Data.analytes
@@ -1054,118 +1057,84 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
 
     axes = []
     for analyte in analytes:
-        if analyte != Data.internal_standard:
-            fig = plt.figure()
+        fig = plt.figure()
 
-            for i in sorted(sets.keys()):
-                filts = sets[i]
-                nfilts = np.array([re.match(regex, f).groups() for f in filts])
-                fgnames = np.array(['_'.join(a) for a in nfilts[:, 1:3]])
-                fgrp = np.unique(fgnames)[0]
+        for i in sets.index.levels[0]:
+            filts = sets.loc[i]
+            nfilts = np.array([f.split('_') for f in filts.index])
+            fgnames = np.array(['_'.join(a) for a in nfilts[:, (0,-2)]])
+            fgrp = np.unique(fgnames)[0]
+            
+            if 'DBSCAN' in fgrp:
+                warnings.warn('filter_report is not implemented for DBSCAN')
+                continue
 
-                fig.set_size_inches(10, 3.5 * ngrps)
-                h = .8 / ngrps
+            fig.set_size_inches(10, 3.5 * ngrps)
+            h = .8 / ngrps
 
-                y = nominal_values(Data.focus[analyte])
-                yh = y[~np.isnan(y)]
+            y = nominal_values(Data.focus[analyte])
+            yh = y[~np.isnan(y)]
 
-                m, u = unitpicker(np.nanmax(y),
-                                denominator=Data.internal_standard,
-                                focus_stage=Data.focus_stage)
+            m, u = unitpicker(np.nanmax(y),
+                            denominator=Data.internal_standard,
+                            focus_stage=Data.focus_stage)
 
-                axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
-                                fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
-                axes.append(axs)
+            axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
+                            fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
+            axes.append(axs)
 
-                # get variables
-                fg = sets[i]
-                cs = cm(np.linspace(0, 1, len(fg)))
-                fn = ['_'.join(x) for x in nfilts[:, (0, 3)]]
-                an = nfilts[:, 0]
-                bins = np.linspace(np.nanmin(y), np.nanmax(y), len(yh) // nbin) * m
+            # get variables
+            fg = sets.index.get_level_values(1)  # filter names
+            components = Data.filt.filter_components.loc[:, i]  # component dataframe
+            cs = cm(np.linspace(0, 1, len(fg)))
+            fn = ['_'.join(x) for x in nfilts[:, (0, -1)]]
+            an = nfilts[:, 0]
+            bins = np.linspace(np.nanmin(y), np.nanmax(y), len(yh) // nbin) * m
 
-                if 'DBSCAN' in fgrp:
-                    # determine data filters
-                    core_ind = Data.filt.components[[f for f in fg
-                                                    if 'core' in f][0]]
-                    other = np.array([('noise' not in f) & ('core' not in f)
-                                    for f in fg])
-                    tfg = fg[other]
-                    tfn = fn[other]
-                    tcs = cm(np.linspace(0, 1, len(tfg)))
+            # plot all data
+            tax.scatter(Data.Time, m * y, color='k', alpha=0.2, lw=0.1,
+                        s=20, label='excl')
+            hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
+                     color='k', lw=0)
 
-                    # plot all data
-                    hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
-                            color='k', lw=0)
-                    # legend markers for core/member
-                    tax.scatter([], [], s=20, label='core', color='w', lw=0.5, edgecolor='k')
-                    tax.scatter([], [], s=7.5, label='member', color='w', lw=0.5, edgecolor='k')
-                    # plot noise
-                    try:
-                        noise_ind = Data.filt.components[[f for f in fg
-                                                        if 'noise' in f][0]]
-                        tax.scatter(Data.Time[noise_ind], m * y[noise_ind],
-                                    lw=1, color='k', s=10, marker='x',
-                                    label='noise', alpha=0.6)
-                    except:
-                        pass
+            # plot filtered data
+            for f, c, lab in zip(fg, cs, fn):
+                ind = components[f]
+                tax.scatter(Data.Time[ind], m * y[ind],
+                            edgecolor=(0,0,0,0), color=c, s=15, label=lab)
+                hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+                        orientation='horizontal', alpha=0.6)
 
-                    # plot filtered data
-                    for f, c, lab in zip(tfg, tcs, tfn):
-                        ind = Data.filt.components[f]
-                        tax.scatter(Data.Time[~core_ind & ind],
-                                    m * y[~core_ind & ind], lw=.5, color=c, s=5, edgecolor='k')
-                        tax.scatter(Data.Time[core_ind & ind],
-                                    m * y[core_ind & ind], lw=.5, color=c, s=15, edgecolor='k',
-                                    label=lab)
-                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                orientation='horizontal', alpha=0.6)
+            if 'thresh' in fgrp and analyte in fgrp:
+                tax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
+                            ls='dashed', zorder=-2, alpha=0.5, color='k')
+                hax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
+                            ls='dashed', zorder=-2, alpha=0.5, color='k')
 
-                else:
-                    # plot all data
-                    tax.scatter(Data.Time, m * y, color='k', alpha=0.2, lw=0.1,
-                                s=20, label='excl')
-                    hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
-                             color='k', lw=0)
+            # formatting
+            for ax in axs:
+                mn = np.nanmin(y) * m
+                mx = np.nanmax(y) * m
+                rn = mx - mn
+                ax.set_ylim(mn - .05 * rn, mx + 0.05 * rn)
 
-                    # plot filtered data
-                    for f, c, lab in zip(fg, cs, fn):
-                        ind = Data.filt.components[f]
-                        tax.scatter(Data.Time[ind], m * y[ind],
-                                    edgecolor=(0,0,0,0), color=c, s=15, label=lab)
-                        hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
-                                orientation='horizontal', alpha=0.6)
+            # legend
+            hn, la = tax.get_legend_handles_labels()
+            hax.legend(hn, la, loc='upper right', scatterpoints=1)
 
-                if 'thresh' in fgrp and analyte in fgrp:
-                    tax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
-                                ls='dashed', zorder=-2, alpha=0.5, color='k')
-                    hax.axhline(Data.filt.params[fg[0]]['threshold'] * m,
-                                ls='dashed', zorder=-2, alpha=0.5, color='k')
+            tax.text(.02, .98, Data.sample + ': ' + fgrp, size=12,
+                    weight='bold', ha='left', va='top',
+                    transform=tax.transAxes)
+            tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
+            tax.set_xticks(tax.get_xticks()[:-1])
+            hax.set_yticklabels([])
 
-                # formatting
-                for ax in axs:
-                    mn = np.nanmin(y) * m
-                    mx = np.nanmax(y) * m
-                    rn = mx - mn
-                    ax.set_ylim(mn - .05 * rn, mx + 0.05 * rn)
-
-                # legend
-                hn, la = tax.get_legend_handles_labels()
-                hax.legend(hn, la, loc='upper right', scatterpoints=1)
-
-                tax.text(.02, .98, Data.sample + ': ' + fgrp, size=12,
-                        weight='bold', ha='left', va='top',
-                        transform=tax.transAxes)
-                tax.set_ylabel(pretty_element(analyte) + ' (' + u + ')')
-                tax.set_xticks(tax.get_xticks()[:-1])
-                hax.set_yticklabels([])
-
-                if i < ngrps - 1:
-                    tax.set_xticklabels([])
-                    hax.set_xticklabels([])
-                else:
-                    tax.set_xlabel('Time (s)')
-                    hax.set_xlabel('n')
+            if i < ngrps - 1:
+                tax.set_xticklabels([])
+                hax.set_xticklabels([])
+            else:
+                tax.set_xlabel('Time (s)')
+                hax.set_xlabel('n')
 
         if isinstance(savedir, str):
             fig.savefig(savedir + '/' + Data.sample + '_' +
@@ -1173,6 +1142,44 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
             plt.close(fig)
 
     return fig, axes
+
+# Old DBSCAN code
+# if 'DBSCAN' in fgrp:
+#                     # determine data filters
+#                     core_ind = components[[f for f in fg
+#                                                     if 'core' in f][0]]
+#                     other = np.array([('noise' not in f) & ('core' not in f)
+#                                     for f in fg])
+#                     tfg = fg[other]
+#                     tfn = fn[other]
+#                     tcs = cm(np.linspace(0, 1, len(tfg)))
+
+#                     # plot all data
+#                     hax.hist(m * yh, bins, alpha=0.2, orientation='horizontal',
+#                             color='k', lw=0)
+#                     # legend markers for core/member
+#                     tax.scatter([], [], s=20, label='core', color='w', lw=0.5, edgecolor='k')
+#                     tax.scatter([], [], s=7.5, label='member', color='w', lw=0.5, edgecolor='k')
+#                     # plot noise
+#                     try:
+#                         noise_ind = components[[f for f in fg
+#                                                         if 'noise' in f][0]]
+#                         tax.scatter(Data.Time[noise_ind], m * y[noise_ind],
+#                                     lw=1, color='k', s=10, marker='x',
+#                                     label='noise', alpha=0.6)
+#                     except:
+#                         pass
+
+#                     # plot filtered data
+#                     for f, c, lab in zip(tfg, tcs, tfn):
+#                         ind = components[f]
+#                         tax.scatter(Data.Time[~core_ind & ind],
+#                                     m * y[~core_ind & ind], lw=.5, color=c, s=5, edgecolor='k')
+#                         tax.scatter(Data.Time[core_ind & ind],
+#                                     m * y[core_ind & ind], lw=.5, color=c, s=15, edgecolor='k',
+#                                     label=lab)
+#                         hax.hist(m * y[ind][~np.isnan(y[ind])], bins, color=c, lw=0.1,
+#                                 orientation='horizontal', alpha=0.6)
 
 def correlation_plot(self, corr=None):
     if len(self.correlations) == 0:
@@ -1215,3 +1222,55 @@ def correlation_plot(self, corr=None):
     fig.tight_layout()
     
     return fig, axs
+
+def stackhist(data_arrays, bins=None, bin_range=(1,99), yoffset=0, ax=None, **kwargs):
+    """
+    Plots a stacked histogram of multiple arrays.
+    
+    Parameters
+    ----------
+    data_arrays : iterable
+        iterable containing all the arrays to plot on the histogram
+    bins : array-like or int
+        Either the number of bins (int) or an array of bin edges.
+    bin_range : tuple
+        If bins is not specified, this speficies the percentile range used for the bins.
+        By default, the histogram is plotted between the 1st and 99th percentiles of the
+        data.
+    yoffset : float
+        The y offset of the histogram base. Useful if stacking multiple histograms on a
+        single axis.
+    ax : matplotlib.Axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    # calculate histogram bins
+    all_data = np.concatenate(data_arrays)
+    data_range = np.percentile(all_data[~np.isnan(all_data)], bin_range)
+    
+    if isinstance(bins, int):
+        nbin = bins
+        bins = np.linspace(*data_range, nbin)
+    elif bins is None:
+        nbin = 50
+        bins = np.linspace(*data_range, nbin)
+    else:
+        nbin = len(bins)
+    
+    xleft = bins[:-1]
+    bw = bins[1] - bins[0]
+    
+    # calculate global histogram max
+    nmax = np.max(np.histogram(all_data[~np.isnan(all_data)], bins)[0])
+    
+    y0 = np.full(len(xleft), yoffset, dtype=float)
+    for a in data_arrays:
+        yn, _ = np.histogram(a[~np.isnan(a)], bins)
+        yn = yn.astype(float) / nmax
+        
+        ax.bar(xleft, yn, bw, bottom=y0, align='edge', **kwargs)
+        y0 += yn
+    
+    return ax
+    
