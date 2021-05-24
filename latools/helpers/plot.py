@@ -20,7 +20,7 @@ from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def calc_nrow(n, ncol):
-    if n % ncol is 0:
+    if n % ncol == 0:
         nrow = n / ncol
     else:
         nrow = n // ncol + 1
@@ -82,7 +82,7 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             x = self.Time
             y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
-            if scale is 'log':
+            if scale == 'log':
                 ax.set_yscale('log')
                 y[y == 0] = np.nan
 
