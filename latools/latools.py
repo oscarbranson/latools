@@ -32,11 +32,14 @@ from .helpers import plot
 from .filtering import filters
 from .filtering.classifier_obj import classifier
 
+from .processes import read_data
+from .preprocessing.split import long_file
+
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span)
+                      get_total_time_span, analyte_checker)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -64,7 +67,7 @@ class analyse(object):
 
     Parameters
     ----------
-    data_folder : str
+    data_path : str
         The path to a directory containing multiple data files.
     errorhunt : bool
         If True, latools prints the name of each file before it
@@ -97,16 +100,33 @@ class analyse(object):
     internal_standard : str
         The name of the analyte used as an internal standard throughout
         analysis.
-    names : str
+    file_structure : str
+        This specifies whether latools should expect multiplte files in a folder ('multi')
+        or a single file containing multiple analyses ('long'). Default is 'multi'. 
+    names : str or array-like
+        If file_structure is 'multi', this should be either:
         * 'file_names' : use the file names as labels (default)
         * 'metadata_names' : used the 'names' attribute of metadata as the name
           anything else : use numbers.
+        If file_structure is 'long', this should be a list of names for the ablations
+        in the file. The wildcards '+' and '*' are supported in file names, and are used
+        when the number of ablations does not match the number of sample names provided.
+        If a sample name contains '+', all ablations that are not specified in the list
+        are combined into a single file and given this name. If a sample name contains '*'
+        these are analyses are numbered sequentially and split into separate files.
+        For example, if you have 5 ablations with one standard at the start and stop you
+        could provide one of:
+        * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample (containing three ablations), std].
+        * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample0, sample1, sample2, std], where each
+          name is associated with a single ablation.
+    split_kwargs : dict
+        Arguments to pass to latools.split.long_file()
 
     Attributes
     ----------
-    folder : str
+    path : str
         Path to the directory containing the data files, as
-        specified by `data_folder`.
+        specified by `data_path`.
     dirname : str
         The name of the directory containing the data files,
         without the entire path.
@@ -132,10 +152,10 @@ class analyse(object):
         An analyte - specific colour map, used for plotting.
     """
 
-    def __init__(self, data_folder, errorhunt=False, config='DEFAULT',
+    def __init__(self, data_path, errorhunt=False, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 names='file_names', srm_file=None, pbar=None):
+                 file_structure='multi', names='file_names', srm_file=None, pbar=None, split_kwargs={}):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -144,10 +164,8 @@ class analyse(object):
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
         # assign file paths
-        self.folder = os.path.realpath(data_folder)
-        self.parent_folder = os.path.dirname(self.folder)
-        self.files = np.array([f for f in os.listdir(self.folder)
-                               if extension in f])
+        self.path = os.path.realpath(data_path)
+        self.parent_folder = os.path.dirname(self.path)
 
         # set line length for outputs
         self._line_width = 80
@@ -155,12 +173,12 @@ class analyse(object):
         # make output directories
         self.report_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.folder) + '_reports/'))
+                                              os.path.basename(self.path) + '_reports/'))
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.folder) + '_export/'))
+                                              os.path.basename(self.path) + '_export/'))
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -197,17 +215,30 @@ class analyse(object):
         else:
             self.pbar = pbar
 
-        # load data into list (initialise D objects)
-        with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
-            data = [None] * len(self.files)
-            for i, f in enumerate(self.files):
-                data[i] = (D(os.path.join(self.folder, f),
-                           dataformat=self.dataformat,
-                           errorhunt=errorhunt,
-                           cmap=cmap,
-                           internal_standard=internal_standard,
-                           name=names))
-                prog.update()
+        if file_structure == 'multi':
+            self.files = np.array([f for f in os.listdir(self.path)
+                               if extension in f])
+
+            # load data into list (initialise D objects)
+            with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
+                data = [None] * len(self.files)
+                for i, f in enumerate(self.files):
+                    data_passthrough = read_data(data_file=os.path.join(self.path, f), dataformat=self.dataformat, name_mode=names)
+
+                    data[i] = D(passthrough=(f, *data_passthrough))
+                    # data[i] = (D(os.path.join(self.path, f),
+                    #            dataformat=self.dataformat,
+                    #            errorhunt=errorhunt,
+                    #            cmap=cmap,
+                    #            internal_standard=internal_standard,
+                    #            name=names))
+                    prog.update()
+        elif file_structure == 'long':
+            data = []
+            print(self.path)
+
+            for data_passthrough in long_file(data_file=self.path, dataformat=self.dataformat, sample_list=names, passthrough=True, **split_kwargs):
+                data.append(D(passthrough=data_passthrough))
 
         # create universal time scale
         if 'date' in data[0].meta.keys():
@@ -253,6 +284,8 @@ class analyse(object):
                     samples[ind] = new  # rename in samples
                     for s, ns in zip([data[i] for i in np.where(ind)[0]], new):
                         s.sample = ns  # rename in D objects
+        elif file_structure == 'long':
+            samples = np.array([s.sample for s in data], dtype=object)
         else:
             samples = np.arange(len(data))  # assign a range of numbers
             for i, s in enumerate(samples):
@@ -457,39 +490,15 @@ class analyse(object):
     
     def _log_header(self):
         return ['# LATOOLS analysis log saved at {}'.format(time.strftime('%Y:%m:%d %H:%M:%S')),
-                'data_folder :: {}'.format(self.folder),
+                'data_path :: {}'.format(self.path),
                 '# Analysis Log Start: \n'
                 ]
     def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
         """
         Return valid analytes depending on the analysis stage
         """
-        if isinstance(analytes, str):
-            analytes = [analytes]
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
 
-        out = set()
-        if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
-            if analytes is None:
-                analytes = self.analytes
-            out = self.analytes.intersection(analytes)
-        else:
-            if analytes is None:
-                analytes = self.analyte_ratios
-            # case 1: provided analytes are an exact match for items in analyte_ratios
-            valid1 = self.analyte_ratios.intersection(analytes)
-            # case 2: provided analytes are in numerator of ratios
-            valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
-            out = valid1.union(valid2)
-        
-        if len(out) == 0:
-            raise ValueError(f'{analytes} does not match any valid analyte names.')
-
-        if single:
-            if len(out) > 1:
-                raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
-            return out.pop()
-
-        return out
 
     def analytes_sorted(self, a=None, check_ratios=True):
         return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
@@ -2284,6 +2293,7 @@ class analyse(object):
 
     @_log
     def filter_gradient_threshold(self, analyte, threshold, win=15,
+                                  recalc=True, win_mode='mid', win_exclude_outside=True, absolute_gradient=True,
                                   samples=None, subset=None):
         """
         Calculate a gradient threshold filter to the data.
@@ -2299,9 +2309,19 @@ class analyse(object):
             The window over which to calculate the moving gradient
         threshold : float
             The threshold value.
-        filt : bool
-            Whether or not to apply existing filters to the data before
-            calculating this filter.
+        recalc : bool
+            Whether or not to re-calculate the gradients.
+        win_mode : str
+            Whether the rolling window should be centered on the left, middle or centre
+            of the returned value. Can be 'left', 'mid' or 'right'.
+        win_exclude_outside : bool
+            If True, regions at the start and end where the gradient cannot be calculated
+            (depending on win_mode setting) will be excluded by the filter.
+        absolute_gradient : bool
+            If True, the filter is applied to the absolute gradient (i.e. always positive),
+            allowing the selection of 'flat' vs 'steep' regions regardless of slope direction.
+            If Falose, the sign of the gradient matters, allowing the selection of positive or
+            negative slopes only.
         samples : array_like or None
             Which samples to apply this filter to. If None, applies to all
             samples.
@@ -2323,7 +2343,9 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Gradient Threshold Filter') as prog:
             for s in samples:
-                self.data[s].filter_gradient_threshold(analyte, win, threshold)
+                self.data[s].filter_gradient_threshold(analyte=analyte, win=win, threshold=threshold, recalc=recalc, 
+                                                       win_mode=win_mode, win_exclude_outside=win_exclude_outside,
+                                                       absolute_gradient=absolute_gradient)
                 prog.update()
 
     @_log
@@ -2807,6 +2829,7 @@ class analyse(object):
             self.filter_status(subset=subset)
         return
 
+
     def filter_status(self, sample=None, subset=None, stds=False):
         """
         Prints the current status of filters for specified samples.
@@ -2819,44 +2842,38 @@ class analyse(object):
             Specify a subset
         stds : bool
             Whether or not to include standards.
-        """
-        s = ''
+        """        
         if sample is None and subset is None:
             if not self._has_subsets:
-                s += 'Subset: All Samples\n\n'
-                s += self.data[self.subsets['All_Samples'][0]].filt.__repr__()
+                return self.data[self.subsets['All_Samples'][0]].filt.filter_table
             else:
+                fdfs = {}
                 for n in sorted(str(sn) for sn in self._subset_names):
                     if n in self.subsets:
                         pass
                     elif int(n) in self.subsets:
                         n = int(n)
                         pass
-                    s += 'Subset: ' + str(n) + '\n'
-                    s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                    s += self.data[self.subsets[n][0]].filt.__repr__()
+                    subset_name = str(n)
+                    fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
                 if len(self.subsets['not_in_set']) > 0:
-                    s += '\nNot in Subset:\n'
-                    s += 'Samples: ' + ', '.join(self.subsets['not_in_set']) + '\n\n'
-                    s += self.data[self.subsets['not_in_set'][0]].filt.__repr__()
-            print(s)
-            return
+                    fdfs['Not in Subset'] = self.data[self.subsets['not_in_set'][0]].filt.filter_table
+                
+                return pd.concat(fdfs, names=['subset'])
 
         elif sample is not None:
-            s += 'Sample: ' + sample + '\n'
-            s += self.data[sample].filt.__repr__()
-            print(s)
-            return
+            fdfs = {}
+            fdfs[sample] = self.data[sample].filt.filter_table
+            return pd.concat(fdfs, names=['sample'])
 
         elif subset is not None:
             if isinstance(subset, (str, int, float)):
                 subset = [subset]
+            fdfs = {}
             for n in subset:
-                s += 'Subset: ' + str(n) + '\n'
-                s += 'Samples: ' + ', '.join(self.subsets[n]) + '\n\n'
-                s += self.data[self.subsets[n][0]].filt.__repr__()
-            print(s)
-            return
+                subset_name = str(n)
+                fdfs[subset_name] = self.data[self.subsets[n][0]].filt.filter_table
+            return pd.concat(fdfs, names=['subset'])
 
     @_log
     def filter_clear(self, samples=None, subset=None):
@@ -3739,8 +3756,8 @@ class analyse(object):
 
     # Plot gradients
     @_log
-    def gradient_plots(self, analytes=None, win=15, samples=None, ranges=False,
-                       focus=None, outdir=None,
+    def gradient_plots(self, analytes=None, win=None, samples=None, ranges=False,
+                       focus=None, filt=False, recalc=False, outdir=None,
                        figsize=[10, 4], subset='All_Analyses'):
         """
         Plot analyte gradients as a function of time.
@@ -3804,7 +3821,7 @@ class analyse(object):
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
                 f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                        ranges=ranges, focus_stage=focus)
+                                        ranges=ranges, focus_stage=focus, filt=filt, recalc=recalc)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -3816,6 +3833,48 @@ class analyse(object):
                 plt.close(f)
                 prog.update()
         return
+
+    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, **kwargs):
+        """
+        Plot a stacked histograms of analytes for all given samples (or a pre-defined subset)
+
+        Parameters
+        ----------
+        subset : str
+            The subset of samples to plot. Overruled by 'samples', if provided.
+        samples : array-like
+            The samples to plot. If blank, reverts to 'All_Samples' subset.
+        analytes : str or array-like
+            The analytes to plot
+        axs : array-like
+            An array of matplotlib.Axes objects the same length as analytes.
+        **kwargs
+            passed to matplotlib.pyplot.bar() plotting function
+        """
+        analytes = self._analyte_checker(analytes)
+        
+        if axs is None:
+            fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
+                                    constrained_layout=True, sharey=True)
+        elif len(axs) != len(analytes):
+            raise ValueError(f'Must provide the same number of axes ({len(axes)}) and analytes ({len(analytes)})')
+            
+        if samples is None:
+            samples = self.subsets[subset]
+        elif isinstance(samples, str):
+            samples = [samples]
+        
+        self.get_focus(filt=True, samples=samples)
+        for i, a in enumerate(analytes):
+            m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
+            arrays = []
+            for s in samples:
+                sub = self.data[s].get_individual_ablations(analytes)
+                arrays += [nominal_values(d[a]) * m for d in sub]
+            
+            stackhist(arrays, ax=axs[i], **kwargs)
+            
+            axs[i].set_xlabel(pretty_element(a) + '\n' + unit)
 
     # filter reports
     @_log
@@ -4356,7 +4415,7 @@ class analyse(object):
          # define analysis_log header
         log_header = ['# Minimal Reproduction Dataset Exported from LATOOLS on %s' %
                       (time.strftime('%Y:%m:%d %H:%M:%S')),
-                      'data_folder :: ./data/']
+                      'data_path :: ./data/']
                       
         if hasattr(self, 'srmdat'):
             log_header.append('srm_table :: ./srm.table')
@@ -4393,7 +4452,7 @@ class analyse(object):
         return
 
 
-def reproduce(past_analysis, plotting=False, data_folder=None,
+def reproduce(past_analysis, plotting=False, data_path=None,
               srm_table=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
@@ -4411,7 +4470,7 @@ def reproduce(past_analysis, plotting=False, data_folder=None,
         The path to the log file produced by :func:`~latools.analyse.minimal_export`.
     plotting : bool
         Whether or not to output plots.
-    data_folder : str
+    data_path : str
         Optional. Specify a different data folder. Data folder
         should normally be in the same folder as the log file.
     srm_table : str

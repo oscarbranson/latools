@@ -27,7 +27,8 @@ from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, unitpicker, findmins, stack_keys)
+                              calc_grads, unitpicker, findmins, stack_keys,
+                              analyte_checker)
 from .helpers.analyte_names import pretty_element, analyte_sort_fn
 from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
@@ -55,6 +56,9 @@ class D(object):
         is causing the import to fail.
     dataformat : dict
         A dataformat dict. See documentation for more details.
+    passthrough : iterable
+        If data loading happens at a higher level, pass a tuple of
+        (file_name, sample_name, analytes, data, metadata)
 
     Attributes
     ----------
@@ -102,7 +106,7 @@ class D(object):
         An object for storing, selecting and creating data filters.F
     """
 
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names'):
+    def __init__(self, data_file=None, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names', passthrough=None):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -111,10 +115,13 @@ class D(object):
         del(params['self'])
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
-        self.file = data_file
         self.internal_standard = internal_standard
 
-        self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+        if passthrough is not None:
+            self.file, self.sample, analytes, self.data, self.meta = passthrough
+        else:
+            self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+            self.file = data_file
 
         self.analytes = set(analytes)
 
@@ -168,10 +175,14 @@ class D(object):
 
         return
 
-    def analytes_sorted(self, a=None):
-        if a is None:
-            a = self.analytes
-        return sorted(a, key=analyte_sort_fn)
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+        """
+        Return valid analytes depending on the analysis stage
+        """
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+
+    def analytes_sorted(self, a=None, check_ratios=True):
+        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
@@ -620,10 +631,7 @@ class D(object):
         -------
         None
         """
-        if analytes is None:
-                analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         self.stats = Bunch()
         self.stats['analytes'] = analytes
@@ -660,6 +668,18 @@ class D(object):
             t = self.Time[self.ns == n]
             ats[n - 1] = t.max() - t.min()
         return ats
+
+    def get_individual_ablations(self, analytes=None, focus_stage=None):
+        analytes = self._analyte_checker(analytes)
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        out = []
+        for n in range(1, self.n + 1):
+            sub = {}
+            for a in analytes:
+                sub[a] = self.data[focus_stage][a][self.ns == n]
+            out.append(sub)
+        return out
 
     # Data Selections Tools
     @_log
@@ -706,7 +726,7 @@ class D(object):
                         params, setn=setn)
 
     @_log
-    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True):
+    def filter_gradient_threshold(self, analyte, win, threshold, recalc=True, win_mode='mid', win_exclude_outside=True, absolute_gradient=True):
         """
         Apply gradient threshold filter.
 
@@ -730,6 +750,17 @@ class D(object):
             Window used to calculate gradients (n points)
         recalc : bool
             Whether or not to re-calculate the gradients.
+        win_mode : str
+            Whether the rolling window should be centered on the left, middle or centre
+            of the returned value. Can be 'left', 'mid' or 'right'.
+        win_exclude_outside : bool
+            If True, regions at the start and end where the gradient cannot be calculated
+            (depending on win_mode setting) will be excluded by the filter.
+        absolute_gradient : bool
+            If True, the filter is applied to the absolute gradient (i.e. always positive),
+            allowing the selection of 'flat' vs 'steep' regions regardless of slope direction.
+            If Falose, the sign of the gradient matters, allowing the selection of positive or
+            negative slopes only.
 
         Returns
         -------
@@ -740,11 +771,14 @@ class D(object):
 
         # calculate absolute gradient
         if recalc or not self.grads_calced:
-            self.grads = calc_grads(self.Time, self.focus,
-                                    [analyte], win)
+            self.grads = calc_grads(x=self.Time, dat=self.focus,
+                                    keys=[analyte], win=win, win_mode=win_mode)
             self.grads_calced = True
 
-        below, above = filters.threshold(abs(self.grads[analyte]), threshold)
+        if absolute_gradient:
+            below, above = filters.threshold(abs(self.grads[analyte]), threshold)
+        else:
+            below, above = filters.threshold(self.grads[analyte], threshold)
 
         setn = self.filt.maxset + 1
 
@@ -1368,7 +1402,7 @@ class D(object):
                           focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 
     @_log
-    def gplot(self, analytes=None, win=5, figsize=[10, 4],
+    def gplot(self, analytes=None, win=5, figsize=[10, 4], filt=False, recalc=False,
               ranges=False, focus_stage=None, ax=None):
         """
         Plot analytes gradients as a function of Time.
@@ -1390,8 +1424,8 @@ class D(object):
         figure, axis
         """
 
-        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize,
-                          ranges=ranges, focus_stage=focus_stage, ax=ax)
+        return plot.gplot(self=self, analytes=analytes, win=win, figsize=figsize, filt=filt,
+                          ranges=ranges, focus_stage=focus_stage, ax=ax, recalc=recalc)
 
         # if type(analytes) is str:
         #     analytes = [analytes]

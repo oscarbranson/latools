@@ -41,10 +41,12 @@ def get_date(datetime, time_format=None):
         String describing the datetime format. If missing uses
         dateutil.parser to guess time format.
     """
-    if time_format is None:
-        t = du.parser.parse(datetime)
-    else:
+    if isinstance(datetime, dt.datetime):
+        t = datetime
+    elif time_format is not None:
         t = dt.datetime.strptime(datetime, time_format)
+    else:
+        t = du.parser.parse(datetime)        
     return t
 
 def get_total_n_points(d):
@@ -72,7 +74,7 @@ def get_total_time_span(d):
     
     return tmax
 
-def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
+def unitpicker(a, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
 
@@ -103,35 +105,32 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
 
     if focus_stage == 'calibrated':
         udict = {0: 'mol/mol ' + pd,
-                 1: 'mmol/mol ' + pd,
-                 2: '$\mu$mol/mol ' + pd,
-                 3: 'nmol/mol ' + pd,
-                 4: 'pmol/mol ' + pd,
-                 5: 'fmol/mol ' + pd}
+                 3: 'mmol/mol ' + pd,
+                 6: '$\mu$mol/mol ' + pd,
+                 9: 'nmol/mol ' + pd,
+                 12: 'pmol/mol ' + pd,
+                 15: 'fmol/mol ' + pd}
     elif focus_stage == 'ratios':
         udict = {0: 'counts/count ' + pd,
-                 1: '$10^{-3}$ counts/count ' + pd,
-                 2: '$10^{-6}$ counts/count ' + pd,
-                 3: '$10^{-9}$ counts/count ' + pd,
-                 4: '$10^{-12}$ counts/count ' + pd,
-                 5: '$10^{-15}$ counts/count ' + pd}
+                 3: '$10^{-3}$ counts/count ' + pd,
+                 6: '$10^{-6}$ counts/count ' + pd,
+                 9: '$10^{-9}$ counts/count ' + pd,
+                 12: '$10^{-12}$ counts/count ' + pd,
+                 15: '$10^{-15}$ counts/count ' + pd}
     elif focus_stage in ('rawdata', 'despiked', 'bkgsub'):
         udict = udict = {0: 'counts',
-                         1: '$10^{-3}$ counts',
-                         2: '$10^{-6}$ counts',
-                         3: '$10^{-9}$ counts',
-                         4: '$10^{-12}$ counts',
-                         5: '$10^{-15}$ counts'}
+                         3: '$10^{-3}$ counts',
+                         6: '$10^{-6}$ counts',
+                         9: '$10^{-9}$ counts',
+                         12: '$10^{-12}$ counts',
+                         15: '$10^{-15}$ counts'}
     else:
-        udict = {0: '', 1: '', 2: '', 3: '', 4: '', 5: ''}
+        udict = {0: '', 3: '', 6: '', 9: '', 12: '', 15: ''}
 
     a = abs(a)
-    n = 0
-    if a < llim:
-        while a < llim:
-            a *= 1000
-            n += 1
-    return float(1000**n), udict[n]
+    order = np.log10(a)
+    m = np.ceil(-order / 3) * 3
+    return float(10**m), udict[m]
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
     """
@@ -287,7 +286,7 @@ class un_interp1d(object):
     def new_std(self, xn):
         return self.std_interp(xn)
 
-def rolling_window(a, window, pad=None):
+def rolling_window(a, window, window_mode='mid', pad=None):
     """
     Returns (win, len(a)) rolling - window array of data.
 
@@ -297,8 +296,15 @@ def rolling_window(a, window, pad=None):
         Array to calculate the rolling window of
     window : int
         Description of `window`.
+    window_mode : str
+        Describes the jusitification of the rolling window relative to the
+        returned values. Can be 'left', 'mid' or 'right'.
     pad : same as dtype(a)
-        Description of `pad`.
+        How to pad the ends of the array such that shape[0] of the returned array
+        is the same as len(a). Can be 'ends', 'mean_ends' or 'repeat_ends'. 'ends'
+        just extends the start or end value across all the extra windows. 'mean_ends'
+        extends the mean value of the end windows. 'repeat_ends' repeats the end window
+        to completion.
 
     Returns
     -------
@@ -310,11 +316,21 @@ def rolling_window(a, window, pad=None):
     strides = a.strides + (a.strides[-1], )
     out = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
     # pad shape
-    if window % 2 == 0:
-        npre = window // 2 - 1
-        npost = window // 2
+    if window_mode == 'mid':
+        if window % 2 == 0:    
+            npre = window // 2 - 1
+            npost = window // 2
+        else:
+            npre = npost = window // 2
+    elif window_mode == 'right':
+        npre = window - 1
+        npost = 0
+    elif window_mode == 'left':
+        npre = 0
+        npost = window - 1
     else:
-        npre = npost = window // 2
+        raise ValueError("`window_mode` must be 'left', 'mid' or 'right'.")
+
     if isinstance(pad, str):
         if pad == 'ends':
             prepad = np.full((npre, window), a[0])
@@ -324,10 +340,9 @@ def rolling_window(a, window, pad=None):
             postpad = np.full((npost, window), np.mean(a[-(window // 2):]))
         elif pad == 'repeat_ends':
             prepad = np.full((npre, window), out[0])
-            postpad = np.full((npost, window), out[0])
+            postpad = np.full((npost, window), out[-1])
         else:
-            raise ValueError("If pad is a string, it must be either 'ends', 'mean_ends' or 'repeat_ends'.")
-
+            raise ValueError("`pad` must be either 'ends', 'mean_ends' or 'repeat_ends'.")
         return np.concatenate((prepad, out, postpad))
     elif pad is not None:
         pre_blankpad = np.empty(((npre, window)))
@@ -367,7 +382,7 @@ def fastsmooth(a, win=11):
     epad = np.full(npad - 1, np.mean(a[-(npad - 1):]))
     return np.concatenate([spad, np.convolve(a, kernel, 'valid'), epad])
 
-def fastgrad(a, win=11):
+def fastgrad(a, win=11, win_mode='mid'):
     """
     Returns rolling - window gradient of a.
 
@@ -381,6 +396,9 @@ def fastgrad(a, win=11):
         The 1D array to calculate the rolling gradient of.
     win : int
         The width of the rolling window.
+    win_mode : str
+        Describes the jusitification of the rolling window relative to the
+        returned values. Can be 'left', 'mid' or 'right'.
 
     Returns
     -------
@@ -389,18 +407,18 @@ def fastgrad(a, win=11):
     """
     # check to see if 'window' is odd (even does not work)
     if win % 2 == 0:
-        win += 1  # subtract 1 from window if it is even.
+        win += 1  # add 1 to window if it is even.
     # trick for efficient 'rolling' computation in numpy
     # shape = a.shape[:-1] + (a.shape[-1] - win + 1, win)
     # strides = a.strides + (a.strides[-1], )
     # wins = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    wins = rolling_window(a, win, 'ends')
+    wins = rolling_window(a, win, pad='ends', window_mode=win_mode)
     # apply rolling gradient to data
     a = map(lambda x: np.polyfit(np.arange(win), x, 1)[0], wins)
 
     return np.array(list(a))
 
-def calc_grads(x, dat, keys=None, win=5):
+def calc_grads(x, dat, keys=None, win=5, win_mode='mid'):
     """
     Calculate gradients of values in dat.
     
@@ -414,6 +432,9 @@ def calc_grads(x, dat, keys=None, win=5):
         Which keys in dict to calculate the gradient of.
     win : int
         The side of the rolling window for gradient calculation
+    win_mode : str
+        Describes the jusitification of the rolling window relative to the
+        returned values. Can be 'left', 'mid' or 'right'.
 
     Returns
     -------
@@ -423,18 +444,20 @@ def calc_grads(x, dat, keys=None, win=5):
         keys = dat.keys()
 
     def grad(xy):
-        if (~np.isnan(xy)).all():
+        idx = np.isfinite(xy[1])
+        if sum(idx) > 2:
             try:
-                return np.polyfit(xy[0], xy[1], 1)[0]
+                return np.polyfit(xy[0][idx], xy[1][idx], 1)[0]
             except ValueError:
                 return np.nan
         else:
             return np.nan
 
-    xs = rolling_window(x, win, pad='repeat_ends')
+    xs = rolling_window(x, win, pad='repeat_ends', window_mode=win_mode)
+
     grads = Bunch()
     for k in keys:
-        d = nominal_values(rolling_window(dat[k], win, pad='repeat_ends'))
+        d = nominal_values(rolling_window(dat[k], win, pad='repeat_ends', window_mode=win_mode))
 
         grads[k] = np.array(list(map(grad, zip(xs, d))))
 
@@ -480,3 +503,34 @@ def stack_keys(ddict, keys, extra=None):
     if extra is not None:
         d = extra + d
     return np.vstack(d).T
+
+def analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    """
+    Return valid analytes depending on the analysis stage
+    """
+    if isinstance(analytes, str):
+        analytes = [analytes]
+
+    out = set()
+    if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
+        if analytes is None:
+            analytes = self.analytes
+        out = self.analytes.intersection(analytes)
+    else:
+        if analytes is None:
+            analytes = self.analyte_ratios
+        # case 1: provided analytes are an exact match for items in analyte_ratios
+        valid1 = self.analyte_ratios.intersection(analytes)
+        # case 2: provided analytes are in numerator of ratios
+        valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
+        out = valid1.union(valid2)
+    
+    if len(out) == 0:
+        raise ValueError(f'{analytes} does not match any valid analyte names.')
+
+    if single:
+        if len(out) > 1:
+            raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
+        return out.pop()
+
+    return out

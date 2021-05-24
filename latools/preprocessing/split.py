@@ -103,7 +103,7 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
-def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, **autorange_args):
+def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, passthrough=False, **autorange_args):
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
 
@@ -113,8 +113,6 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     ablation, named using the list of names you provide.
 
     Data will be saved in latools' 'REPRODUCE' format.
-
-    WARNING: This functionality is currently *very beta*. Use carefully.
 
     TODO: Check for existing files in savedir, don't overwrite?
 
@@ -140,6 +138,9 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         appended with '_split'.
     srm_id : str
         If given, all file names containing srm_id will be replaced with srm_id.
+    passthrough : bool
+        If False data are saved, if True data are yielded in correct format for 
+        loading by latools.analyse object. 
     **autorange_args
         Additional arguments passed to la.processes.autorange used for identifying ablations.
     Returns
@@ -302,39 +303,59 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         sections[s]['total_counts'] = dat['total_counts'][lo:hi]
     
     # save output
-    if savedir is None:
-        savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
-    if not os.path.isdir(savedir):
-        os.makedirs(savedir)
-    
-    header = ['# Long data file split by latools on {}'.format(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))]
-    if 'date' not in meta:
-        header.append('# Warning: No date specified in file - Analysis Times are date file was split. ')
-    else:
-        header.append('# ')
+    if passthrough:
+        print(f"Success! {n} ablations identified.")
+        for sample, sdat in sections.items():
+            
+            sanalytes = list(sdat['rawdata'].keys())
+            
+            sdata = {
+                'Time': sdat['Time'],
+                'rawdata': sdat['rawdata'],
+                'total_counts': sdat['total_counts']
+            }
 
-    header.append('# ')
-    header.append('# ')
-    
-    flist = []
-    for s, sdat in sections.items():
-        iheader = header.copy()
-        iheader.append('# Sample: {}'.format(s))
-        iheader.append('# Analysis Time: {}'.format(sdat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
-    
-        iheader = '\n'.join(iheader) + '\n'
+            # minimal meta - datetime only
+            smeta = {
+                'date': sdat['starttime']
+            }
+
+            yield data_file, sample, sanalytes, sdata, smeta
+            # yield file : str, sample : str, analytes : set, data : dict, meta : dict
+    else:
+        if savedir is None:
+            savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
+        if not os.path.isdir(savedir):
+            os.makedirs(savedir)
         
-        out = pd.DataFrame({analyte_2_namemass(k): v for k, v in sdat['rawdata'].items()}, index=sdat['Time'])
-        out.index.name = 'Time'
-        csv = out.to_csv()
+        header = ['# Long data file split by latools on {}'.format(datetime.datetime.now().strftime('%Y:%m:%d %H:%M:%S'))]
+        if 'date' not in meta:
+            header.append('# Warning: No date specified in file - Analysis Times are date file was split. ')
+        else:
+            header.append('# ')
+
+        header.append('# ')
+        header.append('# ')
         
-        with open('{}/{}.csv'.format(savedir, s), 'w') as f:
-            f.write(iheader)
-            f.write(csv)
-        flist.append('   {}.csv'.format(s))
-    
-    print("Success! File split into {} sections.".format(n))
-    print("New files saved to:\n{}/\n{}\n\nImport the split files using the 'REPRODUCE' configuration.".format(os.path.relpath(savedir), '\n'.join(flist)))
+        flist = []
+        for s, sdat in sections.items():
+            iheader = header.copy()
+            iheader.append('# Sample: {}'.format(s))
+            iheader.append('# Analysis Time: {}'.format(sdat['starttime'].strftime('%Y-%m-%d %H:%M:%S')))
+        
+            iheader = '\n'.join(iheader) + '\n'
+            
+            out = pd.DataFrame({analyte_2_namemass(k): v for k, v in sdat['rawdata'].items()}, index=sdat['Time'])
+            out.index.name = 'Time'
+            csv = out.to_csv()
+            
+            with open('{}/{}.csv'.format(savedir, s), 'w') as f:
+                f.write(iheader)
+                f.write(csv)
+            flist.append('   {}.csv'.format(s))
+        
+        print("Success! File split into {} sections.".format(n))
+        print("New files saved to:\n{}/\n{}\n\nImport the split files using the 'REPRODUCE' configuration.".format(os.path.relpath(savedir), '\n'.join(flist)))
     
     if plot:
         return plot_long_file_split(dat, sig, bkg, sections)
