@@ -20,7 +20,7 @@ from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
 def calc_nrow(n, ncol):
-    if n % ncol is 0:
+    if n % ncol == 0:
         nrow = n / ncol
     else:
         nrow = n // ncol + 1
@@ -82,7 +82,7 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             x = self.Time
             y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 
-            if scale is 'log':
+            if scale == 'log':
                 ax.set_yscale('log')
                 y[y == 0] = np.nan
 
@@ -509,16 +509,15 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     -------
     fig, axes
     """
-    if swin is None:
-        swin = gwin // 2
-
-    sigs = fastsmooth(sig, swin)
+    if swin is not None:
+        sigs = fastsmooth(sig, swin)
+    else:
+        sigs = sig
 
     # perform autorange calculations
     
     # bins = 50
-    bins = sig.size // nbin
-    kde_x = np.linspace(sig.min(), sig.max(), bins)
+    kde_x = np.linspace(sig.min(), sig.max(), nbin)
 
     kde = gaussian_kde(sigs)
     yd = kde.pdf(kde_x)
@@ -1223,3 +1222,55 @@ def correlation_plot(self, corr=None):
     fig.tight_layout()
     
     return fig, axs
+
+def stackhist(data_arrays, bins=None, bin_range=(1,99), yoffset=0, ax=None, **kwargs):
+    """
+    Plots a stacked histogram of multiple arrays.
+    
+    Parameters
+    ----------
+    data_arrays : iterable
+        iterable containing all the arrays to plot on the histogram
+    bins : array-like or int
+        Either the number of bins (int) or an array of bin edges.
+    bin_range : tuple
+        If bins is not specified, this speficies the percentile range used for the bins.
+        By default, the histogram is plotted between the 1st and 99th percentiles of the
+        data.
+    yoffset : float
+        The y offset of the histogram base. Useful if stacking multiple histograms on a
+        single axis.
+    ax : matplotlib.Axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+
+    # calculate histogram bins
+    all_data = np.concatenate(data_arrays)
+    data_range = np.percentile(all_data[~np.isnan(all_data)], bin_range)
+    
+    if isinstance(bins, int):
+        nbin = bins
+        bins = np.linspace(*data_range, nbin)
+    elif bins is None:
+        nbin = 50
+        bins = np.linspace(*data_range, nbin)
+    else:
+        nbin = len(bins)
+    
+    xleft = bins[:-1]
+    bw = bins[1] - bins[0]
+    
+    # calculate global histogram max
+    nmax = np.max(np.histogram(all_data[~np.isnan(all_data)], bins)[0])
+    
+    y0 = np.full(len(xleft), yoffset, dtype=float)
+    for a in data_arrays:
+        yn, _ = np.histogram(a[~np.isnan(a)], bins)
+        yn = yn.astype(float) / nmax
+        
+        ax.bar(xleft, yn, bw, bottom=y0, align='edge', **kwargs)
+        y0 += yn
+    
+    return ax
+    

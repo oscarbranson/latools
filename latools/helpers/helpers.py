@@ -41,10 +41,12 @@ def get_date(datetime, time_format=None):
         String describing the datetime format. If missing uses
         dateutil.parser to guess time format.
     """
-    if time_format is None:
-        t = du.parser.parse(datetime)
-    else:
+    if isinstance(datetime, dt.datetime):
+        t = datetime
+    elif time_format is not None:
         t = dt.datetime.strptime(datetime, time_format)
+    else:
+        t = du.parser.parse(datetime)        
     return t
 
 def get_total_n_points(d):
@@ -72,7 +74,7 @@ def get_total_time_span(d):
     
     return tmax
 
-def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
+def unitpicker(a, denominator=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
 
@@ -103,35 +105,32 @@ def unitpicker(a, llim=0.1, denominator=None, focus_stage=None):
 
     if focus_stage == 'calibrated':
         udict = {0: 'mol/mol ' + pd,
-                 1: 'mmol/mol ' + pd,
-                 2: '$\mu$mol/mol ' + pd,
-                 3: 'nmol/mol ' + pd,
-                 4: 'pmol/mol ' + pd,
-                 5: 'fmol/mol ' + pd}
+                 3: 'mmol/mol ' + pd,
+                 6: '$\mu$mol/mol ' + pd,
+                 9: 'nmol/mol ' + pd,
+                 12: 'pmol/mol ' + pd,
+                 15: 'fmol/mol ' + pd}
     elif focus_stage == 'ratios':
         udict = {0: 'counts/count ' + pd,
-                 1: '$10^{-3}$ counts/count ' + pd,
-                 2: '$10^{-6}$ counts/count ' + pd,
-                 3: '$10^{-9}$ counts/count ' + pd,
-                 4: '$10^{-12}$ counts/count ' + pd,
-                 5: '$10^{-15}$ counts/count ' + pd}
+                 3: '$10^{-3}$ counts/count ' + pd,
+                 6: '$10^{-6}$ counts/count ' + pd,
+                 9: '$10^{-9}$ counts/count ' + pd,
+                 12: '$10^{-12}$ counts/count ' + pd,
+                 15: '$10^{-15}$ counts/count ' + pd}
     elif focus_stage in ('rawdata', 'despiked', 'bkgsub'):
         udict = udict = {0: 'counts',
-                         1: '$10^{-3}$ counts',
-                         2: '$10^{-6}$ counts',
-                         3: '$10^{-9}$ counts',
-                         4: '$10^{-12}$ counts',
-                         5: '$10^{-15}$ counts'}
+                         3: '$10^{-3}$ counts',
+                         6: '$10^{-6}$ counts',
+                         9: '$10^{-9}$ counts',
+                         12: '$10^{-12}$ counts',
+                         15: '$10^{-15}$ counts'}
     else:
-        udict = {0: '', 1: '', 2: '', 3: '', 4: '', 5: ''}
+        udict = {0: '', 3: '', 6: '', 9: '', 12: '', 15: ''}
 
     a = abs(a)
-    n = 0
-    if a < llim:
-        while a < llim:
-            a *= 1000
-            n += 1
-    return float(1000**n), udict[n]
+    order = np.log10(a)
+    m = np.ceil(-order / 3) * 3
+    return float(10**m), udict[m]
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
     """
@@ -504,3 +503,34 @@ def stack_keys(ddict, keys, extra=None):
     if extra is not None:
         d = extra + d
     return np.vstack(d).T
+
+def analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    """
+    Return valid analytes depending on the analysis stage
+    """
+    if isinstance(analytes, str):
+        analytes = [analytes]
+
+    out = set()
+    if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
+        if analytes is None:
+            analytes = self.analytes
+        out = self.analytes.intersection(analytes)
+    else:
+        if analytes is None:
+            analytes = self.analyte_ratios
+        # case 1: provided analytes are an exact match for items in analyte_ratios
+        valid1 = self.analyte_ratios.intersection(analytes)
+        # case 2: provided analytes are in numerator of ratios
+        valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
+        out = valid1.union(valid2)
+    
+    if len(out) == 0:
+        raise ValueError(f'{analytes} does not match any valid analyte names.')
+
+    if single:
+        if len(out) > 1:
+            raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
+        return out.pop()
+
+    return out

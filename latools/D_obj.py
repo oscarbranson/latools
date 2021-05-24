@@ -27,11 +27,20 @@ from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
 from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, unitpicker, findmins, stack_keys)
+                              calc_grads, unitpicker, findmins, stack_keys,
+                              analyte_checker)
 from .helpers.analyte_names import pretty_element, analyte_sort_fn
 from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
 from .helpers.chemistry import to_mass_fraction, analyte_mass
+
+# TODO: Neat way to get data with filters applied
+# cal_conc = 'd'
+# coral_n = 0
+# s = dat.data[f'Coral_4I{cal_conc}_{coral_n}']
+# filt = s.filt.grab_filt(True)
+# extract = s.focus
+# df = pd.DataFrame.from_dict({k: v[filt] for k, v in extract.items()})
 
 class D(object):
     """
@@ -47,6 +56,9 @@ class D(object):
         is causing the import to fail.
     dataformat : dict
         A dataformat dict. See documentation for more details.
+    passthrough : iterable
+        If data loading happens at a higher level, pass a tuple of
+        (file_name, sample_name, analytes, data, metadata)
 
     Attributes
     ----------
@@ -94,7 +106,7 @@ class D(object):
         An object for storing, selecting and creating data filters.F
     """
 
-    def __init__(self, data_file, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names'):
+    def __init__(self, data_file=None, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names', passthrough=None):
         if errorhunt:
             # errorhunt prints each csv file name before it tries to load it,
             # so you can tell which file is failing to load.
@@ -103,10 +115,13 @@ class D(object):
         del(params['self'])
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
 
-        self.file = data_file
         self.internal_standard = internal_standard
 
-        self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+        if passthrough is not None:
+            self.file, self.sample, analytes, self.data, self.meta = passthrough
+        else:
+            self.sample, analytes, self.data, self.meta = proc.read_data(data_file, dataformat, name)
+            self.file = data_file
 
         self.analytes = set(analytes)
 
@@ -160,10 +175,14 @@ class D(object):
 
         return
 
-    def analytes_sorted(self, a=None):
-        if a is None:
-            a = self.analytes
-        return sorted(a, key=analyte_sort_fn)
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+        """
+        Return valid analytes depending on the analysis stage
+        """
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+
+    def analytes_sorted(self, a=None, check_ratios=True):
+        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
@@ -612,10 +631,7 @@ class D(object):
         -------
         None
         """
-        if analytes is None:
-                analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes)
 
         self.stats = Bunch()
         self.stats['analytes'] = analytes
@@ -652,6 +668,18 @@ class D(object):
             t = self.Time[self.ns == n]
             ats[n - 1] = t.max() - t.min()
         return ats
+
+    def get_individual_ablations(self, analytes=None, focus_stage=None):
+        analytes = self._analyte_checker(analytes)
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        out = []
+        for n in range(1, self.n + 1):
+            sub = {}
+            for a in analytes:
+                sub[a] = self.data[focus_stage][a][self.ns == n]
+            out.append(sub)
+        return out
 
     # Data Selections Tools
     @_log
