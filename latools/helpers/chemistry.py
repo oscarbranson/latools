@@ -139,15 +139,17 @@ def analyte_mass(analyte, in_name=True):
         If True, numbers in the analyte name are preferred.
     """
     if isinstance(analyte, str):
+        if '_' in analyte:
+            return analyte_mass(analyte.split('_'))
         nums = re.findall('[0-9]+', analyte)
         if in_name and nums:
-            return float(nums[0])
+            return {analyte: float(nums[0])}
         else:
-            return calc_M(re.findall('[A-z]+', analyte)[0])
+            return {analyte: calc_M(re.findall('[A-z]+', analyte)[0])}
     else:
         masses = {}
         for i, a in enumerate(analyte):
-            masses[a] = analyte_mass(a, in_name)
+            masses.update(analyte_mass(a, in_name))
         return masses
 
 
