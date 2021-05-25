@@ -588,11 +588,13 @@ class D(object):
         
         if np.isnan(internal_standard_conc):
             for a in analytes:
-                self.data['mass_fraction'][a] = np.full(self.data['calibrated'][a].shape, np.nan)
+                num, denom = a.split('_')
+                self.data['mass_fraction'][num] = np.full(self.data['calibrated'][a].shape, np.nan)
         else:
             for a in analytes:
-                self.data['mass_fraction'][a] = to_mass_fraction(self.data['calibrated'][a], internal_standard_conc,
-                                                                analyte_masses[a], analyte_masses[self.internal_standard])
+                num, denom = a.split('_')
+                self.data['mass_fraction'][num] = to_mass_fraction(molar_ratio=self.data['calibrated'][a], massfrac_denominator=internal_standard_conc,
+                                                                   numerator_mass=analyte_masses[num], denominator_mass=analyte_masses[denom])
         
         self.setfocus('mass_fraction')
 
