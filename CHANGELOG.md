@@ -1,6 +1,16 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.20]
+
+### New
+- Integrated long file splitting into analysis function.
+- Stackhist plot
+
+### Changed
+- Improved handling of analytes missing from SRM database (analyte is removed from further calculations, rather than throwing an error)
+- Improved gradient plot.
+
 ## [0.3.19]
 
 ### Changed
@@ -11,7 +21,7 @@ All significant changes to the software will be documented here.
 
 ## [0.3.18]
 
-### Added
+### New
  - Change ratio calibration framework to support multiple internal standards. Internal standard is now stored alongside analyte name after ratio calculation as 'XX_YY'. This involved a lot of tweaks to discrimnate between pre- and post- ratio treatment of data. All tests passing & manuscript supplement notebooks run fine, **but some more advanced features may be broken**. Please log an issue if you find anything.
 
 ### Changed
@@ -24,7 +34,7 @@ All significant changes to the software will be documented here.
 
 ## [0.3.16] - 18/01/2021
 
-### Added
+### New
  - `clear_subsets` function.
 
 ## [0.3.12] - 28/10/2019
@@ -42,7 +52,7 @@ Fixing minor bugs introduced in 0.3.10.
 
 ## [0.3.10] - 14/06/2019
 
-### Added
+### New
 - Fully functional long-file splitting, with documentation
 - Ability to calculate mass fraction (i.e. ppm)
 - Configurations for GEOMAR Atom and FIN2.
@@ -75,7 +85,7 @@ Fixing minor bugs introduced in 0.3.10.
 
 ## [0.3.6] - 11/12/2018
 
-### Added
+### New
 - Changelog!
 - Beta file-splitting capabilities in `latools.preprocessing`.
 
@@ -87,7 +97,7 @@ The complete working version associated with the published manuscript:
 
 >[LAtools: a data analysis package for the reproducible reduction of LA-ICPMS data. 2018. Branson, O., Fehrenbacher, J., Vetter, L., Sadekov, A.Y., Eggins, S.M., Spero, H.J. *Chemical Geology, Accepted Manuscript.* doi:10.1016/j.chemgeo.2018.10.029](https://doi.org/10.1016/j.chemgeo.2018.10.029)
 
-### Added
+### New
 - Ability to correct for spectral interferences.
 - Extensive filtering documentation.
 

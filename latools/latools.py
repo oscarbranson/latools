@@ -324,6 +324,7 @@ class analyse(object):
 
         # set for recording calculated ratios
         self.analyte_ratios = set()
+        self.uncalibrated = set()
 
         if len(self.analytes) == 0:
             raise ValueError('No analyte names identified. Please check the \ncolumn_id > pattern ReGeX in your dataformat file.')
@@ -1385,12 +1386,13 @@ class analyse(object):
             srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analyte_ratios, ['mean', 'err']]))
 
             for srm in srms_used:
+                srm_nocal = set()
                 srmsub = srmdat.loc[srm]
 
                 # determine analyte - Item pairs in table
                 ad = {}
-                for a in self.analyte_ratios:
-                    a_num, a_denom = a.split('_')  # separate numerator and denominator
+                for ar in self.analyte_ratios:
+                    a_num, a_denom = ar.split('_')  # separate numerator and denominator
                     for a in [a_num, a_denom]:
                         if a in ad.keys():
                             continue
@@ -1407,11 +1409,12 @@ class analyse(object):
                                 ad[a] = item[0]
                             else:
                                 warns.append(f'   No {a} value for {srm}.')
+                                srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
-                    
+                                    
                 # build calibration database for given ratios
-                for a in self.analyte_ratios:
+                for a in self.analyte_ratios.difference(srm_nocal):
                     a_num, a_denom = a.split('_')
                     
                     # calculate SRM polyatom multiplier (multiplier to account for stoichiometry,
@@ -1442,10 +1445,20 @@ class analyse(object):
                 self._srm_id_analyte_ratios = means.columns.values[~means.isnull().any()]  # analyte ratioes identified
                 # self._calib_analyte_ratios = means.columns.values[~means.isnull().all()]
 
+                if len(self.uncalibrated) == 0:
+                    self.uncalibrated = srm_nocal
+                else:
+                    self.uncalibrated.intersection_update(srm_nocal)
+
             # Print any warnings
             if len(warns) > 0:
-                print('WARNING: Some analytes are not present in the SRM database:')
+                print('WARNING: Some analytes are not present in the SRM database for some standards:')
                 print('\n'.join(warns))
+            
+            if len(self.uncalibrated) > 0:
+                self.analyte_ratios.difference_update(self.uncalibrated)
+                print('WARNING: Some analytes are not present in the SRM database for ANY standards:')
+                print(f'{self.uncalibrated} have been removed from further analysis.')
     
     def srm_compile_measured(self, n_min=10, focus_stage='ratios'):
         """

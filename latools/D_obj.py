@@ -34,6 +34,14 @@ from .helpers.logging import _log
 from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
 from .helpers.chemistry import to_mass_fraction, analyte_mass
 
+# TODO: Neat way to get data with filters applied
+# cal_conc = 'd'
+# coral_n = 0
+# s = dat.data[f'Coral_4I{cal_conc}_{coral_n}']
+# filt = s.filt.grab_filt(True)
+# extract = s.focus
+# df = pd.DataFrame.from_dict({k: v[filt] for k, v in extract.items()})
+
 class D(object):
     """
     Container for data from a single laser ablation analysis.
