@@ -1785,12 +1785,18 @@ class analyse(object):
     def read_internal_standard_concs(self, sample_concs=None):
         """
         Load in a per-sample list of internal sample concentrations.
+
+        Parameters
+        ----------
+
+        sample_concs : str
+            Path to csv file containing internal standard mass fractions.
         """
         if sample_concs is None:
             sample_concs = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
         
-        return pd.read_csv(sample_concs, index_col=0)
-
+        self.internal_standard_concs = pd.read_csv(sample_concs, index_col=0)
+        return self.internal_standard_concs
 
     @_log
     def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
@@ -1817,7 +1823,7 @@ class analyse(object):
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
 
-        isc = internal_standard_conc
+        isc = self.internal_standard_concs
 
         if isinstance(isc, str) or isc is None:
             isc = self.read_internal_standard_concs(isc)
@@ -2977,6 +2983,11 @@ class analyse(object):
         else:
             self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
 
+        # remove old columns
+        for k in list(self.focus.keys()):
+            if k not in columns:
+                self.focus.pop(k)
+
         return
 
     # fetch all the gradients from the data objects
@@ -4067,9 +4078,6 @@ class analyse(object):
         if focus_stage is None:
             focus_stage = self.focus_stage
 
-        if focus_stage in ['ratios', 'calibrated']:
-            analytes = [a for a in analytes if a != self.internal_standard]
-
         if outdir is None:
             outdir = os.path.join(self.export_dir, 'trace_export')
 
@@ -4191,6 +4199,11 @@ class analyse(object):
             srmdat = self.srmdat.loc[idx[:, list(items)], :]
             with open(path + '/srm.table', 'w') as f:
                 f.write(srmdat.to_csv())
+        
+        # save internal_standard_concs
+        if hasattr(self, 'internal_standard_concs'):
+            log_header.append('internal_standard_concs :: ./internal_standard_concs.csv')
+            self.internal_standard_concs.to_csv(os.path.join(path, './internal_standard_concs.csv'))
 
         # save custom functions (of defined)
         if hasattr(self, 'custom_stat_functions'):
@@ -4216,7 +4229,7 @@ class analyse(object):
 
 
 def reproduce(past_analysis, plotting=False, data_path=None,
-              srm_table=None, custom_stat_functions=None):
+              srm_table=None, internal_standard_concs=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
 
@@ -4239,6 +4252,9 @@ def reproduce(past_analysis, plotting=False, data_path=None,
     srm_table : str
         Optional. Specify a different SRM table. SRM table
         should normally be in the same folder as the log file.
+    internal_standard_concs : pandas.DataFrame
+        Optional. Specify internal standard concentrations used
+        to calculate mass fractions.
     custom_stat_functions : str
         Optional. Specify a python file containing custom
         stat functions for use by reproduce. Any custom
@@ -4274,9 +4290,13 @@ def reproduce(past_analysis, plotting=False, data_path=None,
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
-
+    
     # create analysis object
     rep = analyse(*runargs[0][-1]['args'], **runargs[0][-1]['kwargs'])
+
+    # deal with internal standard concentrations
+    if internal_standard_concs is None and 'internal_standard_concs' in paths:
+        rep.read_internal_standard_concs(paths['internal_standard_concs'])
 
     # rest of commands
     for fname, arg in runargs:
