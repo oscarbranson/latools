@@ -130,7 +130,10 @@ def unitpicker(a, denominator=None, focus_stage=None):
     a = abs(a)
     order = np.log10(a)
     m = np.ceil(-order / 3) * 3
-    return float(10**m), udict[m]
+    if np.isnan(m):
+        return 1, ''
+    else:
+        return float(10**m), udict[m]
 
 def collate_data(in_dir, extension='.csv', out_dir=None):
     """

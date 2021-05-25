@@ -61,6 +61,8 @@ np.seterr(invalid='ignore')
 # TODO: Allow full sklearn integration by allowing sample-wise application of custom classifiers. i.e. Provide data collection (get_data) ajd filter addition API.
 # Especially: PCA, Gaussian Mixture Models
 
+# TODO: Move away from single `internal_standard` specification towards specifying multiple internal standards.
+
 class analyse(object):
     """
     For processing and analysing whole LA - ICPMS datasets.
@@ -173,12 +175,12 @@ class analyse(object):
         # make output directories
         self.report_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.path) + '_reports/'))
+                                              os.path.splitext(os.path.basename(self.path))[0] + '_reports/'))
         if not os.path.isdir(self.report_dir):
             os.mkdir(self.report_dir)
         self.export_dir = re.sub('//', '/',
                                  os.path.join(self.parent_folder,
-                                              os.path.basename(self.path) + '_export/'))
+                                              os.path.splitext(os.path.basename(self.path))[0] + '_export/'))
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
@@ -330,8 +332,11 @@ class analyse(object):
         if internal_standard in self.analytes:
             self.internal_standard = internal_standard
         else:
-            raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
-                             'analytes in\nyour data files. Please make sure it is specified correctly.')
+            self.internal_standard = None
+            warnings.warn(
+                self._wrap_text(f'The specified internal_standard {internal_standard} is not in the list of analytes ({self.analytes}). You will have to specify a valid analyte when calling the `ratio()` function later in the analysis.')
+                )
+
         self.minimal_analytes = set()
         
         # record which analytes are needed for calibration
@@ -1345,10 +1350,14 @@ class analyse(object):
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
+
+        if self.internal_standard in self.analytes:
             self.minimal_analytes.update([internal_standard])
             self.calibration_analytes.update([internal_standard])
-
-        self.calibration_analytes.update(analytes)
+            self.calibration_analytes.update(analytes)
+        else:
+            raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
+                                'analytes in\nyour data files. Please make sure it is specified correctly.')
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
@@ -1597,114 +1606,6 @@ class analyse(object):
             
         self.caltab = caltab.reindex(self.stdtab.columns.levels[0], axis=1, level=0)
 
-    
-    # def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], n_min=10, reload_srm_database=False):
-    #     """
-    #     Function for automarically identifying SRMs
-    
-    #     Parameters
-    #     ----------
-    #     srms_used : iterable
-    #         Which SRMs have been used. Must match SRM names
-    #         in SRM database *exactly* (case sensitive!).
-    #     n_min : int
-    #         The minimum number of data points a SRM measurement
-    #         must contain to be included.
-    #     """
-    #     if isinstance(srms_used, str):
-    #         srms_used = [srms_used]
-            
-    #     # get mean and standard deviations of measured standards
-    #     self.srm_compile_measured(n_min)
-    #     stdtab = self.stdtab.copy()
-    #     stdtab.loc[:, 'SRM'] = ''
-
-
-    #     # load corresponding SRM database
-    #     self.srm_load_database(srms_used, reload_srm_database)
-
-    #     # create blank srm table
-    #     srm_tab = self.srmdat.loc[:, ['mol_ratio', 'element']].reset_index().pivot(index='SRM', columns='element', values='mol_ratio')
-
-    #     # Auto - ID STDs
-    #     # 1. identify elements in measured SRMS with biggest range of values
-    #     meas_tab = stdtab.loc[:, (slice(None), 'mean')]  # isolate means of standards
-    #     meas_tab.columns = meas_tab.columns.droplevel(1)  # drop 'mean' column names
-    #     meas_tab.columns = [re.findall('[A-Za-z]+', a)[0] for a in meas_tab.columns]  # rename to element names
-    #     meas_tab = meas_tab.T.groupby(level=0).first().T  # remove duplicate columns
-
-    #     ranges = nominal_values(meas_tab.apply(lambda a: np.ptp(a) / np.nanmean(a), 0))  # calculate relative ranges of all elements
-    #     # (used as weights later)
-
-    #     # 2. Work out which standard is which
-    #     # normalise all elements between 0-1
-    #     def normalise(a):
-    #         a = nominal_values(a)
-    #         if np.nanmin(a) < np.nanmax(a):
-    #             return (a - np.nanmin(a)) / np.nanmax(a - np.nanmin(a))
-    #         else:
-    #             return np.ones(a.shape)
-
-    #     nmeas = meas_tab.apply(normalise, 0)
-    #     nmeas.dropna(1, inplace=True)  # remove elements with NaN values
-    #     # nmeas.replace(np.nan, 1, inplace=True)
-    #     nsrm_tab = srm_tab.apply(normalise, 0)
-    #     nsrm_tab.dropna(1, inplace=True)
-    #     # nsrm_tab.replace(np.nan, 1, inplace=True)
-
-    #     for uT, r in nmeas.iterrows():  # for each standard...
-    #         idx = np.nansum(((nsrm_tab - r) * ranges)**2, 1)
-    #         idx = abs((nsrm_tab - r) * ranges).sum(1)
-    #         # calculate the absolute difference between the normalised elemental
-    #         # values for each measured SRM and the SRM table. Each element is
-    #         # multiplied by the relative range seen in that element (i.e. range / mean
-    #         # measuerd value), so that elements with a large difference are given
-    #         # more importance in identifying the SRM.   
-    #         # This produces a table, where wach row contains the difference between
-    #         # a known vs. measured SRM. The measured SRM is identified as the SRM that
-    #         # has the smallest weighted sum value.
-    #         stdtab.loc[uT, 'SRM'] = srm_tab.index[idx == min(idx)].values[0]
-
-    #     # calculate mean time for each SRM
-    #     # reset index and sort
-    #     stdtab.reset_index(inplace=True)
-    #     stdtab.sort_index(1, inplace=True)
-    #     # isolate STD and uTime
-    #     uT = stdtab.loc[:, ['gTime', 'STD']].set_index('STD')
-    #     uT.sort_index(inplace=True)
-    #     uTm = uT.groupby(level=0).mean()  # mean uTime for each SRM
-    #     # replace uTime values with means
-    #     stdtab.set_index(['STD'], inplace=True)
-    #     stdtab.loc[:, 'gTime'] = uTm
-    #     # reset index
-    #     stdtab.reset_index(inplace=True)
-    #     stdtab.set_index(['STD', 'SRM', 'gTime'], inplace=True)
-
-    #     # combine to make SRM reference tables
-    #     srmtabs = Bunch()
-    #     for a in self.analytes:
-    #         el = re.findall('[A-Za-z]+', a)[0]
-
-    #         sub = stdtab.loc[:, a]
-
-    #         srmsub = self.srmdat.loc[self.srmdat.element == el, ['mol_ratio', 'mol_ratio_err']]
-
-    #         srmtab = sub.join(srmsub)
-    #         srmtab.columns = ['meas_err', 'meas_mean', 'srm_mean', 'srm_err']
-
-    #         srmtabs[a] = srmtab
-
-    #     self.srmtabs = pd.concat(srmtabs).apply(nominal_values).sort_index()
-    #     self.srmtabs.dropna(subset=['srm_mean'], inplace=True)
-    #     # replace any nan error values with zeros - nans cause problems later.
-    #     self.srmtabs.loc[:, ['meas_err', 'srm_err']] = self.srmtabs.loc[:, ['meas_err', 'srm_err']].replace(np.nan, 0)
-
-    #     # remove internal standard from calibration elements
-    #     self.srmtabs.drop(self.internal_standard, level=0, inplace=True)
-
-    #     self.srms_ided = True
-    #     return
-
     def clear_calibration(self):
         if self.srms_ided:
             del self.stdtab
@@ -1858,157 +1759,6 @@ class analyse(object):
 
         return
 
-    # def calibrate(self, analytes=None, drift_correct=True,
-    #               srms_used=['NIST610', 'NIST612', 'NIST614'],
-    #               zero_intercept=True, n_min=10, reload_srm_database=False):
-    #     """
-    #     Calibrates the data to measured SRM values.
-
-    #     Assumes that y intercept is zero.
-
-    #     Parameters
-    #     ----------  
-    #     analytes : str or iterable
-    #         Which analytes you'd like to calibrate. Defaults to all.
-    #     drift_correct : bool
-    #         Whether to pool all SRM measurements into a single calibration,
-    #         or vary the calibration through the run, interpolating
-    #         coefficients between measured SRMs.
-    #     srms_used : str or iterable
-    #         Which SRMs have been measured. Must match names given in
-    #         SRM data file *exactly*.
-    #     n_min : int
-    #         The minimum number of data points an SRM measurement
-    #         must have to be included.
-
-    #     Returns
-    #     -------
-    #     None
-    #     """
-    #     if analytes is None:
-    #         analytes = self.analytes.difference(self.internal_standard)
-    #     elif isinstance(analytes, str):
-    #         analytes = [analytes]
-
-    #     if isinstance(srms_used, str):
-    #         srms_used = [srms_used]
-
-    #     if not hasattr(self, 'srmtabs'):
-    #         self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
-
-    #     # make container for calibration params
-    #     if not hasattr(self, 'calib_params'):
-    #         gTime = self.stdtab.gTime.unique()
-    #         self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
-    #                                         index=gTime)
-
-    #     calib_analytes = self.srmtabs.index.get_level_values(0).unique()
-
-    #     if zero_intercept:
-    #         fn  = lambda x, m: x * m
-    #     else:
-    #         fn = lambda x, m, c: x * m + c
-
-    #     for a in calib_analytes:
-    #         if zero_intercept:
-    #             if (a, 'c') in self.calib_params:
-    #                 self.calib_params.drop((a, 'c'), 1, inplace=True)
-    #         if drift_correct:
-    #             for g in self.stdtab.gTime.unique():
-    #                 ind = idx[a, :, :, g]
-    #                 if self.srmtabs.loc[ind].size == 0:
-    #                     continue
-    #                 # try:
-    #                 meas = self.srmtabs.loc[ind, 'meas_mean']
-    #                 srm = self.srmtabs.loc[ind, 'srm_mean']
-    #                 # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation.
-    #                 merr = self.srmtabs.loc[ind, 'meas_err']
-    #                 serr = self.srmtabs.loc[ind, 'srm_err']
-    #                 sigma = np.sqrt(merr**2 + serr**2)
-
-    #                 if len(meas) > 1:
-    #                     # multiple SRMs - do a regression
-    #                     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
-    #                     pe = unc.correlated_values(p, cov)                
-    #                     self.calib_params.loc[g, (a, 'm')] = pe[0]
-    #                     if not zero_intercept:
-    #                         self.calib_params.loc[g, (a, 'c')] = pe[1]
-    #                 else:
-    #                     # deal with case where there's only one datum
-    #                     self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, serr) / 
-    #                                                           un.uarray(meas, merr))[0]
-    #                     if not zero_intercept:
-    #                         self.calib_params.loc[g, (a, 'c')] = 0
-
-    #                 # This should be obsolete, because no-longer sourcing locator from calib_params index.
-    #                 # except KeyError:
-    #                 #     # If the calibration is being recalculated, calib_params
-    #                 #     # will have t=0 and t=max(uTime) values that are outside
-    #                 #     # the srmtabs index.
-    #                 #     # If this happens, drop them, and re-fill them at the end.
-    #                 #     self.calib_params.drop(g, inplace=True)
-    #         else:
-    #             ind = idx[a, :, :, :]
-    #             meas = self.srmtabs.loc[ind, 'meas_mean']
-    #             srm = self.srmtabs.loc[ind, 'srm_mean']
-    #             merr = self.srmtabs.loc[ind, 'meas_err']
-    #             serr = self.srmtabs.loc[ind, 'srm_err']
-    #             sigma = np.sqrt(merr**2 + serr**2)
-                
-    #             if len(meas) > 1:
-    #                 p, cov = curve_fit(fn, meas, srm, sigma=sigma)
-    #                 pe = unc.correlated_values(p, cov)                
-    #                 self.calib_params.loc[:, (a, 'm')] = pe[0]
-    #                 if not zero_intercept:
-    #                     self.calib_params.loc[:, (a, 'c')] = pe[1]
-    #             else:
-    #                 self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, serr) / 
-    #                                                       un.uarray(meas, merr))[0]
-    #                 if not zero_intercept:
-    #                     self.calib_params.loc[:, (a, 'c')] = 0
-
-    #     # if fill:
-    #     # fill in uTime=0 and uTime = max cases for interpolation
-    #     if self.calib_params.index.min() == 0:
-    #         self.calib_params.drop(0, inplace=True)
-    #         self.calib_params.drop(self.calib_params.index.max(), inplace=True)
-    #     self.calib_params.loc[0, :] = self.calib_params.loc[self.calib_params.index.min(), :]
-    #     maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
-    #     self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
-    #     # sort indices for slice access
-    #     self.calib_params.sort_index(1, inplace=True)
-    #     self.calib_params.sort_index(0, inplace=True)
-
-    #     # calculcate interpolators for applying calibrations
-    #     self.calib_ps = Bunch()
-    #     for a in analytes:
-    #         # TODO: revisit un_interp1d to see whether it plays well with correlated values. 
-    #         # Possible re-write to deal with covariance matrices?
-    #         self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
-    #                                             self.calib_params.loc[:, (a, 'm')].values)}
-    #         if not zero_intercept:
-    #             self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
-    #                                                 self.calib_params.loc[:, (a, 'c')].values)
-
-    #     with self.pbar.set(total=len(self.data), desc='Applying Calibrations') as prog:
-    #         for d in self.data.values():
-    #             d.calibrate(self.calib_ps, analytes)
-    #             prog.update()
-
-    #     # record SRMs used for plotting
-    #     markers = 'osDsv<>PX'  # for future implementation of SRM-specific markers.
-    #     if not hasattr(self, 'srms_used'):
-    #         self.srms_used = set(srms_used)
-    #     else:
-    #         self.srms_used.update(srms_used)
-    #     self.srm_mdict = {k: markers[i] for i, k in enumerate(self.srms_used)}
-
-    #     self.stages_complete.update(['calibrated'])
-    #     self.focus_stage = 'calibrated'
-
-    #     return
-
-
     # data filtering
     # TODO: Re-factor filtering to use 'classifier' objects?
 
@@ -2035,12 +1785,18 @@ class analyse(object):
     def read_internal_standard_concs(self, sample_concs=None):
         """
         Load in a per-sample list of internal sample concentrations.
+
+        Parameters
+        ----------
+
+        sample_concs : str
+            Path to csv file containing internal standard mass fractions.
         """
         if sample_concs is None:
             sample_concs = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
         
-        return pd.read_csv(sample_concs, index_col=0)
-
+        self.internal_standard_concs = pd.read_csv(sample_concs, index_col=0)
+        return self.internal_standard_concs
 
     @_log
     def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
@@ -2067,7 +1823,7 @@ class analyse(object):
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
 
-        isc = internal_standard_conc
+        isc = self.internal_standard_concs
 
         if isinstance(isc, str) or isc is None:
             isc = self.read_internal_standard_concs(isc)
@@ -2115,13 +1871,13 @@ class analyse(object):
             The name of the sample group. Defaults to n + 1, where n is
             the highest existing group number
         """
+        if isinstance(samples, str):
+            samples = [samples]
+
         # Check if a subset containing the same samples already exists.
         for k, v in self.subsets.items():
             if set(v) == set(samples) and k != 'not_in_set':
                 return k
-
-        if isinstance(samples, str):
-            samples = [samples]
 
         not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
         if len(not_exists) > 0:
@@ -3227,6 +2983,11 @@ class analyse(object):
         else:
             self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
 
+        # remove old columns
+        for k in list(self.focus.keys()):
+            if k not in columns:
+                self.focus.pop(k)
+
         return
 
     # fetch all the gradients from the data objects
@@ -3847,7 +3608,7 @@ class analyse(object):
                 prog.update()
         return
 
-    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, **kwargs):
+    def plot_stackhist(self, subset='All_Samples', samples=None, analytes=None, axs=None, filt=True, **kwargs):
         """
         Plot a stacked histograms of analytes for all given samples (or a pre-defined subset)
 
@@ -3870,22 +3631,22 @@ class analyse(object):
             fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
                                     constrained_layout=True, sharey=True)
         elif len(axs) != len(analytes):
-            raise ValueError(f'Must provide the same number of axes ({len(axes)}) and analytes ({len(analytes)})')
+            raise ValueError(f'Must provide the same number of axes ({len(axs)}) and analytes ({len(analytes)})')
             
         if samples is None:
             samples = self.subsets[subset]
         elif isinstance(samples, str):
             samples = [samples]
         
-        self.get_focus(filt=True, samples=samples)
+        # self.get_focus(filt=filt, samples=samples)
         for i, a in enumerate(analytes):
             m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
             arrays = []
             for s in samples:
-                sub = self.data[s].get_individual_ablations(analytes)
+                sub = self.data[s].get_individual_ablations(analytes, filt=filt)
                 arrays += [nominal_values(d[a]) * m for d in sub]
             
-            stackhist(arrays, ax=axs[i], **kwargs)
+            plot.stackhist(arrays, ax=axs[i], **kwargs)
             
             axs[i].set_xlabel(pretty_element(a) + '\n' + unit)
 
@@ -4317,9 +4078,6 @@ class analyse(object):
         if focus_stage is None:
             focus_stage = self.focus_stage
 
-        if focus_stage in ['ratios', 'calibrated']:
-            analytes = [a for a in analytes if a != self.internal_standard]
-
         if outdir is None:
             outdir = os.path.join(self.export_dir, 'trace_export')
 
@@ -4418,7 +4176,7 @@ class analyse(object):
 
         # parse minimal analytes (exclude ratios, include target_analytes)
         export_analytes = target_analytes
-        for a in self.minimal_analytes:
+        for a in self.minimal_analytes.difference([None]):
             export_analytes.update(a.split('_'))
         export_analytes = self.analytes_sorted(export_analytes, check_ratios=False)
 
@@ -4441,6 +4199,11 @@ class analyse(object):
             srmdat = self.srmdat.loc[idx[:, list(items)], :]
             with open(path + '/srm.table', 'w') as f:
                 f.write(srmdat.to_csv())
+        
+        # save internal_standard_concs
+        if hasattr(self, 'internal_standard_concs'):
+            log_header.append('internal_standard_concs :: ./internal_standard_concs.csv')
+            self.internal_standard_concs.to_csv(os.path.join(path, './internal_standard_concs.csv'))
 
         # save custom functions (of defined)
         if hasattr(self, 'custom_stat_functions'):
@@ -4466,7 +4229,7 @@ class analyse(object):
 
 
 def reproduce(past_analysis, plotting=False, data_path=None,
-              srm_table=None, custom_stat_functions=None):
+              srm_table=None, internal_standard_concs=None, custom_stat_functions=None):
     """
     Reproduce a previous analysis exported with :func:`latools.analyse.minimal_export`
 
@@ -4489,6 +4252,9 @@ def reproduce(past_analysis, plotting=False, data_path=None,
     srm_table : str
         Optional. Specify a different SRM table. SRM table
         should normally be in the same folder as the log file.
+    internal_standard_concs : pandas.DataFrame
+        Optional. Specify internal standard concentrations used
+        to calculate mass fractions.
     custom_stat_functions : str
         Optional. Specify a python file containing custom
         stat functions for use by reproduce. Any custom
@@ -4524,9 +4290,13 @@ def reproduce(past_analysis, plotting=False, data_path=None,
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):
                 csfs[fname.match(c).groups()[0]] = c
-
+    
     # create analysis object
     rep = analyse(*runargs[0][-1]['args'], **runargs[0][-1]['kwargs'])
+
+    # deal with internal standard concentrations
+    if internal_standard_concs is None and 'internal_standard_concs' in paths:
+        rep.read_internal_standard_concs(paths['internal_standard_concs'])
 
     # rest of commands
     for fname, arg in runargs:

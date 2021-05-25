@@ -1,5 +1,6 @@
 import shutil
 import unittest
+import pandas as pd
 import latools as la
 
 
@@ -57,6 +58,11 @@ class test_latools(unittest.TestCase):
     # calculate stats
     d.sample_stats(stats=['mean', 'std', 'se', 'H15_mean', 'H15_std', 'H15_se'], filt=True)
     s = d.getstats()
+
+    # calculate mass fractions
+    
+    d.internal_standard_concs = pd.DataFrame(0.6, index=d.samples, columns=['int_stand_massfrac'])
+    d.calculate_mass_fraction()
 
     # minimal export
     d.minimal_export()

@@ -1,7 +1,16 @@
 # Changelog
 All significant changes to the software will be documented here.
 
-## [0.3.20]
+## [0.3.21] 25/05/2021
+
+### Changed
+- Mass fraction calculation functions updated to work with analyte ratio names.
+- Reproduce now correctly handles mass fraction calculation.
+
+### Flags
+- Mass fraction calculation won't work well (at all?!) with multiple internal standards.
+
+## [0.3.20] 24/05/2021
 
 ### New
 - Integrated long file splitting into analysis function.
