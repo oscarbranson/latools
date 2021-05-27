@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.22] 27/05/2021
+
+### Changed
+- Fixes to handling of uncalibrated elements in _analyte_checker, which effects calibration, minimal_export and plotting after calibration.
+
 ## [0.3.21] 25/05/2021
 
 ### Changed
