@@ -39,7 +39,7 @@ from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, get_date,
                       unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, analyte_checker)
+                      get_total_time_span, analyte_checker, split_analyte_ratios)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -1560,11 +1560,8 @@ class analyse(object):
         # TODO: srm_id_plot!
         if isinstance(srms_used, str):
             srms_used = [srms_used]
-        
-        # compile measured SRM data
-        self.srm_compile_measured(n_min)
 
-        # load SRM database
+        # reload SRM database (if reloard_srm_databse=True)
         self.srm_load_database(srms_used, reload_srm_database)
 
         analytes = self._analyte_checker(analytes)
@@ -1651,6 +1648,12 @@ class analyse(object):
         -------
         None
         """
+        # load SRM database
+        self.srm_load_database(srms_used, reload_srm_database)
+
+        # compile measured SRM data
+        self.srm_compile_measured(n_min)
+
         analytes = self._analyte_checker(analytes)
         
         if isinstance(srms_used, str):
@@ -1744,6 +1747,7 @@ class analyse(object):
         with self.pbar.set(total=len(self.data), desc='Applying Calibrations') as prog:
             for d in self.data.values():
                 d.calibrate(self.calib_ps, analytes)
+                d.uncalibrated = self.uncalibrated
                 prog.update()
 
         # record SRMs used for plotting
@@ -1756,7 +1760,6 @@ class analyse(object):
 
         self.stages_complete.update(['calibrated'])
         self.focus_stage = 'calibrated'
-
         return
 
     # data filtering
@@ -1780,6 +1783,7 @@ class analyse(object):
 
         empty = pd.DataFrame(index=self.samples, columns=['int_stand_massfrac'])
         empty.to_csv(save_as)
+        self.internal_standard_concs = empty
         print(self._wrap_text('Sample List saved to {} \nPlease modify and re-import using read_internal_standard_concs()'.format(save_as)))
 
     def read_internal_standard_concs(self, sample_concs=None):
@@ -2962,10 +2966,7 @@ class analyse(object):
 
         focus = {'uTime': []}
 
-        if self.focus_stage not in ['ratios', 'calibrated']:
-            columns = self.analytes
-        else:
-            columns = self.analyte_ratios
+        columns = self._analyte_checker()
 
         focus.update({a: [] for a in columns})
 
@@ -4175,9 +4176,7 @@ class analyse(object):
             os.mkdir(path)
 
         # parse minimal analytes (exclude ratios, include target_analytes)
-        export_analytes = target_analytes
-        for a in self.minimal_analytes.difference([None]):
-            export_analytes.update(a.split('_'))
+        export_analytes = target_analytes.union(split_analyte_ratios(self.minimal_analytes))
         export_analytes = self.analytes_sorted(export_analytes, check_ratios=False)
 
         # export data

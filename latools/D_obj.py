@@ -127,7 +127,8 @@ class D(object):
 
         # set for recording calculated ratios
         self.analyte_ratios = set()
-
+        self.uncalibrated = set()
+        
         # calculate total counts
         self.data['total_counts'] = sum(self.data['rawdata'].values())
 

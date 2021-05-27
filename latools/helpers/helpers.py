@@ -515,11 +515,7 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False):
         analytes = [analytes]
 
     out = set()
-    if self.focus_stage not in ['ratios', 'calibrated'] or not check_ratios:
-        if analytes is None:
-            analytes = self.analytes
-        out = self.analytes.intersection(analytes)
-    else:
+    if self.focus_stage in ['ratios', 'calibrated'] and check_ratios:
         if analytes is None:
             analytes = self.analyte_ratios
         # case 1: provided analytes are an exact match for items in analyte_ratios
@@ -527,6 +523,16 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False):
         # case 2: provided analytes are in numerator of ratios
         valid2 = [a for a in self.analyte_ratios if a.split('_')[0] in analytes]
         out = valid1.union(valid2)
+    else:
+        if analytes is None:
+            analytes = self.analytes
+        out = self.analytes.intersection(analytes)
+
+    if len(self.uncalibrated) > 0:
+        if self.focus_stage in ['ratios', 'calibrated'] and check_ratios:
+            out.difference_update(self.uncalibrated)
+        else:
+            out.difference_update([u.split('_')[0] for u in self.uncalibrated])
     
     if len(out) == 0:
         raise ValueError(f'{analytes} does not match any valid analyte names.')
@@ -536,4 +542,14 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False):
             raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
         return out.pop()
 
+    return out
+
+def split_analyte_ratios(ratios):
+    out = set()
+    if isinstance(ratios, str):
+        out.update(ratios.split('_'))
+    elif ratios is None:
+        return out
+    else:
+        out.update(*map(split_analyte_ratios, ratios))
     return out
