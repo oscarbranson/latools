@@ -2966,10 +2966,7 @@ class analyse(object):
 
         focus = {'uTime': []}
 
-        if self.focus_stage not in ['ratios', 'calibrated']:
-            columns = self.analytes
-        else:
-            columns = self.analyte_ratios
+        columns = self._analyte_checker()
 
         focus.update({a: [] for a in columns})
 
