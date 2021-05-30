@@ -1,0 +1,16 @@
+{
+    "time_format": "%H:%M:%S:%f",
+    "meta_regex": {
+        "8": [["date"],".*Analysis date:\t*\ [0-9]*\/[0-9]*\/[0-9]*"]
+    },
+    "genfromtext_args": {
+        "delimiter": ",",
+        "skip_header": 15 
+    },
+    "column_id": {
+        "delimiter": "\t",
+        "timecolumn": 0,
+        "name_row": 16,
+        "pattern": "([A-z]{1,2}[0-9]{1,6})"
+    },
+    }
