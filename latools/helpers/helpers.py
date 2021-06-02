@@ -507,15 +507,18 @@ def stack_keys(ddict, keys, extra=None):
         d = extra + d
     return np.vstack(d).T
 
-def analyte_checker(self, analytes=None, check_ratios=True, single=False):
+def analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
     """
     Return valid analytes depending on the analysis stage
     """
     if isinstance(analytes, str):
         analytes = [analytes]
 
+    if focus_stage is None:
+        focus_stage = self.focus_stage
+
     out = set()
-    if self.focus_stage in ['ratios', 'calibrated'] and check_ratios:
+    if focus_stage in ['ratios', 'calibrated'] and check_ratios:
         if analytes is None:
             analytes = self.analyte_ratios
         # case 1: provided analytes are an exact match for items in analyte_ratios
@@ -529,7 +532,7 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False):
         out = self.analytes.intersection(analytes)
 
     if len(self.uncalibrated) > 0:
-        if self.focus_stage in ['ratios', 'calibrated'] and check_ratios:
+        if focus_stage in ['ratios', 'calibrated'] and check_ratios:
             out.difference_update(self.uncalibrated)
         else:
             out.difference_update([u.split('_')[0] for u in self.uncalibrated])

@@ -15,7 +15,7 @@ from pandas import IndexSlice as idx
 
 from tqdm import tqdm
 
-from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, calc_grads
+from .helpers import fastgrad, fastsmooth, findmins, bool_2_indices, rangecalc, unitpicker, calc_grads, analyte_checker
 from .analyte_names import pretty_element
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
 
@@ -65,10 +65,12 @@ def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
         if focus_stage is None:
             focus_stage = self.focus_stage
 
-        if analytes is None:
-            analytes = self.analytes        
-            if focus_stage in ['ratios', 'calibrated']:
-                analytes = self.analyte_ratios
+        # TODO: This is broken. conflict between manually specified focus_stage and analytes provided by D_obj
+        analytes = analyte_checker(self, analytes, focus_stage=focus_stage)
+        # if analytes is None:
+            # analytes = self.analytes        
+            # if focus_stage in ['ratios', 'calibrated']:
+            #     analytes = self.analyte_ratios
 
         if ax is None:
             fig = plt.figure(figsize=figsize)
