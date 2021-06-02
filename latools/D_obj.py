@@ -356,7 +356,7 @@ class D(object):
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
                                             on_mult=on_mult, off_mult=off_mult,
-                                            transform=transform)
+                                            transform=transform, **kwargs)
 
         self.mkrngs()
 

@@ -550,7 +550,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
-                  transform='log', ploterrs=True, focus_stage='despiked'):
+                  transform='log', ploterrs=True, focus_stage='despiked', **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -638,7 +638,7 @@ class analyse(object):
             for s, d in self.data.items():
                 f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
                                 on_mult=on_mult, off_mult=off_mult,
-                                ploterrs=ploterrs, transform=transform)
+                                ploterrs=ploterrs, transform=transform, **kwargs)
                 if f is not None:
                     fails[s] = f
                 prog.update()  # advance progress bar
@@ -2973,10 +2973,11 @@ class analyse(object):
         for sa in samples:
             s = self.data[sa]
             focus['uTime'].append(s.uTime)
-            ind = s.filt.grab_filt(filt)
             for a in columns:
                 tmp = s.focus[a].copy()
-                tmp[~ind] = np.nan
+                if s.filt is not None:
+                    ind = s.filt.grab_filt(filt, a)
+                    tmp[~ind] = np.nan
                 focus[a].append(tmp)
 
         if nominal:
