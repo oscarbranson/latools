@@ -283,7 +283,10 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
                 
         sn += 1
 
-    bounds.append((sample_list[-1], (int(upper) + 1, len(ns))))
+    if len(sample_list) == 1:
+        bounds.append((sample_list[-1], (0, len(dat['Time']))))
+    else:
+        bounds.append((sample_list[-1], (int(upper) + 1, len(ns))))
 
     # split up data
     sections = {}
