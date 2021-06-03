@@ -176,14 +176,14 @@ class D(object):
 
         return
 
-    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         """
         Return valid analytes depending on the analysis stage
         """
-        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
-    def analytes_sorted(self, a=None, check_ratios=True):
-        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
+    def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
