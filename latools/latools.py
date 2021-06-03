@@ -3500,7 +3500,7 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus)
 
         # if samples is not None:
         #     subset = self.make_subset(samples)
