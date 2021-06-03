@@ -38,7 +38,7 @@ To effect the data, a filter must be activated:
     eg.filter_on('Al27_below')
 
     # Plot the data for Sample-1 only
-    eg.data['Sample-1'].tplot(filt=True)
+    eg.data['Sample-1'].trace_plot(filt=True)
 
 .. image :: ./figs/1-conc-absolute.png
 
@@ -78,7 +78,7 @@ For example, imagine a calcium carbonate sample which we know should have consta
     # plot the gradient for Sample-1
     eg.data['Sample-1'].gplot('Al27', win=25)
     # plot the effect of the filter for Sample-1
-    eg.data['Sample-1'].tplot(filt=True)
+    eg.data['Sample-1'].trace_plot(filt=True)
 
 .. image :: ./figs/1-grad-absolute.png
 
@@ -131,7 +131,7 @@ For example, to remove regions containing the top 10% of Al concentrations:
 
     eg.filter_on('Al_below')
 
-    eg.data['Sample-1'].tplot(filt=True)
+    eg.data['Sample-1'].trace_plot(filt=True)
 
 .. image :: ./figs/1-conc-percentile.png
 

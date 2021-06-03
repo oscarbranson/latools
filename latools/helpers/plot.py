@@ -27,7 +27,7 @@ def calc_nrow(n, ncol):
     
     return int(nrow)
     
-def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
+def trace_plot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               focus_stage=None, err_envelope=False, ax=None):
         """

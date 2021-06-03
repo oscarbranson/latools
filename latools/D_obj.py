@@ -375,7 +375,7 @@ class D(object):
             #                "everything is OK.\n"))
 
         if ploterrs and errs_to_plot and len(plotlines) > 0:
-            f, ax = self.tplot(ranges=True)
+            f, ax = self.trace_plot(ranges=True)
             for pl in plotlines:
                 ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
             return f, plotlines
@@ -1361,12 +1361,12 @@ class D(object):
         overlay_alpha : float
             The opacity of the threshold overlays. Between 0 and 1.
         **kwargs
-            Passed to `tplot`
+            Passed to `trace_plot`
         """
         return optimisation_plot(self, overlay_alpha=0.5, **kwargs)
 
     @_log
-    def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
+    def trace_plot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               focus_stage=None, err_envelope=False, ax=None):
         """
@@ -1402,7 +1402,7 @@ class D(object):
         figure, axis
         """
 
-        return plot.tplot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
+        return plot.trace_plot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
                           ranges=ranges, stats=stats, stat=stat, err=err,
                           focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 

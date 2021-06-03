@@ -777,7 +777,7 @@ class analyse(object):
 
     @_log
     def despike(self, expdecay_despiker=False, exponent=None,
-                noise_despiker=True, win=3, nlim=12., exponentplot=False,
+                noise_despiker=True, win=3, nlim=12., exponentrace_plot=False,
                 maxiter=4, autorange_kwargs={}, focus_stage='rawdata'):
         """
         Despikes data with exponential decay and noise filters.
@@ -800,7 +800,7 @@ class analyse(object):
         nlim : float
             The number of standard deviations above the rolling mean
             that data are excluded.
-        exponentplot : bool
+        exponentrace_plot : bool
             Whether or not to show a plot of the automatically determined
             exponential decay exponent.
         maxiter : int
@@ -827,7 +827,7 @@ class analyse(object):
 
         if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                self.find_expcoef(plot=exponentplot,
+                self.find_expcoef(plot=exponentrace_plot,
                                   autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
             time.sleep(0.1)
@@ -2856,7 +2856,7 @@ class analyse(object):
         overlay_alpha : float
             The opacity of the threshold overlays. Between 0 and 1.
         **kwargs
-            Passed to `tplot`
+            Passed to `trace_plot`
         """
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3514,7 +3514,7 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
-                f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
+                f, a = self.data[s].trace_plot(analytes=analytes, figsize=figsize,
                                         scale=scale, filt=filt,
                                         ranges=ranges, stats=stats,
                                         stat=stat, err=err, focus_stage=focus)
@@ -3849,7 +3849,7 @@ class analyse(object):
 
     # function for visualising sample statistics
     @_log
-    def statplot(self, analytes=None, samples=None, figsize=None,
+    def statrace_plot(self, analytes=None, samples=None, figsize=None,
                  stat='mean', err='std', subset=None):
         """
         Function for visualising per-ablation and per-sample means.
