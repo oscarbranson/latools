@@ -5,3 +5,5 @@ uncertainties>=3.0
 tqdm>=4.14
 matplotlib>=2.1
 scikit-learn>=0.19
+ipython
+tqdm
