@@ -1,5 +1,5 @@
 <div align="right">
-  <a href="https://travis-ci.org/oscarbranson/latools"><img src="https://travis-ci.org/oscarbranson/latools.svg?branch=gui" alt="TravisCI build" height="18"></a>
+  <a href="https://github.com/oscarbranson/latools/actions"><img src="https://github.com/oscarbranson/latools/actions/workflows/tests.yml/badge.svg" alt="GHA" height="18"></a>
   <a href="http://latools.readthedocs.io/en/latest/?badge=latest"><img src='http://readthedocs.org/projects/latools/badge/?version=latest' alt='Documentation Status' height="18"/></a>
   <a href="https://badge.fury.io/py/latools"><img src="https://badge.fury.io/py/latools.svg" alt="PyPI version" height="18"></a>
 </div>
