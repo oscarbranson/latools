@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gaussian_kde
 from scipy.optimize import curve_fit
-from IPython import display
+# from IPython import display
 from pandas import IndexSlice as idx
 
 from tqdm import tqdm
