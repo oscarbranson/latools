@@ -38,8 +38,8 @@ from .preprocessing.split import long_file
 from .D_obj import D
 from .helpers.helpers import (rolling_window, enumerate_bool,
                       un_interp1d, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, analyte_checker, split_analyte_ratios)
+                      rangecalc, Bunch, calc_grads,
+                      get_total_time_span)
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -48,7 +48,7 @@ from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
 from .helpers.chemistry import analyte_mass, decompose_molecule
-from .helpers.analyte_names import get_analyte_name, analyte_2_massname, pretty_element, analyte_sort_fn
+from .helpers.analytes import get_analyte_name, analyte_2_massname, pretty_element, unitpicker, analyte_sort_fn, analyte_checker, split_analyte_ratios
 
 idx = pd.IndexSlice  # multi-index slicing!
 

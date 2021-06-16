@@ -15,7 +15,7 @@ import pkg_resources as pkgrs
 from warnings import warn
 from ..processes import read_data, autorange
 from ..helpers.helpers import bool_2_indices
-from ..helpers.analyte_names import analyte_2_namemass
+from ..helpers.analytes import analyte_2_namemass
 from ..helpers.io import read_dataformat
 
 import matplotlib.pyplot as plt
