@@ -11,7 +11,7 @@ import re
 import numpy as np
 import textwrap as tw
 import pkg_resources as pkgrs
-from .helpers import Bunch
+from .utils import Bunch
 
 from io import BytesIO
 from shutil import copyfile

@@ -26,11 +26,11 @@ from .filtering.filt_obj import filt
 from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
-from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, findmins, stack_keys)
+from .helpers.utils import Bunch
+from .helpers.signal import bool_2_indices, rolling_window, calc_grads, findmins
 from .helpers.analytes import pretty_element, analyte_sort_fn, unitpicker, analyte_checker
 from .helpers.logging import _log
-from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
+from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr, stack_keys
 from .helpers.chemistry import to_mass_fraction, analyte_mass
 
 # TODO: Neat way to get data with filters applied

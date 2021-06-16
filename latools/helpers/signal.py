@@ -1,111 +1,11 @@
 """
-Helper functions used by multiple parts of LAtools.
+Helper functions for signal separation and identification.
 
 (c) Oscar Branson : https://github.com/oscarbranson
 """
-import os
-import shutil
-import re
-import configparser
-import datetime as dt
 import numpy as np
-import dateutil as du
-import pkg_resources as pkgrs
-import uncertainties.unumpy as un
-import scipy.interpolate as interp
 from .stat_fns import nominal_values
-from .analytes import pretty_element
-
-# Bunch modifies dict to allow item access using dot (.) operator
-class Bunch(dict):
-    def __init__(self, *args, **kwds):
-        super(Bunch, self).__init__(*args, **kwds)
-        self.__dict__ = self
-
-# warnings monkeypatch
-# https://stackoverflow.com/questions/2187269/python-print-only-the-message-on-warnings
-def _warning(message, category=UserWarning,
-             filename='', lineno=-1,
-             file=None, line=None):
-    print(message)
-
-def get_date(datetime, time_format=None):
-    """
-    Return a datetime oject from a string, with optional time format.
-
-    Parameters
-    ----------
-    datetime : str
-        Date-time as string in any sensible format.
-    time_format : datetime str (optional)
-        String describing the datetime format. If missing uses
-        dateutil.parser to guess time format.
-    """
-    if isinstance(datetime, dt.datetime):
-        t = datetime
-    elif time_format is not None:
-        t = dt.datetime.strptime(datetime, time_format)
-    else:
-        t = du.parser.parse(datetime)        
-    return t
-
-def get_total_n_points(d):
-    """
-    Returns the total number of data points in values of dict.
-
-    Paramters
-    ---------
-    d : dict
-    """
-    n = 0
-    for di in d.values():
-        n += len(di)
-    return n
-
-def get_total_time_span(d):
-    """
-    Returns total length of analysis.
-    """
-
-    tmax = 0
-    for di in d.values():
-        if di.uTime.max() > tmax:
-            tmax = di.uTime.max()
-    
-    return tmax
-
-def collate_data(in_dir, extension='.csv', out_dir=None):
-    """
-    Copy all csvs in nested directroy to single directory.
-
-    Function to copy all csvs from a directory, and place
-    them in a new directory.
-
-    Parameters
-    ----------
-    in_dir : str
-        Input directory containing csv files in subfolders
-    extension : str
-        The extension that identifies your data files.
-        Defaults to '.csv'.
-    out_dir : str
-        Destination directory
-
-    Returns
-    -------
-    None
-    """
-    if out_dir is None:
-        out_dir = './' + re.search('^\.(.*)', extension).groups(0)[0]
-
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
-
-    for p, d, fs in os.walk(in_dir):
-        for f in fs:
-            if extension in f:
-                shutil.copy(p + '/' + f, out_dir + '/' + f)
-    return
+from .utils import Bunch
 
 def bool_transitions(a):
     """
@@ -178,55 +78,6 @@ def tuples_2_bool(tuples, x):
     for l, u in tuples:
         out[(x > l) & (x < u)] = True
     return out
-
-def get_example_data(destination_dir):
-    if os.path.isdir(destination_dir):
-        overwrite = input(destination_dir +
-                          ' already exists. Overwrite? [N/y]: ').lower() == 'y'
-        if overwrite:
-            shutil.rmtree(destination_dir)
-        else:
-            print(destination_dir + ' was not overwritten.')
-
-    shutil.copytree(pkgrs.resource_filename('latools', 'resources/test_data'),
-                    destination_dir)
-
-    return
-
-def rangecalc(xs, pad=0.05):
-    mn = np.nanmin(xs)
-    mx = np.nanmax(xs)
-    xr = mx - mn
-    return [mn - pad * xr, mx + pad * xr]
-
-class un_interp1d(object):
-    """
-    object for handling interpolation of values with uncertainties.
-    """
-
-    def __init__(self, x, y, fill_value=np.nan, **kwargs):
-        if isinstance(fill_value, tuple):
-            nom_fill = tuple([un.nominal_values(v) for v in fill_value])
-            std_fill = tuple([un.std_devs(v) for v in fill_value])
-        else:
-            nom_fill = std_fill = fill_value
-        self.nom_interp = interp.interp1d(un.nominal_values(x),
-                                          un.nominal_values(y),
-                                          fill_value=nom_fill, **kwargs)
-        self.std_interp = interp.interp1d(un.nominal_values(x),
-                                          un.std_devs(y),
-                                          fill_value=std_fill, **kwargs)
-
-    def new(self, xn):
-        yn = self.nom_interp(xn)
-        yn_err = self.std_interp(xn)
-        return un.uarray(yn, yn_err)
-
-    def new_nom(self, xn):
-        return self.nom_interp(xn)
-
-    def new_std(self, xn):
-        return self.std_interp(xn)
 
 def rolling_window(a, window, window_mode='mid', pad=None):
     """
@@ -419,30 +270,3 @@ def findmins(x, y):
         Array of points in x where y has a local minimum.
     """
     return x[np.r_[False, y[1:] < y[:-1]] & np.r_[y[:-1] < y[1:], False]]
-
-def stack_keys(ddict, keys, extra=None):
-    """
-    Combine elements of ddict into an array of shape (len(ddict[key]), len(keys)).
-
-    Useful for preparing data for sklearn.
-
-    Parameters
-    ----------
-    ddict : dict
-        A dict containing arrays or lists to be stacked.
-        Must be of equal length.
-    keys : list or str
-        The keys of dict to stack. Must be present in ddict.
-    extra : list (optional)
-        A list of additional arrays to stack. Elements of extra
-        must be the same length as arrays in ddict.
-        Extras are inserted as the first columns of output.
-    """
-    if isinstance(keys, str):
-        d = [ddict[keys]]
-    else:
-        d = [ddict[k] for k in keys]
-    if extra is not None:
-        d = extra + d
-    return np.vstack(d).T
-

@@ -11,7 +11,8 @@ from scipy.optimize import curve_fit
 from sklearn.preprocessing import scale
 from sklearn.cluster import KMeans
 
-from ..helpers.helpers import Bunch, fastgrad, fastsmooth, findmins, bool_2_indices, bool_transitions
+from ..helpers.utils import Bunch
+from ..helpers.signal import fastgrad, fastsmooth, findmins, bool_2_indices, bool_transitions
 from ..helpers.stat_fns import gauss
 
 warnings.filterwarnings("ignore")

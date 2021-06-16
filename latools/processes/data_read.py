@@ -7,7 +7,7 @@ import re, os
 import numpy as np
 from io import BytesIO
 import json
-from ..helpers.helpers import Bunch
+from ..helpers import Bunch
 
 def read_data(data_file, dataformat, name_mode):
     """

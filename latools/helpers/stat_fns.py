@@ -6,6 +6,7 @@ Functions for calculating statistics and handling uncertainties.
 
 import numpy as np
 import uncertainties.unumpy as un
+import scipy.interpolate as interp
 from scipy.stats import pearsonr
 
 def nan_pearsonr(x, y):
@@ -191,3 +192,84 @@ def H15_se(x):
     """
     sd = H15_std(x)
     return sd / np.sqrt(sum(np.isfinite(x)))
+
+def get_total_n_points(d):
+    """
+    Returns the total number of data points in values of dict.
+
+    Paramters
+    ---------
+    d : dict
+    """
+    n = 0
+    for di in d.values():
+        n += len(di)
+    return n
+
+def get_total_time_span(d):
+    """
+    Returns total length of analysis.
+    """
+
+    tmax = 0
+    for di in d.values():
+        if di.uTime.max() > tmax:
+            tmax = di.uTime.max()
+    
+    return tmax
+
+class un_interp1d(object):
+    """
+    object for handling interpolation of values with uncertainties.
+    """
+
+    def __init__(self, x, y, fill_value=np.nan, **kwargs):
+        if isinstance(fill_value, tuple):
+            nom_fill = tuple([un.nominal_values(v) for v in fill_value])
+            std_fill = tuple([un.std_devs(v) for v in fill_value])
+        else:
+            nom_fill = std_fill = fill_value
+        self.nom_interp = interp.interp1d(un.nominal_values(x),
+                                          un.nominal_values(y),
+                                          fill_value=nom_fill, **kwargs)
+        self.std_interp = interp.interp1d(un.nominal_values(x),
+                                          un.std_devs(y),
+                                          fill_value=std_fill, **kwargs)
+
+    def new(self, xn):
+        yn = self.nom_interp(xn)
+        yn_err = self.std_interp(xn)
+        return un.uarray(yn, yn_err)
+
+    def new_nom(self, xn):
+        return self.nom_interp(xn)
+
+    def new_std(self, xn):
+        return self.std_interp(xn)
+
+def stack_keys(ddict, keys, extra=None):
+    """
+    Combine elements of ddict into an array of shape (len(ddict[key]), len(keys)).
+
+    Useful for preparing data for sklearn.
+
+    Parameters
+    ----------
+    ddict : dict
+        A dict containing arrays or lists to be stacked.
+        Must be of equal length.
+    keys : list or str
+        The keys of dict to stack. Must be present in ddict.
+    extra : list (optional)
+        A list of additional arrays to stack. Elements of extra
+        must be the same length as arrays in ddict.
+        Extras are inserted as the first columns of output.
+    """
+    if isinstance(keys, str):
+        d = [ddict[keys]]
+    else:
+        d = [ddict[k] for k in keys]
+    if extra is not None:
+        d = extra + d
+    return np.vstack(d).T
+
