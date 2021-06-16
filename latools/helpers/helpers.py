@@ -74,7 +74,7 @@ def get_total_time_span(d):
     
     return tmax
 
-def unitpicker(a, denominator=None, focus_stage=None):
+def unitpicker(a, label=None, focus_stage=None):
     """
     Determines the most appropriate plotting unit for data.
 
@@ -98,8 +98,8 @@ def unitpicker(a, denominator=None, focus_stage=None):
     if a == 0:
         raise ValueError("Cannot calculate unit for zero.")
 
-    if denominator is not None:
-        pd = pretty_element(denominator)
+    if label is not None:
+        pd = pretty_element(label)
     else:
         pd = ''
 

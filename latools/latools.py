@@ -3174,8 +3174,7 @@ class analyse(object):
 
         fig, axes = plot.crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
                                    bins=bins, figsize=figsize, colourful=colourful,
-                                   focus_stage=self.focus_stage, cmap=self.cmaps,
-                                   denominator=self.internal_standard, mode=mode)
+                                   focus_stage=self.focus_stage, cmap=self.cmaps, mode=mode)
 
         if save or isinstance(save, str):
             if isinstance(save, str):

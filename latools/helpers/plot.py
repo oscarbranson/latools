@@ -272,7 +272,7 @@ def gplot(self, analytes=None, win=25, figsize=[10, 4], filt=False,
             return fig, ax
 
 def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
-              colourful=True, focus_stage=None, denominator=None,
+              colourful=True, focus_stage=None,
               mode='hist2d', cmap=None, **kwargs):
     """
     Plot analytes against each other.
@@ -342,7 +342,7 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
     # determine units for all keys
     udict = {a: unitpicker(np.nanmean(focus[a]),
                            focus_stage=focus_stage,
-                           denominator=denominator) for a in keys}
+                           label=a) for a in keys}
     # determine ranges for all analytes
     rdict = {a: (np.nanmin(focus[a] * udict[a][0]),
                  np.nanmax(focus[a] * udict[a][0])) for a in keys}
@@ -397,9 +397,10 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
 
     # diagonal labels
     for a, n in zip(keys, np.arange(len(keys))):
-        axes[n, n].annotate(a + '\n' + udict[a][1], (0.5, 0.5),
+        label = udict[a][1].split(' ')
+        axes[n, n].annotate('\n'.join(label[::-1]), (0.5, 0.5),
                             xycoords='axes fraction',
-                            ha='center', va='center', fontsize=8)
+                            ha='center', va='center', fontsize=10)
         axes[n, n].set_xlim(*rdict[a])
         axes[n, n].set_ylim(*rdict[a])
     # switch on alternating axes
@@ -1082,8 +1083,7 @@ def filter_report(Data, filt=None, analytes=None, savedir=None, nbin=5):
             yh = y[~np.isnan(y)]
 
             m, u = unitpicker(np.nanmax(y),
-                            denominator=Data.internal_standard,
-                            focus_stage=Data.focus_stage)
+                              focus_stage=Data.focus_stage)
 
             axs = tax, hax = (fig.add_axes([.1, .9 - (i + 1) * h, .6, h * .98]),
                             fig.add_axes([.7, .9 - (i + 1) * h, .2, h * .98]))
