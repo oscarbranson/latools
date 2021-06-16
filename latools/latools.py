@@ -1329,7 +1329,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, analytes=None):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1346,12 +1346,12 @@ class analyse(object):
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
         
-        analytes = self._analyte_checker(analytes, check_ratios=False)
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
 
-        if self.internal_standard in self.analytes:
+        if self.internal_standard in self.analytes.union(self.analyte_ratios):
             self.minimal_analytes.update([internal_standard])
             self.calibration_analytes.update([internal_standard])
             self.calibration_analytes.update(analytes)
@@ -1361,13 +1361,14 @@ class analyse(object):
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
-                s.ratio(internal_standard=self.internal_standard, analytes=analytes)
+                s.ratio(internal_standard=self.internal_standard, analytes=analytes, focus_stage=focus_stage)
                 self.analyte_ratios.update(s.analyte_ratios)
                 self.cmaps.update(s.cmap)
                 prog.update()
-
-        self.stages_complete.update(['ratios'])
-        self.focus_stage = 'ratios'
+        
+        if self.focus_stage not in ['ratios', 'calibrated', 'mass_fraction']:
+            self.stages_complete.update(['ratios'])
+            self.focus_stage = 'ratios'
         return
 
     def srm_load_database(self, srms_used=None, reload=False):

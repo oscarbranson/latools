@@ -504,7 +504,7 @@ class D(object):
         self.data['bkgsub'][target_analyte] -= self.data['bkgsub'][source_analyte] * f
 
     @_log
-    def ratio(self, internal_standard=None, analytes=None):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -520,10 +520,12 @@ class D(object):
         if internal_standard is not None:
             self.internal_standard = internal_standard
         
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
+
+        # if analytes is None:
+        #     analytes = self.analytes
+        # elif isinstance(analytes, str):
+        #     analytes = [analytes]
         
         if 'ratios' not in self.data.keys():
             self.data['ratios'] = Bunch()
@@ -531,11 +533,12 @@ class D(object):
             if a == internal_standard:
                 continue
             analyte_ratio = f'{a}_{self.internal_standard}'
-            self.data['ratios'][analyte_ratio] = (self.data['bkgsub'][a] /
-                                      self.data['bkgsub'][self.internal_standard])
+            self.data['ratios'][analyte_ratio] = (self.data[focus_stage][a] /
+                                      self.data[focus_stage][self.internal_standard])
             self.analyte_ratios.update([analyte_ratio])
             self.cmap[analyte_ratio] = self.cmap[a]
-        self.setfocus('ratios')
+        if self.focus_stage not in ['ratios', 'calibrated', 'mass_fraction']:
+            self.setfocus('ratios')
         return
 
     @_log
