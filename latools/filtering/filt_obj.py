@@ -6,7 +6,8 @@ import re
 import numpy as np
 import pandas as pd
 from difflib import SequenceMatcher as seqm
-from latools.helpers.helpers import bool_2_indices, Bunch
+from latools.helpers import Bunch
+from latools.helpers.signal import bool_2_indices
 
 class filt(object):
     """

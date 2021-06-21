@@ -26,12 +26,11 @@ from .filtering.filt_obj import filt
 from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
 from .helpers import plot
-from .helpers.helpers import (bool_2_indices, rolling_window, Bunch,
-                              calc_grads, unitpicker, findmins, stack_keys,
-                              analyte_checker)
-from .helpers.analyte_names import pretty_element, analyte_sort_fn
+from .helpers.utils import Bunch
+from .helpers.signal import bool_2_indices, rolling_window, calc_grads, findmins
+from .helpers.analytes import pretty_element, analyte_sort_fn, unitpicker, analyte_checker
 from .helpers.logging import _log
-from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr
+from .helpers.stat_fns import nominal_values, std_devs, unpack_uncertainties, nan_pearsonr, stack_keys
 from .helpers.chemistry import to_mass_fraction, analyte_mass
 
 # TODO: Neat way to get data with filters applied
@@ -176,14 +175,14 @@ class D(object):
 
         return
 
-    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         """
         Return valid analytes depending on the analysis stage
         """
-        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
-    def analytes_sorted(self, a=None, check_ratios=True):
-        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
+    def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
@@ -375,7 +374,7 @@ class D(object):
             #                "everything is OK.\n"))
 
         if ploterrs and errs_to_plot and len(plotlines) > 0:
-            f, ax = self.tplot(ranges=True)
+            f, ax = self.trace_plot(ranges=True)
             for pl in plotlines:
                 ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
             return f, plotlines
@@ -504,7 +503,7 @@ class D(object):
         self.data['bkgsub'][target_analyte] -= self.data['bkgsub'][source_analyte] * f
 
     @_log
-    def ratio(self, internal_standard=None, analytes=None):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -520,22 +519,41 @@ class D(object):
         if internal_standard is not None:
             self.internal_standard = internal_standard
         
-        if analytes is None:
-            analytes = self.analytes
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+        # deal with ratio calculation from other ratios
+        existing_ratios = False
+        if '_' in self.internal_standard:
+            existing_ratios = True
+        if focus_stage == 'bkgsub':
+            target_stage = 'ratios'
+        else:
+            target_stage = focus_stage
+
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
+
+        # if analytes is None:
+        #     analytes = self.analytes
+        # elif isinstance(analytes, str):
+        #     analytes = [analytes]
         
         if 'ratios' not in self.data.keys():
             self.data['ratios'] = Bunch()
         for a in analytes:
-            if a == internal_standard:
+            if a == self.internal_standard:
                 continue
-            analyte_ratio = f'{a}_{self.internal_standard}'
-            self.data['ratios'][analyte_ratio] = (self.data['bkgsub'][a] /
-                                      self.data['bkgsub'][self.internal_standard])
+            
+            if existing_ratios:
+                num = a.split('_')[0]
+                denom = self.internal_standard.split('_')[0]
+                analyte_ratio = f'{num}_{denom}'
+            else:
+                analyte_ratio = f'{a}_{self.internal_standard}'
+            
+            self.data[target_stage][analyte_ratio] = (self.data[focus_stage][a] /
+                                      self.data[focus_stage][self.internal_standard])
             self.analyte_ratios.update([analyte_ratio])
             self.cmap[analyte_ratio] = self.cmap[a]
-        self.setfocus('ratios')
+        
+            self.setfocus(target_stage)
         return
 
     @_log
@@ -1361,12 +1379,12 @@ class D(object):
         overlay_alpha : float
             The opacity of the threshold overlays. Between 0 and 1.
         **kwargs
-            Passed to `tplot`
+            Passed to `trace_plot`
         """
         return optimisation_plot(self, overlay_alpha=0.5, **kwargs)
 
     @_log
-    def tplot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
+    def trace_plot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
               ranges=False, stats=False, stat='nanmean', err='nanstd',
               focus_stage=None, err_envelope=False, ax=None):
         """
@@ -1402,7 +1420,7 @@ class D(object):
         figure, axis
         """
 
-        return plot.tplot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
+        return plot.trace_plot(self=self, analytes=analytes, figsize=figsize, scale=scale, filt=filt,
                           ranges=ranges, stats=stats, stat=stat, err=err,
                           focus_stage=focus_stage, err_envelope=err_envelope, ax=ax)
 

@@ -5,6 +5,8 @@ Tools for handling file reading/writing.
 """
 import os
 import json
+import datetime as dt
+import dateutil as du
 import pkg_resources as pkgrs
 from .config import read_configuration
 
@@ -44,3 +46,23 @@ def read_dataformat(dataformat, silent=True):
         return dataformat
     else:
         raise TypeError("Incorrect 'dataformat' type - must be a dict or a str.")
+
+def get_date(datetime, time_format=None):
+    """
+    Return a datetime oject from a string, with optional time format.
+
+    Parameters
+    ----------
+    datetime : str
+        Date-time as string in any sensible format.
+    time_format : datetime str (optional)
+        String describing the datetime format. If missing uses
+        dateutil.parser to guess time format.
+    """
+    if isinstance(datetime, dt.datetime):
+        t = datetime
+    elif time_format is not None:
+        t = dt.datetime.strptime(datetime, time_format)
+    else:
+        t = du.parser.parse(datetime)        
+    return t

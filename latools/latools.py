@@ -36,10 +36,9 @@ from .processes import read_data
 from .preprocessing.split import long_file
 
 from .D_obj import D
-from .helpers.helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, analyte_checker, split_analyte_ratios)
+from .helpers import Bunch
+from .helpers.plot import rangecalc
+from .helpers.signal import rolling_window, enumerate_bool, calc_grads
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -48,7 +47,8 @@ from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
 from .helpers.chemistry import analyte_mass, decompose_molecule
-from .helpers.analyte_names import get_analyte_name, analyte_2_massname, pretty_element, analyte_sort_fn
+from .helpers.analytes import get_analyte_name, analyte_2_massname, pretty_element, unitpicker, analyte_sort_fn, analyte_checker, split_analyte_ratios
+from .helpers.io import get_date
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -499,15 +499,15 @@ class analyse(object):
                 'data_path :: {}'.format(self.path),
                 '# Analysis Log Start: \n'
                 ]
-    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         """
         Return valid analytes depending on the analysis stage
         """
-        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
 
-    def analytes_sorted(self, a=None, check_ratios=True):
-        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
+    def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -777,7 +777,7 @@ class analyse(object):
 
     @_log
     def despike(self, expdecay_despiker=False, exponent=None,
-                noise_despiker=True, win=3, nlim=12., exponentplot=False,
+                noise_despiker=True, win=3, nlim=12., exponentrace_plot=False,
                 maxiter=4, autorange_kwargs={}, focus_stage='rawdata'):
         """
         Despikes data with exponential decay and noise filters.
@@ -800,7 +800,7 @@ class analyse(object):
         nlim : float
             The number of standard deviations above the rolling mean
             that data are excluded.
-        exponentplot : bool
+        exponentrace_plot : bool
             Whether or not to show a plot of the automatically determined
             exponential decay exponent.
         maxiter : int
@@ -827,7 +827,7 @@ class analyse(object):
 
         if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                self.find_expcoef(plot=exponentplot,
+                self.find_expcoef(plot=exponentrace_plot,
                                   autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
             time.sleep(0.1)
@@ -1329,7 +1329,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, analytes=None):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1346,12 +1346,12 @@ class analyse(object):
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
         
-        analytes = self._analyte_checker(analytes, check_ratios=False)
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
 
-        if self.internal_standard in self.analytes:
+        if self.internal_standard in self.analytes.union(self.analyte_ratios):
             self.minimal_analytes.update([internal_standard])
             self.calibration_analytes.update([internal_standard])
             self.calibration_analytes.update(analytes)
@@ -1361,13 +1361,14 @@ class analyse(object):
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
-                s.ratio(internal_standard=self.internal_standard, analytes=analytes)
+                s.ratio(internal_standard=self.internal_standard, analytes=analytes, focus_stage=focus_stage)
                 self.analyte_ratios.update(s.analyte_ratios)
                 self.cmaps.update(s.cmap)
                 prog.update()
-
-        self.stages_complete.update(['ratios'])
-        self.focus_stage = 'ratios'
+        
+        if self.focus_stage not in ['ratios', 'calibrated', 'mass_fraction']:
+            self.stages_complete.update(['ratios'])
+            self.focus_stage = 'ratios'
         return
 
     def srm_load_database(self, srms_used=None, reload=False):
@@ -2856,7 +2857,7 @@ class analyse(object):
         overlay_alpha : float
             The opacity of the threshold overlays. Between 0 and 1.
         **kwargs
-            Passed to `tplot`
+            Passed to `trace_plot`
         """
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3173,8 +3174,7 @@ class analyse(object):
 
         fig, axes = plot.crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
                                    bins=bins, figsize=figsize, colourful=colourful,
-                                   focus_stage=self.focus_stage, cmap=self.cmaps,
-                                   denominator=self.internal_standard, mode=mode)
+                                   focus_stage=self.focus_stage, cmap=self.cmaps, mode=mode)
 
         if save or isinstance(save, str):
             if isinstance(save, str):
@@ -3508,7 +3508,7 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus)
 
         # if samples is not None:
         #     subset = self.make_subset(samples)
@@ -3522,7 +3522,7 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
-                f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
+                f, a = self.data[s].trace_plot(analytes=analytes, figsize=figsize,
                                         scale=scale, filt=filt,
                                         ranges=ranges, stats=stats,
                                         stat=stat, err=err, focus_stage=focus)
@@ -3857,7 +3857,7 @@ class analyse(object):
 
     # function for visualising sample statistics
     @_log
-    def statplot(self, analytes=None, samples=None, figsize=None,
+    def statrace_plot(self, analytes=None, samples=None, figsize=None,
                  stat='mean', err='std', subset=None):
         """
         Function for visualising per-ablation and per-sample means.
