@@ -3243,7 +3243,7 @@ class analyse(object):
         return fig, axes
 
     def histograms(self, analytes=None, bins=25, logy=False,
-                   filt=False, colourful=True):
+                   samples=None, subset=None, filt=False, colourful=True):
         """
         Plot histograms of analytes.
 
@@ -3255,6 +3255,10 @@ class analyse(object):
             The number of bins in each histogram (default = 25)
         logy : bool
             If true, y axis is a log scale.
+        samples : array_like or None
+            Which samples to plot. If None, all samples are plotted.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to plot.
         filt : str, dict or bool
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
@@ -3266,13 +3270,17 @@ class analyse(object):
         -------
         (fig, axes)
         """
+
+        if samples is not None:
+            subset = self.make_subset(samples)
+
         analytes = self.analytes_sorted(analytes)
         if colourful:
             cmap = self.cmaps
         else:
             cmap = None
 
-        self.get_focus(filt=filt)
+        self.get_focus(filt=filt, subset=subset)
         fig, axes = plot.histograms(self.focus, keys=analytes,
                                     bins=bins, logy=logy, cmap=cmap)
 
