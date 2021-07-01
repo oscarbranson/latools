@@ -1872,7 +1872,7 @@ class analyse(object):
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
     @_log
-    def make_subset(self, samples=None, name=None):
+    def make_subset(self, samples=None, name=None, force=False):
         """
         Creates a subset of samples, which can be treated independently.
 
@@ -1883,14 +1883,25 @@ class analyse(object):
         name : (optional) str or number
             The name of the sample group. Defaults to n + 1, where n is
             the highest existing group number
+        force : bool
+            If there is an existing subset that contains the same samples,
+            a new set is not created unles `force=True`. Default is False.
         """
         if isinstance(samples, str):
             samples = [samples]
 
         # Check if a subset containing the same samples already exists.
+        already_present = False
         for k, v in self.subsets.items():
             if set(v) == set(samples) and k != 'not_in_set':
-                return k
+                already_present = True
+                print(self._wrap_text(
+                        "A subset containing those samples already exists, and is called {k}. I haven't done anything. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
+                    ))
+                break
+        
+        if already_present and not force:
+            return
 
         not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
         if len(not_exists) > 0:
