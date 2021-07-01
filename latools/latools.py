@@ -1872,7 +1872,7 @@ class analyse(object):
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
     @_log
-    def make_subset(self, samples=None, name=None, force=False):
+    def make_subset(self, samples=None, name=None, force=False, silent=False):
         """
         Creates a subset of samples, which can be treated independently.
 
@@ -1899,10 +1899,11 @@ class analyse(object):
                 existing_name = k
 
         if already_present:
-            print('***NOPE***')
-            print(self._wrap_text(
-                        f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
-                    ))
+            if not silent:
+                print('***NOPE***')
+                print(self._wrap_text(
+                            f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
+                        ))
             if not force:
                 return
 
@@ -1928,7 +1929,8 @@ class analyse(object):
         # for subset in np.unique(list(self.subsets.values())):
         #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
 
-        print(f'Subset created called {name}.')
+        if not silent:
+            print(f'Subset created called {name}.')
         return name
 
     @_log
@@ -1981,7 +1983,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2029,7 +2031,7 @@ class analyse(object):
         del(params['self'])
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
         
@@ -2131,7 +2133,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2180,7 +2182,7 @@ class analyse(object):
         del(params['self'])
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2388,7 +2390,7 @@ class analyse(object):
         """
         # isolate data
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         self.minimal_analytes.update(analytes)
@@ -2423,7 +2425,7 @@ class analyse(object):
         name : str
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2486,7 +2488,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2571,7 +2573,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2610,7 +2612,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2678,7 +2680,7 @@ class analyse(object):
         Clears (deletes) all data filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2712,7 +2714,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2738,7 +2740,7 @@ class analyse(object):
             filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2760,7 +2762,7 @@ class analyse(object):
             filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2844,7 +2846,7 @@ class analyse(object):
             Default is None.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         samples = self._get_samples(subset)
 
         analytes = self._analyte_checker(analytes)
@@ -2883,7 +2885,7 @@ class analyse(object):
             Passed to `trace_plot`
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         samples = self._get_samples(subset)
 
         outdir=self.report_dir + '/optimisation_plots/'
@@ -2946,7 +2948,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         
         if subset is None:
             subset = 'All_Analyses'
@@ -2984,7 +2986,7 @@ class analyse(object):
         """
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         
         samples = self._get_samples(subset)
 
@@ -3040,7 +3042,7 @@ class analyse(object):
         analytes = self._analyte_checker(analytes)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3108,7 +3110,7 @@ class analyse(object):
         nrow = plot.calc_nrow(n, ncol)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3295,7 +3297,7 @@ class analyse(object):
         """
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         if colourful:
@@ -3534,7 +3536,7 @@ class analyse(object):
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
-        #     subset = self.make_subset(samples)
+        #     subset = self.make_subset(samples, silent=True)
 
         if subset is not None:
             samples = self._get_samples(subset)
@@ -3616,7 +3618,7 @@ class analyse(object):
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
-        #     subset = self.make_subset(samples)
+        #     subset = self.make_subset(samples, silent=True)
 
         if subset is not None:
             samples = self._get_samples(subset)
@@ -3701,7 +3703,7 @@ class analyse(object):
         analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3859,7 +3861,7 @@ class analyse(object):
     def ablation_times(self, samples=None, subset=None):
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3908,7 +3910,7 @@ class analyse(object):
         analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3978,7 +3980,7 @@ class analyse(object):
         slst = []
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
         for s in self.stats_calced:
@@ -4028,7 +4030,7 @@ class analyse(object):
         Used for exporting minimal dataset. DON'T USE.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -4104,7 +4106,7 @@ class analyse(object):
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
