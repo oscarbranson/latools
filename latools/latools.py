@@ -1892,16 +1892,19 @@ class analyse(object):
 
         # Check if a subset containing the same samples already exists.
         already_present = False
+        existing_name = ''
         for k, v in self.subsets.items():
             if set(v) == set(samples) and k != 'not_in_set':
                 already_present = True
-                print(self._wrap_text(
-                        "A subset containing those samples already exists, and is called {k}. I haven't done anything. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
+                existing_name = k
+
+        if already_present:
+            print('***NOPE***')
+            print(self._wrap_text(
+                        f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
                     ))
-                break
-        
-        if already_present and not force:
-            return
+            if not force:
+                return
 
         not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
         if len(not_exists) > 0:
@@ -1925,6 +1928,7 @@ class analyse(object):
         # for subset in np.unique(list(self.subsets.values())):
         #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
 
+        print(f'Subset created called {name}.')
         return name
 
     @_log
