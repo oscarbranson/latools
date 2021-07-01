@@ -3660,7 +3660,7 @@ class analyse(object):
         **kwargs
             passed to matplotlib.pyplot.bar() plotting function
         """
-        analytes = self._analyte_checker(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         
         if axs is None:
             fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
@@ -3673,7 +3673,7 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
         
-        # self.get_focus(filt=filt, samples=samples)
+        self.get_focus(filt=filt, samples=samples)
         for i, a in enumerate(analytes):
             m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
             arrays = []
