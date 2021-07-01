@@ -503,7 +503,7 @@ class D(object):
         self.data['bkgsub'][target_analyte] -= self.data['bkgsub'][source_analyte] * f
 
     @_log
-    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub', newfilter_mode='all'):
         """
         Divide all analytes by a specified internal_standard analyte.
 
@@ -529,7 +529,7 @@ class D(object):
             target_stage = focus_stage
 
         analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
-
+        
         # if analytes is None:
         #     analytes = self.analytes
         # elif isinstance(analytes, str):
@@ -541,7 +541,7 @@ class D(object):
             if a == self.internal_standard:
                 continue
             
-            if existing_ratios:
+            if existing_ratios: 
                 num = a.split('_')[0]
                 denom = self.internal_standard.split('_')[0]
                 analyte_ratio = f'{num}_{denom}'
@@ -552,6 +552,9 @@ class D(object):
                                       self.data[focus_stage][self.internal_standard])
             self.analyte_ratios.update([analyte_ratio])
             self.cmap[analyte_ratio] = self.cmap[a]
+
+            if self.filt is not None:
+                self.filt.add_to_table(analyte_ratio, mode=newfilter_mode)
         
             self.setfocus(target_stage)
         return

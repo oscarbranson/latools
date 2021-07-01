@@ -120,6 +120,16 @@ class filt(object):
         """
         raise DeprecationWarning('This no longer works. Use `.filter_clear()` instead, then re-run the filters you want to keep.')
 
+    def add_to_table(self, analyte, mode='all'):
+        if mode == 'all':
+            self.filter_table.loc[:, analyte] = self.filter_table.all(1)
+        elif mode == 'any':
+            self.filter_table.loc[:, analyte] = self.filter_table.any(1)
+        elif mode == 'on':
+            self.filter_table.loc[:, analyte] = True
+        else:
+            self.filter_table.loc[:, analyte] = False
+
     def clear(self):
         """
         Clear all filters.

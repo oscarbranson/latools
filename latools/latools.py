@@ -63,6 +63,8 @@ np.seterr(invalid='ignore')
 
 # TODO: Move away from single `internal_standard` specification towards specifying multiple internal standards.
 
+# TODO: Add 'smooth all' function.
+
 class analyse(object):
     """
     For processing and analysing whole LA - ICPMS datasets.
@@ -1329,7 +1331,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, analytes=None, focus_stage='bkgsub'):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage=None):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1343,6 +1345,9 @@ class analyse(object):
         -------
         None
         """
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
         
@@ -1359,9 +1364,12 @@ class analyse(object):
             raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
                                 'analytes in\nyour data files. Please make sure it is specified correctly.')
 
+        # check internal_standard is valid
+        internal_standard = self._analyte_checker(self.internal_standard, focus_stage=focus_stage).pop()
+
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
-                s.ratio(internal_standard=self.internal_standard, analytes=analytes, focus_stage=focus_stage)
+                s.ratio(internal_standard=internal_standard, analytes=analytes, focus_stage=focus_stage)
                 self.analyte_ratios.update(s.analyte_ratios)
                 self.cmaps.update(s.cmap)
                 prog.update()
@@ -1510,7 +1518,7 @@ class analyse(object):
 
         # compile them into a table
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
-        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios) + ['STD'], level=0, axis=1)
+        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios, focus_stage=focus_stage) + ['STD'], level=0, axis=1)
 
         # identify groups of consecutive SRMs
         ts = stdtab.index.values
@@ -2281,7 +2289,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, focus_stage=self.focus_stage)
 
         samples = self._get_samples(subset)
 
@@ -2367,7 +2375,7 @@ class analyse(object):
         if samples is not None:
             subset = self.make_subset(samples)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         self.minimal_analytes.update(analytes)
 
         self.get_focus(subset=subset, filt=filt)
@@ -3162,7 +3170,7 @@ class analyse(object):
         -------
         (fig, axes)
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         # sort analytes
         try:
@@ -3222,7 +3230,7 @@ class analyse(object):
         (fig, axes)
         """
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         samples = self._get_samples(subset)
 
@@ -3274,7 +3282,7 @@ class analyse(object):
         if samples is not None:
             subset = self.make_subset(samples)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         if colourful:
             cmap = self.cmaps
         else:
@@ -3306,7 +3314,7 @@ class analyse(object):
             Contains statistics calculated for filtered and
             unfiltered data, and the filtered/unfiltered ratio.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         
         # calculate filtered and unfiltered stats
         self.sample_stats(analytes, stats=stats, filt=False)
@@ -3364,7 +3372,7 @@ class analyse(object):
         -------
         fig, axes objects
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is None:
             samples = self._get_samples(subset)
@@ -3458,7 +3466,7 @@ class analyse(object):
     # Plot traces
     @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
-                    focus=None, outdir=None, filt=None, scale='log',
+                    focus_stage=None, outdir=None, filt=None, scale='log',
                     figsize=[10, 4], stats=False, stat='nanmean',
                     err='nanstd', subset=None):
         """
@@ -3473,7 +3481,7 @@ class analyse(object):
         ranges : bool
             Whether or not to show the signal/backgroudn regions
             identified by 'autorange'.
-        focus : str
+        focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
             'rawdata', 'despiked':, 'signal', 'background',
             'bkgsub', 'ratios' or 'calibrated'.
@@ -3501,14 +3509,14 @@ class analyse(object):
         -------
         None
         """
-        if focus is None:
-            focus = self.focus_stage
+        if focus_stage is None:
+            focus_stage = self.focus_stage
         if outdir is None:
-            outdir = os.path.join(self.report_dir, focus)
+            outdir = os.path.join(self.report_dir, focus_stage)
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes, focus_stage=focus)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
         #     subset = self.make_subset(samples)
@@ -3525,7 +3533,7 @@ class analyse(object):
                 f, a = self.data[s].trace_plot(analytes=analytes, figsize=figsize,
                                         scale=scale, filt=filt,
                                         ranges=ranges, stats=stats,
-                                        stat=stat, err=err, focus_stage=focus)
+                                        stat=stat, err=err, focus_stage=focus_stage)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -3541,7 +3549,7 @@ class analyse(object):
     # Plot gradients
     @_log
     def gradient_plots(self, analytes=None, win=None, samples=None, ranges=False,
-                       focus=None, filt=False, recalc=False, outdir=None,
+                       focus_stage=None, filt=False, recalc=False, outdir=None,
                        figsize=[10, 4], subset='All_Analyses'):
         """
         Plot analyte gradients as a function of time.
@@ -3583,14 +3591,14 @@ class analyse(object):
         -------
         None
         """
-        if focus is None:
-            focus = self.focus_stage
+        if focus_stage is None:
+            focus_stage = self.focus_stage
         if outdir is None:
-            outdir = os.path.join(self.report_dir, focus + '_gradient')
+            outdir = os.path.join(self.report_dir, focus_stage + '_gradient')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
         #     subset = self.make_subset(samples)
@@ -3605,7 +3613,7 @@ class analyse(object):
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
                 f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                        ranges=ranges, focus_stage=focus, filt=filt, recalc=recalc)
+                                        ranges=ranges, focus_stage=focus_stage, filt=filt, recalc=recalc)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -3675,7 +3683,7 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3779,7 +3787,7 @@ class analyse(object):
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if focus_stage is None:
             focus_stage = self.focus_stage
@@ -3882,7 +3890,7 @@ class analyse(object):
         if not hasattr(self, 'stats'):
             self.sample_stats()
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -3996,7 +4004,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out.reindex(self.analytes_sorted(out.columns), axis=1)
+        return out.reindex(self.analytes_sorted(out.columns, focus_stage=self.focus_stage), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
@@ -4078,7 +4086,7 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if samples is not None:
             subset = self.make_subset(samples)
@@ -4105,7 +4113,7 @@ class analyse(object):
             ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
-            for a in self.analytes_sorted(analytes):
+            for a in analytes:
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])

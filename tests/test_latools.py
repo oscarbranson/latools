@@ -55,6 +55,9 @@ class test_latools(unittest.TestCase):
 
     d.filter_on('Albelow')
 
+    # test custom denominator
+    d.ratio('Ba137', 'Ba138')
+
     # calculate stats
     d.sample_stats(stats=['mean', 'std', 'se', 'H15_mean', 'H15_std', 'H15_se'], filt=True)
     s = d.getstats()
