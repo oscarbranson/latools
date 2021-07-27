@@ -454,12 +454,13 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None, ncol=4):
     for k, ax in zip(keys, axs.flat):
         tmp = nominal_values(dat[k])
         x = tmp[~np.isnan(tmp)]
+        m, u = unitpicker(x)
 
         if cmap is not None:
             c = cmap[k]
         else:
             c = (0, 0, 0, 0.5)
-        ax.hist(x, bins=bins, color=c)
+        ax.hist(x * m, bins=bins, color=c)
 
         if logy:
             ax.set_yscale('log')

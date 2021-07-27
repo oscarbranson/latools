@@ -1390,6 +1390,8 @@ class analyse(object):
             # calculate ratios to internal_standard for calibration ratios
             analyte_srm_link = {}
             warns = []
+            self.uncalibrated = set()
+            self._analytes_missing_from_srm = set()
 
             # create an empty SRM table
             srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analyte_ratios, ['mean', 'err']]))
@@ -1454,10 +1456,8 @@ class analyse(object):
                 self._srm_id_analyte_ratios = means.columns.values[~means.isnull().any()]  # analyte ratioes identified
                 # self._calib_analyte_ratios = means.columns.values[~means.isnull().all()]
 
-                if len(self.uncalibrated) == 0:
-                    self.uncalibrated = srm_nocal
-                else:
-                    self.uncalibrated.intersection_update(srm_nocal)
+                self.uncalibrated.intersection_update(srm_nocal)
+                self._analytes_missing_from_srm.update(srm_nocal)
 
             # Print any warnings
             if len(warns) > 0:
@@ -1574,15 +1574,17 @@ class analyse(object):
         self.srm_load_database(srms_used, reload_srm_database)
 
         analytes = self._analyte_checker(analytes)
+        analytes.difference_update(self._analytes_missing_srm)
 
         # get and scale mean srm values for all analytes
-        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]
+        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]   
         _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
         stdid = self.stdtab.loc[:, idx[analytes, 'mean']]
         _stdid = scale(np.log(stdid))
+        _stdid[np.isnan(_stdid)] = -12
 
         # fit KMeans classifier to srm database
         classifier = KMeans(len(srms_used)).fit(_srmid)
@@ -1694,9 +1696,12 @@ class analyse(object):
                     if self.caltab.loc[g].size == 0:
                         continue
                     meas = self.caltab.loc[g, (a, 'meas_mean')].values
-                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values
                     srm = self.caltab.loc[g, (a, 'srm_mean')].values
-                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values
+                    viable = ~np.isnan(meas + srm)  # remove any nan values
+                    meas = meas[viable]
+                    srm = srm[viable]
+                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values[viable]
+                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values[viable]
                     # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
                     sigma = np.sqrt(meas_err**2 + srm_err**2)
                     if len(meas) > 1:
@@ -1714,13 +1719,16 @@ class analyse(object):
                             self.calib_params.loc[g, (a, 'c')] = 0
             else:
                 meas = self.caltab.loc[:, (a, 'meas_mean')].values
-                meas_err = self.caltab.loc[:, (a, 'meas_err')].values
                 srm = self.caltab.loc[:, (a, 'srm_mean')].values
-                srm_err = self.caltab.loc[:, (a, 'srm_err')].values
+                viable = ~np.isnan(meas + srm)  # remove any nan values
+                meas = meas[viable]
+                srm = srm[viable]
+                meas_err = self.caltab.loc[:, (a, 'meas_err')].values[viable]
+                srm_err = self.caltab.loc[:, (a, 'srm_err')].values[viable]
                 # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
                 sigma = np.sqrt(meas_err**2 + srm_err**2)
                 
-                if len(meas) > 1:
+                if sum(viable) > 1:
                     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
                     pe = unc.correlated_values(p, cov)                
                     self.calib_params.loc[:, (a, 'm')] = pe[0]
