@@ -2,7 +2,8 @@
 Functions used for filtering data, or modifying existing filters.
 """
 import numpy as np
-from latools.helpers.helpers import bool_2_indices, nominal_values
+from latools.helpers.signal import bool_2_indices 
+from latools.helpers.stat_fns import nominal_values
 
 def threshold(values, threshold):
     """

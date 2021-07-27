@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.23] 27/06/2021
+
+### Changed
+- Fixes to handling of SRMs with missing analytes.
+
 ## [0.3.22] 27/05/2021
 
 ### Changed

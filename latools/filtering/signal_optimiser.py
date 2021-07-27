@@ -6,8 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import bayes_mvs
 from scipy.stats.kde import gaussian_kde
-from latools.helpers.helpers import Bunch, rolling_window, nominal_values, bool_2_indices, _warning
-from latools.helpers.plot import tplot
+from latools.helpers import Bunch, _warning
+from latools.helpers.signal import rolling_window, bool_2_indices
+from latools.helpers.stat_fns import nominal_values
+from latools.helpers.plot import trace_plot
 
 warnings.showwarning = _warning
 
@@ -497,7 +499,7 @@ def optimisation_plot(d, overlay_alpha=0.5, **kwargs):
             rah.set_xlabel('std')
             
             tax = fig.add_subplot(3,1,3)
-            tplot(d, opt.analytes, ax=tax, **kwargs)
+            trace_plot(d, opt.analytes, ax=tax, **kwargs)
             tax.axvspan(*d.Time[[opt.lims[0], opt.lims[1]]], alpha=0.2)
             
             tax.set_xlim(d.Time[d.ns == n].min() - 3, d.Time[d.ns == n].max() + 3)

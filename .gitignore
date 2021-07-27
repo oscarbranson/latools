@@ -27,3 +27,4 @@ dev*.ipynb
 Supplement/raw_data/*/*/*.pdf
 Supplement/raw_data/*/*.p*
 dev*
+.DS_Store

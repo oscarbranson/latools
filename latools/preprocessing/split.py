@@ -14,8 +14,8 @@ import pandas as pd
 import pkg_resources as pkgrs
 from warnings import warn
 from ..processes import read_data, autorange
-from ..helpers.helpers import bool_2_indices
-from ..helpers.analyte_names import analyte_2_namemass
+from ..helpers.signal import bool_2_indices
+from ..helpers.analytes import analyte_2_namemass
 from ..helpers.io import read_dataformat
 
 import matplotlib.pyplot as plt
@@ -283,7 +283,10 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
                 
         sn += 1
 
-    bounds.append((sample_list[-1], (int(upper) + 1, len(ns))))
+    if len(sample_list) == 1:
+        bounds.append((sample_list[-1], (0, len(dat['Time']))))
+    else:
+        bounds.append((sample_list[-1], (int(upper) + 1, len(ns))))
 
     # split up data
     sections = {}

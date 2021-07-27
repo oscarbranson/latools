@@ -11,7 +11,8 @@ import re
 import numpy as np
 import textwrap as tw
 import pkg_resources as pkgrs
-from .helpers import Bunch
+from .utils import Bunch
+from .metadata_parsers import meta_parsers
 
 from io import BytesIO
 from shutil import copyfile
@@ -369,6 +370,15 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         print('        ***PROBLEM: ' + 
               'meta_regex not specified. At minimum, must identify data collection start time as "date". LAtools may not behave as expected.')
         # raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
+
+    if 'metaparse_function' in dataformat.keys():
+        fn_name, (start, stop) = dataformat['metaparse_function']
+        print(f"\n  Test: parsing additional metadata using '{fn_name}' function...")
+        print(f"      applying to lines {start}-{stop}.")
+        extra_meta = meta_parsers[fn_name](lines[start:stop])
+        print("\n      Does the below look correct?")
+        print(extra_meta)
+        meta.update(extra_meta)
     
     # sample name
     print('\n  Test: Sample Name IDs...')

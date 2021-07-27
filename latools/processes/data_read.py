@@ -7,7 +7,8 @@ import re, os
 import numpy as np
 from io import BytesIO
 import json
-from ..helpers.helpers import Bunch
+from ..helpers import Bunch
+from ..helpers.metadata_parsers import meta_parsers
 
 def read_data(data_file, dataformat, name_mode):
     """
@@ -65,6 +66,10 @@ def read_data(data_file, dataformat, name_mode):
                 out = re.search(v[-1], line).groups()
                 for p, r in zip(v[0], out):
                     meta[p] = r
+    if 'metaparse_function' in dataformat.keys():
+        fn_name, (start, stop) = dataformat['metaparse_function']
+        extra_meta = meta_parsers[fn_name](lines[start:stop])
+        meta.update(extra_meta)
 
     # sample name
     if name_mode == 'file_names':

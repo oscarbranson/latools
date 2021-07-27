@@ -32,7 +32,13 @@ Helpers
 .. automodule :: latools.processes.data_read
 .. automodule :: latools.processes.despiking
 .. automodule :: latools.processes.signal_id
-.. automodule :: latools.helpers.helpers
+.. automodule :: latools.helpers.analytes
+.. automodule :: latools.helpers.config
 .. automodule :: latools.helpers.chemistry
-.. automodule :: latools.helpers.stat_fns
+.. automodule :: latools.helpers.io
+.. automodule :: latools.helpers.logging
 .. automodule :: latools.helpers.plot
+.. automodule :: latools.helpers.signal
+.. automodule :: latools.helpers.srm
+.. automodule :: latools.helpers.stat_fns
+.. automodule :: latools.helpers.utils

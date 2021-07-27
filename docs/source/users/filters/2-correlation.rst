@@ -15,7 +15,7 @@ For example:
     eg.filter_correlation(x_analyte='Al27', y_analyte='Mn55', window=51, r_threshold=0.5, p_threshold=0.05)
     eg.filter_on('AlMn')
 
-    eg.data['Sample-1'].tplot(filt=True)
+    eg.data['Sample-1'].trace_plot(filt=True)
 
 .. image :: ./figs/2-correlation.png
 

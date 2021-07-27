@@ -6,7 +6,8 @@ import re
 import numpy as np
 import pandas as pd
 from difflib import SequenceMatcher as seqm
-from latools.helpers.helpers import bool_2_indices, Bunch
+from latools.helpers import Bunch
+from latools.helpers.signal import bool_2_indices
 
 class filt(object):
     """
@@ -118,6 +119,16 @@ class filt(object):
         None
         """
         raise DeprecationWarning('This no longer works. Use `.filter_clear()` instead, then re-run the filters you want to keep.')
+
+    def add_to_table(self, analyte, mode='all'):
+        if mode == 'all':
+            self.filter_table.loc[:, analyte] = self.filter_table.all(1)
+        elif mode == 'any':
+            self.filter_table.loc[:, analyte] = self.filter_table.any(1)
+        elif mode == 'on':
+            self.filter_table.loc[:, analyte] = True
+        else:
+            self.filter_table.loc[:, analyte] = False
 
     def clear(self):
         """

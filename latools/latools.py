@@ -36,10 +36,9 @@ from .processes import read_data
 from .preprocessing.split import long_file
 
 from .D_obj import D
-from .helpers.helpers import (rolling_window, enumerate_bool,
-                      un_interp1d, get_date,
-                      unitpicker, rangecalc, Bunch, calc_grads,
-                      get_total_time_span, analyte_checker, split_analyte_ratios)
+from .helpers import Bunch
+from .helpers.plot import rangecalc
+from .helpers.signal import rolling_window, enumerate_bool, calc_grads
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
@@ -48,7 +47,8 @@ from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
 from .helpers.chemistry import analyte_mass, decompose_molecule
-from .helpers.analyte_names import get_analyte_name, analyte_2_massname, pretty_element, analyte_sort_fn
+from .helpers.analytes import get_analyte_name, analyte_2_massname, pretty_element, unitpicker, analyte_sort_fn, analyte_checker, split_analyte_ratios
+from .helpers.io import get_date
 
 idx = pd.IndexSlice  # multi-index slicing!
 
@@ -62,6 +62,8 @@ np.seterr(invalid='ignore')
 # Especially: PCA, Gaussian Mixture Models
 
 # TODO: Move away from single `internal_standard` specification towards specifying multiple internal standards.
+
+# TODO: Add 'smooth all' function.
 
 class analyse(object):
     """
@@ -499,15 +501,15 @@ class analyse(object):
                 'data_path :: {}'.format(self.path),
                 '# Analysis Log Start: \n'
                 ]
-    def _analyte_checker(self, analytes=None, check_ratios=True, single=False):
+    def _analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         """
         Return valid analytes depending on the analysis stage
         """
-        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single)
+        return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
 
-    def analytes_sorted(self, a=None, check_ratios=True):
-        return sorted(self._analyte_checker(a, check_ratios=check_ratios), key=analyte_sort_fn)
+    def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -550,7 +552,7 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
-                  transform='log', ploterrs=True, focus_stage='despiked'):
+                  transform='log', ploterrs=True, focus_stage='despiked', **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -638,7 +640,7 @@ class analyse(object):
             for s, d in self.data.items():
                 f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
                                 on_mult=on_mult, off_mult=off_mult,
-                                ploterrs=ploterrs, transform=transform)
+                                ploterrs=ploterrs, transform=transform, **kwargs)
                 if f is not None:
                     fails[s] = f
                 prog.update()  # advance progress bar
@@ -777,7 +779,7 @@ class analyse(object):
 
     @_log
     def despike(self, expdecay_despiker=False, exponent=None,
-                noise_despiker=True, win=3, nlim=12., exponentplot=False,
+                noise_despiker=True, win=3, nlim=12., exponentrace_plot=False,
                 maxiter=4, autorange_kwargs={}, focus_stage='rawdata'):
         """
         Despikes data with exponential decay and noise filters.
@@ -800,7 +802,7 @@ class analyse(object):
         nlim : float
             The number of standard deviations above the rolling mean
             that data are excluded.
-        exponentplot : bool
+        exponentrace_plot : bool
             Whether or not to show a plot of the automatically determined
             exponential decay exponent.
         maxiter : int
@@ -827,7 +829,7 @@ class analyse(object):
 
         if expdecay_despiker and exponent is None:
             if not hasattr(self, 'expdecay_coef'):
-                self.find_expcoef(plot=exponentplot,
+                self.find_expcoef(plot=exponentrace_plot,
                                   autorange_kwargs=autorange_kwargs)
             exponent = self.expdecay_coef
             time.sleep(0.1)
@@ -1329,7 +1331,7 @@ class analyse(object):
 
     # functions for calculating ratios
     @_log
-    def ratio(self, internal_standard=None, analytes=None):
+    def ratio(self, internal_standard=None, analytes=None, focus_stage=None):
         """
         Calculates the ratio of all analytes to a single analyte.
 
@@ -1343,15 +1345,18 @@ class analyse(object):
         -------
         None
         """
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+        
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
         
-        analytes = self._analyte_checker(analytes, check_ratios=False)
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
         if internal_standard is not None:
             self.internal_standard = internal_standard
 
-        if self.internal_standard in self.analytes:
+        if self.internal_standard in self.analytes.union(self.analyte_ratios):
             self.minimal_analytes.update([internal_standard])
             self.calibration_analytes.update([internal_standard])
             self.calibration_analytes.update(analytes)
@@ -1359,15 +1364,19 @@ class analyse(object):
             raise ValueError('The internal standard ({}) is not amongst the '.format(internal_standard) +
                                 'analytes in\nyour data files. Please make sure it is specified correctly.')
 
+        # check internal_standard is valid
+        internal_standard = self._analyte_checker(self.internal_standard, focus_stage=focus_stage).pop()
+
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
-                s.ratio(internal_standard=self.internal_standard, analytes=analytes)
+                s.ratio(internal_standard=internal_standard, analytes=analytes, focus_stage=focus_stage)
                 self.analyte_ratios.update(s.analyte_ratios)
                 self.cmaps.update(s.cmap)
                 prog.update()
-
-        self.stages_complete.update(['ratios'])
-        self.focus_stage = 'ratios'
+        
+        if self.focus_stage not in ['ratios', 'calibrated', 'mass_fraction']:
+            self.stages_complete.update(['ratios'])
+            self.focus_stage = 'ratios'
         return
 
     def srm_load_database(self, srms_used=None, reload=False):
@@ -1381,6 +1390,8 @@ class analyse(object):
             # calculate ratios to internal_standard for calibration ratios
             analyte_srm_link = {}
             warns = []
+            self.uncalibrated = set()
+            self._analytes_missing_from_srm = set()
 
             # create an empty SRM table
             srmtab = pd.DataFrame(index=srms_used, columns=pd.MultiIndex.from_product([self.analyte_ratios, ['mean', 'err']]))
@@ -1445,10 +1456,8 @@ class analyse(object):
                 self._srm_id_analyte_ratios = means.columns.values[~means.isnull().any()]  # analyte ratioes identified
                 # self._calib_analyte_ratios = means.columns.values[~means.isnull().all()]
 
-                if len(self.uncalibrated) == 0:
-                    self.uncalibrated = srm_nocal
-                else:
-                    self.uncalibrated.intersection_update(srm_nocal)
+                self.uncalibrated.intersection_update(srm_nocal)
+                self._analytes_missing_from_srm.update(srm_nocal)
 
             # Print any warnings
             if len(warns) > 0:
@@ -1509,7 +1518,7 @@ class analyse(object):
 
         # compile them into a table
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
-        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios) + ['STD'], level=0, axis=1)
+        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios, focus_stage=focus_stage) + ['STD'], level=0, axis=1)
 
         # identify groups of consecutive SRMs
         ts = stdtab.index.values
@@ -1565,15 +1574,18 @@ class analyse(object):
         self.srm_load_database(srms_used, reload_srm_database)
 
         analytes = self._analyte_checker(analytes)
-
+        analytes.difference_update(self._analytes_missing_srm)
+        analytes = list(analytes)
+        
         # get and scale mean srm values for all analytes
-        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]
+        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]   
         _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
         stdid = self.stdtab.loc[:, idx[analytes, 'mean']]
         _stdid = scale(np.log(stdid))
+        _stdid[np.isnan(_stdid)] = -12
 
         # fit KMeans classifier to srm database
         classifier = KMeans(len(srms_used)).fit(_srmid)
@@ -1685,9 +1697,12 @@ class analyse(object):
                     if self.caltab.loc[g].size == 0:
                         continue
                     meas = self.caltab.loc[g, (a, 'meas_mean')].values
-                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values
                     srm = self.caltab.loc[g, (a, 'srm_mean')].values
-                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values
+                    viable = ~np.isnan(meas + srm)  # remove any nan values
+                    meas = meas[viable]
+                    srm = srm[viable]
+                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values[viable]
+                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values[viable]
                     # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
                     sigma = np.sqrt(meas_err**2 + srm_err**2)
                     if len(meas) > 1:
@@ -1705,13 +1720,16 @@ class analyse(object):
                             self.calib_params.loc[g, (a, 'c')] = 0
             else:
                 meas = self.caltab.loc[:, (a, 'meas_mean')].values
-                meas_err = self.caltab.loc[:, (a, 'meas_err')].values
                 srm = self.caltab.loc[:, (a, 'srm_mean')].values
-                srm_err = self.caltab.loc[:, (a, 'srm_err')].values
+                viable = ~np.isnan(meas + srm)  # remove any nan values
+                meas = meas[viable]
+                srm = srm[viable]
+                meas_err = self.caltab.loc[:, (a, 'meas_err')].values[viable]
+                srm_err = self.caltab.loc[:, (a, 'srm_err')].values[viable]
                 # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
                 sigma = np.sqrt(meas_err**2 + srm_err**2)
                 
-                if len(meas) > 1:
+                if sum(viable) > 1:
                     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
                     pe = unc.correlated_values(p, cov)                
                     self.calib_params.loc[:, (a, 'm')] = pe[0]
@@ -1863,7 +1881,7 @@ class analyse(object):
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
     @_log
-    def make_subset(self, samples=None, name=None):
+    def make_subset(self, samples=None, name=None, force=False, silent=False):
         """
         Creates a subset of samples, which can be treated independently.
 
@@ -1874,14 +1892,29 @@ class analyse(object):
         name : (optional) str or number
             The name of the sample group. Defaults to n + 1, where n is
             the highest existing group number
+        force : bool
+            If there is an existing subset that contains the same samples,
+            a new set is not created unles `force=True`. Default is False.
         """
         if isinstance(samples, str):
             samples = [samples]
 
         # Check if a subset containing the same samples already exists.
+        already_present = False
+        existing_name = ''
         for k, v in self.subsets.items():
             if set(v) == set(samples) and k != 'not_in_set':
-                return k
+                already_present = True
+                existing_name = k
+
+        if already_present:
+            if not silent:
+                print('***NOPE***')
+                print(self._wrap_text(
+                            f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
+                        ))
+            if not force:
+                return
 
         not_exists = [s for s in samples if s not in self.subsets['All_Analyses']]
         if len(not_exists) > 0:
@@ -1905,6 +1938,8 @@ class analyse(object):
         # for subset in np.unique(list(self.subsets.values())):
         #     self.subsets[subset] = sorted([k for k, v in self.subsets.items() if str(v) == subset])
 
+        if not silent:
+            print(f'Subset created called {name}.')
         return name
 
     @_log
@@ -1957,7 +1992,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2005,7 +2040,7 @@ class analyse(object):
         del(params['self'])
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
         
@@ -2107,7 +2142,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2156,7 +2191,7 @@ class analyse(object):
         del(params['self'])
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2280,7 +2315,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, focus_stage=self.focus_stage)
 
         samples = self._get_samples(subset)
 
@@ -2364,9 +2399,9 @@ class analyse(object):
         """
         # isolate data
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         self.minimal_analytes.update(analytes)
 
         self.get_focus(subset=subset, filt=filt)
@@ -2399,7 +2434,7 @@ class analyse(object):
         name : str
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2462,7 +2497,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2547,7 +2582,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2586,7 +2621,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2654,7 +2689,7 @@ class analyse(object):
         Clears (deletes) all data filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2688,7 +2723,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2714,7 +2749,7 @@ class analyse(object):
             filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2736,7 +2771,7 @@ class analyse(object):
             filters.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -2820,7 +2855,7 @@ class analyse(object):
             Default is None.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         samples = self._get_samples(subset)
 
         analytes = self._analyte_checker(analytes)
@@ -2856,10 +2891,10 @@ class analyse(object):
         overlay_alpha : float
             The opacity of the threshold overlays. Between 0 and 1.
         **kwargs
-            Passed to `tplot`
+            Passed to `trace_plot`
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         samples = self._get_samples(subset)
 
         outdir=self.report_dir + '/optimisation_plots/'
@@ -2922,7 +2957,7 @@ class analyse(object):
         None
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         
         if subset is None:
             subset = 'All_Analyses'
@@ -2960,7 +2995,7 @@ class analyse(object):
         """
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
         
         samples = self._get_samples(subset)
 
@@ -2973,10 +3008,11 @@ class analyse(object):
         for sa in samples:
             s = self.data[sa]
             focus['uTime'].append(s.uTime)
-            ind = s.filt.grab_filt(filt)
             for a in columns:
                 tmp = s.focus[a].copy()
-                tmp[~ind] = np.nan
+                if s.filt is not None:
+                    ind = s.filt.grab_filt(filt, a)
+                    tmp[~ind] = np.nan
                 focus[a].append(tmp)
 
         if nominal:
@@ -3015,7 +3051,7 @@ class analyse(object):
         analytes = self._analyte_checker(analytes)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3083,7 +3119,7 @@ class analyse(object):
         nrow = plot.calc_nrow(n, ncol)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3160,7 +3196,7 @@ class analyse(object):
         -------
         (fig, axes)
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         # sort analytes
         try:
@@ -3172,8 +3208,7 @@ class analyse(object):
 
         fig, axes = plot.crossplot(dat=self.focus, keys=analytes, lognorm=lognorm,
                                    bins=bins, figsize=figsize, colourful=colourful,
-                                   focus_stage=self.focus_stage, cmap=self.cmaps,
-                                   denominator=self.internal_standard, mode=mode)
+                                   focus_stage=self.focus_stage, cmap=self.cmaps, mode=mode)
 
         if save or isinstance(save, str):
             if isinstance(save, str):
@@ -3221,7 +3256,7 @@ class analyse(object):
         (fig, axes)
         """
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         samples = self._get_samples(subset)
 
@@ -3242,7 +3277,7 @@ class analyse(object):
         return fig, axes
 
     def histograms(self, analytes=None, bins=25, logy=False,
-                   filt=False, colourful=True):
+                   samples=None, subset=None, filt=False, colourful=True):
         """
         Plot histograms of analytes.
 
@@ -3254,6 +3289,10 @@ class analyse(object):
             The number of bins in each histogram (default = 25)
         logy : bool
             If true, y axis is a log scale.
+        samples : array_like or None
+            Which samples to plot. If None, all samples are plotted.
+        subset : str or number
+            The subset of samples (defined by make_subset) you want to plot.
         filt : str, dict or bool
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
@@ -3265,13 +3304,17 @@ class analyse(object):
         -------
         (fig, axes)
         """
-        analytes = self.analytes_sorted(analytes)
+
+        if samples is not None:
+            subset = self.make_subset(samples, silent=True)
+
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         if colourful:
             cmap = self.cmaps
         else:
             cmap = None
 
-        self.get_focus(filt=filt)
+        self.get_focus(filt=filt, subset=subset)
         fig, axes = plot.histograms(self.focus, keys=analytes,
                                     bins=bins, logy=logy, cmap=cmap)
 
@@ -3297,7 +3340,7 @@ class analyse(object):
             Contains statistics calculated for filtered and
             unfiltered data, and the filtered/unfiltered ratio.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         
         # calculate filtered and unfiltered stats
         self.sample_stats(analytes, stats=stats, filt=False)
@@ -3355,7 +3398,7 @@ class analyse(object):
         -------
         fig, axes objects
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is None:
             samples = self._get_samples(subset)
@@ -3449,7 +3492,7 @@ class analyse(object):
     # Plot traces
     @_log
     def trace_plots(self, analytes=None, samples=None, ranges=False,
-                    focus=None, outdir=None, filt=None, scale='log',
+                    focus_stage=None, outdir=None, filt=None, scale='log',
                     figsize=[10, 4], stats=False, stat='nanmean',
                     err='nanstd', subset=None):
         """
@@ -3464,7 +3507,7 @@ class analyse(object):
         ranges : bool
             Whether or not to show the signal/backgroudn regions
             identified by 'autorange'.
-        focus : str
+        focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
             'rawdata', 'despiked':, 'signal', 'background',
             'bkgsub', 'ratios' or 'calibrated'.
@@ -3492,17 +3535,17 @@ class analyse(object):
         -------
         None
         """
-        if focus is None:
-            focus = self.focus_stage
+        if focus_stage is None:
+            focus_stage = self.focus_stage
         if outdir is None:
-            outdir = os.path.join(self.report_dir, focus)
+            outdir = os.path.join(self.report_dir, focus_stage)
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
-        #     subset = self.make_subset(samples)
+        #     subset = self.make_subset(samples, silent=True)
 
         if subset is not None:
             samples = self._get_samples(subset)
@@ -3513,10 +3556,10 @@ class analyse(object):
         
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
-                f, a = self.data[s].tplot(analytes=analytes, figsize=figsize,
+                f, a = self.data[s].trace_plot(analytes=analytes, figsize=figsize,
                                         scale=scale, filt=filt,
                                         ranges=ranges, stats=stats,
-                                        stat=stat, err=err, focus_stage=focus)
+                                        stat=stat, err=err, focus_stage=focus_stage)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -3532,7 +3575,7 @@ class analyse(object):
     # Plot gradients
     @_log
     def gradient_plots(self, analytes=None, win=None, samples=None, ranges=False,
-                       focus=None, filt=False, recalc=False, outdir=None,
+                       focus_stage=None, filt=False, recalc=False, outdir=None,
                        figsize=[10, 4], subset='All_Analyses'):
         """
         Plot analyte gradients as a function of time.
@@ -3574,17 +3617,17 @@ class analyse(object):
         -------
         None
         """
-        if focus is None:
-            focus = self.focus_stage
+        if focus_stage is None:
+            focus_stage = self.focus_stage
         if outdir is None:
-            outdir = os.path.join(self.report_dir, focus + '_gradient')
+            outdir = os.path.join(self.report_dir, focus_stage + '_gradient')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         # if samples is not None:
-        #     subset = self.make_subset(samples)
+        #     subset = self.make_subset(samples, silent=True)
 
         if subset is not None:
             samples = self._get_samples(subset)
@@ -3596,7 +3639,7 @@ class analyse(object):
         with self.pbar.set(total=len(samples), desc='Drawing Plots') as prog:
             for s in samples:
                 f, a = self.data[s].gplot(analytes=analytes, win=win, figsize=figsize,
-                                        ranges=ranges, focus_stage=focus, filt=filt, recalc=recalc)
+                                        ranges=ranges, focus_stage=focus_stage, filt=filt, recalc=recalc)
                 # ax = fig.axes[0]
                 # for l, u in s.sigrng:
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
@@ -3626,7 +3669,7 @@ class analyse(object):
         **kwargs
             passed to matplotlib.pyplot.bar() plotting function
         """
-        analytes = self._analyte_checker(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
         
         if axs is None:
             fig, axs = plt.subplots(1, len(analytes), figsize=[2 * len(analytes), 2],
@@ -3639,7 +3682,7 @@ class analyse(object):
         elif isinstance(samples, str):
             samples = [samples]
         
-        # self.get_focus(filt=filt, samples=samples)
+        self.get_focus(filt=filt, samples=samples)
         for i, a in enumerate(analytes):
             m, unit = unitpicker(self.focus[a], focus_stage=self.focus_stage)
             arrays = []
@@ -3666,10 +3709,10 @@ class analyse(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3770,7 +3813,7 @@ class analyse(object):
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if focus_stage is None:
             focus_stage = self.focus_stage
@@ -3827,7 +3870,7 @@ class analyse(object):
     def ablation_times(self, samples=None, subset=None):
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3848,7 +3891,7 @@ class analyse(object):
 
     # function for visualising sample statistics
     @_log
-    def statplot(self, analytes=None, samples=None, figsize=None,
+    def statrace_plot(self, analytes=None, samples=None, figsize=None,
                  stat='mean', err='std', subset=None):
         """
         Function for visualising per-ablation and per-sample means.
@@ -3873,10 +3916,10 @@ class analyse(object):
         if not hasattr(self, 'stats'):
             self.sample_stats()
 
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=self.focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -3946,7 +3989,7 @@ class analyse(object):
         slst = []
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
         for s in self.stats_calced:
@@ -3987,7 +4030,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out.reindex(self.analytes_sorted(out.columns), axis=1)
+        return out.reindex(self.analytes_sorted(out.columns, focus_stage=self.focus_stage), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
@@ -3996,7 +4039,7 @@ class analyse(object):
         Used for exporting minimal dataset. DON'T USE.
         """
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -4069,10 +4112,10 @@ class analyse(object):
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
         """
-        analytes = self.analytes_sorted(analytes)
+        analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if samples is not None:
-            subset = self.make_subset(samples)
+            subset = self.make_subset(samples, silent=True)
 
         samples = self._get_samples(subset)
 
@@ -4096,7 +4139,7 @@ class analyse(object):
             ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
-            for a in self.analytes_sorted(analytes):
+            for a in analytes:
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])
