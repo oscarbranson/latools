@@ -1575,7 +1575,8 @@ class analyse(object):
 
         analytes = self._analyte_checker(analytes)
         analytes.difference_update(self._analytes_missing_srm)
-
+        analytes = list(analytes)
+        
         # get and scale mean srm values for all analytes
         srmid = self.srmtab.loc[:, idx[analytes, 'mean']]   
         _srmid = scale(np.log(srmid))
