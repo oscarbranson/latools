@@ -1,6 +1,11 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.24_dev] LIVE
+
+### Changed
+- Fixed bug in reading of external standard database. 
+
 ## [0.3.23] 27/06/2021
 
 ### Changed

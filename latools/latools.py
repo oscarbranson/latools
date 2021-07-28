@@ -338,6 +338,7 @@ class analyse(object):
             warnings.warn(
                 self._wrap_text(f'The specified internal_standard {internal_standard} is not in the list of analytes ({self.analytes}). You will have to specify a valid analyte when calling the `ratio()` function later in the analysis.')
                 )
+        self.internal_standard_concs = None
 
         self.minimal_analytes = set()
         
@@ -1801,7 +1802,6 @@ class analyse(object):
 
         empty = pd.DataFrame(index=self.samples, columns=['int_stand_massfrac'])
         empty.to_csv(save_as)
-        self.internal_standard_concs = empty
         print(self._wrap_text('Sample List saved to {} \nPlease modify and re-import using read_internal_standard_concs()'.format(save_as)))
 
     def read_internal_standard_concs(self, sample_concs=None):
@@ -1821,13 +1821,13 @@ class analyse(object):
         return self.internal_standard_concs
 
     @_log
-    def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
+    def calculate_mass_fraction(self, internal_standard_concs=None, analytes=None, analyte_masses=None):
         """
         Convert calibrated molar ratios to mass fraction.
 
         Parameters
         ----------
-        internal_standard_conc : float, pandas.DataFrame or str
+        internal_standard_concs : float, pandas.DataFrame or str
             The concentration of the internal standard in your samples.
             If a string, should be the file name pointing towards the
             [completed] output of get_sample_list().
@@ -1845,10 +1845,11 @@ class analyse(object):
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
 
+        if isinstance(internal_standard_concs, str) or internal_standard_concs is None:
+            self.internal_standard_concs = self.read_internal_standard_concs(internal_standard_concs)
+        else:
+            self.internal_standard_concs = internal_standard_concs
         isc = self.internal_standard_concs
-
-        if isinstance(isc, str) or isc is None:
-            isc = self.read_internal_standard_concs(isc)
 
         if not isinstance(isc, pd.core.frame.DataFrame):
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
