@@ -186,6 +186,9 @@ class analyse(object):
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
+        # set up file paths
+        self._file_internal_standard_massfrac = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+
         # load configuration parameters
         self.config = read_configuration(config)
 
@@ -1795,29 +1798,37 @@ class analyse(object):
             Location to save the file. Defaults to the export directory.
         """
         if save_as is None:
-            save_as = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+            save_as = self._file_internal_standard_massfrac
+        else:
+            self._file_internal_standard_massfrac = save_as
         if os.path.exists(save_as):
             if not overwrite:
-                raise IOError('File exists. Please change the save location or specify overwrite=True')
+                raise IOError(f'File {save_as} exists. Please change the save location or specify overwrite=True')
 
         empty = pd.DataFrame(index=self.samples, columns=['int_stand_massfrac'])
         empty.to_csv(save_as)
-        print(self._wrap_text('Sample List saved to {} \nPlease modify and re-import using read_internal_standard_concs()'.format(save_as)))
+        print(self._wrap_text(f'Sample List saved to {save_as} \nPlease modify and re-import using read_internal_standard_concs()'))
 
-    def read_internal_standard_concs(self, sample_concs=None):
+    def read_internal_standard_concs(self, sample_conc_file=None):
         """
         Load in a per-sample list of internal sample concentrations.
 
         Parameters
         ----------
 
-        sample_concs : str
+        sample_conc_file : str
             Path to csv file containing internal standard mass fractions.
+            Must contain the sample names in the first column, column names
+            in the first row, and contain a column called 'int_stand_massfrac'.
+            If in doubt, use the `get_sample_list` function to generate a 
+            blank template for your samples.
         """
-        if sample_concs is None:
-            sample_concs = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+        if sample_conc_file is None:
+            sample_conc_file = self._file_internal_standard_massfrac
+        else:
+            self._file_internal_standard_massfrac = sample_conc_file
         
-        self.internal_standard_concs = pd.read_csv(sample_concs, index_col=0)
+        self.internal_standard_concs = pd.read_csv(sample_conc_file, index_col=0)
         return self.internal_standard_concs
 
     @_log
@@ -1827,7 +1838,7 @@ class analyse(object):
 
         Parameters
         ----------
-        internal_standard_concs : float, pandas.DataFrame or str
+        internal_standard_concs : float or str
             The concentration of the internal standard in your samples.
             If a string, should be the file name pointing towards the
             [completed] output of get_sample_list().
@@ -1845,10 +1856,13 @@ class analyse(object):
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
 
-        if isinstance(internal_standard_concs, str) or internal_standard_concs is None:
-            self.internal_standard_concs = self.read_internal_standard_concs(internal_standard_concs)
-        else:
+        if isinstance(internal_standard_concs, str):
+            self.internal_standard_concs = self.read_internal_standard_concs(sample_conc_file=internal_standard_concs)
+        elif isinstance(internal_standard_concs, float):
             self.internal_standard_concs = internal_standard_concs
+        elif not isinstance(self.internal_standard_concs, pd.DataFrame):
+            self.internal_standard_concs = self.read_internal_standard_concs()
+        
         isc = self.internal_standard_concs
 
         if not isinstance(isc, pd.core.frame.DataFrame):
@@ -4244,7 +4258,7 @@ class analyse(object):
                 f.write(srmdat.to_csv())
         
         # save internal_standard_concs
-        if hasattr(self, 'internal_standard_concs'):
+        if self.internal_standard_concs is not None:
             log_header.append('internal_standard_concs :: ./internal_standard_concs.csv')
             self.internal_standard_concs.to_csv(os.path.join(path, './internal_standard_concs.csv'))
 
