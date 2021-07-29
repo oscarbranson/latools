@@ -17,7 +17,7 @@ from .helpers import config
 from .helpers import chemistry
 from . import preprocessing
 
-__version__ = '0.3.24_dev'
+__version__ = '0.3.24'
 
 def cite(output='text'):
     """
