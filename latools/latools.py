@@ -1394,7 +1394,7 @@ class analyse(object):
 
             # calculate ratios to internal_standard for calibration ratios
             analyte_srm_link = {}
-            warns = []
+            warns = {}
             self.uncalibrated = set()
             self._analytes_missing_from_srm = set()
 
@@ -1424,7 +1424,9 @@ class analyse(object):
                             if len(item) == 1:
                                 ad[a] = item[0]
                             else:
-                                warns.append(f'   No {a} value for {srm}.')
+                                if srm not in warns:
+                                    warns[srm] = []
+                                warns[srm].append(a)
                                 srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
@@ -1467,7 +1469,8 @@ class analyse(object):
             # Print any warnings
             if len(warns) > 0:
                 print('WARNING: Some analytes are not present in the SRM database for some standards:')
-                print('\n'.join(warns))
+                for srm, a in warns.items():
+                    print(f'  {srm}: ' + ', '.join(self.analytes_sorted(a, focus_stage='bkgsub')))
             
             if len(self.uncalibrated) > 0:
                 self.analyte_ratios.difference_update(self.uncalibrated)
