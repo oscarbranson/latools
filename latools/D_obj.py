@@ -606,7 +606,7 @@ class D(object):
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes)
         
-        if np.isnan(internal_standard_conc):
+        if np.isnan(un.nominal_values(internal_standard_conc)):
             for a in analytes:
                 num, denom = a.split('_')
                 self.data['mass_fraction'][num] = np.full(self.data['calibrated'][a].shape, np.nan)
