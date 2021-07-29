@@ -1,6 +1,14 @@
 # Changelog
 All significant changes to the software will be documented here.
 
+## [0.3.24] 29/07/2021
+
+### Changed
+- Fixed bug in reading of external standard database. 
+- Cleaner warning messages for analytes missing from individual standards. 
+- Fixes to `analytes_sorted` function to pass through focus_stage argument.
+- Create `_srm_key_dict` dict linking sample names to identified SRMs.
+
 ## [0.3.23] 27/06/2021
 
 ### Changed

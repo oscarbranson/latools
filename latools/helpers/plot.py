@@ -87,6 +87,9 @@ def trace_plot(self, analytes=None, figsize=[10, 4], scale='log', filt=None,
             ret = False
 
         for a in analytes:
+            if a not in self.data[focus_stage]:
+                continue
+                # TODO: this is lazy and will fail silently. Should print a warning.
             x = self.Time
             y, yerr = unpack_uncertainties(self.data[focus_stage][a])
 

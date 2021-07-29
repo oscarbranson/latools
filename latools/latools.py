@@ -186,6 +186,9 @@ class analyse(object):
         if not os.path.isdir(self.export_dir):
             os.mkdir(self.export_dir)
 
+        # set up file paths
+        self._file_internal_standard_massfrac = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+
         # load configuration parameters
         self.config = read_configuration(config)
 
@@ -338,6 +341,7 @@ class analyse(object):
             warnings.warn(
                 self._wrap_text(f'The specified internal_standard {internal_standard} is not in the list of analytes ({self.analytes}). You will have to specify a valid analyte when calling the `ratio()` function later in the analysis.')
                 )
+        self.internal_standard_concs = None
 
         self.minimal_analytes = set()
         
@@ -363,6 +367,7 @@ class analyse(object):
 
         # set up focus_stage recording
         self.focus_stage = 'rawdata'
+        self.stat_focus_stage = None
         self.focus = Bunch()
 
         # set up subsets
@@ -509,7 +514,7 @@ class analyse(object):
 
 
     def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
-        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -1389,7 +1394,7 @@ class analyse(object):
 
             # calculate ratios to internal_standard for calibration ratios
             analyte_srm_link = {}
-            warns = []
+            warns = {}
             self.uncalibrated = set()
             self._analytes_missing_from_srm = set()
 
@@ -1419,7 +1424,9 @@ class analyse(object):
                             if len(item) == 1:
                                 ad[a] = item[0]
                             else:
-                                warns.append(f'   No {a} value for {srm}.')
+                                if srm not in warns:
+                                    warns[srm] = []
+                                warns[srm].append(a)
                                 srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
@@ -1462,7 +1469,8 @@ class analyse(object):
             # Print any warnings
             if len(warns) > 0:
                 print('WARNING: Some analytes are not present in the SRM database for some standards:')
-                print('\n'.join(warns))
+                for srm, a in warns.items():
+                    print(f'  {srm}: ' + ', '.join(self.analytes_sorted(a, focus_stage='bkgsub')))
             
             if len(self.uncalibrated) > 0:
                 self.analyte_ratios.difference_update(self.uncalibrated)
@@ -1596,6 +1604,7 @@ class analyse(object):
         std_srm_labels = np.array([srm_labels[np.argwhere(classifier.labels_ == i)][0][0] for i in std_classes])
 
         self.stdtab.loc[:, 'SRM'] = std_srm_labels
+        self._srm_key_dict = {k: v for k, v in zip(self.stdtab.STD, self.stdtab.SRM)}
         self.srms_ided = True
 
         self.srm_build_calib_table()
@@ -1794,40 +1803,47 @@ class analyse(object):
             Location to save the file. Defaults to the export directory.
         """
         if save_as is None:
-            save_as = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+            save_as = self._file_internal_standard_massfrac
+        else:
+            self._file_internal_standard_massfrac = save_as
         if os.path.exists(save_as):
             if not overwrite:
-                raise IOError('File exists. Please change the save location or specify overwrite=True')
+                raise IOError(f'File {save_as} exists. Please change the save location or specify overwrite=True')
 
         empty = pd.DataFrame(index=self.samples, columns=['int_stand_massfrac'])
         empty.to_csv(save_as)
-        self.internal_standard_concs = empty
-        print(self._wrap_text('Sample List saved to {} \nPlease modify and re-import using read_internal_standard_concs()'.format(save_as)))
+        print(self._wrap_text(f'Sample List saved to {save_as} \nPlease modify and re-import using read_internal_standard_concs()'))
 
-    def read_internal_standard_concs(self, sample_concs=None):
+    def read_internal_standard_concs(self, sample_conc_file=None):
         """
         Load in a per-sample list of internal sample concentrations.
 
         Parameters
         ----------
 
-        sample_concs : str
+        sample_conc_file : str
             Path to csv file containing internal standard mass fractions.
+            Must contain the sample names in the first column, column names
+            in the first row, and contain a column called 'int_stand_massfrac'.
+            If in doubt, use the `get_sample_list` function to generate a 
+            blank template for your samples.
         """
-        if sample_concs is None:
-            sample_concs = os.path.join(self.export_dir, 'internal_standard_massfrac.csv')
+        if sample_conc_file is None:
+            sample_conc_file = self._file_internal_standard_massfrac
+        else:
+            self._file_internal_standard_massfrac = sample_conc_file
         
-        self.internal_standard_concs = pd.read_csv(sample_concs, index_col=0)
+        self.internal_standard_concs = pd.read_csv(sample_conc_file, index_col=0)
         return self.internal_standard_concs
 
     @_log
-    def calculate_mass_fraction(self, internal_standard_conc=None, analytes=None, analyte_masses=None):
+    def calculate_mass_fraction(self, internal_standard_concs=None, analytes=None, analyte_masses=None):
         """
         Convert calibrated molar ratios to mass fraction.
 
         Parameters
         ----------
-        internal_standard_conc : float, pandas.DataFrame or str
+        internal_standard_concs : float or str
             The concentration of the internal standard in your samples.
             If a string, should be the file name pointing towards the
             [completed] output of get_sample_list().
@@ -1840,15 +1856,19 @@ class analyse(object):
             contain a number, the average mass for the element is used. 
         """
 
-        analytes = self._analyte_checker(analytes)
+        analytes = self._analyte_checker(analytes, focus_stage='calibrated')
 
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
 
+        if isinstance(internal_standard_concs, str):
+            self.internal_standard_concs = self.read_internal_standard_concs(sample_conc_file=internal_standard_concs)
+        elif isinstance(internal_standard_concs, float):
+            self.internal_standard_concs = internal_standard_concs
+        elif not isinstance(self.internal_standard_concs, pd.DataFrame):
+            self.internal_standard_concs = self.read_internal_standard_concs()
+        
         isc = self.internal_standard_concs
-
-        if isinstance(isc, str) or isc is None:
-            isc = self.read_internal_standard_concs(isc)
 
         if not isinstance(isc, pd.core.frame.DataFrame):
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
@@ -1859,7 +1879,7 @@ class analyse(object):
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
                 for k, d in self.data.items():
                     if k in isc.index:
-                        d.calc_mass_fraction(isc.loc[k].values[0], analytes, analyte_masses)
+                        d.calc_mass_fraction(isc.loc[k, 'int_stand_massfrac'], analytes, analyte_masses)
                     else:
                         d.calc_mass_fraction(np.nan, analytes, analyte_masses)
                     prog.update()
@@ -3784,7 +3804,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        stats : array_like
+        stats : array_like or str
             take a single array_like input, and return a single statistic. 
             list of functions or names (see above) or functions that
             Function should be able to cope with NaN values.
@@ -3832,6 +3852,9 @@ class analyse(object):
                      'H15_std': H15_std,
                      'H15_se': H15_se}
 
+        if isinstance(stats, str):
+            stats = [stats]
+
         for s in stats:
             if isinstance(s, str):
                 if s in stat_dict.keys():
@@ -3863,6 +3886,8 @@ class analyse(object):
 
                 self.stats[s] = self.data[s].stats
                 prog.update()
+        
+        self.stat_focus_stage = focus_stage
 
         return 
 
@@ -4030,7 +4055,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out.reindex(self.analytes_sorted(out.columns, focus_stage=self.focus_stage), axis=1)
+        return out.reindex(self.analytes_sorted(out.columns.values, focus_stage=self.stat_focus_stage), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
@@ -4243,7 +4268,7 @@ class analyse(object):
                 f.write(srmdat.to_csv())
         
         # save internal_standard_concs
-        if hasattr(self, 'internal_standard_concs'):
+        if self.internal_standard_concs is not None:
             log_header.append('internal_standard_concs :: ./internal_standard_concs.csv')
             self.internal_standard_concs.to_csv(os.path.join(path, './internal_standard_concs.csv'))
 
