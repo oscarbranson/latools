@@ -182,7 +182,7 @@ class D(object):
         return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
     def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
-        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
 
     def _init_filts(self, analytes):
         self.filt = filt(self.Time.size, analytes)
@@ -656,7 +656,7 @@ class D(object):
         -------
         None
         """
-        analytes = self._analyte_checker(analytes)
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
         self.stats = Bunch()
         self.stats['analytes'] = analytes

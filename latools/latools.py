@@ -367,6 +367,7 @@ class analyse(object):
 
         # set up focus_stage recording
         self.focus_stage = 'rawdata'
+        self.stat_focus_stage = None
         self.focus = Bunch()
 
         # set up subsets
@@ -513,7 +514,7 @@ class analyse(object):
 
 
     def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
-        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=None), key=analyte_sort_fn)
+        return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
 
     @_log
     def basic_processing(self,
@@ -1600,6 +1601,7 @@ class analyse(object):
         std_srm_labels = np.array([srm_labels[np.argwhere(classifier.labels_ == i)][0][0] for i in std_classes])
 
         self.stdtab.loc[:, 'SRM'] = std_srm_labels
+        self._srm_key_dict = {k: v for k, v in zip(self.stdtab.STD, self.stdtab.SRM)}
         self.srms_ided = True
 
         self.srm_build_calib_table()
@@ -1851,7 +1853,7 @@ class analyse(object):
             contain a number, the average mass for the element is used. 
         """
 
-        analytes = self._analyte_checker(analytes)
+        analytes = self._analyte_checker(analytes, focus_stage='calibrated')
 
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes, False)
@@ -1874,7 +1876,7 @@ class analyse(object):
             with self.pbar.set(total=len(self.data), desc='Calculating Mass Fractions') as prog:        
                 for k, d in self.data.items():
                     if k in isc.index:
-                        d.calc_mass_fraction(isc.loc[k].values[0], analytes, analyte_masses)
+                        d.calc_mass_fraction(isc.loc[k, 'int_stand_massfrac'], analytes, analyte_masses)
                     else:
                         d.calc_mass_fraction(np.nan, analytes, analyte_masses)
                     prog.update()
@@ -3799,7 +3801,7 @@ class analyse(object):
             Either logical filter expression contained in a str,
             a dict of expressions specifying the filter string to
             use for each analyte or a boolean. Passed to `grab_filt`.
-        stats : array_like
+        stats : array_like or str
             take a single array_like input, and return a single statistic. 
             list of functions or names (see above) or functions that
             Function should be able to cope with NaN values.
@@ -3847,6 +3849,9 @@ class analyse(object):
                      'H15_std': H15_std,
                      'H15_se': H15_se}
 
+        if isinstance(stats, str):
+            stats = [stats]
+
         for s in stats:
             if isinstance(s, str):
                 if s in stat_dict.keys():
@@ -3878,6 +3883,8 @@ class analyse(object):
 
                 self.stats[s] = self.data[s].stats
                 prog.update()
+        
+        self.stat_focus_stage = focus_stage
 
         return 
 
@@ -4045,7 +4052,7 @@ class analyse(object):
 
         self.stats_df = out
 
-        return out.reindex(self.analytes_sorted(out.columns, focus_stage=self.focus_stage), axis=1)
+        return out.reindex(self.analytes_sorted(out.columns.values, focus_stage=self.stat_focus_stage), axis=1)
 
     # raw data export function
     def _minimal_export_traces(self, outdir=None, analytes=None,
