@@ -53,12 +53,12 @@ class filt(object):
     
     def __init__(self, size, analytes):
         self.size = size
-        self.analytes = analytes
         self.maxset = -1
         
         findex = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['N', 'filter'])
         self.fnames = []
-        self.filter_table = pd.DataFrame(index=findex, columns=self.analytes)
+        self.filter_table = pd.DataFrame(index=findex, columns=analytes)
+        self.analytes = self.filter_table.columns
         self.filter_components = pd.DataFrame(index=np.arange(size), columns=findex)
         
         self.param = Bunch()
@@ -67,14 +67,14 @@ class filt(object):
         
         self.N = 0
 
-    def check_analytes(self, analytes, single=False):
+    def check_analytes(self, analytes=None, single=False):
         """
         Checks analyte name and matches it to correct filter.
         
         Necessary because of distinction between analyte and ratio names.
         """
         if analytes is None:
-            return self.analytes
+            return set(self.analytes.values)
 
         if isinstance(analytes, str):
             analytes = [analytes]
@@ -83,7 +83,7 @@ class filt(object):
 
         for analyte in analytes:
             if analyte in self.analytes:
-                valid.update(analyte)
+                valid.update([analyte])
         
             if '_' not in analyte:
                 candidates = []
@@ -91,10 +91,12 @@ class filt(object):
                     if analyte in a:
                         candidates.append(a)
                 if len(candidates) == 1:
-                    valid.update(candidates[0])
-                else:
+                    valid.update([candidates[0]])
+                elif len(candidates) > 1:
                     raise ValueError(f'{analyte} matches one than one analyte name: {candidates}. Please be more specific.')
         if single:
+            if len(valid) == 0:
+                return analytes[0]
             return valid.pop()
         else:
             return valid
@@ -161,6 +163,7 @@ class filt(object):
             self.filter_table.loc[:, analyte] = True
         else:
             self.filter_table.loc[:, analyte] = False
+        self.analytes = self.filter_table.columns
 
     def clear(self):
         """
@@ -345,10 +348,13 @@ class filt(object):
             boolean filter
         """
         analyte = self.check_analytes(analyte, single=True)
-
+        
+        if len(analyte) == 0:
+            return np.ones(self.size, dtype=bool)
+        
         if analyte not in self.analytes:
-            ind = np.ones(self.size, dtype=bool)
-            print(f'Warning: {analyte} is not in filter table. No filters applied.')
+            return np.ones(self.size, dtype=bool)
+            # print(f'Warning: {analyte} is not in filter table. No filters applied.')
 
         if isinstance(filt, str):
             if filt in self.fnames:
