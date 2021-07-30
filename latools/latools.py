@@ -3833,6 +3833,9 @@ class analyse(object):
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
+        if 'autorange' not in self.stages_complete:
+            raise RuntimeError('Cannot calculate statistics until autorange has been run.')
+
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if focus_stage is None:
