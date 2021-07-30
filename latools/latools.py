@@ -4161,10 +4161,10 @@ class analyse(object):
 
         for s in samples:
             d = self.data[s].data[focus_stage]
-            ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
             for a in analytes:
+                ind = self.data[s].filt.grab_filt(filt, a)
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])
