@@ -166,9 +166,9 @@ class D(object):
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
-        # set up filtering environment
+        # set up blank filtering object
+        self._init_filts()
         # self.filt = filt(self.Time.size, self.analytes)
-        self.filt = None
 
         if errorhunt:
             print('   -> OK')
@@ -184,7 +184,7 @@ class D(object):
     def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
 
-    def _init_filts(self, analytes):
+    def _init_filts(self, analytes=None):
         self.filt = filt(self.Time.size, analytes)
 
     @_log
@@ -592,9 +592,10 @@ class D(object):
                 c = 0
 
             self.data['calibrated'][a] = self.data['ratios'][a] * m + c
-
+            self.filt.add_to_table(a)
+        
         # initialise filtering framework
-        self._init_filts(self.analyte_ratios)
+        # self._init_filts(self.analyte_ratios)
 
         self.setfocus('calibrated')
         return
@@ -666,6 +667,8 @@ class D(object):
             for n, f in stat_fns.items():
                 self.stats[n] = []
                 for a in analytes:
+                    if a not in self.data[focus_stage]:
+                        continue 
                     ind = self.filt.grab_filt(filt, a)
                     dat = nominal_values(self.data[focus_stage][a])
                     if eachtrace:

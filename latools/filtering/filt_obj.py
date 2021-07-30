@@ -53,12 +53,12 @@ class filt(object):
     
     def __init__(self, size, analytes):
         self.size = size
-        self.analytes = analytes
         self.maxset = -1
         
         findex = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['N', 'filter'])
         self.fnames = []
-        self.filter_table = pd.DataFrame(index=findex, columns=self.analytes)
+        self.filter_table = pd.DataFrame(index=findex, columns=analytes)
+        self.analytes = self.filter_table.columns
         self.filter_components = pd.DataFrame(index=np.arange(size), columns=findex)
         
         self.param = Bunch()
@@ -66,6 +66,58 @@ class filt(object):
         self.keydict = Bunch()
         
         self.N = 0
+
+    def check_analytes(self, analytes=None, single=False, allow_multiples=False):
+        """
+        Checks analyte name and matches it to correct filter.
+        
+        Necessary because of distinction between analyte and ratio names.
+
+        Parameters
+        ==========
+        analytes : str or array-like
+            The analyte(s) to check.
+        single : bool
+            If true a single analyte is returned as a string
+        allow_multiples : bool
+            If True, analytes that link to multiple possible filter
+            analytes are allowed.
+
+        Returns
+        =======
+        set : containing valid analytes
+        """
+        if analytes is None:
+            return set(self.analytes.values)
+
+        if isinstance(analytes, str):
+            analytes = [analytes]
+
+        valid = set()
+
+        for analyte in analytes:
+            if analyte in self.analytes:
+                valid.update([analyte])
+        
+            if '_' not in analyte:
+                candidates = set()
+                for a in self.analytes:
+                    if analyte in a:
+                        candidates.update([analyte])
+                if len(candidates) == 1:
+                    valid.update([candidates.pop()])
+                elif len(candidates) > 1:
+                    if allow_multiples:
+                        valid.update(candidates)
+                        # valid.update([analyte])
+                    else:
+                        raise ValueError(f'{analyte} matches one than one analyte name: {candidates}. Please be more specific.')
+        if single:
+            if len(valid) == 0:
+                return analytes[0]
+            return valid.pop()
+        else:
+            return valid
 
     def add(self, name, filt, info='', params=(), setn=None):
         """
@@ -129,6 +181,7 @@ class filt(object):
             self.filter_table.loc[:, analyte] = True
         else:
             self.filter_table.loc[:, analyte] = False
+        self.analytes = self.filter_table.columns
 
     def clear(self):
         """
@@ -155,10 +208,7 @@ class filt(object):
         -------
         None
         """
-        if isinstance(analyte, str):
-            analyte = [analyte]
-        if analyte is None:
-            analyte = self.analytes
+        analyte = self.check_analytes(analyte)
         
         if isinstance(filt, str):
             # find filter name
@@ -182,10 +232,7 @@ class filt(object):
         -------
         None
         """
-        if isinstance(analyte, str):
-            analyte = [analyte]
-        if analyte is None:
-            analyte = self.analytes
+        analyte = self.check_analytes(analyte)
         
         if isinstance(filt, str):
             # find filter name
@@ -238,10 +285,7 @@ class filt(object):
         array_like
             boolean filter
         """
-        if isinstance(analyte, str):
-            analyte = [analyte]
-        elif analyte is None:
-            analyte = self.analytes
+        analyte = self.check_analytes(analyte)
             
         key = []
         for n, f in self.filter_table[analyte].index[self.filter_table[analyte].any(1)]:
@@ -296,10 +340,7 @@ class filt(object):
         dict
             containing the logical filter expression for each analyte.
         """
-        if isinstance(analyte, str):
-            analyte = [analyte]
-        elif analyte is None:
-            analyte = self.analytes
+        analyte = self.check_analytes(analyte)
         
         for a in analyte:
             key = []
@@ -307,13 +348,13 @@ class filt(object):
                 key.append(f'{n}:{f}')
             self.keydict[a] = ' & '.join(key)
     
-    def grab_filt(self, filt, analyte=None):
+    def grab_filt(self, filt, analyte=None, allow_multiples=True):
         """
         Flexible access to specific filter using any key format.
 
         Parameters
         ----------
-        f : str, dict or bool
+        filt : str, dict or bool
             either logical filter expression, dict of expressions,
             or a boolean
         analyte : str
@@ -324,6 +365,15 @@ class filt(object):
         array_like
             boolean filter
         """
+        analyte = self.check_analytes(analyte, single=True)
+        
+        if len(analyte) == 0:
+            return np.ones(self.size, dtype=bool)
+        
+        if analyte not in self.analytes:
+            return np.ones(self.size, dtype=bool)
+            # print(f'Warning: {analyte} is not in filter table. No filters applied.')
+
         if isinstance(filt, str):
             if filt in self.fnames:
                 fkey = self.fuzzmatch(filt)
@@ -348,7 +398,7 @@ class filt(object):
         elif filt:
             ind = self.make_analyte(analyte)
         else:
-            ind = ~np.zeros(self.size, dtype=bool)
+            ind = np.ones(self.size, dtype=bool)
         return ind
     
     def get_components(self, analyte):

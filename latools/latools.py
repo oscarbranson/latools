@@ -3833,6 +3833,9 @@ class analyse(object):
             Adds dict to analyse object containing samples, analytes and
             functions and data.
         """
+        if 'autorange' not in self.stages_complete:
+            raise RuntimeError('Cannot calculate statistics until autorange has been run.')
+
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
         if focus_stage is None:
@@ -4154,17 +4157,20 @@ class analyse(object):
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
               'ratios': 'counts/count',
-              'calibrated': 'mol/mol'}
+              'calibrated': 'mol/mol',
+              'mass_fraction': 'mass fraction'}
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
         for s in samples:
             d = self.data[s].data[focus_stage]
-            ind = self.data[s].filt.grab_filt(filt)
             out = Bunch()
 
             for a in analytes:
+                if a not in d:
+                    continue
+                ind = self.data[s].filt.grab_filt(filt, a)
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
                     out[a + '_std'] = std_devs(d[a][ind])

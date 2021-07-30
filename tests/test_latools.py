@@ -3,6 +3,16 @@ import unittest
 import pandas as pd
 import latools as la
 
+def test_export_fns(d, stage=''):
+    for fs in d.stages_complete:
+        if fs == 'autorange':
+            continue
+        try:
+            d.sample_stats(focus_stage=fs)
+        except Exception as e:
+            raise Exception(f"sample_stats failed after {stage} at focus_stage={fs}") from e
+        d.export_traces(focus_stage=fs)
+    d.minimal_export()
 
 class test_latools(unittest.TestCase):
     """
@@ -20,6 +30,9 @@ class test_latools(unittest.TestCase):
     d.autorange(on_mult=[1.5, 0.8],
                 off_mult=[0.8, 1.5])
 
+    # test export functions
+    test_export_fns(d, 'applying autorange')
+
     # trace plotting
     d.trace_plots(ranges=True)
 
@@ -32,14 +45,23 @@ class test_latools(unittest.TestCase):
     # subtract background
     d.bkg_subtract()
 
+    # test export functions
+    test_export_fns(d, 'background subtraction')
+
     # ratio
     d.ratio()
+
+    # test export functions
+    test_export_fns(d, 'calculating ratios')
 
     # calibrate
     d.calibrate(drift_correct=False, n_min=10,
                 srms_used=['NIST610', 'NIST612', 'NIST614'])
     # calibration plot
     fig, axs = d.calibration_plot()
+
+    # test export functions
+    test_export_fns(d, 'calibration')
 
     # crossplot
     fig, axs = d.crossplot(save=True)
@@ -55,8 +77,14 @@ class test_latools(unittest.TestCase):
 
     d.filter_on('Albelow')
 
+    # test export functions
+    test_export_fns(d, 'applying filters')
+
     # test custom denominator
     d.ratio('Ba137', 'Ba138')
+
+    # test export functions
+    test_export_fns(d, 'calculating a custom ratio')
 
     # calculate stats
     d.sample_stats(stats=['mean', 'std', 'se', 'H15_mean', 'H15_std', 'H15_se'], filt=True)
@@ -66,6 +94,9 @@ class test_latools(unittest.TestCase):
     
     d.internal_standard_concs = pd.DataFrame(0.6, index=d.samples, columns=['int_stand_massfrac'])
     d.calculate_mass_fraction()
+
+    # test export functions
+    test_export_fns(d, 'calculating mass fractions')
 
     # minimal export
     d.minimal_export()
