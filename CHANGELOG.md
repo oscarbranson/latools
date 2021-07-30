@@ -1,10 +1,13 @@
 # Changelog
 All significant changes to the software will be documented here.
 
-## [0.3.25] - LIVE
+## [0.3.25] - 30/07/2021
 
-### TODO
-- implement different analyte lists for different stages (raw, ratios, mass_fractions), OR improve analyte_checker functionality. This has to propagate throught to filter assignment.
+### Changed
+- Improvements to analyte handling in filt_obj to play nicely with custom denominators.
+- Improved robustness of `sample_stats` and `export_traces` at all stages
+- Added tests for `sample_stats`, `export_traces` and `minimal_export`
+
 
 ## [0.3.24] 29/07/2021
 
