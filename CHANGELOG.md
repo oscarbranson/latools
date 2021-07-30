@@ -18,6 +18,7 @@ All significant changes to the software will be documented here.
 
 ### Changed
 - Fixes to handling of SRMs with missing analytes.
+- moved tests to GitHub Workflows
 
 ## [0.3.22] 27/05/2021
 
