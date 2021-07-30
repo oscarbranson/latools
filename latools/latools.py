@@ -4157,7 +4157,8 @@ class analyse(object):
               'despiked': 'counts',
               'bkgsub': 'background corrected counts',
               'ratios': 'counts/count',
-              'calibrated': 'mol/mol'}
+              'calibrated': 'mol/mol',
+              'mass_fraction': 'mass fraction'}
 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
