@@ -167,7 +167,7 @@ class D(object):
         self.sigrng = np.array([]).reshape(0, 2)
 
         # set up blank filtering object
-        self.filt = self._init_filts()
+        self._init_filts()
         # self.filt = filt(self.Time.size, self.analytes)
 
         if errorhunt:
@@ -185,7 +185,6 @@ class D(object):
         return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
 
     def _init_filts(self, analytes=None):
-        print('init_filt')
         self.filt = filt(self.Time.size, analytes)
 
     @_log
