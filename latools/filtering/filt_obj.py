@@ -67,11 +67,25 @@ class filt(object):
         
         self.N = 0
 
-    def check_analytes(self, analytes=None, single=False):
+    def check_analytes(self, analytes=None, single=False, allow_multiples=False):
         """
         Checks analyte name and matches it to correct filter.
         
         Necessary because of distinction between analyte and ratio names.
+
+        Parameters
+        ==========
+        analytes : str or array-like
+            The analyte(s) to check.
+        single : bool
+            If true a single analyte is returned as a string
+        allow_multiples : bool
+            If True, analytes that link to multiple possible filter
+            analytes are allowed.
+
+        Returns
+        =======
+        set : containing valid analytes
         """
         if analytes is None:
             return set(self.analytes.values)
@@ -86,14 +100,18 @@ class filt(object):
                 valid.update([analyte])
         
             if '_' not in analyte:
-                candidates = []
+                candidates = set()
                 for a in self.analytes:
                     if analyte in a:
-                        candidates.append(a)
+                        candidates.update([analyte])
                 if len(candidates) == 1:
-                    valid.update([candidates[0]])
+                    valid.update([candidates.pop()])
                 elif len(candidates) > 1:
-                    raise ValueError(f'{analyte} matches one than one analyte name: {candidates}. Please be more specific.')
+                    if allow_multiples:
+                        valid.update(candidates)
+                        # valid.update([analyte])
+                    else:
+                        raise ValueError(f'{analyte} matches one than one analyte name: {candidates}. Please be more specific.')
         if single:
             if len(valid) == 0:
                 return analytes[0]
@@ -330,7 +348,7 @@ class filt(object):
                 key.append(f'{n}:{f}')
             self.keydict[a] = ' & '.join(key)
     
-    def grab_filt(self, filt, analyte=None):
+    def grab_filt(self, filt, analyte=None, allow_multiples=True):
         """
         Flexible access to specific filter using any key format.
 
