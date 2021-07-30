@@ -667,6 +667,8 @@ class D(object):
             for n, f in stat_fns.items():
                 self.stats[n] = []
                 for a in analytes:
+                    if a not in self.data[focus_stage]:
+                        continue 
                     ind = self.filt.grab_filt(filt, a)
                     dat = nominal_values(self.data[focus_stage][a])
                     if eachtrace:

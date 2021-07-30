@@ -4167,6 +4167,8 @@ class analyse(object):
             out = Bunch()
 
             for a in analytes:
+                if a not in d:
+                    continue
                 ind = self.data[s].filt.grab_filt(filt, a)
                 out[a] = nominal_values(d[a][ind])
                 if focus_stage not in ['rawdata', 'despiked']:
