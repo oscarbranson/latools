@@ -3826,7 +3826,7 @@ class analyse(object):
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
-            * 'massfrac': mass fraction of each element.
+            * 'mass_fraction': mass fraction of each element.
 
         Returns
         -------
