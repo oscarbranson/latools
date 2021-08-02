@@ -4008,7 +4008,7 @@ class analyse(object):
         slst = []
 
         if samples is None and subset is None:
-            samples = self.stats.keys()
+            samples = list(self.stats.keys())
 
         if samples is not None:
             subset = self.make_subset(samples, silent=True)
