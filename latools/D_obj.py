@@ -603,7 +603,6 @@ class D(object):
     def calc_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
         if 'mass_fraction' not in self.data.keys():
             self.data['mass_fraction'] = Bunch()
-
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes)
         
@@ -617,8 +616,9 @@ class D(object):
                 self.data['mass_fraction'][num] = to_mass_fraction(molar_ratio=self.data['calibrated'][a], massfrac_denominator=internal_standard_conc,
                                                                    numerator_mass=analyte_masses[num], denominator_mass=analyte_masses[denom])
                 if denom not in self.data['mass_fraction']:
-                    self.data['mass_fraction'][denom] = np.full(self.data['calibrated'][a].shape, np.nan)
-                    self.data['mass_fraction'][denom][~np.isnan(un.nominal_values(self.data['mass_fraction'][num]))] = internal_standard_conc
+                    self.data['mass_fraction'][denom] = np.full(self.data['calibrated'][a].shape, internal_standard_conc)
+                    ind = np.isnan(un.nominal_values(self.data['mass_fraction'][num]))
+                    self.data['mass_fraction'][denom][ind] = np.nan
 
         self.setfocus('mass_fraction')
 
