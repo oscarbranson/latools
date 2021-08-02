@@ -4010,7 +4010,7 @@ class analyse(object):
         return fig, ax
 
     @_log
-    def getstats(self, save=True, filename=None, samples=None, subset=None, ablation_time=False):
+    def getstats(self, filename=None, samples=None, subset=None, ablation_time=False, save=True):
         """
         Return pandas dataframe of all sample statistics.
         """
@@ -4051,10 +4051,10 @@ class analyse(object):
 
             out = out.join(ats)
 
-        if save:
-            if filename is None:
-                filename = 'stat_export.csv'
-            out.to_csv(os.path.join(self.export_dir, filename))
+        if filename is not None:
+            out.to_csv(filename)
+        elif save:
+            out.to_csv(os.path.join(self.export_dir, 'stat_export.csv'))
 
         self.stats_df = out
 
