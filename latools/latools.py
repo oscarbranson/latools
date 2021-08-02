@@ -1933,6 +1933,7 @@ class analyse(object):
                 print(self._wrap_text(
                             f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
                         ))
+            return existing_name
             if not force:
                 return
 
@@ -4016,10 +4017,13 @@ class analyse(object):
         """
         slst = []
 
+        if samples is None and subset is None:
+            samples = self.stats.keys()
+
         if samples is not None:
             subset = self.make_subset(samples, silent=True)
-
         samples = self._get_samples(subset)
+
         for s in self.stats_calced:
             for nm in samples:
                 if self.stats[nm][s].ndim == 2:
