@@ -1133,13 +1133,6 @@ class analyse(object):
             Can be one of:
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
-            * 'bkgsub': background subtracted data, created by 
-              self.bkg_correct
-            * 'ratios': element ratio data, created by self.ratio.
-            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         analytes = self._analyte_checker(analytes)
 
@@ -3526,7 +3519,7 @@ class analyse(object):
         samples: optional, array_like or str
             The sample(s) to plot. Defaults to all samples.
         ranges : bool
-            Whether or not to show the signal/backgroudn regions
+            Whether or not to show the signal/background regions
             identified by 'autorange'.
         focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
@@ -3608,9 +3601,9 @@ class analyse(object):
         samples: optional, array_like or str
             The sample(s) to plot. Defaults to all samples.
         ranges : bool
-            Whether or not to show the signal/backgroudn regions
+            Whether or not to show the signal/background regions
             identified by 'autorange'.
-        focus : str
+        focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
             'rawdata', 'despiked':, 'signal', 'background',
             'bkgsub', 'ratios' or 'calibrated'.
@@ -3819,9 +3812,6 @@ class analyse(object):
             Can be one of:
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
             * 'bkgsub': background subtracted data, created by 
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
@@ -4124,13 +4114,13 @@ class analyse(object):
 
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
+            * 'background': the calculated background that is
+              subtracted from the data.
             * 'bkgsub': background subtracted data, created by 
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
+            * 'mass_fraction': mass fraction of each element.
 
             Defaults to the most recent stage of analysis.
         analytes : str or array_like
