@@ -454,8 +454,11 @@ class D(object):
         """
         if 'bkgsub' not in self.data.keys():
             self.data['bkgsub'] = Bunch()
+        if 'bkg' not in self.data.keys():
+            self.data['bkg'] = Bunch()
 
         self.data['bkgsub'][analyte] = self.data[focus_stage][analyte] - bkg
+        self.data['bkg'][analyte] = bkg
 
         if ind is not None:
             self.data['bkgsub'][analyte][ind] = np.nan
