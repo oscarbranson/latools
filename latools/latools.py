@@ -492,6 +492,9 @@ class analyse(object):
         """
         if subset is None:
             samples = self.subsets['All_Samples']
+            if len(samples) == 0:
+                print('Warning: No samples in dataset. Using all analyses.')
+                samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
