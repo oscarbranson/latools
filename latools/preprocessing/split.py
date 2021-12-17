@@ -197,7 +197,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     # analyte handling
     if analyte == 'total_counts':
         y_data = dat['total_counts']
-    elif analyte in dat['rawdata'].keys():
+    elif analyte in dat['rawdata']:
         y_data = dat['rawdata'][analyte]
     else:
         valid = list(dat['rawdata'].keys()) + ['total_counts']

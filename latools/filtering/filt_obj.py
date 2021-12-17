@@ -409,6 +409,6 @@ class filt(object):
         Get info for all filters.
         """
         out = ''
-        for k in sorted(self.info.keys()):
+        for k in sorted(self.info):
             out += f'{k}: {self.info[k]}\n'
         return(out)

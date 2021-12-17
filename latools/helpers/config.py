@@ -335,7 +335,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     
     print("\n  Test: read metadata using 'metadata_regex'...")
     meta = Bunch()
-    if 'meta_regex' in dataformat.keys():
+    if 'meta_regex' in dataformat:
         got = []
         for k, v in dataformat['meta_regex'].items():
             rep = '    Line "{:s}":'.format(k)
@@ -371,7 +371,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
               'meta_regex not specified. At minimum, must identify data collection start time as "date". LAtools may not behave as expected.')
         # raise ValueError('meta_regex must identify "date" attribute, containing data collection start time')
 
-    if 'metaparse_function' in dataformat.keys():
+    if 'metaparse_function' in dataformat:
         fn_name, (start, stop) = dataformat['metaparse_function']
         print(f"\n  Test: parsing additional metadata using '{fn_name}' function...")
         print(f"      applying to lines {start}-{stop}.")
@@ -409,7 +409,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
     # return tw.wrap(', '.join(columns), line_width)
     print('    Columns found:\n' + '\n'.join(tw.wrap(', '.join(columns), line_width, subsequent_indent='      ', initial_indent='      ')))
     
-    if 'pattern' in dataformat['column_id'].keys():
+    if 'pattern' in dataformat['column_id']:
         print('    Cleaning up using column_id/pattern...')
         pr = re.compile(dataformat['column_id']['pattern'])
         analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
@@ -419,7 +419,7 @@ def test_dataformat(data_file, dataformat_file, name_mode='file_names'):
         print('    ***This should only contain analyte names... does it?***')
     
     # do any required pre-formatting
-    if 'preformat_replace' in dataformat.keys():
+    if 'preformat_replace' in dataformat:
         print('\n  Test: preformat_replace...')
         with open(data_file) as f:
             fbuffer = f.read()
