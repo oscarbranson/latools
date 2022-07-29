@@ -1547,6 +1547,9 @@ class analyse(object):
             ind = stdtab.group == g
             stdtab.loc[ind, 'gTime'] = stdtab.loc[ind].index.values.mean()
 
+        # replace zeros with very small number
+        stdtab.replace(0, np.nanmin(stdtab[stdtab != 0].loc[:, idx[:, 'mean']]) * 1e-6, inplace=True)
+        
         self.stdtab = stdtab
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], analytes=None, n_min=10, reload_srm_database=False):
