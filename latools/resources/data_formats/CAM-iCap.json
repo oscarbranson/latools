@@ -1,6 +1,6 @@
 {
     "meta_regex": {
-        "0": [["name", "date"], "([A-z0-9-]+):([0-9/ :AMP]+);"]
+        "0": [["name", "date"], "([A-z0-9- ]+):([0-9/ :AMP]+);"]
     },
     "metaparse_function": ["CAM-iCap", [1, 12]],
     "column_id": {
