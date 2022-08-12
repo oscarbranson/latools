@@ -279,7 +279,7 @@ class analyse(object):
 
         # process sample names
         if (names == 'file_names') | (names == 'metadata_names'):
-            samples = np.array([s.sample for s in data], dtype=object)  # get all sample names
+            samples = np.array([s.sample.replace(' ', '') for s in data], dtype=object)  # get all sample names
             # if duplicates, rename them
             usamples, ucounts = np.unique(samples, return_counts=True)
             if usamples.size != samples.size:
