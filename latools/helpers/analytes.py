@@ -30,10 +30,16 @@ def analyte_2_namemass(s):
     str
         Name in format [0-9]{1,3}[A-z]{1,3}
     """
-    el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
-    m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+    ss = s.split('_')
 
-    return el + m
+    out = []
+
+    for si in ss:
+        el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
+        m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
+        out.append(el + m)
+
+    return '_'.join(out)
 
 def analyte_2_massname(s):
     """
@@ -49,10 +55,15 @@ def analyte_2_massname(s):
     str
         Name in format [A-z]{1,3}[0-9]{1,3}
     """
-    el = re.match('.*?([A-z]{1,3}).*?', s).groups()[0]
-    m = re.match('.*?([0-9]{1,3}).*?', s).groups()[0]
+    ss = s.split('_')
+    out = []
 
-    return m + el
+    for si in ss:
+        el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
+        m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
+        out.append(m + el)
+
+    return '_'.join(out)
 
 def analyte_sort_fn(a):
     m = get_analyte_mass(a)

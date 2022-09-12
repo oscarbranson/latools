@@ -341,7 +341,7 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
         cmlist = ['Greys']
 
     if cmap is None and mode == 'scatter':
-        cmap = {k: 'k' for k in dat.keys()}
+        cmap = {k: 'k' for k in dat}
 
     while len(cmlist) < len(keys):
         cmlist *= 2
@@ -1203,7 +1203,7 @@ def correlation_plot(self, corr=None):
     
     if corr is None:
         if len(self.correlations) == 1:
-            corr = list(self.correlations.keys())[0]
+            corr = list(self.correlations)[0]
     
     if corr not in self.correlations:
         raise ValueError("{:} not founself. Please use one of [{:}]".format(corr, [', '.join(c) for c in self.correlations.keys()]))

@@ -155,7 +155,7 @@ class D(object):
         # update colourmap with provided values
         if isinstance(cmap, dict):
             for k, v in cmap.items():
-                if k in self.cmap.keys():
+                if k in self.cmap:
                     self.cmap[k] = v
 
         # set up flags
@@ -452,10 +452,13 @@ class D(object):
         -------
         None
         """
-        if 'bkgsub' not in self.data.keys():
+        if 'bkgsub' not in self.data:
             self.data['bkgsub'] = Bunch()
+        if 'bkg' not in self.data:
+            self.data['bkg'] = Bunch()
 
         self.data['bkgsub'][analyte] = self.data[focus_stage][analyte] - bkg
+        self.data['bkg'][analyte] = bkg
 
         if ind is not None:
             self.data['bkgsub'][analyte][ind] = np.nan
@@ -535,7 +538,7 @@ class D(object):
         # elif isinstance(analytes, str):
         #     analytes = [analytes]
         
-        if 'ratios' not in self.data.keys():
+        if 'ratios' not in self.data:
             self.data['ratios'] = Bunch()
         for a in analytes:
             if a == self.internal_standard:
@@ -580,7 +583,7 @@ class D(object):
         if analyte_ratios is None:
             analyte_ratios = self.analyte_ratios
 
-        if 'calibrated' not in self.data.keys():
+        if 'calibrated' not in self.data:
             self.data['calibrated'] = Bunch()
 
         for a in analyte_ratios:
@@ -601,7 +604,7 @@ class D(object):
         return
 
     def calc_mass_fraction(self, internal_standard_conc, analytes=None, analyte_masses=None):
-        if 'mass_fraction' not in self.data.keys():
+        if 'mass_fraction' not in self.data:
             self.data['mass_fraction'] = Bunch()
         if analyte_masses is None:
             analyte_masses = analyte_mass(self.analytes)

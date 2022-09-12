@@ -51,7 +51,7 @@ def read_data(data_file, dataformat, name_mode):
         lines = f.readlines()
 
     meta = Bunch()
-    if 'meta_regex' in dataformat.keys():
+    if 'meta_regex' in dataformat:
         for k, v in dataformat['meta_regex'].items():
             if str(k).isdigit():
                 # if k is a number, use it to extract that line in the file.
@@ -66,7 +66,7 @@ def read_data(data_file, dataformat, name_mode):
                 out = re.search(v[-1], line).groups()
                 for p, r in zip(v[0], out):
                     meta[p] = r
-    if 'metaparse_function' in dataformat.keys():
+    if 'metaparse_function' in dataformat:
         fn_name, (start, stop) = dataformat['metaparse_function']
         extra_meta = meta_parsers[fn_name](lines[start:stop])
         meta.update(extra_meta)
@@ -89,12 +89,12 @@ def read_data(data_file, dataformat, name_mode):
                 break
     columns = np.array(column_line.split(dataformat['column_id']['delimiter']))
 
-    if 'pattern' in dataformat['column_id'].keys():
+    if 'pattern' in dataformat['column_id']:
         pr = re.compile(dataformat['column_id']['pattern'])
         analytes = [pr.match(c).groups()[0] for c in columns if pr.match(c)]
 
     # do any required pre-formatting
-    if 'preformat_replace' in dataformat.keys():
+    if 'preformat_replace' in dataformat:
         with open(data_file) as f:
             fbuffer = f.read()
         for k, v in dataformat['preformat_replace'].items():

@@ -248,8 +248,8 @@ class analyse(object):
                 data.append(D(passthrough=data_passthrough))
 
         # create universal time scale
-        if 'date' in data[0].meta.keys():
-            if (time_format is None) and ('time_format' in self.dataformat.keys()):
+        if 'date' in data[0].meta:
+            if (time_format is None) and ('time_format' in self.dataformat):
                 time_format = self.dataformat['time_format']
 
             start_times = []
@@ -279,7 +279,7 @@ class analyse(object):
 
         # process sample names
         if (names == 'file_names') | (names == 'metadata_names'):
-            samples = np.array([s.sample for s in data], dtype=object)  # get all sample names
+            samples = np.array([s.sample.replace(' ', '') for s in data], dtype=object)  # get all sample names
             # if duplicates, rename them
             usamples, ucounts = np.unique(samples, return_counts=True)
             if usamples.size != samples.size:
@@ -492,6 +492,9 @@ class analyse(object):
         """
         if subset is None:
             samples = self.subsets['All_Samples']
+            if len(samples) == 0:
+                print('Warning: No samples in dataset. Using all analyses.')
+                samples = self.subsets['All_Analyses']
         else:
             try:
                 samples = self.subsets[subset]
@@ -655,7 +658,7 @@ class analyse(object):
                     '                 WARNING\n' + '*' * 41 + '\n' +
                     'Autorange failed for some samples:\n')
 
-            kwidth = max([len(k) for k in fails.keys()]) + 1
+            kwidth = max([len(k) for k in fails]) + 1
             fstr = '  {:' + '{}'.format(kwidth) + 's}: '
             for k in sorted(fails.keys()):
                 wstr += fstr.format(k) + ', '.join(['{:.1f}'.format(f) for f in fails[k][-1]]) + '\n'
@@ -997,7 +1000,7 @@ class analyse(object):
                             f_win=f_win, f_n_lim=f_n_lim, focus_stage=focus_stage)
 
         # Gaussian - weighted average
-        if 'calc' not in self.bkg.keys():
+        if 'calc' not in self.bkg:
             # create time points to calculate background
             if cstep is None:
                 cstep = weight_fwhm / 20
@@ -1086,7 +1089,7 @@ class analyse(object):
                 hi = [a[-1]]
             return np.concatenate((lo, a, hi))
 
-        if 'calc' not in self.bkg.keys():
+        if 'calc' not in self.bkg:
             # create time points to calculate background
             
             bkg_t = pad(np.ravel(self.bkg.raw.loc[:, ['uTime', 'ns']].groupby('ns').aggregate([min, max])))
@@ -1133,13 +1136,6 @@ class analyse(object):
             Can be one of:
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
-            * 'bkgsub': background subtracted data, created by 
-              self.bkg_correct
-            * 'ratios': element ratio data, created by self.ratio.
-            * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         analytes = self._analyte_checker(analytes)
 
@@ -1410,7 +1406,7 @@ class analyse(object):
                 for ar in self.analyte_ratios:
                     a_num, a_denom = ar.split('_')  # separate numerator and denominator
                     for a in [a_num, a_denom]:
-                        if a in ad.keys():
+                        if a in ad:
                             continue
                         # check if there's an exact match of form [Mass][Element] in srmdat
                         mna = analyte_2_massname(a)
@@ -1551,6 +1547,9 @@ class analyse(object):
             ind = stdtab.group == g
             stdtab.loc[ind, 'gTime'] = stdtab.loc[ind].index.values.mean()
 
+        # replace zeros with very small number
+        stdtab.replace(0, np.nanmin(stdtab[stdtab != 0].loc[:, idx[:, 'mean']]) * 1e-6, inplace=True)
+        
         self.stdtab = stdtab
 
     def srm_id_auto(self, srms_used=['NIST610', 'NIST612', 'NIST614'], analytes=None, n_min=10, reload_srm_database=False):
@@ -1702,6 +1701,7 @@ class analyse(object):
                 self.calib_params.loc[:, (a, 'c')] = 0
                 self.calib_params.loc[:, (a, 'c')] = self.calib_params[(a, 'c')].astype(object, copy=False)  # set new column to objet type
             if drift_correct:
+                # Fails to calculate errors sometimes (34S in Madi's data)
                 for g in gTime:
                     if self.caltab.loc[g].size == 0:
                         continue
@@ -1933,6 +1933,7 @@ class analyse(object):
                 print(self._wrap_text(
                             f"A subset containing those samples already exists, and is called '{existing_name}'. A new subset has not been created. I suggest you use the existing one. If you'd like to go ahead anyway, set `force=True` to make a new subset with your provided name."
                         ))
+            return existing_name
             if not force:
                 return
 
@@ -1941,7 +1942,7 @@ class analyse(object):
             raise ValueError(', '.join(not_exists) + ' not in the list of sample names.\nPlease check your sample names.\nNote: Sample names are stored in the .samples attribute of your analysis.')
 
         if name is None:
-            name = max([-1] + [x for x in self.subsets.keys() if isinstance(x, int)]) + 1
+            name = max([-1] + [x for x in self.subsets if isinstance(x, int)]) + 1
 
         self._subset_names.append(name)
 
@@ -1975,7 +1976,7 @@ class analyse(object):
             for v in s.data[focus_stage].values():
                 ind = ind & (nominal_values(v) > 0)
 
-            for k in s.data[focus_stage].keys():
+            for k in s.data[focus_stage]:
                 s.data[focus_stage][k][~ind] = unc.ufloat(np.nan, np.nan)
 
         self.set_focus(focus_stage)
@@ -2807,7 +2808,7 @@ class analyse(object):
             s = self.data[n]
             rminfo[n] = s.filt_nremoved(filt)
         if not quiet:
-            maxL = max([len(s) for s in rminfo.keys()])
+            maxL = max([len(s) for s in rminfo])
             print('{string:{number}s}'.format(string='Sample ', number=maxL + 3) +
                   '{total:4s}'.format(total='tot') +
                   '{removed:4s}'.format(removed='flt') +
@@ -3041,7 +3042,7 @@ class analyse(object):
             self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         # remove old columns
-        for k in list(self.focus.keys()):
+        for k in list(self.focus):
             if k not in columns:
                 self.focus.pop(k)
 
@@ -3525,7 +3526,7 @@ class analyse(object):
         samples: optional, array_like or str
             The sample(s) to plot. Defaults to all samples.
         ranges : bool
-            Whether or not to show the signal/backgroudn regions
+            Whether or not to show the signal/background regions
             identified by 'autorange'.
         focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
@@ -3607,9 +3608,9 @@ class analyse(object):
         samples: optional, array_like or str
             The sample(s) to plot. Defaults to all samples.
         ranges : bool
-            Whether or not to show the signal/backgroudn regions
+            Whether or not to show the signal/background regions
             identified by 'autorange'.
-        focus : str
+        focus_stage : str
             The focus 'stage' of the analysis to plot. Can be
             'rawdata', 'despiked':, 'signal', 'background',
             'bkgsub', 'ratios' or 'calibrated'.
@@ -3818,14 +3819,11 @@ class analyse(object):
             Can be one of:
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
             * 'bkgsub': background subtracted data, created by 
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
-            * 'massfrac': mass fraction of each element.
+            * 'mass_fraction': mass fraction of each element.
 
         Returns
         -------
@@ -3860,10 +3858,10 @@ class analyse(object):
 
         for s in stats:
             if isinstance(s, str):
-                if s in stat_dict.keys():
+                if s in stat_dict:
                     self.stats_calced.append(s)
                     stat_fns[s] = stat_dict[s]
-                if s in csf_dict.keys():
+                if s in csf_dict:
                     self.stats_calced.append(s)
                     exec(csf_dict[s])
                     stat_fns[s] = eval(s)
@@ -4010,16 +4008,19 @@ class analyse(object):
         return fig, ax
 
     @_log
-    def getstats(self, save=True, filename=None, samples=None, subset=None, ablation_time=False):
+    def getstats(self, filename=None, samples=None, subset=None, ablation_time=False, save=True):
         """
         Return pandas dataframe of all sample statistics.
         """
         slst = []
 
+        if samples is None and subset is None:
+            samples = list(self.stats.keys())
+
         if samples is not None:
             subset = self.make_subset(samples, silent=True)
-
         samples = self._get_samples(subset)
+
         for s in self.stats_calced:
             for nm in samples:
                 if self.stats[nm][s].ndim == 2:
@@ -4051,10 +4052,10 @@ class analyse(object):
 
             out = out.join(ats)
 
-        if save:
-            if filename is None:
-                filename = 'stat_export.csv'
-            out.to_csv(os.path.join(self.export_dir, filename))
+        if filename is not None:
+            out.to_csv(filename)
+        elif save:
+            out.to_csv(os.path.join(self.export_dir, 'stat_export.csv'))
 
         self.stats_df = out
 
@@ -4120,13 +4121,13 @@ class analyse(object):
 
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
-            * 'signal'/'background': isolated signal and background data.
-              Created by self.separate, after signal and background
-              regions have been identified by self.autorange.
+            * 'background': the calculated background that is
+              subtracted from the data.
             * 'bkgsub': background subtracted data, created by 
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
+            * 'mass_fraction': mass fraction of each element.
 
             Defaults to the most recent stage of analysis.
         analytes : str or array_like
@@ -4353,7 +4354,7 @@ def reproduce(past_analysis, plotting=False, data_path=None,
 
     # parse custom stat functions
     csfs = Bunch()
-    if custom_stat_functions is None and 'custom_stat_functions' in paths.keys():
+    if custom_stat_functions is None and 'custom_stat_functions' in paths:
         # load custom functions as a dict
         with open(paths['custom_stat_functions'], 'r') as f:
             csf = f.read()
