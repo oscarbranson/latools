@@ -4030,13 +4030,13 @@ class analyse(object):
                     nms = np.array([nm] * reps.size)
                     # make sub - dataframe
                     stdf = pd.DataFrame(self.stats[nm][s].T,
-                                        columns=self.stats[nm]['analytes'],
+                                        columns=list(self.stats[nm]['analytes']),
                                         index=[ss, nms, reps])
                     stdf.index.set_names(['statistic', 'sample', 'rep'],
                                          inplace=True)
                 else:
                     stdf = pd.DataFrame(self.stats[nm][s],
-                                        index=self.stats[nm]['analytes'],
+                                        index=list(self.stats[nm]['analytes']),
                                         columns=[[s], [nm]]).T
 
                     stdf.index.set_names(['statistic', 'sample'],
