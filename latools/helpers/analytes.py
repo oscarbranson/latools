@@ -94,7 +94,12 @@ def pretty_element(s):
     ms = re.findall('([0-9]{1,3})', s)
 
     pretty = ['^{' + f'{m}' + '}' + f'{el}' for el, m in zip(els, ms)]
-    return "$" + "/".join(pretty) + "$"
+    out = "$" + "/".join(pretty) + "$"
+    
+    if out == '$$':
+        out = s
+        
+    return out
 
 def unitpicker(a, label=None, focus_stage=None):
     """
