@@ -135,13 +135,13 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
             ax.plot(xlim, xlim, c='k', ls='dashed', alpha=0.6)
         
         for ax in axs[i]:
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 hax.set_xlabel('Residual')
                 tax.set_xlabel('Reference User')
                 lax.set_xlabel('Reference User')
                 hax.legend(fontsize=8)
 
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 tax.set_title('Manual Test User', loc='left')
                 lax.set_title('LAtools Test User', loc='left')
             
@@ -232,15 +232,15 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
             if rep_stats is not None:
                 ax.axhspan(-rep_stats[e][0] * 2, rep_stats[e][0] * 2, color=(0,0,0,0.2), zorder=-1)
             
-            if not ax.is_first_col():
+            if not ax.get_subplotspec().is_first_col():
                 ax.set_yticklabels([])
                 
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 hax.set_xlabel('Density')
                 tax.set_xlabel('Reference User')
                 lax.set_xlabel('Reference User')
 
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 tax.set_title('Manual Test User', loc='left')
                 lax.set_title('LAtools Test User', loc='left')
             
@@ -374,13 +374,13 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
         for ax in axs[i]:
             ax.set_ylim(ylim)
                         
-            if ax.is_first_col():
+            if ax.get_subplotspec().is_first_col():
                 ax.set_ylabel(e + ' ('+ u + ')\nResidual')
             else:
                 ax.set_ylabel('')
                 ax.set_yticklabels([])
             
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 tax.set_xlabel('Mean')
                 lax.set_xlabel('Mean')
                 hax.set_xlabel('Residual Density')
@@ -388,7 +388,7 @@ def bland_altman_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Ba', 'Al', 'Mn']):
             else:
                 ax.set_xlabel('')
 
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 tax.set_title('Manual Test User', loc='left')
                 lax.set_title('LAtools Test User', loc='left')
                 hax.set_title('Residuals', loc='left')
