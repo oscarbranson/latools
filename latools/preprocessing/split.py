@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 textwidth = 70  # characters, for printing
 
-def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=0, trim_head_lines=0):
+def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=-1, trim_head_lines=0):
     """
     Split one long analysis file into multiple smaller ones.
 
@@ -72,7 +72,7 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
     
     # grab global header rows
     global_header = lines[:global_header_rows]
-
+    
     # find indices of lines containing split_pattern
     starts = []
     for i, line in enumerate(lines):
