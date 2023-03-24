@@ -122,6 +122,7 @@ def read_data(data_file, dataformat, name_mode):
     data = Bunch()
     data['Time'] = read_data[dataformat['column_id']['timecolumn']]
 
+    # TODO: deal with time that is in clock time format
     # deal with time units
     if 'time_unit' in dataformat['column_id']:
         if isinstance(dataformat['column_id']['time_unit'], (float, int)):

@@ -17,20 +17,21 @@ from ..helpers.stat_fns import gauss
 
 warnings.filterwarnings("ignore")
 
-def separate_signal(X, transform=None, scaleX=True):
+def separate_signal(X, transform=None, scaleX=True, sample_weight=None):
     if transform is not None:
         X = transform(X)
-    if scale:
+    if scaleX:
         X = scale(X)
     
     init = np.percentile(X, [5, 95], 0)
     
-    return KMeans(2, init=init).fit_predict(X)
+    return KMeans(2, init=init).fit_predict(X, sample_weight=sample_weight)
 
 def log_nozero(a, **kwargs):
     a[a == 0] = a[a != 0].min()
     return np.log(a)
 
+# TODO: implement sample weighting to find background by KMeans
 
 def autorange(xvar, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
