@@ -21,11 +21,10 @@ def Neptune_xlsx(file):
     timescale = pd.to_datetime(dat['Time'], format='%H:%M:%S:%f')
     timedelta = timescale - timescale.min()
 
-    day_transition = np.argwhere(np.diff(timedelta).astype(float) < 0)
-    if day_transition.size == 1:
-        day_transition = day_transition.item() + 1
-
-    timedelta[day_transition:] += pd.Timedelta('1 day')
+    day_transition = np.argwhere(np.diff(timedelta).astype(float) < 0).flatten()
+    if day_transition.size > 0:
+        for d in day_transition:
+            timedelta[d + 1:] += pd.Timedelta('1 day')
 
     seconds = timedelta.dt.total_seconds()
     seconds -= seconds.min()
@@ -33,4 +32,7 @@ def Neptune_xlsx(file):
     dat['Time'] = seconds
     del dat['Cycle']
     
-    dat.to_csv(file.replace('xlsx', 'csv'), index=False)
+    outpath = file.replace('xlsx', 'csv')
+    dat.to_csv(outpath, index=False)
+    
+    return f"Saved to: {outpath}"
