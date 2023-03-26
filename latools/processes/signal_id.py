@@ -23,19 +23,59 @@ def separate_signal(X, transform=None, scaleX=True, sample_weight=None):
     if scaleX:
         X = scale(X)
     
+    print(np.argwhere(np.isnan(X)))
     init = np.percentile(X, [5, 95], 0)
     
     return KMeans(2, init=init).fit_predict(X, sample_weight=sample_weight)
 
+def polynomial_background(x, y, order=3, noise_level=2, mode='low'):
+    """
+    Fit a polynomial background to the minima or maxima of the signal.
+
+    Parameters
+    ----------
+    x : array-like
+        the x data
+    y : array-like
+        the y data
+    order : int, optional
+        the order of the polynomial, by default 3
+    noise_level : int, optional
+        the noise level above or below which to remove data, by default 2
+    mode : str, optional
+        whether to fit the minima ('low') or maxima ('high') of the data, by default 'low'
+
+    Returns
+    -------
+    tuple
+        containing (polynomial coefficients, standard deviation of residuals)
+    """
+    p = np.polyfit(x, y, order)
+    pred = np.polyval(p, x)
+    resid = y - pred
+    resid_std = np.std(resid)
+    
+    if mode == 'low':
+        f = resid < noise_level * resid_std
+    if mode == 'high':
+        f = resid > -noise_level * resid_std
+        
+    n_excluded = np.sum(~f)
+        
+    if n_excluded != 0:
+        return polynomial_background(x[f], y[f], order=order, noise_level=noise_level)
+    else:
+        return p, resid_std
+
 def log_nozero(a, **kwargs):
-    a[a == 0] = a[a != 0].min()
+    a[a <= 0] = a[a > 0].min()
     return np.log(a)
 
 # TODO: implement sample weighting to find background by KMeans
 
 def autorange(xvar, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
-              nbin=10, transform='log', thresh=None):
+              kmeans_weight=None, transform='log', thresh=None):
     """
     Automatically separates signal and background in an on/off data stream.
 
@@ -111,7 +151,7 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             tsigs = tsigs.reshape(-1, 1)
         else:
             scale = True
-        fsig = separate_signal(tsigs, scaleX=scale).astype(bool)
+        fsig = separate_signal(tsigs, scaleX=scale, sample_weight=kmeans_weight).astype(bool)
     else:
         if transform == 'log':
             thresh = np.log(thresh)
