@@ -283,7 +283,9 @@ class D(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=30,
                   on_mult=[1., 1.], off_mult=[1., 1.5],
-                  ploterrs=True, transform='log', **kwargs):
+                  ploterrs=True, transform='log', 
+                  signal_id_mode='kmeans',
+                  poly_noise_level=3, poly_order=3, **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -355,7 +357,10 @@ class D(object):
         (self.bkg, self.sig,
          self.trn, failed) = proc.autorange(self.Time, sig, gwin=gwin, swin=swin, win=win,
                                             on_mult=on_mult, off_mult=off_mult,
-                                            transform=transform, **kwargs)
+                                            transform=transform, 
+                                            signal_id_mode=signal_id_mode,
+                                            poly_noise_level=poly_noise_level, poly_order=poly_order
+                                            **kwargs)
 
         self.mkrngs()
 

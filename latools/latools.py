@@ -560,7 +560,9 @@ class analyse(object):
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
-                  transform='log', ploterrs=True, focus_stage='despiked', **kwargs):
+                  transform='log', ploterrs=True, focus_stage='despiked',
+                  signal_id_mode=signal_id_mode, poly_noise_level=poly_noise_level, 
+                  poly_order=poly_order, **kwargs):
         """
         Automatically separates signal and background data regions.
 

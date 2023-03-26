@@ -165,7 +165,10 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             tsigs = tsigs.reshape(-1, 1)
         else:
             scale = True
-        fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
+        if signal_id_mode == 'kmeans':
+            fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
+        elif signal_id_mode == 'baseline_poly':
+            fsig = split_polynomial(xvar, tsigs, order=poly_order, noise_level=poly_noise_level)
     else:
         if transform == 'log':
             thresh = np.log(thresh)
