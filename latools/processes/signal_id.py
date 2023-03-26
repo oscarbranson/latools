@@ -17,7 +17,7 @@ from ..helpers.stat_fns import gauss
 
 warnings.filterwarnings("ignore")
 
-def separate_signal(X, transform=None, scaleX=True, sample_weight=None):
+def split_kmeans(X, transform=None, scaleX=True, sample_weight=None):
     if transform is not None:
         X = transform(X)
     if scaleX:
@@ -67,15 +67,26 @@ def polynomial_background(x, y, order=3, noise_level=2, mode='low'):
     else:
         return p, resid_std
 
+def split_polynomial(x, y, order=3, noise_level=3):
+    
+    p, resid_std = polynomial_background(x, y, order=order, noise_level=noise_level, mode='low')
+    
+    resid = y - np.polyval(p, x)
+    trans = resid > resid_std * noise_level
+    
+    return trans
+
+
 def log_nozero(a, **kwargs):
     a[a <= 0] = a[a > 0].min()
     return np.log(a)
 
-# TODO: implement sample weighting to find background by KMeans
 
 def autorange(xvar, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
-              kmeans_weight=None, transform='log', thresh=None):
+              transform='log', thresh=None,
+              signal_id_mode='kmeans',
+              poly_noise_level=3, poly_order=3):
     """
     Automatically separates signal and background in an on/off data stream.
 
@@ -121,6 +132,9 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
         Defaults to (1.5, 1) and (1, 1.5).
     transform : str
         How to transform the data. Default is 'log'.
+    signal_id_mode : str
+        How to identify signal and background - either 'kmeans' or 'baseline_poly'. 
+        Default is 'kmeans'.
 
     Returns
     -------
@@ -151,7 +165,7 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             tsigs = tsigs.reshape(-1, 1)
         else:
             scale = True
-        fsig = separate_signal(tsigs, scaleX=scale, sample_weight=kmeans_weight).astype(bool)
+        fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
     else:
         if transform == 'log':
             thresh = np.log(thresh)
