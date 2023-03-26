@@ -359,7 +359,7 @@ class D(object):
                                             on_mult=on_mult, off_mult=off_mult,
                                             transform=transform, 
                                             signal_id_mode=signal_id_mode,
-                                            poly_noise_level=poly_noise_level, poly_order=poly_order
+                                            poly_noise_level=poly_noise_level, poly_order=poly_order,
                                             **kwargs)
 
         self.mkrngs()
