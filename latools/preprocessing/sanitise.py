@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def Neptune_xlsx(file):
+def Neptune_xlsx(file, tmax_seconds=None):
     raw = pd.read_excel(file, skiprows=16)
     
     keep = []
@@ -31,6 +31,9 @@ def Neptune_xlsx(file):
     
     dat['Time'] = seconds
     del dat['Cycle']
+    
+    if tmax_seconds is not None:
+        dat = dat[dat['Time'] <= tmax_seconds]
     
     outpath = file.replace('xlsx', 'csv')
     dat.to_csv(outpath, index=False)
