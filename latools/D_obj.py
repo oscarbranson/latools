@@ -365,28 +365,25 @@ class D(object):
                                             **kwargs)
 
         self.mkrngs()
+        
+        if ploterrs and len(failed) > 0:
+            return self.autorange_failure_plot(failed)
+        else:
+            return
 
-        errs_to_plot = False
-        if len(failed) > 0:
-            errs_to_plot = True
-            plotlines = []
-            for f in failed:
-                if f != self.Time[-1]:
-                    plotlines.append(f)
-            # warnings.warn(("\n\nSample {:s}: ".format(self.sample) +
-            #                "Transition identification at " +
-            #                "{:.1f} failed.".format(f) +
-            #                "\n  **This is not necessarily a problem**"
-            #                "\nBut please check the data plots and make sure " +
-            #                "everything is OK.\n"))
 
-        if ploterrs and errs_to_plot and len(plotlines) > 0:
+    def autorange_failure_plot(self, failed):
+        plotlines = []
+        for f in failed:
+            if f != self.Time[-1]:
+                plotlines.append(f)
+        
+        if len(plotlines) > 0:
             f, ax = self.trace_plot(ranges=True)
             for pl in plotlines:
                 ax.axvline(pl, c='r', alpha=0.6, lw=3, ls='dashed')
             return f, plotlines
-        else:
-            return
+
 
     def autorange_plot(self, analyte='total_counts', gwin=7, swin=None, win=20,
                        on_mult=[1.5, 1.], off_mult=[1., 1.5],
