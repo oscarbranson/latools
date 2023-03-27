@@ -561,8 +561,9 @@ class analyse(object):
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
                   transform='log', ploterrs=True, focus_stage='despiked',
-                  signal_id_mode='kmeans',
-                  poly_noise_level=3, poly_order=3, **kwargs):
+                  signal_id_mode='kmeans', min_points=None,
+                  poly_noise_level=3, poly_order=3, std_above_baseline=3,
+                  **kwargs):
         """
         Automatically separates signal and background data regions.
 
@@ -652,7 +653,8 @@ class analyse(object):
                                 on_mult=on_mult, off_mult=off_mult,
                                 ploterrs=ploterrs, transform=transform, 
                                 signal_id_mode=signal_id_mode, poly_noise_level=poly_noise_level, 
-                                poly_order=poly_order, **kwargs)
+                                poly_order=poly_order, std_above_baseline=std_above_baseline,
+                                min_points=min_points, **kwargs)
                 if f is not None:
                     fails[s] = f
                 prog.update()  # advance progress bar

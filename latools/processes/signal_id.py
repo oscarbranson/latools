@@ -67,12 +67,12 @@ def polynomial_background(x, y, order=3, noise_level=2, mode='low'):
     else:
         return p, resid_std
 
-def split_polynomial(x, y, order=3, noise_level=3):
+def split_polynomial(x, y, order=3, noise_level=3, std_above_baseline=5):
     
     p, resid_std = polynomial_background(x, y, order=order, noise_level=noise_level, mode='low')
     
     resid = y - np.polyval(p, x)
-    trans = resid > resid_std * noise_level
+    trans = resid > resid_std * std_above_baseline
     
     return trans
 
@@ -84,9 +84,9 @@ def log_nozero(a, **kwargs):
 
 def autorange(xvar, sig, gwin=7, swin=None, win=30,
               on_mult=(1.5, 1.), off_mult=(1., 1.5),
-              transform='log', thresh=None,
+              transform='log', thresh=None, min_points=None,
               signal_id_mode='kmeans',
-              poly_noise_level=3, poly_order=3):
+              poly_noise_level=3, poly_order=3, std_above_baseline=5):
     """
     Automatically separates signal and background in an on/off data stream.
 
@@ -133,7 +133,7 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
     transform : str
         How to transform the data. Default is 'log'.
     signal_id_mode : str
-        How to identify signal and background - either 'kmeans' or 'baseline_poly'. 
+        How to identify signal and background - either 'kmeans' or 'polynomial'. 
         Default is 'kmeans'.
 
     Returns
@@ -159,20 +159,24 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
     else:
         tsigs = sigs
 
-    if thresh is None:
+    if thresh is not None:
+        if transform == 'log':
+            thresh = np.log(thresh)
+        fsig = tsigs > thresh
+    elif signal_id_mode == 'kmeans':
         if tsigs.ndim == 1:
             scale = False
             tsigs = tsigs.reshape(-1, 1)
         else:
             scale = True
-        if signal_id_mode == 'kmeans':
-            fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
-        elif signal_id_mode == 'baseline_poly':
-            fsig = split_polynomial(xvar, tsigs, order=poly_order, noise_level=poly_noise_level)
+        
+        fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
+    
+    elif signal_id_mode == 'polynomial':
+        fsig = split_polynomial(xvar, tsigs, order=poly_order, noise_level=poly_noise_level, std_above_baseline=std_above_baseline)
     else:
-        if transform == 'log':
-            thresh = np.log(thresh)
-        fsig = tsigs > thresh
+        raise ValueError(f"signal_id_mode must be 'kmeans' or 'polynomial', not '{signal_id_mode}'")
+        
     fsig[0] = False  # the first value must always be background
     fbkg = ~fsig
 
@@ -181,6 +185,14 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
 
     # 1. determine the approximate index of each transition
     zeros = bool_2_indices(fsig)
+    
+    # remove any regions that are smaller than min_points
+    if min_points is not None:
+        too_small = np.diff(zeros) < min_points
+        for ts in zeros[too_small.flatten()]:
+            fsig[ts[0]:ts[1]+1] = False
+            fbkg[ts[0]:ts[1]+1] = True
+        zeros = zeros[(~too_small).flatten()]
     
     if zeros is not None:
         zeros = zeros.flatten()
