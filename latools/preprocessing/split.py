@@ -103,6 +103,24 @@ def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_
 
     return outdir
 
+def yield_splits(sections, data_file):
+    for sample, sdat in sections.items():
+            
+        sanalytes = list(sdat['rawdata'].keys())
+        
+        sdata = {
+            'Time': sdat['Time'],
+            'rawdata': sdat['rawdata'],
+            'total_counts': sdat['total_counts']
+        }
+
+        # minimal meta - datetime only
+        smeta = {
+            'date': sdat['starttime']
+        }
+
+        yield data_file, sample, sanalytes, sdata, smeta
+
 def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedir=None, srm_id=None, combine_same_name=True, defrag_to_match_sample_list=True, min_points=0, plot=True, passthrough=False, **autorange_args):
     """
     Split single long files containing multiple analyses into multiple files containing single analyses.
@@ -308,23 +326,8 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     # save output
     if passthrough:
         print(f"Success! {n} ablations identified.")
-        for sample, sdat in sections.items():
-            
-            sanalytes = list(sdat['rawdata'].keys())
-            
-            sdata = {
-                'Time': sdat['Time'],
-                'rawdata': sdat['rawdata'],
-                'total_counts': sdat['total_counts']
-            }
+        return yield_splits(sections=sections, data_file=data_file)
 
-            # minimal meta - datetime only
-            smeta = {
-                'date': sdat['starttime']
-            }
-
-            yield data_file, sample, sanalytes, sdata, smeta
-            # yield file : str, sample : str, analytes : set, data : dict, meta : dict
     else:
         if savedir is None:
             savedir = os.path.join(os.path.dirname(os.path.abspath(data_file)), os.path.splitext(os.path.basename(data_file))[0] + '_split')
