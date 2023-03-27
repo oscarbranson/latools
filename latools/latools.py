@@ -32,7 +32,7 @@ from .helpers import plot
 from .filtering import filters
 from .filtering.classifier_obj import classifier
 
-from .processes import read_data
+from .processes import read_data, autorange
 from .preprocessing.split import long_file
 
 from .D_obj import D
@@ -278,7 +278,9 @@ class analyse(object):
         data.sort(key=lambda d: d.uTime[0])
 
         # process sample names
-        if (names == 'file_names') | (names == 'metadata_names'):
+        if file_structure == 'long':
+            samples = np.array([s.sample for s in data], dtype=object)
+        elif (names == 'file_names') | (names == 'metadata_names'):
             samples = np.array([s.sample.replace(' ', '') for s in data], dtype=object)  # get all sample names
             # if duplicates, rename them
             usamples, ucounts = np.unique(samples, return_counts=True)
@@ -291,8 +293,6 @@ class analyse(object):
                     samples[ind] = new  # rename in samples
                     for s, ns in zip([data[i] for i in np.where(ind)[0]], new):
                         s.sample = ns  # rename in D objects
-        elif file_structure == 'long':
-            samples = np.array([s.sample for s in data], dtype=object)
         else:
             samples = np.arange(len(data))  # assign a range of numbers
             for i, s in enumerate(samples):
@@ -561,7 +561,7 @@ class analyse(object):
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
                   on_mult=[1., 1.5], off_mult=[1.5, 1],
                   transform='log', ploterrs=True, focus_stage='despiked',
-                  signal_id_mode='kmeans', min_points=None,
+                  signal_id_mode='kmeans', min_points=None, mode='individual',
                   poly_noise_level=3, poly_order=3, std_above_baseline=3,
                   **kwargs):
         """
@@ -628,7 +628,16 @@ class analyse(object):
               self.bkg_correct
             * 'ratios': element ratio data, created by self.ratio.
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
-
+        signal_id_mode : str
+            The method used to approximately identify signal and background regions.
+            Either 'kmeans' or 'polynomial'. The latter may perform better if 'mode'
+            is set to 'global'
+        mode : str
+            Either 'individual' or 'global'. If 'individual', the autorange function
+            is applied to each sample separately. If 'glboal', the entire dataset is
+            treated at once. The latter is likely to provide better results if you're
+            using the 'polynomial' method.
+        
         Returns
         -------
         Outputs added as instance attributes. Returns None.
@@ -646,38 +655,61 @@ class analyse(object):
         if analyte in self.analytes:
             self.minimal_analytes.update([analyte])
 
-        fails = {}  # list for catching failures.
-        with self.pbar.set(total=len(self.data), desc='AutoRange') as prog:
-            for s, d in self.data.items():
-                f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
-                                on_mult=on_mult, off_mult=off_mult,
-                                ploterrs=ploterrs, transform=transform, 
-                                signal_id_mode=signal_id_mode, poly_noise_level=poly_noise_level, 
-                                poly_order=poly_order, std_above_baseline=std_above_baseline,
-                                min_points=min_points, **kwargs)
-                if f is not None:
-                    fails[s] = f
-                prog.update()  # advance progress bar
+        if mode == 'individual':
+            fails = {}  # list for catching failures.
+            with self.pbar.set(total=len(self.data), desc='AutoRange') as prog:
+                for s, d in self.data.items():
+                    f = d.autorange(analyte=analyte, gwin=gwin, swin=swin, win=win,
+                                    on_mult=on_mult, off_mult=off_mult,
+                                    ploterrs=ploterrs, transform=transform, 
+                                    signal_id_mode=signal_id_mode, poly_noise_level=poly_noise_level, 
+                                    poly_order=poly_order, std_above_baseline=std_above_baseline,
+                                    min_points=min_points, **kwargs)
+                    if f is not None:
+                        fails[s] = f
+                    prog.update()  # advance progress bar
+        elif mode == 'global':
+            self.get_focus()
+            self.focus['total_counts'] = np.vstack([v for v in self.focus.values()]).mean(0)
+            uTime = np.concatenate([d.uTime for d in self.data.values()])
+            
+            fbkg, fsig, ftrn, fails = autorange(
+                xvar=uTime, sig=self.focus[analyte],
+                gwin=gwin, swin=swin, win=win,
+                on_mult=on_mult, off_mult=off_mult,
+                transform=transform, 
+                signal_id_mode=signal_id_mode, poly_noise_level=poly_noise_level, 
+                poly_order=poly_order, std_above_baseline=std_above_baseline,
+                min_points=min_points
+            )
+            
+            fails = np.array(fails)
+            for d in self.data.values():
+                ind = (uTime >= d.uTime[0]) & (uTime <= d.uTime[-1])
+                d.bkg = fbkg[ind]
+                d.sig = fsig[ind]
+                d.trn = ftrn[ind]
+                d.mkrngs()
+                if ploterrs and len(fails) > 0:
+                    indf = (fails >= d.uTime[0]) & (fails <= d.uTime[-1])
+                    if any(indf):
+                        d.autorange_failure_plot(fails[indf] - d.uTime[0])
+    
         # handle failures
         if len(fails) > 0:
             wstr = ('\n\n' + '*' * 41 + '\n' +
                     '                 WARNING\n' + '*' * 41 + '\n' +
-                    'Autorange failed for some samples:\n')
-
-            kwidth = max([len(k) for k in fails]) + 1
-            fstr = '  {:' + '{}'.format(kwidth) + 's}: '
-            for k in sorted(fails.keys()):
-                wstr += fstr.format(k) + ', '.join(['{:.1f}'.format(f) for f in fails[k][-1]]) + '\n'
+                    'Autorange failed for some samples.\n')
 
             wstr += ('\n*** THIS IS NOT NECESSARILY A PROBLEM ***\n' +
-                     'But please check the plots below to make\n' +
-                     'sure they look OK. Failures are marked by\n' +
-                     'dashed vertical red lines.\n\n' +
-                     'To examine an autorange failure in more\n' +
-                     'detail, use the `autorange_plot` method\n' +
-                     'of the failing data object, e.g.:\n' +
-                     "dat.data['Sample'].autorange_plot(params)\n" +
-                     '*' * 41 + '\n')
+                    'But please check the plots below to make\n' +
+                    'sure they look OK. Failures are marked by\n' +
+                    'dashed vertical red lines.\n\n' +
+                    'To examine an autorange failure in more\n' +
+                    'detail, use the `autorange_plot` method\n' +
+                    'of the failing data object, e.g.:\n' +
+                    "dat.data['Sample'].autorange_plot(params)\n" +
+                    '*' * 41 + '\n')
             warnings.warn(wstr)
         
         self.stages_complete.update(['autorange'])
