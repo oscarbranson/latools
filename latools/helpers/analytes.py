@@ -35,9 +35,12 @@ def analyte_2_namemass(s):
     out = []
 
     for si in ss:
-        el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
-        m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
-        out.append(el + m)
+        try:
+            el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
+            m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
+            out.append(el + m)
+        except:
+            out.append(s)
 
     return '_'.join(out)
 
@@ -59,9 +62,12 @@ def analyte_2_massname(s):
     out = []
 
     for si in ss:
-        el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
-        m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
-        out.append(m + el)
+        try:
+            el = re.match('.*?([A-z]{1,3}).*?', si).groups()[0]
+            m = re.match('.*?([0-9]{1,3}).*?', si).groups()[0]
+            out.append(m + el)
+        except:
+            out.append(s)
 
     return '_'.join(out)
 
