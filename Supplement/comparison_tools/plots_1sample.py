@@ -81,12 +81,12 @@ def comparison_plots(df, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 'Zn', 'B']):
         lax.plot(xlim, xlim, c='k', ls='dashed', alpha=0.6)
         
         for ax in axs[i]:
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 hax.set_xlabel('Residual')
                 lax.set_xlabel('Iolite User')
                 hax.legend(fontsize=8)
 
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 lax.set_title('LAtools', loc='left')
             
     fig.tight_layout()
@@ -164,14 +164,14 @@ def residual_plots(df, rep_stats=None, els=['Mg', 'Sr', 'Al', 'Mn', 'Fe', 'Cu', 
             if rep_stats is not None:
                 ax.axhspan(-rep_stats[e][0] * 2, rep_stats[e][0] * 2, color=(0,0,0,0.2), zorder=-1)
             
-            if not ax.is_first_col():
+            if not ax.get_subplotspec().is_first_col():
                 ax.set_yticklabels([])
                 
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 hax.set_xlabel('Density')
                 lax.set_xlabel('Iolite User')
 
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 lax.set_title('LAtools', loc='left')
             
     fig.tight_layout()
