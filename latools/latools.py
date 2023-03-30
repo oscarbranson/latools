@@ -671,7 +671,7 @@ class analyse(object):
         elif mode == 'global':
             self.get_focus()
             self.focus['total_counts'] = np.vstack([v for v in self.focus.values()]).mean(0)
-            uTime = np.concatenate([d.uTime for d in self.data.values()])
+            uTime = self.focus['uTime']
             
             fbkg, fsig, ftrn, fails = autorange(
                 xvar=uTime, sig=self.focus[analyte],
@@ -1384,11 +1384,11 @@ class analyse(object):
         -------
         None
         """
-        if focus_stage is None:
-            focus_stage = self.focus_stage
-        
         if 'bkgsub' not in self.stages_complete:
             raise RuntimeError('Cannot calculate ratios before background subtraction.')
+        
+        if focus_stage is None:
+            focus_stage = 'bkgsub'
         
         analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
@@ -1404,7 +1404,7 @@ class analyse(object):
                                 'analytes in\nyour data files. Please make sure it is specified correctly.')
 
         # check internal_standard is valid
-        internal_standard = self._analyte_checker(self.internal_standard, focus_stage=focus_stage).pop()
+        internal_standard = self._analyte_checker(self.internal_standard, focus_stage=focus_stage, check_ratios=False).pop()
 
         with self.pbar.set(total=len(self.data), desc='Ratio Calculation') as prog:
             for s in self.data.values():
@@ -3080,6 +3080,7 @@ class analyse(object):
             self.focus.update({k: np.concatenate(v) for k, v, in focus.items()})
 
         # remove old columns
+        columns.update(['uTime'])
         for k in list(self.focus):
             if k not in columns:
                 self.focus.pop(k)
