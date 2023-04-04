@@ -129,7 +129,7 @@ def unitpicker(a, label=None, focus_stage=None):
         a = np.percentile(a[~np.isnan(a)], 25)
 
     if a == 0:
-        raise ValueError("Cannot calculate unit for zero.")
+        return 1, 'mol/mol'
 
     if label is not None:
         pd = pretty_element(label)
