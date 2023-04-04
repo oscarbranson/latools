@@ -23,7 +23,6 @@ def split_kmeans(X, transform=None, scaleX=True, sample_weight=None):
     if scaleX:
         X = scale(X)
     
-    print(np.argwhere(np.isnan(X)))
     init = np.percentile(X, [5, 95], 0)
     
     return KMeans(2, init=init).fit_predict(X, sample_weight=sample_weight)
