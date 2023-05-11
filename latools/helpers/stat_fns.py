@@ -55,7 +55,7 @@ def std_devs(a):
     except:
         return a
 
-def gauss_weighted_stats(x, yarray, x_new, fwhm):
+def gauss_weighted_stats(x, yarray, x_new, fwhm, yerr=None):
     """
     Calculate gaussian weigted moving mean, SD and SE.
 
@@ -70,6 +70,9 @@ def gauss_weighted_stats(x, yarray, x_new, fwhm):
         The new x-scale to interpolate the data
     fwhm : int
         FWHM of the gaussian kernel.
+    yerr : array-like (optional)
+        The uncertainties of yarray. If provided, the rolling
+        average is weighted by 1 / ye**2.
 
     Returns
     -------
@@ -77,25 +80,23 @@ def gauss_weighted_stats(x, yarray, x_new, fwhm):
     """
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
-    # create empty mask array
-    mask = np.zeros((x.size, yarray.shape[1], x_new.size))
-    # fill mask
-    for i, xni in enumerate(x_new):
-        mask[:, :, i] = gauss(x[:, np.newaxis], 1, xni, sigma)
-    # normalise mask
-    nmask = mask / mask.sum(0)  # sum of each gaussian = 1
-
+    # calculate weights
+    distance_weights = gauss(x[:, np.newaxis] - x_new, 1, 0, sigma)
+    if yerr is None:
+        yerr = np.ones_like(yarray)
+    yerr_weights = 1 / yerr**2
+    distance_yerr_weights = distance_weights[:,np.newaxis,:] * yerr_weights[:, :, np.newaxis] / yerr_weights.sum(0)[np.newaxis, :, np.newaxis]
+    
     # calculate moving average
-    av = (nmask * yarray[:, :, np.newaxis]).sum(0)  # apply mask to data
-    # sum along xn axis to get means
+    av = (distance_yerr_weights * yarray[:,:,np.newaxis] / distance_yerr_weights.sum(0)).sum(0)
 
     # calculate moving sd
     diff = np.power(av - yarray[:, :, np.newaxis], 2)
-    std = np.sqrt((diff * nmask).sum(0))
+    std = np.sqrt((diff * distance_yerr_weights).sum(0))
     # sqrt of weighted average of data-mean
 
     # calculate moving se
-    se = std / np.sqrt(mask.sum(0))
+    se = std / np.sqrt(distance_weights.sum(0))
     # max amplitude of weights is 1, so sum of weights scales
     # a fn of how many points are nearby. Use this as 'n' in
     # SE calculation.
@@ -246,7 +247,35 @@ class un_interp1d(object):
 
     def new_std(self, xn):
         return self.std_interp(xn)
+    
+class un_interp_gauss_weighted(object):
+    """
+    object for handling interpolation of values with uncertainties.
+    """
 
+    def __init__(self, x, y, weight_fwhm=None, **kwargs):
+        self.x = x
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+        self.y = un.nominal_values(y)
+        self.yerr = un.std_devs(y)
+        
+        if weight_fwhm is None:
+            weight_fwhm = np.diff(sorted(x)).mean() * 2
+        self.weight_fwhm = weight_fwhm
+
+    def new(self, xn):
+        av, _, se = gauss_weighted_stats(x=self.x, yarray=self.y, x_new=xn, fwhm=self.weight_fwhm, yerr=self.yerr)
+        return un.uarray(av.flatten(), se.flatten())
+
+    def new_nom(self, xn):
+        av, _, se = gauss_weighted_stats(x=self.x, yarray=self.y, x_new=xn, fwhm=self.weight_fwhm, yerr=self.yerr)
+        return av.flatten()
+
+    def new_std(self, xn):
+        av, _, se = gauss_weighted_stats(x=self.x, yarray=self.y, x_new=xn, fwhm=self.weight_fwhm, yerr=self.yerr)
+        return se.flatten()
+    
 def stack_keys(ddict, keys, extra=None):
     """
     Combine elements of ddict into an array of shape (len(ddict[key]), len(keys)).
