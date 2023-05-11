@@ -42,7 +42,7 @@ from .helpers.signal import rolling_window, enumerate_bool, calc_grads
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
-from .helpers.stat_fns import *
+from .helpers import stat_fns as sf
 from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar
@@ -791,7 +791,7 @@ class analyse(object):
 
         ep, ecov = curve_fit(expfit, ti, tr, p0=(-1.))
 
-        eeR2 = R2calc(trans, expfit(times, ep))
+        eeR2 = sf.R2calc(trans, expfit(times, ep))
 
         if plot:
             fig, ax = plt.subplots(1, 1, figsize=[6, 4])
@@ -960,7 +960,7 @@ class analyse(object):
         else:
             self.bkg['raw'] = bkgs.groupby('ns').filter(lambda x: (len(x) > n_min) & (len(x) < n_max))
         # calculate per - background region stats
-        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, stderr])
+        self.bkg['summary'] = self.bkg['raw'].groupby('ns').aggregate([np.mean, np.std, sf.stderr])
         # sort summary by uTime
         self.bkg['summary'].sort_values(('uTime', 'mean'), inplace=True)
         # self.bkg['summary'].index = np.arange(self.bkg['summary'].shape[0])
@@ -1052,7 +1052,7 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         # TODO : calculation then dict assignment is clumsy...
-        mean, std, stderr = gauss_weighted_stats(self.bkg['raw'].uTime,
+        mean, std, stderr = sf.gauss_weighted_stats(self.bkg['raw'].uTime,
                                                  self.bkg['raw'].loc[:, analytes].values,
                                                  self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
@@ -1062,7 +1062,7 @@ class analyse(object):
             self.bkg['calc'][a] = {'mean': mean[i],
                                     'std': std[i],
                                     'stderr': stderr[i]}
-            self.bkg_interps[a] = un_interp1d(x=self.bkg['calc']['uTime'],
+            self.bkg_interps[a] = sf.un_interp1d(x=self.bkg['calc']['uTime'],
                                               y=un.uarray(self.bkg['calc'][a]['mean'],
                                                           self.bkg['calc'][a][errtype]))
 
@@ -1142,7 +1142,7 @@ class analyse(object):
             for a in analytes:
                 fill_vals = (un.uarray(d.loc[:, (a, 'mean')].iloc[0], d.loc[:, (a, errtype)].iloc[0]),
                              un.uarray(d.loc[:, (a, 'mean')].iloc[-1], d.loc[:, (a, errtype)].iloc[-1]))
-                p = un_interp1d(x=d.loc[:, ('uTime', 'mean')],
+                p = sf.un_interp1d(x=d.loc[:, ('uTime', 'mean')],
                                 y=un.uarray(d.loc[:, (a, 'mean')],
                                             d.loc[:, (a, errtype)]),
                                 kind=kind, bounds_error=False, fill_value=fill_vals)
@@ -1472,7 +1472,7 @@ class analyse(object):
                 for a in self.analyte_ratios.difference(srm_nocal):
                     if a in srmdat.index.levels[1]:  # if analyte ratio already present in calibration table (e.g. 11B_10B)
                         srmtab.loc[srm, (a, 'mean')] = srmdat.loc[(srm, ad[a]), 'Value']
-                        srmtab.loc[srm, (a, 'err')] = uncertainty_to_std(srmdat.loc[(srm, ad[a]), 'Uncertainty'], srmdat.loc[(srm, ad[a]), 'Uncertainty_Type'])
+                        srmtab.loc[srm, (a, 'err')] = sf.uncertainty_to_std(srmdat.loc[(srm, ad[a]), 'Uncertainty'], srmdat.loc[(srm, ad[a]), 'Uncertainty_Type'])
                     else:  # calculate analyte ratio from analyte names
                         a_num, a_denom = a.split('_')
                         
@@ -1542,11 +1542,11 @@ class analyse(object):
                 ind = s.ns == n
                 if sum(ind) >= n_min:
                     for a in s.analyte_ratios:
-                        aind = ind & ~np.isnan(nominal_values(s.data[focus_stage][a]))
+                        aind = ind & ~np.isnan(sf.nominal_values(s.data[focus_stage][a]))
                         s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                                   (a, 'mean')] = np.nanmean(nominal_values(s.data[focus_stage][a][aind]))
+                                   (a, 'mean')] = np.nanmean(sf.nominal_values(s.data[focus_stage][a][aind]))
                         s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
-                                   (a, 'err')] = np.nanstd(nominal_values(s.data[focus_stage][a][aind])) / np.sqrt(sum(aind))
+                                   (a, 'err')] = np.nanstd(sf.nominal_values(s.data[focus_stage][a][aind])) / np.sqrt(sum(aind))
                 else:
                     warns.append('   Ablation {:} of SRM measurement {:} ({:} points)'.format(n, s.sample, sum(ind)))
 
@@ -1695,9 +1695,10 @@ class analyse(object):
 
     # apply calibration to data
     @_log
-    def calibrate(self, analytes=None, drift_correct=True,
+    def calibrate(self, analytes=None, drift_correct=None,
                   srms_used=['NIST610', 'NIST612', 'NIST614'],
-                  zero_intercept=True, n_min=10, reload_srm_database=False):
+                  zero_intercept=True, n_min=10, reload_srm_database=False,
+                  gauss_weight_fwhm=None):
         """
         Calibrates the data to measured SRM values.
 
@@ -1707,10 +1708,13 @@ class analyse(object):
         ----------  
         analytes : str or iterable
             Which analytes you'd like to calibrate. Defaults to all.
-        drift_correct : bool
-            Whether to pool all SRM measurements into a single calibration,
-            or vary the calibration through the run, interpolating
-            coefficients between measured SRMs.
+        drift_correct : None or str
+            If none, all measurements are pooled into a single calibration.
+            Alternatively:
+                'linear': the mass bias is linearly interpolated between measured SRMs.
+                'gauss_weighted': a moving mass bias is calculated using a Gaussian
+                    weighted average of the measured SRMs. Width of the rolling average is
+                    set by gauss_weight_fwhm (default is 2 x average SRM interval between SRM sets).
         srms_used : str or iterable
             Which SRMs have been measured. Must match names given in
             SRM data file *exactly*.
@@ -1722,6 +1726,9 @@ class analyse(object):
         -------
         None
         """
+        if isinstance(srms_used, str):
+            srms_used = [srms_used]
+        
         # load SRM database
         self.srm_load_database(srms_used, reload_srm_database)
 
@@ -1729,13 +1736,15 @@ class analyse(object):
         self.srm_compile_measured(n_min)
 
         analytes = self._analyte_checker(analytes)
-        
-        if isinstance(srms_used, str):
-            srms_used = [srms_used]
 
         if not hasattr(self, 'srmtabs'):
             self.srm_id_auto(srms_used=srms_used, n_min=n_min, reload_srm_database=reload_srm_database)
 
+        if drift_correct == 'gauss_weighted' and gauss_weight_fwhm is None:
+            gtimes = self.caltab.index.levels[0]
+            avg_gtime_diff = np.diff(gtimes).mean()
+            gauss_weight_fwhm = avg_gtime_diff * 2
+            
         # make container for calibration params
         gTime = np.asanyarray(self.caltab.index.levels[0])
         if not hasattr(self, 'calib_params'):
@@ -1754,55 +1763,62 @@ class analyse(object):
             else:
                 self.calib_params.loc[:, (a, 'c')] = 0
                 self.calib_params.loc[:, (a, 'c')] = self.calib_params[(a, 'c')].astype(object, copy=False)  # set new column to objet type
-            if drift_correct:
-                # Fails to calculate errors sometimes (34S in Madi's data)
-                for g in gTime:
-                    if self.caltab.loc[g].size == 0:
-                        continue
-                    meas = self.caltab.loc[g, (a, 'meas_mean')].values
-                    srm = self.caltab.loc[g, (a, 'srm_mean')].values
+            match drift_correct:
+                case None:
+                    meas = self.caltab.loc[:, (a, 'meas_mean')].values
+                    srm = self.caltab.loc[:, (a, 'srm_mean')].values
                     viable = ~np.isnan(meas + srm)  # remove any nan values
                     meas = meas[viable]
                     srm = srm[viable]
-                    meas_err = self.caltab.loc[g, (a, 'meas_err')].values[viable]
-                    srm_err = self.caltab.loc[g, (a, 'srm_err')].values[viable]
+                    meas_err = self.caltab.loc[:, (a, 'meas_err')].values[viable]
+                    srm_err = self.caltab.loc[:, (a, 'srm_err')].values[viable]
                     # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
                     sigma = np.sqrt(meas_err**2 + srm_err**2)
-                    if len(meas) > 1:
-                        # multiple SRMs - do a regression
+                    
+                    if sum(viable) > 1:
                         p, cov = curve_fit(fn, meas, srm, sigma=sigma)
                         pe = unc.correlated_values(p, cov)                
-                        self.calib_params.loc[g, (a, 'm')] = pe[0]
+                        self.calib_params.loc[:, (a, 'm')] = pe[0]
                         if not zero_intercept:
-                            self.calib_params.loc[g, (a, 'c')] = pe[1]
+                            self.calib_params.loc[:, (a, 'c')] = pe[1]
                     else:
-                        # deal with case where there's only one datum
-                        self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, srm_err) / 
-                                                              un.uarray(meas, meas_err))[0]
+                        self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                                                            un.uarray(meas, meas_err))[0]
+                        if not zero_intercept:
+                            self.calib_params.loc[:, (a, 'c')] = 0
+                case _:
+                    for g in gTime:
+                        if self.caltab.loc[g].size == 0:
+                            continue
+                        meas = self.caltab.loc[g, (a, 'meas_mean')].values
+                        srm = self.caltab.loc[g, (a, 'srm_mean')].values
+                        viable = ~np.isnan(meas + srm)  # remove any nan values
+                        meas = meas[viable]
+                        srm = srm[viable]
+                        meas_err = self.caltab.loc[g, (a, 'meas_err')].values[viable]
+                        srm_err = self.caltab.loc[g, (a, 'srm_err')].values[viable]
+                        # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
+                        sigma = np.sqrt(meas_err**2 + srm_err**2)
+
+                        self.calib_params.loc[g, (a, 'm')] = (np.mean(un.uarray(srm, srm_err)) / 
+                                                              np.mean(un.uarray(meas, meas_err)))
                         if not zero_intercept:
                             self.calib_params.loc[g, (a, 'c')] = 0
-            else:
-                meas = self.caltab.loc[:, (a, 'meas_mean')].values
-                srm = self.caltab.loc[:, (a, 'srm_mean')].values
-                viable = ~np.isnan(meas + srm)  # remove any nan values
-                meas = meas[viable]
-                srm = srm[viable]
-                meas_err = self.caltab.loc[:, (a, 'meas_err')].values[viable]
-                srm_err = self.caltab.loc[:, (a, 'srm_err')].values[viable]
-                # TODO: replace curve_fit with Sambridge's 2D likelihood function for better uncertainty incorporation?
-                sigma = np.sqrt(meas_err**2 + srm_err**2)
-                
-                if sum(viable) > 1:
-                    p, cov = curve_fit(fn, meas, srm, sigma=sigma)
-                    pe = unc.correlated_values(p, cov)                
-                    self.calib_params.loc[:, (a, 'm')] = pe[0]
-                    if not zero_intercept:
-                        self.calib_params.loc[:, (a, 'c')] = pe[1]
-                else:
-                    self.calib_params.loc[:, (a, 'm')] = (un.uarray(srm, srm_err) / 
-                                                          un.uarray(meas, meas_err))[0]
-                    if not zero_intercept:
-                        self.calib_params.loc[:, (a, 'c')] = 0
+                        
+                        # if len(meas) > 1:
+                        #     # multiple SRMs - do a regression
+                        #     p, cov = curve_fit(fn, meas, srm, sigma=sigma)
+                        #     pe = unc.correlated_values(p, cov)                
+                        #     self.calib_params.loc[g, (a, 'm')] = pe[0]
+                        #     if not zero_intercept:
+                        #         self.calib_params.loc[g, (a, 'c')] = pe[1]
+                        # else:
+                        #     # deal with case where there's only one datum
+                        #     self.calib_params.loc[g, (a, 'm')] = (un.uarray(srm, srm_err) / 
+                        #                                           un.uarray(meas, meas_err))[0]
+                        #     if not zero_intercept:
+                        #         self.calib_params.loc[g, (a, 'c')] = 0
+                    
 
         if self.calib_params.index.min() == 0:
             self.calib_params.drop(0, inplace=True)
@@ -1815,15 +1831,22 @@ class analyse(object):
         self.calib_params.sort_index(0, inplace=True)
 
         # calculcate interpolators for applying calibrations
+        match drift_correct:
+            case None:
+                interpolator = sf.un_interp1d
+            case 'gauss_weighted':
+                interpolator = sf.un_interp_gauss_weighted
+                self.calib_params = self.calib_params.iloc[1:-1]
+                            
         self.calib_ps = Bunch()
         for a in analytes:
             # TODO: revisit un_interp1d to see whether it plays well with correlated values. 
             # Possible re-write to deal with covariance matrices?
-            self.calib_ps[a] = {'m': un_interp1d(self.calib_params.index.values,
-                                                self.calib_params.loc[:, (a, 'm')].values)}
+            self.calib_ps[a] = {'m': interpolator(x=self.calib_params.index.values,
+                                                  y=self.calib_params.loc[:, (a, 'm')].values)}
             if not zero_intercept:
-                self.calib_ps[a]['c'] = un_interp1d(self.calib_params.index.values,
-                                                    self.calib_params.loc[:, (a, 'c')].values)
+                self.calib_ps[a]['c'] = interpolator(x=self.calib_params.index.values,
+                                                     y=self.calib_params.loc[:, (a, 'c')].values)
 
         with self.pbar.set(total=len(self.data), desc='Applying Calibrations') as prog:
             for d in self.data.values():
