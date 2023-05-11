@@ -273,3 +273,16 @@ def stack_keys(ddict, keys, extra=None):
         d = extra + d
     return np.vstack(d).T
 
+def uncertainty_to_std(a, uncertainty_type='std'):
+    match uncertainty_type.lower():
+        case 'std':
+            return a
+        case 'sd':
+            return a
+        case '2std':
+            return a / 2
+        case '2sd':
+            return a / 2
+        case '95%cl':
+            return a / 1.96
+        
