@@ -669,7 +669,7 @@ class analyse(object):
                         fails[s] = f
                     prog.update()  # advance progress bar
         elif mode == 'global':
-            self.get_focus()
+            self.get_focus(subset='All_Analyses')
             self.focus['total_counts'] = np.vstack([v for v in self.focus.values()]).mean(0)
             uTime = self.focus['uTime']
             
@@ -1442,44 +1442,51 @@ class analyse(object):
                 # determine analyte - Item pairs in table
                 ad = {}
                 for ar in self.analyte_ratios:
-                    a_num, a_denom = ar.split('_')  # separate numerator and denominator
-                    for a in [a_num, a_denom]:
-                        if a in ad:
-                            continue
-                        # check if there's an exact match of form [Mass][Element] in srmdat
-                        mna = analyte_2_massname(a)
-                        if mna in srmsub.index:
-                            ad[a] = mna
-                        else:
-                            # if not, match by element name.
-                            item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
-                            if len(item) > 1:
-                                item = item[item == get_analyte_name(a)]
-                            if len(item) == 1:
-                                ad[a] = item[0]
+                    if ar in srmsub.index:  # if analyte ratio already present in calibration table (e.g. 11B_10B)
+                        ad[ar] = ar
+                    else:  # if not, match analytes with SRM item nam`es
+                        a_num, a_denom = ar.split('_')  # separate numerator and denominator
+                        for a in [a_num, a_denom]:
+                            if a in ad:
+                                continue
+                            # check if there's an exact match of form [Mass][Element] in srmdat
+                            mna = analyte_2_massname(a)
+                            if mna in srmsub.index:
+                                ad[a] = mna
                             else:
-                                if srm not in warns:
-                                    warns[srm] = []
-                                warns[srm].append(a)
-                                srm_nocal.update([ar])
+                                # if not, match by element name.
+                                item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
+                                if len(item) > 1:
+                                    item = item[item == get_analyte_name(a)]
+                                if len(item) == 1:
+                                    ad[a] = item[0]
+                                else:
+                                    if srm not in warns:
+                                        warns[srm] = []
+                                    warns[srm].append(a)
+                                    srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
                                     
                 # build calibration database for given ratios
                 for a in self.analyte_ratios.difference(srm_nocal):
-                    a_num, a_denom = a.split('_')
-                    
-                    # calculate SRM polyatom multiplier (multiplier to account for stoichiometry,
-                    # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
-                    N_denom = float(decompose_molecule(ad[a_denom])[get_analyte_name(a_denom)])
-                    N_num = float(decompose_molecule(ad[a_num])[get_analyte_name(a_num)])
-                    
-                    # calculate molar ratio
-                    srmtab.loc[srm, (a, 'mean')] = ((srmdat.loc[(srm, ad[a_num]), 'mol/g'] * N_num) / 
-                                                    (srmdat.loc[(srm, ad[a_denom]), 'mol/g'] * N_denom))
-                    srmtab.loc[srm, (a, 'err')] = (srmtab.loc[srm, (a, 'mean')] * 
-                                                ((srmdat.loc[(srm, ad[a_num]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_num]), 'mol/g']))**2 +
-                                                    (srmdat.loc[(srm, ad[a_denom]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_denom]), 'mol/g']))**2)**0.5)
+                    if a in srmdat.index.levels[1]:  # if analyte ratio already present in calibration table (e.g. 11B_10B)
+                        srmtab.loc[srm, (a, 'mean')] = srmdat.loc[(srm, ad[a]), 'Value']
+                        srmtab.loc[srm, (a, 'err')] = uncertainty_to_std(srmdat.loc[(srm, ad[a]), 'Uncertainty'], srmdat.loc[(srm, ad[a]), 'Uncertainty_Type'])
+                    else:  # calculate analyte ratio from analyte names
+                        a_num, a_denom = a.split('_')
+                        
+                        # calculate SRM polyatom multiplier (multiplier to account for stoichiometry,
+                        # e.g. if internal standard is Na, N will be 2 if measured in SRM as Na2O)
+                        N_denom = float(decompose_molecule(ad[a_denom])[get_analyte_name(a_denom)])
+                        N_num = float(decompose_molecule(ad[a_num])[get_analyte_name(a_num)])
+                        
+                        # calculate molar ratio
+                        srmtab.loc[srm, (a, 'mean')] = ((srmdat.loc[(srm, ad[a_num]), 'mol/g'] * N_num) / 
+                                                        (srmdat.loc[(srm, ad[a_denom]), 'mol/g'] * N_denom))
+                        srmtab.loc[srm, (a, 'err')] = (srmtab.loc[srm, (a, 'mean')] * 
+                                                    ((srmdat.loc[(srm, ad[a_num]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_num]), 'mol/g']))**2 +
+                                                        (srmdat.loc[(srm, ad[a_denom]), 'mol/g_err'] / (srmdat.loc[(srm, ad[a_denom]), 'mol/g']))**2)**0.5)
                 
                 # where uncertainties are missing, replace with zeros
                 srmtab[srmtab.loc[:, idx[:, 'err']].isnull()] = 0
@@ -1658,6 +1665,15 @@ class analyse(object):
         for a in self.analyte_ratios:
             caltab.loc[:, (a, 'srm_mean')] = self.srmtab.loc[caltab.SRM, (a, 'mean')].values
             caltab.loc[:, (a, 'srm_err')] = self.srmtab.loc[caltab.SRM, (a, 'err')].values
+            
+            massbias = (
+                un.uarray(caltab.loc[:, (a, 'srm_mean')], caltab.loc[:, (a, 'srm_err')])
+                / 
+                un.uarray(caltab.loc[:, (a, 'meas_mean')], caltab.loc[:, (a, 'meas_err')])
+                )
+            caltab.loc[:, (a, 'massbias')] = massbias
+            caltab.loc[:, (a, 'massbias_mean')] = un.nominal_values(massbias)
+            caltab.loc[:, (a, 'massbias_err')] = un.std_devs(massbias)
             
         self.caltab = caltab.reindex(self.stdtab.columns.levels[0], axis=1, level=0)
 
