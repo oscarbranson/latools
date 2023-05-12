@@ -34,6 +34,7 @@ from .filtering import filters
 from .filtering.classifier_obj import classifier
 
 from .processes import read_data, autorange
+from .processes.b_isotopes import correct_d11b_Ca_offset
 from .preprocessing.split import long_file
 
 from .D_obj import D
@@ -1949,6 +1950,28 @@ class analyse(object):
         self.internal_standard_concs = pd.read_csv(sample_conc_file, index_col=0)
         return self.internal_standard_concs
 
+    @_log
+    def correct_d11b_Ca_offset(self, xvar, b_correction_srms=['MACS', 'JCT', 'JCP'], yvar='11B_10B', uncertainty_metric='SE', fn=None, plot=True):
+        """Apply d11B offset correction from Ca interference from Evans et al. 2021 (doi:10.1039/D1JA00073J)
+
+        Parameters
+        ----------
+        xvar : str
+            The independent variable used to calculate the d11B offset correction.
+        b_correction_srms : list, optional
+            The SRMs used for the d11B calibration, by default ['MACS', 'JCT', 'JCP']
+        yvar : str, optional
+            The y variable used to calculate the d11B offset correction, by default '11B_10B'
+        uncertainty_metric : str, optional
+            What type of uncertainty to calculate from the srm measurements, by default 'SE'
+        fn : _type_, optional
+            the function used to fit the offset, by default None
+        plot : bool, optional
+            If true, the calibration function is plottied, by default True
+        """
+        
+        correct_d11b_Ca_offset(self=self, xvar=xvar, b_correction_srms=b_correction_srms, yvar=yvar, uncertainty_metric=uncertainty_metric, fn=fn, plot=plot)
+    
     @_log
     def calculate_mass_fraction(self, internal_standard_concs=None, analytes=None, analyte_masses=None):
         """
