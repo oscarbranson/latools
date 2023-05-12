@@ -1460,16 +1460,19 @@ class analyse(object):
                                 ad[a] = mna
                             else:
                                 # if not, match by element name.
-                                item = srmsub.index[srmsub.index.str.contains(get_analyte_name(a))].values
-                                if len(item) > 1:
-                                    item = item[item == get_analyte_name(a)]
-                                if len(item) == 1:
-                                    ad[a] = item[0]
-                                else:
-                                    if srm not in warns:
-                                        warns[srm] = []
-                                    warns[srm].append(a)
-                                    srm_nocal.update([ar])
+                                analyte_name = get_analyte_name(a)
+                                if analyte_name is not None:
+                                    item = srmsub.index[srmsub.index.str.contains(analyte_name)].values
+                                    if len(item) > 1:
+                                        item = item[item == analyte_name]
+                                        continue
+                                    if len(item) == 1:
+                                        ad[a] = item[0]
+                                        continue
+                                if srm not in warns:
+                                    warns[srm] = []
+                                warns[srm].append(a)
+                                srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
                                     
@@ -1699,6 +1702,32 @@ class analyse(object):
             self.focus_stage = 'ratios'
             self.set_focus('ratios')
 
+    @_log
+    def drift_correct(self, srms_used='NIST612', analytes=None, focus_stage='ratios', method='gauss_weighted', gauss_weight_fwhm=5000):
+    
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
+
+        self.srm_compile_measured()
+
+        match method:
+            case None:
+                interpolator_class = sf.un_interp1d
+            case 'gauss_weighted':
+                interpolator_class = sf.un_interp_gauss_weighted
+                
+        x = self.stdtab.index.values
+        for a in analytes:
+            y = un.uarray(self.stdtab.loc[:, (a, 'mean')], self.stdtab.loc[:, (a, 'err')])
+            y /= np.mean(y)
+            # y /= unp.nominal_values(y[0])  
+            # y[0] = un.ufloat(1, unp.std_devs(y).mean() * 0.5)
+            
+            # create interpolator for mass bias
+            interpolator = interpolator_class(x, y, weight_fwhm=gauss_weight_fwhm)
+            
+            for d in self.data.values():
+                d.data[focus_stage][a] /= interpolator.new(d.uTime)
+    
     # apply calibration to data
     @_log
     def calibrate(self, analytes=None, drift_correct=None,
@@ -3935,10 +3964,10 @@ class analyse(object):
                      'std': np.nanstd,
                      'nanmean': np.nanmean,
                      'nanstd': np.nanstd,
-                     'se': stderr,
-                     'H15_mean': H15_mean,
-                     'H15_std': H15_std,
-                     'H15_se': H15_se}
+                     'se': sf.stderr,
+                     'H15_mean': sf.H15_mean,
+                     'H15_std': sf.H15_std,
+                     'H15_se': sf.H15_se}
 
         if isinstance(stats, str):
             stats = [stats]
