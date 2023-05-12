@@ -16,6 +16,7 @@ from .helpers.stat_fns import nominal_values, std_devs
 from .helpers import config
 from .helpers import chemistry
 from . import preprocessing
+from . import plot
 
 __version__ = '0.3.27-dev'
 
