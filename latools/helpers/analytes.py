@@ -179,7 +179,7 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_
         focus_stage = self.focus_stage
 
     out = set()
-    if focus_stage in ['ratios', 'calibrated'] and check_ratios:
+    if focus_stage not in ['autorange', 'bkgsub', 'despiked', 'rawdata'] and check_ratios:
         if analytes is None:
             analytes = self.analyte_ratios
         # case 1: provided analytes are an exact match for items in analyte_ratios
