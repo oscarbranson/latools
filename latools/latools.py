@@ -1158,8 +1158,6 @@ class analyse(object):
                                        errtype: p.new_std(self.bkg['calc']['uTime'])}
                 prog.update()
 
-        # self.bkg['calc']
-
         return
 
     @_log
@@ -1182,7 +1180,7 @@ class analyse(object):
             * 'rawdata': raw data, loaded from csv file.
             * 'despiked': despiked data.
         """
-        analytes = self._analyte_checker(analytes)
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
         if focus_stage == 'despiked':
             if 'despiked' not in self.stages_complete:
@@ -1529,7 +1527,7 @@ class analyse(object):
                 print('WARNING: Some analytes are not present in the SRM database for ANY standards:')
                 print(f'{self.uncalibrated} have been removed from further analysis.')
     
-    def srm_compile_measured(self, n_min=10, focus_stage='ratios'):
+    def srm_compile_measured(self, n_min=10, analytes=None, focus_stage='ratios'):
         """
         Compile mean and standard errors of measured SRMs
 
@@ -1539,10 +1537,12 @@ class analyse(object):
             The minimum number of points to consider as a valid measurement.
             Default = 10.
         """
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
+        
         warns = []
         # compile mean and standard errors of samples
         for s in self.stds:
-            s_stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([s.analyte_ratios, ['err', 'mean']]))
+            s_stdtab = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['err', 'mean']]))
             s_stdtab.index.name = 'uTime'
 
             if not s.n > 0:
@@ -1552,7 +1552,7 @@ class analyse(object):
             for n in range(1, s.n + 1):
                 ind = s.ns == n
                 if sum(ind) >= n_min:
-                    for a in s.analyte_ratios:
+                    for a in analytes:
                         aind = ind & ~np.isnan(sf.nominal_values(s.data[focus_stage][a]))
                         s_stdtab.loc[np.nanmean(s.uTime[s.ns == n]),
                                    (a, 'mean')] = np.nanmean(sf.nominal_values(s.data[focus_stage][a][aind]))
@@ -1578,7 +1578,7 @@ class analyse(object):
 
         # compile them into a table
         stdtab = pd.concat([s.stdtab for s in self.stds]).apply(pd.to_numeric, 1, errors='ignore')
-        stdtab = stdtab.reindex(self.analytes_sorted(self.analyte_ratios, focus_stage=focus_stage) + ['STD'], level=0, axis=1)
+        stdtab = stdtab.reindex(self.analytes_sorted(analytes, focus_stage=focus_stage) + ['STD'], level=0, axis=1)
 
         # identify groups of consecutive SRMs
         ts = stdtab.index.values
@@ -1709,7 +1709,7 @@ class analyse(object):
     
         analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
 
-        self.srm_compile_measured()
+        self.srm_compile_measured(analytes=analytes, focus_stage=focus_stage)
 
         match method:
             case None:
