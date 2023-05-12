@@ -23,6 +23,7 @@ import pkg_resources as pkgrs
 
 import uncertainties as unc
 import uncertainties.unumpy as un
+from uncertainties.unumpy import nominal_values, std_devs
 
 from sklearn.preprocessing import minmax_scale, scale
 from sklearn.cluster import KMeans
