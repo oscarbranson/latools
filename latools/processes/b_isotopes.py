@@ -157,6 +157,25 @@ def plot_d11b_offset_calibration(b_offset_table, up=None, fn=None, xlabel=None, 
     return fig, (ax, rax)
 
 def correct_d11b_Ca_offset(self, xvar, b_correction_srms=['MACS', 'JCT', 'JCP'], yvar='11B_10B', uncertainty_metric='SE', fn=None, plot=True):
+    """
+    Apply d11B offset correction from Ca interference from Evans et al. 2021 (doi:10.1039/D1JA00073J)
+
+    Parameters
+    ----------
+    xvar : str
+        The independent variable used to calculate the d11B offset correction.
+    b_correction_srms : list, optional
+        The SRMs used for the d11B calibration, by default ['MACS', 'JCT', 'JCP']
+    yvar : str, optional
+        The y variable used to calculate the d11B offset correction, by default '11B_10B'
+    uncertainty_metric : str, optional
+        What type of uncertainty to calculate from the srm measurements, by default 'SE'
+    fn : _type_, optional
+        the function used to fit the offset, by default None
+    plot : bool, optional
+        If true, the calibration function is plottied, by default True
+    """
+        
     
     _ = make_d11b_offset_table(self, xvar=xvar, b_correction_srms=b_correction_srms, yvar=yvar, uncertainty_metric=uncertainty_metric)
     
