@@ -181,8 +181,8 @@ def correct_d11b_Ca_offset(self, xvar, b_correction_srms=['MACS', 'JCT', 'JCP'],
         
         sam.setfocus('d11b_corrected')
 
-    self.stages_complete.update(['d11b_correction'])
-    self.focus_stage = 'd11b_correction'
+    self.stages_complete.update(['d11b_corrected'])
+    self.focus_stage = 'd11b_corrected'
     
 def delta_to_R(delta, SRM_ratio=4.04367):
     """
