@@ -515,6 +515,11 @@ class analyse(object):
         """
         return analyte_checker(self, analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage)
 
+    def get_samples_containing(self, match):
+        if isinstance(match, str):
+            match = [match]
+        
+        return [s for s in self.samples if any([m in s for m in match])]
 
     def analytes_sorted(self, analytes=None, check_ratios=True, single=False, focus_stage=None):
         return sorted(self._analyte_checker(analytes=analytes, check_ratios=check_ratios, single=single, focus_stage=focus_stage), key=analyte_sort_fn)
@@ -1421,8 +1426,8 @@ class analyse(object):
     def srm_load_database(self, srms_used=None, reload=False):
         if not hasattr(self, 'srmdat') or reload:
             # load SRM info
-            srmdat = srms.read_table(self.srmfile)
-            srmdat = srmdat.loc[srms_used]
+            srmdat_raw = srms.read_table(self.srmfile)
+            srmdat = srmdat_raw.loc[srms_used]
             srmdat.reset_index(inplace=True)
             srmdat.set_index(['SRM', 'Item'], inplace=True)
 
@@ -1493,6 +1498,7 @@ class analyse(object):
 
 
                 # record outputs
+                self._srmdat_raw = srmdat_raw  # the filtered SRM table
                 self.srmdat = srmdat  # the full SRM table
                 self._analyte_srmdat_link = analyte_srm_link  # dict linking analyte names to rows in srmdat
                 self.srmtab = srmtab.astype(float)  # a summary of relevant mol/mol values only
@@ -1978,7 +1984,7 @@ class analyse(object):
         self.subsets['not_in_set'] = self.subsets['All_Samples'].copy()
 
     @_log
-    def make_subset(self, samples=None, name=None, force=False, silent=False):
+    def make_subset(self, samples=None, name=None, match=None, force=False, silent=False):
         """
         Creates a subset of samples, which can be treated independently.
 
@@ -1993,6 +1999,9 @@ class analyse(object):
             If there is an existing subset that contains the same samples,
             a new set is not created unles `force=True`. Default is False.
         """
+        if samples is None and match is not None:
+            samples = self.get_samples_containing(match)
+
         if isinstance(samples, str):
             samples = [samples]
 
