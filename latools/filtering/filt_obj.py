@@ -366,12 +366,11 @@ class filt(object):
             boolean filter
         """
         analyte = self.check_analytes(analyte, single=True)
-        
         if len(analyte) == 0:
             return np.ones(self.size, dtype=bool)
         
-        if analyte not in self.analytes:
-            return np.ones(self.size, dtype=bool)
+        # if analyte not in self.analytes:
+        #     return np.ones(self.size, dtype=bool)
             # print(f'Warning: {analyte} is not in filter table. No filters applied.')
 
         if isinstance(filt, str):
