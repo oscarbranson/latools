@@ -22,6 +22,23 @@ import matplotlib.pyplot as plt
 
 textwidth = 70  # characters, for printing
 
+def by_seconds(file, outdir=None, split_seconds=None, global_header_rows=0, sample_names=None, trim_tail_lines=-1, trim_head_lines=0):
+    if outdir is None:
+        outdir = os.path.join(os.path.dirname(file), 'split')
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    
+    # read input file
+    with open(file, 'r') as f:
+        lines = f.readlines()
+    
+    # get file extension
+    extension = os.path.splitext(file)[-1]
+    
+    # grab global header rows
+    global_header = lines[:global_header_rows]
+
+
 def by_regex(file, outdir=None, split_pattern=None, global_header_rows=0, fname_pattern=None, trim_tail_lines=-1, trim_head_lines=0):
     """
     Split one long analysis file into multiple smaller ones.
