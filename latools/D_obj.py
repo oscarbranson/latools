@@ -103,6 +103,10 @@ class D(object):
         analysis spots when calculating sample statistics.
     filt : filt object
         An object for storing, selecting and creating data filters.F
+    passthrough : tuple, optional
+        If data loading happens at a higher level, pass a tuple containing
+        (file, sample, analytes, data, meta). This will be used to populate
+        the object, rather than loading data from a file.
     """
 
     def __init__(self, data_file=None, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names', passthrough=None):
@@ -352,6 +356,8 @@ class D(object):
             sig = self.data['total_counts']
         elif analyte in self.analytes:
             sig = self.focus[analyte]
+        elif analyte in ['PC1', 'PC2']:
+            sig = self.data['pca'][analyte]
         else:
             raise ValueError('Invalid analyte.')
 
@@ -398,6 +404,8 @@ class D(object):
             sig = self.data['total_counts']
         elif analyte in self.analytes:
             sig = self.focus[analyte]
+        elif analyte in ['PC1', 'PC2']:
+            sig = self.data['pca'][analyte]
         else:
             raise ValueError('Invalid analyte.')
 
