@@ -27,6 +27,7 @@ from uncertainties.unumpy import nominal_values, std_devs
 
 from sklearn.preprocessing import minmax_scale, scale
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from scipy.optimize import curve_fit
 
 from .helpers import plot
@@ -36,6 +37,7 @@ from .filtering.classifier_obj import classifier
 from .processes import read_data, autorange
 from .processes.b_isotopes import correct_d11b_Ca_offset
 from .preprocessing.split import long_file
+from .preprocessing import laserlog
 
 from .D_obj import D
 from .helpers import Bunch
@@ -125,8 +127,20 @@ class analyse(object):
         * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample (containing three ablations), std].
         * names = ['std', 'sample+', 'std'], which would divide the long file into [std, sample0, sample1, sample2, std], where each
           name is associated with a single ablation.
-    split_kwargs : dict
-        Arguments to pass to latools.split.long_file()
+    srm_file : str
+    file_structure : str
+        Specifies how latools is to import the data. Can be 'multi', 'long' or 'laserlog'. If 'multi' (the default), latools expects multiple ablations within a single folder. If 'long', latools expects a single file containing all ablations along with a list of sample names. If 'laserlog', latools parses a long input file using information from the laserlog file.
+    file_structure_kwargs : dict
+        If required, keyword arguments used to interpret the file_structure
+        mode. Required if 'file_structure' is either 'long' or 'laserlog':
+        
+        for `long`: {analyte: str (optional), 'combine_same_name': bool (optional), 'defrag_to_match_sample_list': bool (optional), 'min_points': int (optional), 'plot': bool (optional), 'autorange_args': dict (optional)}
+        
+        see `latools.preprocessing.split.long_file` for full details.
+        
+        for `laserlog`: {'laserlog_file': str, 'on_pad': [int, int] (optional), 'off_pad': [int, int] (optional), 'align_bkg': int (optional), 'align_nstd': int (optional)}.
+        
+        see `latools.preprocessing.laserlog.parse` for full details.
 
     Attributes
     ----------
@@ -154,14 +168,14 @@ class analyse(object):
         data. These must contain srm_identifier in the file name.
     srm_identifier : str
         A string present in the file names of all standards.
-    cmaps : dict
+    cmap : dict
         An analyte - specific colour map, used for plotting.
     """
 
-    def __init__(self, data_path, errorhunt=False, config='DEFAULT',
+    def __init__(self, data_path, config='DEFAULT',
                  dataformat=None, extension='.csv', srm_identifier='STD',
                  cmap=None, time_format=None, internal_standard='Ca43',
-                 file_structure='multi', names='file_names', srm_file=None, pbar=None, split_kwargs={}):
+                 file_structure='multi', file_structure_kwargs={}, names='file_names', srm_file=None, pbar=None):
         """
         For processing and analysing whole LA - ICPMS datasets.
         """
@@ -224,30 +238,36 @@ class analyse(object):
         else:
             self.pbar = pbar
 
-        if file_structure == 'multi':
-            self.files = np.array([f for f in os.listdir(self.path)
-                               if extension in f])
+        match file_structure:
+            case 'multi':
+                self.files = np.array([f for f in os.listdir(self.path)
+                                if extension in f])
 
-            # load data into list (initialise D objects)
-            with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
-                data = [None] * len(self.files)
-                for i, f in enumerate(self.files):
-                    data_passthrough = read_data(data_file=os.path.join(self.path, f), dataformat=self.dataformat, name_mode=names)
+                # load data into list (initialise D objects)
+                with self.pbar.set(total=len(self.files), desc='Loading Data') as prog:
+                    data = [None] * len(self.files)
+                    for i, f in enumerate(self.files):
+                        data_passthrough = read_data(data_file=os.path.join(self.path, f), dataformat=self.dataformat, name_mode=names)
 
-                    data[i] = D(passthrough=(f, *data_passthrough))
-                    # data[i] = (D(os.path.join(self.path, f),
-                    #            dataformat=self.dataformat,
-                    #            errorhunt=errorhunt,
-                    #            cmap=cmap,
-                    #            internal_standard=internal_standard,
-                    #            name=names))
-                    prog.update()
-        elif file_structure == 'long':
-            data = []
-            print(self.path)
+                        data[i] = D(passthrough=(f, *data_passthrough))
+                        # data[i] = (D(os.path.join(self.path, f),
+                        #            dataformat=self.dataformat,
+                        #            errorhunt=errorhunt,
+                        #            cmap=cmap,
+                        #            internal_standard=internal_standard,
+                        #            name=names))
+                        prog.update()
+            case 'long':
+                data = []
+                print(self.path)
 
-            for data_passthrough in long_file(data_file=self.path, dataformat=self.dataformat, sample_list=names, passthrough=True, **split_kwargs):
-                data.append(D(passthrough=data_passthrough))
+                for data_passthrough in long_file(data_file=self.path, dataformat=self.dataformat, sample_list=names, passthrough=True, **file_structure_kwargs):
+                    data.append(D(passthrough=data_passthrough))
+            case 'laserlog':
+                data = []
+                
+                for data_passthrough in laserlog.parse(csv_file=self.path, dataformat=self.dataformat, **file_structure_kwargs):
+                    data.append(D(passthrough=data_passthrough))
 
         # create universal time scale
         if 'date' in data[0].meta:
@@ -563,6 +583,54 @@ class analyse(object):
             self.calibration_plot()
 
         return
+    
+    @_log
+    def calc_PCA(self, analytes=None, n_components=2, transform=None, focus_stage=None):
+        """
+        Decompose the ablation signals into n principle components.
+
+        Parameters
+        ----------
+        analytes : str or array-like, optional
+            the analytes used in calculating the PCA, by default None
+        n_components : int, optional
+            the number of compoents to calculate, by default 2
+        transform : str, optional
+            if 'log', the data will be log-transformed before applying the PCA, by default None
+        focus_stage : str, optional
+            **Currently does nothing** the focus_stage to apply the PCA to, by default None
+        """
+
+        analytes = self._analyte_checker(analytes, focus_stage=focus_stage)
+
+        if focus_stage is None:
+            focus_stage = self.focus_stage
+
+        self.get_focus(subset='All_Analyses')
+
+        d = pd.DataFrame.from_dict(self.focus)
+        d.set_index('uTime', inplace=True)
+
+        y = np.vstack([self.focus[a] for a in analytes]).T
+        if transform =='log':
+            y = np.log(y)
+            y[np.isnan(y)] = np.nanmin(y)
+        # after pandas conversion
+        # pca = PCA(n_components=n_components).fit(d.loc[:, analytes])
+
+        pca = PCA(n_components=n_components).fit(y)
+        self._pca = pca
+        self._pca._analytes = analytes
+        self._pca._transform = transform
+        
+        for s in self.data.values():
+            sy = np.vstack([s.focus[a] for a in analytes]).T
+            if transform =='log':
+                sy = np.log(sy)
+                sy[np.isnan(sy)] = np.nanmin(sy)
+            trans = pca.transform(sy)
+            trans -= trans.min(axis=0) + 1e-3
+            s.data['pca'] = {f'PC{i + 1}': pc for i, pc in enumerate(trans.T)}    
 
     @_log
     def autorange(self, analyte='total_counts', gwin=5, swin=3, win=20,
@@ -570,6 +638,7 @@ class analyse(object):
                   transform='log', ploterrs=True, focus_stage='despiked',
                   signal_id_mode='kmeans', min_points=None, mode='individual',
                   poly_noise_level=3, poly_order=3, std_above_baseline=3,
+                  pca_analytes=None, pca_transform=None,
                   **kwargs):
         """
         Automatically separates signal and background data regions.
@@ -602,10 +671,12 @@ class analyse(object):
         Parameters
         ----------
         analyte : str
-            The analyte that autorange should consider. For best results,
+            Either:
+            1. The analyte that autorange should consider. For best results,
             choose an analyte that is present homogeneously in high
             concentrations.
-            This can also be 'total_counts' to use the sum of all analytes.
+            2. 'total_counts' to use the sum of all analytes.
+            3. 'PC1' or 'PC2' to use the principle component of all analytes. If specifying this, you an also provide the optional argument 'pca_analytes' to select which analytes the PCA is calculated from.
         gwin : int
             The smoothing window used for calculating the first derivative.
             Must be odd.
@@ -659,6 +730,9 @@ class analyse(object):
             if 'despiked' not in self.stages_complete:
                 focus_stage = 'rawdata'
 
+        if analyte in ['PC1', 'PC2']:
+            self.calc_PCA(analytes=pca_analytes, n_components=2, transform=pca_transform)
+            
         if analyte in self.analytes:
             self.minimal_analytes.update([analyte])
 
@@ -680,8 +754,22 @@ class analyse(object):
             self.focus['total_counts'] = np.vstack([v for v in self.focus.values()]).mean(0)
             uTime = self.focus['uTime']
             
+            if analyte in self.focus:
+                sig = self.focus[analyte]
+            elif analyte in ['PC1', 'PC2']:
+                y = np.vstack([self.focus[a] for a in self._pca._analytes]).T
+                if self._pca._transform =='log':
+                    y = np.log(y)
+                    y[np.isnan(y)] = np.nanmin(y)
+                sig = self._pca.transform(y)
+                sig -= sig.min(axis=0) + 1e3
+                if analyte == 'PC1':
+                    sig = sig[:,0]
+                else:
+                    sig = sig[:, 1]
+            
             fbkg, fsig, ftrn, fails = autorange(
-                xvar=uTime, sig=self.focus[analyte],
+                xvar=uTime, sig=sig,
                 gwin=gwin, swin=swin, win=win,
                 on_mult=on_mult, off_mult=off_mult,
                 transform=transform, 
