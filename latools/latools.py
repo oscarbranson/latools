@@ -207,7 +207,7 @@ class analyse(object):
 
         # load configuration parameters
         self.config = read_configuration(config)
-
+        
         # print some info about the analysis and setup.
         startmsg = self._fill_line('-') + 'Starting analysis:'
         if srm_file is None or dataformat is None:
@@ -237,6 +237,9 @@ class analyse(object):
             self.pbar = progressbar()
         else:
             self.pbar = pbar
+
+        # keep record of which stages of processing have been performed
+        self.stages_complete = set(['rawdata'])
 
         match file_structure:
             case 'multi':
@@ -268,6 +271,8 @@ class analyse(object):
                 
                 for data_passthrough in laserlog.parse(csv_file=self.path, dataformat=self.dataformat, **file_structure_kwargs):
                     data.append(D(passthrough=data_passthrough))
+                
+                self.stages_complete.update(['autorange'])
 
         # create universal time scale
         if 'date' in data[0].meta:
@@ -369,9 +374,6 @@ class analyse(object):
         
         # record which analytes are needed for calibration
         self.calibration_analytes = set()
-
-        # keep record of which stages of processing have been performed
-        self.stages_complete = set(['rawdata'])
 
         # From this point on, data stored in dicts
         self.data = Bunch(zip(self.samples, data))
