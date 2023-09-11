@@ -5,6 +5,31 @@ from ..processes import read_data
 from ..helpers.signal import bool_transitions
 
 def parse(csv_file, dataformat, laserlog_file, on_pad=[5, 3], off_pad=[3, 5], align_bkg=10, align_nstd=12):
+    """
+    Use a laserlog file to split a long data file into subsections for each sample, and identify signal, background and transition regions.
+
+    Parameters
+    ----------
+    csv_file : str
+        A csv file containing the data to be split.
+    dataformat : dict
+        a dataformat description for the data in csv_file.
+    laserlog_file : str
+        The path to the laserlog file.
+    on_pad : list, optional
+        The number of seconds of data to remove [before, after] the time when the laser is turned ON, by default [5, 3]
+    off_pad : list, optional
+        The number of seconds of data to remove [before, after] the time when the laser is turned OFF, by default [3, 5]
+    align_bkg : int, optional
+        The number of initial data points used to estimate the background intensity. Used in aligning the laserlog times with the data timescale., by default 10
+    align_nstd : int, optional
+        The number of standard deviations the data must rise above the background value to be considered a 'laser on' signal, by default 12
+
+    Yields
+    ------
+    tuple
+        ('', sample name, analytes, data, metatadata) for input into the `passthrough` parameter of `latools.D_obj.D`.
+    """
     
     _, _, dat, meta = read_data(csv_file, dataformat=dataformat, name_mode='file')
     
@@ -87,12 +112,10 @@ def parse(csv_file, dataformat, laserlog_file, on_pad=[5, 3], off_pad=[3, 5], al
             s += '.1'
         
         sections[s] = {
-            'Time': dat.Time[ind],
+            'Time': dat.Time[ind] - dat.Time[ind].min(),
             'rawdata': {k: v[ind] for k, v in dat.rawdata.items()},
             'total_counts': dat.total_counts[ind],
-            'bkg': bkg,
-            'sig': sig,
-            'trn': trn,
+            'laserlog_bkg': (bkg[ind], sig[ind], trn[ind]),
         }
     
     analytes = set(dat.rawdata.keys())

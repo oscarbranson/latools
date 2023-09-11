@@ -162,7 +162,7 @@ class D(object):
                 if k in self.cmap:
                     self.cmap[k] = v
 
-        # set up flags
+        # set up variables for autorange
         self.sig = np.array([False] * self.Time.size)
         self.bkg = np.array([False] * self.Time.size)
         self.trn = np.array([False] * self.Time.size)
@@ -170,6 +170,11 @@ class D(object):
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
+        if passthrough is not None:
+            if 'laserlog_bkg' in self.data:
+                self.bkg, self.sig, self.trn = self.data['laserlog_bkg']
+                self.mkrngs()
+        
         # set up blank filtering object
         self._init_filts()
         # self.filt = filt(self.Time.size, self.analytes)
