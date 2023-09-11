@@ -31,6 +31,30 @@ def bool_2_indices(a):
         return np.reshape(lims, (lims.size // 2, 2))
     else:
         return None
+    
+def indices_2_bool(indices, size):
+    """
+    Return a boolean array of size `size` that is true between the 
+    indices provided.
+
+    Parameters
+    ----------
+    indices : array-like
+        An array of shape (n, 2) of (start, stop) pairs. The resulting
+        boolean array will be True between the (start, stop) indices.
+    size : int
+        The size of the resulting array.
+
+    Returns
+    -------
+    np.ndarray
+        a boolean array that is true between the provided indices
+    """
+
+    out = np.zeros(size, dtype=bool)
+    for l,h in indices:
+        out[l:h] = True
+    return out    
 
 def enumerate_bool(bool_array, nstart=0):
     """
