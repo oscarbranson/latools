@@ -1125,10 +1125,9 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
-            analytes = self.analytes
             self.bkg = Bunch()
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+            
+        analytes = self._analyte_checker(analytes=analytes)
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
@@ -1149,9 +1148,9 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         # TODO : calculation then dict assignment is clumsy...
-        mean, std, stderr = sf.gauss_weighted_stats(self.bkg['raw'].uTime,
-                                                 self.bkg['raw'].loc[:, analytes].values,
-                                                 self.bkg['calc']['uTime'],
+        mean, std, stderr = gauss_weighted_stats(x=self.bkg['raw'].uTime.values,
+                                                 yarray=self.bkg['raw'].loc[:, list(analytes)].values,
+                                                 x_new=self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
         self.bkg_interps = {}
 
@@ -1208,10 +1207,9 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.            
         """
         if analytes is None:
-            analytes = self.analytes
             self.bkg = Bunch()
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+            
+        analytes = self._analyte_checker(analytes=analytes)
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
@@ -1731,12 +1729,12 @@ class analyse(object):
         analytes = list(analytes)
         
         # get and scale mean srm values for all analytes
-        srmid = self.srmtab.loc[:, idx[analytes, 'mean']]   
+        srmid = self.srmtab.loc[:, idx[list(analytes), 'mean']]   
         _srmid = scale(np.log(srmid))
         srm_labels = srmid.index.values
 
         # get and scale measured srm values for all analytes
-        stdid = self.stdtab.loc[:, idx[analytes, 'mean']]
+        stdid = self.stdtab.loc[:, idx[list(analytes), 'mean']]
         _stdid = scale(np.log(stdid))
         _stdid[np.isnan(_stdid)] = -12
 
@@ -1761,7 +1759,7 @@ class analyse(object):
         caltab = self.stdtab.reset_index()
         caltab.set_index(['gTime', 'uTime'], inplace=True)
         levels = ['meas_' + c if c != '' else c for c in caltab.columns.levels[1]]
-        caltab.columns.set_levels(levels, 1, inplace=True)
+        caltab.columns = caltab.columns.set_levels(levels, level=1)
 
         for a in self.analyte_ratios:
             caltab.loc[:, (a, 'srm_mean')] = self.srmtab.loc[caltab.SRM, (a, 'mean')].values
@@ -1875,7 +1873,7 @@ class analyse(object):
         # make container for calibration params
         gTime = np.asanyarray(self.caltab.index.levels[0])
         if not hasattr(self, 'calib_params'):
-            self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([analytes, ['m']]),
+            self.calib_params = pd.DataFrame(columns=pd.MultiIndex.from_product([list(analytes), ['m']]),
                                              index=gTime)
 
         if zero_intercept:
@@ -1954,8 +1952,8 @@ class analyse(object):
         maxuT = np.max([d.uTime.max() for d in self.data.values()])  # calculate max uTime
         self.calib_params.loc[maxuT, :] = self.calib_params.loc[self.calib_params.index.max(), :]
         # sort indices for slice access
-        self.calib_params.sort_index(1, inplace=True)
-        self.calib_params.sort_index(0, inplace=True)
+        self.calib_params.sort_index(axis=1, inplace=True)
+        self.calib_params.sort_index(axis=0, inplace=True)
 
         # calculcate interpolators for applying calibrations
         match drift_correct:
@@ -3629,7 +3627,7 @@ class analyse(object):
         comp = comp.join(pd.concat(rats, 1))
         comp.sort_index(1, inplace=True)
         
-        return comp.loc[:, (pd.IndexSlice[:], pd.IndexSlice[analytes])]
+        return comp.loc[:, (pd.IndexSlice[:], pd.IndexSlice[list(analytes)])]
 
     def crossplot_filters(self, filter_string, analytes=None,
                           samples=None, subset=None, filt=None):
@@ -3791,7 +3789,7 @@ class analyse(object):
         if outdir is None:
             outdir = os.path.join(self.report_dir, focus_stage)
         if not os.path.isdir(outdir):
-            os.mkdir(outdir)
+            os.makedirs(outdir)
 
         analytes = self.analytes_sorted(analytes, focus_stage=focus_stage)
 
@@ -3816,10 +3814,10 @@ class analyse(object):
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
                 # for l, u in s.bkgrng:
                 #     ax.axvspan(l, u, color='k', alpha=0.1)
-                f.savefig(os.path.join(outdir, s + '_traces.pdf'))
+                with open(os.path.join(outdir, s + '_traces.pdf'), 'wb') as file:
+                    f.savefig(file)
                 # TODO: on older(?) computers raises
                 # 'OSError: [Errno 24] Too many open files'
-                plt.close(f)
                 prog.update()
         return
 
@@ -4110,7 +4108,7 @@ class analyse(object):
 
         with self.pbar.set(total=len(samples), desc='Calculating Stats') as prog:
             for s in samples:
-                self.data[s].sample_stats(analytes, filt=filt,
+                self.data[s].sample_stats(analytes, filt=1616,
                                           stat_fns=stat_fns,
                                           eachtrace=eachtrace,
                                           focus_stage=focus_stage)
