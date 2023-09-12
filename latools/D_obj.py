@@ -1550,13 +1550,13 @@ class D(object):
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
 
-            if ax.is_first_col():
+            if ax.get_subplotspec().is_first_col():
                 ax.yaxis.set_ticks_position('left')
-            if ax.is_last_col():
+            if ax.get_subplotspec().is_last_col():
                 ax.yaxis.set_ticks_position('right')
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 ax.xaxis.set_ticks_position('top')
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 ax.xaxis.set_ticks_position('bottom')
 
         # set up colour scales
@@ -1664,13 +1664,13 @@ class D(object):
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
 
-            if ax.is_first_col():
+            if ax.get_subplotspec().is_first_col():
                 ax.yaxis.set_ticks_position('left')
-            if ax.is_last_col():
+            if ax.get_subplotspec().is_last_col():
                 ax.yaxis.set_ticks_position('right')
-            if ax.is_first_row():
+            if ax.get_subplotspec().is_first_row():
                 ax.xaxis.set_ticks_position('top')
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 ax.xaxis.set_ticks_position('bottom')
 
         # isolate nominal_values for all analytes
