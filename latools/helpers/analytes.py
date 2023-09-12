@@ -195,7 +195,7 @@ def analyte_checker(self, analytes=None, check_ratios=True, single=False, focus_
             raise ValueError(f'{analytes} matches more than one valid analyte ({out}). Please be more specific.')
         return out.pop()
 
-    return out
+    return list(out)
 
 def split_analyte_ratios(ratios):
     out = set()

@@ -990,10 +990,9 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.
         """
         if analytes is None:
-            analytes = self.analytes
             self.bkg = Bunch()
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+            
+        analytes = self._analyte_checker(analytes=analytes)
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
@@ -1014,9 +1013,11 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         # TODO : calculation then dict assignment is clumsy...
-        mean, std, stderr = gauss_weighted_stats(self.bkg['raw'].uTime,
-                                                 self.bkg['raw'].loc[:, analytes].values,
-                                                 self.bkg['calc']['uTime'],
+        print(analytes)
+
+        mean, std, stderr = gauss_weighted_stats(x=self.bkg['raw'].uTime.values,
+                                                 yarray=self.bkg['raw'].loc[:, analytes].values,
+                                                 x_new=self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
         self.bkg_interps = {}
 
@@ -1073,10 +1074,9 @@ class analyse(object):
             * 'calibrated': ratio data calibrated to standards, created by self.calibrate.            
         """
         if analytes is None:
-            analytes = self.analytes
             self.bkg = Bunch()
-        elif isinstance(analytes, str):
-            analytes = [analytes]
+            
+        analytes = self._analyte_checker(analytes=analytes)
 
         self.get_background(n_min=n_min, n_max=n_max,
                             bkg_filter=bkg_filter,
