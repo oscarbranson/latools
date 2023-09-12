@@ -3586,10 +3586,10 @@ class analyse(object):
                 #     ax.axvspan(l, u, color='r', alpha=0.1)
                 # for l, u in s.bkgrng:
                 #     ax.axvspan(l, u, color='k', alpha=0.1)
-                f.savefig(os.path.join(outdir, s + '_traces.pdf'))
+                with open(os.path.join(outdir, s + '_traces.pdf')) as file:
+                    f.savefig(file)
                 # TODO: on older(?) computers raises
                 # 'OSError: [Errno 24] Too many open files'
-                plt.close(f)
                 prog.update()
         return
 
