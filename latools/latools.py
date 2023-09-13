@@ -23,6 +23,7 @@ import pkg_resources as pkgrs
 
 import uncertainties as unc
 import uncertainties.unumpy as un
+from uncertainties.unumpy import nominal_values, std_devs
 
 from sklearn.preprocessing import minmax_scale, scale
 from sklearn.cluster import KMeans
@@ -42,7 +43,7 @@ from .helpers.signal import rolling_window, enumerate_bool, calc_grads
 from .helpers import logging
 from .helpers.logging import _log
 from .helpers.config import read_configuration, config_locator
-from .helpers.stat_fns import *
+from .helpers.stat_fns import gauss_weighted_stats, R2calc, stderr, un_interp1d, H15_mean, H15_std, H15_se
 from .helpers import utils
 from .helpers import srm as srms
 from .helpers.progressbars import progressbar

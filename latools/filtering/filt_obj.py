@@ -117,7 +117,7 @@ class filt(object):
                 return analytes[0]
             return valid.pop()
         else:
-            return valid
+            return list(valid)
 
     def add(self, name, filt, info='', params=(), setn=None):
         """
@@ -288,7 +288,7 @@ class filt(object):
         analyte = self.check_analytes(analyte)
         
         key = []
-        for n, f in self.filter_table[list(analyte)].index[self.filter_table[list(analyte)].any(axis=1)]:
+        for n, f in self.filter_table[analyte].index[self.filter_table[analyte].any(axis=1)]:
             key.append(f'{n}:{f}')
         
         return self.make_fromkey('&'.join(key))
