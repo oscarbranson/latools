@@ -1,10 +1,19 @@
 # Changelog
 All significant changes to the software will be documented here.
 
-## [0.3.29-dev] - LIVE
+## [0.3.30-dev] - LIVE
 
 ### TODO
 - implement different analyte lists for different stages (raw, ratios, mass_fractions), OR improve analyte_checker functionality. This has to propagate throught to filter assignment.
+
+## [0.3.29]
+
+More pandas 2.0 'indexing with set' compatibility updates...
+
+### Changed
+ - modify dataframe indexing in filt_obj to work with pandas>=2.0.0
+
+
 
 ## [0.3.28]
 
@@ -14,7 +23,7 @@ All significant changes to the software will be documented here.
  - minor revisions to GitHub Actions scripts
 
 
-## [0.3.28] missed... oops!
+## [0.3.27] missed... oops!
 
 ## [0.3.26]
 
