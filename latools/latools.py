@@ -1148,7 +1148,7 @@ class analyse(object):
             self.bkg['calc']['uTime'] = bkg_t
 
         # TODO : calculation then dict assignment is clumsy...
-        mean, std, stderr = gauss_weighted_stats(x=self.bkg['raw'].uTime.values,
+        mean, std, stderr = sf.gauss_weighted_stats(x=self.bkg['raw'].uTime.values,
                                                  yarray=self.bkg['raw'].loc[:, list(analytes)].values,
                                                  x_new=self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
