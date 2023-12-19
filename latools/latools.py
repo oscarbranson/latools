@@ -1537,7 +1537,7 @@ class analyse(object):
                 for ar in self.analyte_ratios:
                     if ar in srmsub.index:  # if analyte ratio already present in calibration table (e.g. 11B_10B)
                         ad[ar] = ar
-                    else:  # if not, match analytes with SRM item nam`es
+                    else:  # if not, match analytes with SRM item names
                         a_num, a_denom = ar.split('_')  # separate numerator and denominator
                         for a in [a_num, a_denom]:
                             if a in ad:
@@ -1551,9 +1551,9 @@ class analyse(object):
                                 analyte_name = get_analyte_name(a)
                                 if analyte_name is not None:
                                     item = srmsub.index[srmsub.index.str.contains(analyte_name)].values
-                                    if len(item) > 1:
+                                    print(analyte_name, item)
+                                    if len(item) > 1:  # if more than one element, just pick the one that matches exactly
                                         item = item[item == analyte_name]
-                                        continue
                                     if len(item) == 1:
                                         ad[a] = item[0]
                                         continue
@@ -1563,6 +1563,8 @@ class analyse(object):
                                 srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
+                
+                print(analyte_srm_link)
                                     
                 # build calibration database for given ratios
                 for a in self.analyte_ratios.difference(srm_nocal):
