@@ -1551,7 +1551,6 @@ class analyse(object):
                                 analyte_name = get_analyte_name(a)
                                 if analyte_name is not None:
                                     item = srmsub.index[srmsub.index.str.contains(analyte_name)].values
-                                    print(analyte_name, item)
                                     if len(item) > 1:  # if more than one element, just pick the one that matches exactly
                                         item = item[item == analyte_name]
                                     if len(item) == 1:
@@ -1563,9 +1562,7 @@ class analyse(object):
                                 srm_nocal.update([ar])
 
                 analyte_srm_link[srm] = ad
-                
-                print(analyte_srm_link)
-                                    
+                                                    
                 # build calibration database for given ratios
                 for a in self.analyte_ratios.difference(srm_nocal):
                     if a in srmdat.index.levels[1]:  # if analyte ratio already present in calibration table (e.g. 11B_10B)
