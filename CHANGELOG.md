@@ -6,6 +6,14 @@ All significant changes to the software will be documented here.
 ### TODO
 - implement different analyte lists for different stages (raw, ratios, mass_fractions), OR improve analyte_checker functionality. This has to propagate throught to filter assignment.
 
+## [0.3.30] - 12/01/2024
+
+### Changed
+ - Changed `sklearn` to `scikit-learn` in requirements.txt to accommodate change in upstream package name
+ - Moved from setup.py to setup.cfg for package metadata
+ - Changed version labelling from `__version__` to `VERSION` to match pypi expectations.
+
+
 ## [0.3.29]
 
 More pandas 2.0 'indexing with set' compatibility updates...
