@@ -1,7 +1,7 @@
 # Changelog
 All significant changes to the software will be documented here.
 
-## [0.3.30-dev] - LIVE
+## [0.3.31-dev] - LIVE
 
 ### TODO
 - implement different analyte lists for different stages (raw, ratios, mass_fractions), OR improve analyte_checker functionality. This has to propagate throught to filter assignment.
