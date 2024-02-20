@@ -81,7 +81,7 @@ def gauss_weighted_stats(x, yarray, x_new, fwhm, yerr=None):
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
 
     # calculate weights
-    distance_weights = gauss(x.values[:, np.newaxis] - x_new, 1, 0, sigma)
+    distance_weights = gauss(x[:, np.newaxis] - x_new, 1, 0, sigma)
     if yerr is None:
         yerr = np.ones_like(yarray)
     yerr_weights = 1 / yerr**2
