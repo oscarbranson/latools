@@ -1060,7 +1060,7 @@ class analyse(object):
 
         # TODO : calculation then dict assignment is clumsy...
         mean, std, stderr = sf.gauss_weighted_stats(self.bkg['raw'].uTime,
-                                                 self.bkg['raw'].loc[:, analytes].values,
+                                                 self.bkg['raw'].loc[:, list(analytes)].values,
                                                  self.bkg['calc']['uTime'],
                                                  fwhm=weight_fwhm)
         self.bkg_interps = {}
