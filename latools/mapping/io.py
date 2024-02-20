@@ -133,15 +133,17 @@ def  time_to_xyd(traces, scaninfo, start_offset_um=None):
 
     current_distance_um = 0
 
-    for idx, idy in zip(dx, dy):
+    for idx, idy, ix, iy in zip(dx, dy, x, y):
 
-        vertex_distance_um = current_distance_um + (idx**2 + idy**2)**0.5
+        vertex_distance_um = (idx**2 + idy**2)**0.5
 
-        ind = (total_trace_distance_offset_um > current_distance_um) & (total_trace_distance_offset_um <= vertex_distance_um)
+        ind = (
+            (total_trace_distance_offset_um > current_distance_um) & 
+            (total_trace_distance_offset_um <= current_distance_um + vertex_distance_um))
         
         f_distance = (total_trace_distance_offset_um[ind] - current_distance_um) / vertex_distance_um
-        trace_x[ind] = x[0] + idx * f_distance
-        trace_y[ind] = y[0] + idy * f_distance
+        trace_x[ind] = ix + idx * f_distance
+        trace_y[ind] = iy + idy * f_distance
         
         current_distance_um += vertex_distance_um
 
