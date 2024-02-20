@@ -73,7 +73,7 @@ def in_axes(x, y, ax):
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     
-    if min(x) >= xlim[0] and max(x) <= xlim[1] and min(y) >= ylim[0] and max(y) <= ylim[1]:
+    if min(x) >= min(xlim) and max(x) <= max(xlim) and min(y) >= min(ylim) and max(y) <= max(ylim):
         return True
     
     return False 
