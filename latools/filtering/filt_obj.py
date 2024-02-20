@@ -286,9 +286,9 @@ class filt(object):
             boolean filter
         """
         analyte = self.check_analytes(analyte)
-            
+        
         key = []
-        for n, f in self.filter_table[analyte].index[self.filter_table[analyte].any(1)]:
+        for n, f in self.filter_table[list(analyte)].index[self.filter_table[list(analyte)].any(axis=1)]:
             key.append(f'{n}:{f}')
         
         return self.make_fromkey('&'.join(key))
@@ -366,12 +366,11 @@ class filt(object):
             boolean filter
         """
         analyte = self.check_analytes(analyte, single=True)
-        
         if len(analyte) == 0:
             return np.ones(self.size, dtype=bool)
         
-        if analyte not in self.analytes:
-            return np.ones(self.size, dtype=bool)
+        # if analyte not in self.analytes:
+        #     return np.ones(self.size, dtype=bool)
             # print(f'Warning: {analyte} is not in filter table. No filters applied.')
 
         if isinstance(filt, str):

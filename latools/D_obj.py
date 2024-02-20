@@ -103,6 +103,10 @@ class D(object):
         analysis spots when calculating sample statistics.
     filt : filt object
         An object for storing, selecting and creating data filters.F
+    passthrough : tuple, optional
+        If data loading happens at a higher level, pass a tuple containing
+        (file, sample, analytes, data, meta). This will be used to populate
+        the object, rather than loading data from a file.
     """
 
     def __init__(self, data_file=None, dataformat=None, errorhunt=False, cmap=None, internal_standard=None, name='file_names', passthrough=None):
@@ -158,7 +162,7 @@ class D(object):
                 if k in self.cmap:
                     self.cmap[k] = v
 
-        # set up flags
+        # set up variables for autorange
         self.sig = np.array([False] * self.Time.size)
         self.bkg = np.array([False] * self.Time.size)
         self.trn = np.array([False] * self.Time.size)
@@ -166,6 +170,11 @@ class D(object):
         self.bkgrng = np.array([]).reshape(0, 2)
         self.sigrng = np.array([]).reshape(0, 2)
 
+        if passthrough is not None:
+            if 'laserlog_bkg' in self.data:
+                self.bkg, self.sig, self.trn = self.data['laserlog_bkg']
+                self.mkrngs()
+        
         # set up blank filtering object
         self._init_filts()
         # self.filt = filt(self.Time.size, self.analytes)
@@ -352,6 +361,8 @@ class D(object):
             sig = self.data['total_counts']
         elif analyte in self.analytes:
             sig = self.focus[analyte]
+        elif analyte in ['PC1', 'PC2']:
+            sig = self.data['pca'][analyte]
         else:
             raise ValueError('Invalid analyte.')
 
@@ -398,6 +409,8 @@ class D(object):
             sig = self.data['total_counts']
         elif analyte in self.analytes:
             sig = self.focus[analyte]
+        elif analyte in ['PC1', 'PC2']:
+            sig = self.data['pca'][analyte]
         else:
             raise ValueError('Invalid analyte.')
 
