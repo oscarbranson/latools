@@ -56,7 +56,7 @@ def read_ImageMap(f):
 
     images = {}
     
-    ImagePath = os.path.dirname(os.path.abspath('scandata/TG1_lines.ImageMap'))
+    ImagePath = os.path.dirname(os.path.abspath(f))
 
     for child in root:
         # fname = child[0].text
@@ -97,7 +97,7 @@ def load_trace(f):
     return traces
 
 def load_traces(dir, scans, exclude='NIST'):
-    fs = [f for f in glob('ablation_export/trace_export/*.csv') if exclude not in f]
+    fs = [f for f in glob(dir + '/*.csv') if exclude not in f]
     
     out = {}
     for f in fs:
