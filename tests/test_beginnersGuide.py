@@ -8,11 +8,11 @@ class test_docscode(unittest.TestCase):
     print('\n\nTesting Beginners Guide code examples.')
     if not os.path.exists('./latools_demo_tmp'):
         os.mkdir('./latools_demo_tmp')
-    os.chdir('latools_demo_tmp')
+    # os.chdir('latools_demo_tmp')
 
-    la.get_example_data('./latools_demo_tmp')
+    la.get_example_data('./latools_demo_tmp/latools_demo_tmp')
 
-    eg = la.analyse(data_path='./latools_demo_tmp',  # the location of your data
+    eg = la.analyse(data_path='./latools_demo_tmp/latools_demo_tmp',  # the location of your data
                     config='UCD-AGILENT',  # the configuration to use
                     internal_standard='Ca43',  # the internal standard in your analyses
                     srm_identifier='STD')  # the text that identifies which files contain standard reference materials
@@ -62,8 +62,8 @@ class test_docscode(unittest.TestCase):
     # OK To change line numbers after here.
 
     # clean up
-    os.chdir('..')
-    shutil.rmtree('latools_demo_tmp')
+    # os.chdir('..')
+    shutil.rmtree('./latools_demo_tmp/latools_demo_tmp')
 
     print('\nDone.\n\n')
 

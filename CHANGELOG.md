@@ -1,10 +1,37 @@
 # Changelog
 All significant changes to the software will be documented here.
 
-## [0.3.27-dev] - LIVE
+## [0.3.31-dev] - LIVE
 
 ### TODO
 - implement different analyte lists for different stages (raw, ratios, mass_fractions), OR improve analyte_checker functionality. This has to propagate throught to filter assignment.
+
+## [0.3.30] - 12/01/2024
+
+### Changed
+ - Changed `sklearn` to `scikit-learn` in requirements.txt to accommodate change in upstream package name
+ - Moved from setup.py to setup.cfg for package metadata
+ - Changed version labelling from `__version__` to `VERSION` to match pypi expectations.
+
+
+## [0.3.29]
+
+More pandas 2.0 'indexing with set' compatibility updates...
+
+### Changed
+ - modify dataframe indexing in filt_obj to work with pandas>=2.0.0
+
+
+
+## [0.3.28]
+
+### Changed
+ - minor updates to work with pandas>=2.0.0
+ - plotting updates to use `.get_subplotspec()` when checking row/col status.
+ - minor revisions to GitHub Actions scripts
+
+
+## [0.3.27] missed... oops!
 
 ## [0.3.26]
 
