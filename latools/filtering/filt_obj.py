@@ -117,7 +117,7 @@ class filt(object):
                 return analytes[0]
             return valid.pop()
         else:
-            return valid
+            return list(valid)
 
     def add(self, name, filt, info='', params=(), setn=None):
         """
