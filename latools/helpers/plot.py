@@ -322,13 +322,13 @@ def crossplot(dat, keys=None, lognorm=True, bins=25, figsize=(12, 12),
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
-        if ax.is_first_col():
+        if ax.get_subplotspec().is_first_col():
             ax.yaxis.set_ticks_position('left')
-        if ax.is_last_col():
+        if ax.get_subplotspec().is_last_col():
             ax.yaxis.set_ticks_position('right')
-        if ax.is_first_row():
+        if ax.get_subplotspec().is_first_row():
             ax.xaxis.set_ticks_position('top')
-        if ax.is_last_row():
+        if ax.get_subplotspec().is_last_row():
             ax.xaxis.set_ticks_position('bottom')
 
     # set up colour scales
@@ -473,7 +473,7 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None, ncol=4):
 
         ax.set_ylim(1, ax.get_ylim()[1])
 
-        if ax.is_first_col():
+        if ax.get_subplotspec().is_first_col():
             ax.set_ylabel(ylab)
 
         ax.set_yticklabels([])
@@ -701,11 +701,11 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
                 ax.text(.95, .95, '{} (off)'.format(n), ha='right',
                         va='top', transform=ax.transAxes)
 
-            if ax.is_last_row():
+            if ax.get_subplotspec().is_last_row():
                 ax.set_xlabel('Time (s)')
-            if ax.is_first_col():
+            if ax.get_subplotspec().is_first_col():
                 ax.set_ylabel('Gradient (x)')
-            if ax.is_last_col():
+            if ax.get_subplotspec().is_last_col():
                 tax.set_ylabel('Signal (line)')
 
             if fail:
