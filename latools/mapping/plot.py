@@ -101,18 +101,46 @@ def plot_vertices(scan, label=False, ax=None):
 
     return ax.get_figure(), ax
 
+def find_overlapping_images(traces, images):
 
-def plot_traces(traces, analyte, vmin=None, vmax=None, ax=None, **kwargs):
+    sub_images = {}
+    
+    for trace in traces.values():
+    
+        x0 = trace.x.min()
+        x1 = trace.x.max()
+        y0 = trace.y.min()
+        y1 = trace.y.max()
+        
+        for k, image in images.items():
+            if 'extent' not in image:
+                continue
+            
+            xmin, xmax, ymax, ymin = image['extent']
+            
+            if ((xmin < x0 < xmax) or (xmin < x1 < xmax)) and ((ymin < y0 < ymax) or (ymin < y1 < ymax)):
+
+                sub_images[k] = image
+    
+    return sub_images
+
+
+def plot_traces(traces, analyte, vmin=None, vmax=None, ax=None, transform=None, thin=None, **kwargs):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=[6,6])
         
     dvmin = np.inf
     dvmax = -np.inf
     for name, trace in traces.items():
+        if transform is None:
+            c = trace[analyte]
+        else:
+            c = transform(trace[analyte])
+            
         if trace[analyte].min() < dvmin:
-            dvmin = trace[analyte].min()
+            dvmin = c.min()
         if trace[analyte].max() > dvmax:
-            dvmax = trace[analyte].max()
+            dvmax = c.max()
     
     if vmin is None:
         vmin = dvmin
@@ -120,6 +148,11 @@ def plot_traces(traces, analyte, vmin=None, vmax=None, ax=None, **kwargs):
         vmax = dvmax
     
     for name, trace in traces.items():
-        ma = ax.scatter(trace['x'], trace['y'], c=trace[analyte], vmin=vmin, vmax=vmax, **kwargs)
+        if transform is None:
+            c = trace[analyte]
+        else:
+            c = transform(trace[analyte])
+            
+        ma = ax.scatter(trace['x'][::thin], trace['y'][::thin], c=c[::thin], vmin=vmin, vmax=vmax, **kwargs)
         
     return ma
