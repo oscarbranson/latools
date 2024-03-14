@@ -192,7 +192,6 @@ def autorange(xvar, sig, gwin=7, swin=None, win=30,
             fsig[ts[0]:ts[1]+1] = False
             fbkg[ts[0]:ts[1]+1] = True
         zeros = zeros[(~too_small).flatten()]
-    
     if zeros is not None:
         zeros = zeros.flatten()
         if sigs.ndim > 1:

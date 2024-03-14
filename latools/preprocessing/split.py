@@ -239,7 +239,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
         raise ValueError("'{}' is not a valid analyte. Please use one of:\n  {}".format(analyte, valid))
 
     # autorange
-    bkg, sig, _, _ = autorange(dat['Time'], y_data, **autorange_args)
+    bkg, sig, _, _ = autorange(dat['Time'], y_data, min_points=min_points, **autorange_args)
 
     ns = np.zeros(sig.size)
     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
