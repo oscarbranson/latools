@@ -18,6 +18,7 @@ from tqdm import tqdm
 from .signal import fastgrad, fastsmooth, findmins, bool_2_indices, calc_grads
 from .analytes import pretty_element, unitpicker, analyte_checker
 from .stat_fns import nominal_values, gauss, R2calc, unpack_uncertainties
+from ..processes.signal_id import log_nozero, split_kmeans, split_polynomial
 
 def calc_nrow(n, ncol):
     if n % ncol == 0:
@@ -490,8 +491,9 @@ def histograms(dat, keys=None, bins=25, logy=False, cmap=None, ncol=4):
 
 
 def autorange_plot(t, sig, gwin=7, swin=None, win=30,
-                   on_mult=(1.5, 1.), off_mult=(1., 1.5),
-                   nbin=10, thresh=None):
+                   on_mult=(1.5, 1.), off_mult=(1., 1.5), min_points=None,
+                   thresh=None, transform='log', signal_id_mode='kmeans',
+                   poly_noise_level=3, poly_order=3, std_above_baseline=5):
     """
     Function for visualising the autorange mechanism.
 
@@ -526,35 +528,56 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     -------
     fig, axes
     """
+    failed = []
+    sig = np.asanyarray(sig)
+
+    # smooth signal
     if swin is not None:
         sigs = fastsmooth(sig, swin)
     else:
         sigs = sig
+        
+    # transform signal
+    if transform == 'log':
+        tsigs = log_nozero(sigs)
+    else:
+        tsigs = sigs
 
     # perform autorange calculations
     
-    # bins = 50
-    kde_x = np.linspace(sig.min(), sig.max(), nbin)
-
-    kde = gaussian_kde(sigs)
-    yd = kde.pdf(kde_x)
-    mins = findmins(kde_x, yd)  # find minima in kde
-
     if thresh is not None:
-        mins = [thresh]
-    if len(mins) > 0:
-        bkg = sigs < (mins[0])  # set background as lowest distribution
+        if transform == 'log':
+            thresh = np.log(thresh)
+        fsig = tsigs > thresh
+    elif signal_id_mode == 'kmeans':
+        if tsigs.ndim == 1:
+            scale = False
+            tsigs = tsigs.reshape(-1, 1)
+        else:
+            scale = True
+        
+        fsig = split_kmeans(tsigs, scaleX=scale).astype(bool)
+    
+    elif signal_id_mode == 'polynomial':
+        xvar = t
+        fsig = split_polynomial(xvar, tsigs, order=poly_order, noise_level=poly_noise_level, std_above_baseline=std_above_baseline)
     else:
-        bkg = np.ones(sig.size, dtype=bool)
-    # bkg[0] = True  # the first value must always be background
-
-    # assign rough background and signal regions based on kde minima
-    fbkg = bkg
-    fsig = ~bkg
+        raise ValueError(f"signal_id_mode must be 'kmeans' or 'polynomial', not '{signal_id_mode}'")
+        
+    fsig[0] = False  # the first value must always be background
+    fbkg = ~fsig
 
     g = abs(fastgrad(sigs, gwin))  # calculate gradient of signal
     # 2. determine the approximate index of each transition
     zeros = bool_2_indices(fsig)
+    
+    # remove any regions that are smaller than min_points
+    if min_points is not None:
+        too_small = np.diff(zeros) < min_points
+        for ts in zeros[too_small.flatten()]:
+            fsig[ts[0]:ts[1]+1] = False
+            fbkg[ts[0]:ts[1]+1] = True
+        zeros = zeros[(~too_small).flatten()]
 
     if zeros is not None:
         zeros = zeros.flatten()
@@ -642,23 +665,26 @@ def autorange_plot(t, sig, gwin=7, swin=None, win=30,
     ax2.axes.set_position(p2)
 
     # plot traces and gradient
-    ax1.plot(t, sig, color='k', lw=1)
+    ax1.plot(t, tsigs, color='k', lw=1)
     ax1.set_xticklabels([])
     ax1.set_ylabel('Signal')
     ax3.plot(t, g, color='k', lw=1)
     ax3.set_xlabel('Time (s)')
     ax3.set_ylabel('Gradient')
 
+    ax1.set_xlim(t[0], t[-1])
+    ax3.set_xlim(t[0], t[-1])
+    
     # plot kde
-    ax2.fill_betweenx(kde_x, yd, color=(0, 0, 0, 0.2))
-    ax2.plot(yd, kde_x, color='k')
+    # ax2.fill_betweenx(kde_x, yd, color=(0, 0, 0, 0.2))
+    # ax2.plot(yd, kde_x, color='k')
     ax2.set_ylim(ax1.get_ylim())
     ax2.set_yticklabels([])
-    ax2.set_xlabel('Data\nDensity')
+    # ax2.set_xlabel('Data\nDensity')
 
     # limit
-    for ax in [ax1, ax2]:
-        ax.axhline(mins[0], color='k', ls='dashed', alpha=0.4)
+    # for ax in [ax1, ax2]:
+    #     ax.axhline(mins[0], color='k', ls='dashed', alpha=0.4)
 
     if len(zeros) > 0:
         # zeros
