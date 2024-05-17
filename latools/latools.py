@@ -1774,6 +1774,8 @@ class analyse(object):
             caltab.loc[:, (a, 'massbias_err')] = un.std_devs(massbias)
             
         self.caltab = caltab.reindex(self.stdtab.columns.levels[0], axis=1, level=0)
+        
+        self.caltab.fillna(1, inplace=True)
 
     def clear_calibration(self):
         if self.srms_ided:
@@ -4117,7 +4119,7 @@ class analyse(object):
         
         self.stat_focus_stage = focus_stage
 
-        return 
+        return self.getstats()
 
     @_log
     def ablation_times(self, samples=None, subset=None):
