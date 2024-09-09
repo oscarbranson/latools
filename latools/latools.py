@@ -67,7 +67,11 @@ np.seterr(invalid='ignore')
 # TODO: Add 'smooth all' function.
 
 class analyse(object):
-    """
+    def __init__(self, data_path, errorhunt=False, config='DEFAULT',
+                 dataformat=None, extension='.csv', srm_identifier='STD',
+                 cmap=None, time_format=None, internal_standard='Ca43',
+                 file_structure='multi', names='file_names', srm_file=None, pbar=None, split_kwargs={}):
+        """
     For processing and analysing whole LA - ICPMS datasets.
 
     Parameters
@@ -156,14 +160,6 @@ class analyse(object):
     cmaps : dict
         An analyte - specific colour map, used for plotting.
     """
-
-    def __init__(self, data_path, errorhunt=False, config='DEFAULT',
-                 dataformat=None, extension='.csv', srm_identifier='STD',
-                 cmap=None, time_format=None, internal_standard='Ca43',
-                 file_structure='multi', names='file_names', srm_file=None, pbar=None, split_kwargs={}):
-        """
-        For processing and analysing whole LA - ICPMS datasets.
-        """
         # initialise log
         params = {k: v for k, v in locals().items() if k not in ['self', 'pbar']}
         self.log = ['__init__ :: args=() kwargs={}'.format(str(params))]
