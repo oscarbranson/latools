@@ -279,7 +279,9 @@ class analyse(object):
         data.sort(key=lambda d: d.uTime[0])
 
         # process sample names
-        if (names == 'file_names') | (names == 'metadata_names'):
+        if file_structure == 'long':
+            samples = np.array([s.sample for s in data], dtype=object)  
+        elif (names == 'file_names') | (names == 'metadata_names'):
             samples = np.array([s.sample.replace(' ', '') for s in data], dtype=object)  # get all sample names
             # if duplicates, rename them
             usamples, ucounts = np.unique(samples, return_counts=True)
@@ -292,8 +294,6 @@ class analyse(object):
                     samples[ind] = new  # rename in samples
                     for s, ns in zip([data[i] for i in np.where(ind)[0]], new):
                         s.sample = ns  # rename in D objects
-        elif file_structure == 'long':
-            samples = np.array([s.sample for s in data], dtype=object)
         else:
             samples = np.arange(len(data))  # assign a range of numbers
             for i, s in enumerate(samples):
