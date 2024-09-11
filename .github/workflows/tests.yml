@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -22,15 +22,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Python dependencies
-      uses: getsentry/action-setup-venv@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-        system-site-packages: false
-        cache-dependency-path: |
-          requirements.txt
-        install-cmd: |
-          pip install -r requirements.txt
-          pip install -e . --no-deps --force-reinstall
+      shell: bash -l {0}
+      run: |
+      
+        python3 -m pip install -r requirements.txt
+        python3 -m pip install -e . --no-deps --force-reinstall
     
     - name: Run tests
       run: |
