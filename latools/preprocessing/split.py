@@ -185,7 +185,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             srm_replace.append(s)
         sample_list = srm_replace
 
-    dataformat = read_dataformat(dataformat, silent=False)
+    dataformat = read_dataformat(dataformat, silent=True)
 
     _, _, dat, meta = read_data(data_file, dataformat=dataformat, name_mode='file')
 
@@ -211,6 +211,10 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     n = int(max(ns))
 
     nsamples = len(sample_list)
+    
+    print('\n*** Starting Long File Split ***')
+    print(f'There are {nsamples} in the sample list.')
+    print(f'With initial settings, we have found {n} ablations in the data.')
 
     # deal with wildcards
     if nsamples <= n and mode != 'strict':
@@ -249,12 +253,13 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
                     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
                     n = int(max(ns))
                 print('       (Removed data fragments < {} points long)'.format(min_points))
-        elif isinstance(min_points, (int, float)):
-            # minimum point filter
-            sig = sig & np.roll(sig, min_points)
-            ns = np.zeros(sig.size)
-            ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
-            n = int(max(ns))
+        # elif isinstance(min_points, (int, float)):
+        #     print('  -> There are more ablations than samples...')
+        #     # minimum point filter
+        #     sig = sig & np.roll(sig, min_points)
+        #     ns = np.zeros(sig.size)
+        #     ns[sig] = np.cumsum((sig ^ np.roll(sig, 1)) & sig)[sig]
+        #     n = int(max(ns))
         else:
             print('  -> There are more samples than ablations...')
             print('     Check your sample list is correct. If so, consider')
@@ -262,7 +267,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
             return
 
     minn = min([len(sample_list), n])
-
+    
     # calculate split boundaries
     bounds = []
     lower = 0
@@ -307,7 +312,7 @@ def long_file(data_file, dataformat, sample_list, analyte='total_counts', savedi
     
     # save output
     if passthrough:
-        print(f"Success! {n} ablations identified.")
+        print(f"*** Success! {n} ablations identified. ***\n")
         for sample, sdat in sections.items():
             
             sanalytes = list(sdat['rawdata'].keys())
