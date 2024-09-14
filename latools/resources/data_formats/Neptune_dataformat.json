@@ -1,0 +1,14 @@
+{
+    "genfromtext_args": {
+    "delimiter": ",",
+    "skip_header": 17 
+    },
+    "meta_regex": {
+        "8": [["date"],"([0-9]{2}.[0-9]{2}.[0-9]{4})"]
+    },
+    "column_id": {
+        "delimiter": ",",
+        "timecolumn": 0,
+        "name_row": 15,
+        "pattern": "([A-z]{1,2}[0-9]{1,8})"
+    }}
