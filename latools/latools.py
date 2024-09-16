@@ -762,7 +762,7 @@ class analyse(object):
             ax.plot(fitx, expfit(fitx, ep - nsd_below * np.diag(ecov)**.5, ),
                     color='b', label='Used')
             ax.text(0.95, 0.75,
-                    ('y = $e^{%.2f \pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: '
+                    ('y = $e^{%.2f \\pm %.2f * x}$\n$R^2$= %.2f \nCoefficient: '
                      '%.2f') % (ep,
                                 np.diag(ecov)**.5,
                                 eeR2,
@@ -2576,6 +2576,32 @@ class analyse(object):
         return
 
     @_log
+    def filter_clay_removal(self, clay_tracers=['27Al', '55Mn'], filt=True, samples=None, subset=None):
+        """
+        Apply a filter to remove clay-rich samples.
+        
+        Parameters
+        ----------
+        clay_tracers : list
+            A list of analytes that are indicative of clay content.
+        filt : bool
+            Whether or not to apply existing filters to the data before
+            calculating this filter.
+        
+        Returns
+        -------
+        None
+        """
+        if samples is not None:
+            subset = self.make_subset(samples, silent=True)
+        samples = self._get_samples(subset)
+        
+        with self.pbar.set(total=len(samples), desc='Removing Clays') as prog:
+            for s in self.data.values():
+                s.filter_clay_removal(clay_tracers, filt=filt)
+                prog.update()
+
+    @_log
     def filter_on(self, filt=None, analyte=None, samples=None, subset=None, show_status=False):
         """
         Turns data filters on for particular analytes and samples.
@@ -4284,7 +4310,7 @@ class analyse(object):
 
         # format sample_stats correctly
         lss = [(i, l) for i, l in enumerate(self.log) if 'sample_stats' in l]
-        rep = re.compile("(.*'stats': )(\[.*?\])(.*)")
+        rep = re.compile(r"(.*'stats': )(\[.*?\])(.*)")
         for i, l in lss:
             self.log[i] = rep.sub(r'\1' + str(self.stats_calced) + r'\3', l)
 
@@ -4354,7 +4380,7 @@ def reproduce(past_analysis, plotting=False, data_path=None,
         with open(paths['custom_stat_functions'], 'r') as f:
             csf = f.read()
 
-        fname = re.compile('def (.*)\(.*')
+        fname = re.compile(r'def (.*)\(.*')
 
         for c in csf.split('\n\n\n\n'):
             if fname.match(c):

@@ -22,6 +22,7 @@ import latools.processes as proc
 
 from .filtering import filters
 from .filtering import clustering
+from .filtering.clay_removal import clay_removal
 from .filtering.filt_obj import filt
 from .filtering.signal_optimiser import signal_optimiser, optimisation_plot
 
@@ -1193,6 +1194,40 @@ class D(object):
         fig.tight_layout()
         
         return fig, axs
+    
+    @_log
+    def filter_clay_removal(self, clay_tracers=['27Al', '55Mn'], filt=True):
+        """
+        Apply a filter to remove clay-rich data.
+
+        Parameters
+        ----------
+        clay_tracers : array-like
+            The analytes used to identify clay-rich data. Default is
+            ['27Al', '55Mn'].
+
+        Returns
+        -------
+        None
+        """
+        if isinstance(clay_tracers, str):
+            clay_tracers = [clay_tracers]
+        if len(clay_tracers) < 2:
+            raise ValueError('Must provide at least two clay tracers.')
+        clay_tracers = list(self._analyte_checker(clay_tracers))
+                
+        # get existing filter
+        ind = self.filt.grab_filt(filt=filt, analyte=clay_tracers[0])
+
+        # isolate data
+        data_dict = {k: un.nominal_values(self.focus[k][ind]) for k in clay_tracers}
+        
+        clay_filt = np.zeros_like(ind, dtype=bool)
+        
+        if np.any(ind):
+            clay_filt[ind] = clay_removal(data_dict)
+
+        self.filt.add('clay-' + '-'.join([t.split('_')[0] for t in clay_tracers]), clay_filt, 'Clay-rich data filter.')
     
     @_log
     def filter_new(self, name, filt_str):
