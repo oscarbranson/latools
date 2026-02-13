@@ -20,6 +20,8 @@ from . import plot
 
 __version__ = '0.3.28'
 
+VERSION = __version__
+
 def cite(output='text'):
     """
     Citation for LAtools.

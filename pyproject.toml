@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "latools"
+dynamic = ["version"]
+description = "Tools for LA-ICPMS data analysis."
+readme = "README.md"
+license = "MIT"
+requires-python = ">3.6"
+authors = [
+    { name = "Oscar Branson", email = "oscarbranson@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "uncertainties",
+    "scikit-learn",
+    "scipy",
+    "ipython",
+    "configparser",
+    "tqdm",
+    "python-dateutil",
+]
+
+[project.urls]
+Homepage = "https://github.com/oscarbranson/latools"
+
+[tool.setuptools.packages.find]
+
+[tool.setuptools.package-data]
+latools = [
+    "latools.cfg",
+    "resources/*",
+    "resources/data_formats/*",
+    "resources/test_data/*",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "latools.__version__"}
