@@ -49,7 +49,7 @@ A generic JSON file might look something like this:
         'entry_3': (['a', 'set', 'of'], 'three', 'values')
     }
 
-.. tip:: There are a number of characters that are special in the JSON format (e.g. ``/ \ "``). If you want to include these characters in the file, you have to 'escape' them (i.e. mark them as special) by preceding them with a ``\``. If this sounds too confusing, you can just use an `online formatter <https://www.freeformatter.com/json-escape.html>`_ to make sure all your entries are JSON-safe.
+.. tip:: There are a number of characters that are special in the JSON format (e.g. ``/ \ "``). If you want to include these characters in the file, you have to 'escape' them (i.e. mark them as special) by preceding them with a ``\``. If this sounds too confusing, you can use a `JSON escape tool <https://jsonviewertool.com/json-escape>`_ to make sure all your entries are JSON-safe.
 
 Required Sections
 ^^^^^^^^^^^^^^^^^
